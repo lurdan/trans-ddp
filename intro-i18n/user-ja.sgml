@@ -1,0 +1,158 @@
+<sect><heading>user-ja  --  two sets of messages in ASCII and native codeset in the same language</heading>
+
+<P>
+The author of this section is Tomohiro KUBOTA
+(<email>kubota@debian.or.jp</email>).
+</P>
+
+
+<sect1><heading>Introduction</heading>
+
+<P>
+<package>user-ja</package> is a Debian-specific software which establishes basic
+settings for Japanese-speaking beginners.
+<package>user-ja</package> does not automatically establishes the settings.
+A user who needs Japanese environment has to invoke <prgn>user-ja-conf</prgn>.
+</P>
+
+<P>
+Since <prgn>user-ja-conf</prgn> is a software to establish Japanese
+environment, the environment where user-ja runs may
+be poor Japanese environment.  For example, <prgn>user-ja-conf</prgn>
+must not assume that Japanese character can be displayed.
+However, Japanese character should be used in environments
+where it is possible.
+</P>
+
+<P>
+<package>user-ja</package> is a simple example which switches two sets of 
+messages, one is written using ASCII characters and the 
+other Japanese characters.  Note that both of them are 
+written in Japanese language.  This is beyond what gettext 
+can do.
+</P>
+
+<P>
+Though <package>user-ja</package> is a Japanese-specific software, this problem
+of ability to display non-ASCII character is common to non-ASCII
+languages.
+</P>
+
+
+<sect1><heading>Strategy</heading>
+
+<P>
+The following environments can display Japanese characters:
+<prgn>kon</prgn> (Kanji Console), <prgn>kterm</prgn>, and 
+<prgn>krxvt</prgn> (in <package>rxvt-ml</package> package).
+And more, telnet softwares for Windows and so on may be able 
+to display Japanese characters.
+</P>
+
+<P>
+At first, <prgn>user-ja-conf</prgn> detects the environment.  If it can
+display Japanese characters, go ahead.  If not, try to establish 
+a new environment and invoke itself in it.
+If detection is failed, display Japanese characters and ask
+the user whether he/she can read it.
+</P>
+
+
+
+<sect1><heading>Implementation</heading>
+
+<P>
+<prgn>user-ja-conf</prgn> is a perl script.  Here shows a function which
+check whether Japanese native characters can be displayed or not
+and try to establish an environment where native characters
+can be displayed, if not.
+<example>
+sub isNC($$)
+{
+        my ($KANJI, $TTY, $TERM, $DISPLAY, $WHICH);
+        $TTY = `/usr/bin/tty`;
+        $TERM = $ENV{TERM};
+        $DISPLAY = $ENV{DISPLAY};
+        $WHICH = '/usr/bin/which';
+        $THIS = $_[0];
+        $OPT = $_[1];
+
+        if ($TERM eq 'kon' || $TERM eq 'kterm') {
+                $KANJI=1;
+        } elsif ($DISPLAY ne '' &amp;&amp; system("$WHICH kterm &gt;/dev/null")==0) {
+                exec("kterm -km euc -e $THIS $OPT");
+        } elsif ($DISPLAY ne '' &amp;&amp; system("$WHICH krxvt &gt;/dev/null")==0) {
+                exec("krxvt -km euc -e $THIS $OPT");
+        } else {
+                print STDERR &amp;sourceset2displayset(
+                  "Japanese sentence in Japanese characters 'Can you read this sentence?'\n");
+                print STDERR 
+                  "Japanese sentence in ASCII characters 'Can you read the above sentence written in Kanji? [y/N] ";
+                $a = &lt;&gt;;
+                if ($a =~ /y|Y/) {
+                        $KANJI=1;
+                } elsif ($TTY =~ m#/dev/tty[0-9]+#) {
+                        print STDERR
+                          "Japanese sentence in ASCII characters 'Shall I invoke \'KON\'? [Y/n] ";
+                        $a = &lt;&gt;;
+                        exec("kon -e $THIS $OPT") if ($a !~ /n|N/);
+                        $KANJI=0;
+                } else {
+                        $KANJI=0;
+                }
+        }
+        $KANJI;
+}
+</example>
+</P>
+
+<P>
+<tt>&amp;sourceset2displayset($)</tt> is a function to convert a string from 
+codeset for source code into codeset for display.
+This is needed because codeset for program source (in this case, 
+perl script) and dotfiles may be different.
+<footnote>
+There are three popular codesets for Japanese --- ISO-2022-JP, EUC-JP,
+and SHIFT-JIS.  EUC-JP should be used for perl source code because 
+all non-ASCII characters in EUC-JP do not have values in 0x21 - 0x7e.
+However, ISO-2022-JP is the safest codeset to display because EUC-JP
+and SHIFT-JIS have to be used exclusively.  However, ISO-2022-JP is the
+most difficult codeset to implement and there may be a terminal 
+environment which does not understand ISO-2022-JP (for example, Minicom).
+On the other hand, dotfiles may be written in any codesets, according
+to one's favorite and purpose.
+</footnote>
+</P>
+
+<P>
+The following function is prepared to display messages in
+appropriate codeset.  Don't care '<tt>Lang::</tt>' package.
+<example>
+sub disp ($$) {
+        if ($NC) {print STDERR &amp;Lang::sourceset2displayset($_[1]);}
+        else {print STDERR $_[0];}
+}
+</example>
+</P>
+
+<P>
+This is an example how the <TT>disp</TT> function is used.
+<example>
+sub disp_finish()
+{
+        &amp;Sub::disp(&lt;&lt;EOF1,&lt;&lt;EOF2);
+
+[Enter] key WO OSUTO KONO user-ja-conf HA SYUURYOU SHIMASU.
+EOF1
+
+Japanese sentence in Japanese characters 'Push [Enter] key to finish.'
+EOF2
+}
+</example>
+Here the sentence '[Enter] key WO OSUTO...' is the Latin alphabet expression
+of Japanese.
+</P>
+
+<P>
+Thus almost all messages are duplicated using <tt>disp</tt> function.
+</P>

@@ -1,0 +1,1776 @@
+<!doctype debiandoc public "-//DebianDoc//DTD DebianDoc//EN"
+[
+   <!entity % languages system "languages.ents"> %languages;
+   <!entity % examples system "examples.ents"> %examples;
+]>
+<debiandoc>
+<book>
+
+
+<titlepag>
+  <title>Introduction to i18n</title>
+  <author>
+    <name>Tomohiro KUBOTA</name>
+    <email>kubota@debian.or.jp</email>
+  </author>
+  <version><date></version>
+  <abstract>
+    This document describes introduction to i18n (internationalization)
+    for programmers and package maintainers.
+  </abstract>
+  <copyright>
+    <copyrightsummary>
+    Copyright &copy; 1999 Tomohiro KUBOTA.
+    </copyrightsummary>
+    <p>
+      This manual is free software; you may redistribute it and/or modify it
+      under the terms of the GNU General Public License as published by the
+      Free Software Foundation; either version 2, or (at your option) any
+      later version.
+    </p>
+    <p>
+      This is distributed in the hope that it will be useful, but
+      <em>without any warranty</em>; without even the implied warranty of
+      merchantability or fitness for a particular purpose.  See the GNU
+      General Public License for more details.
+    </p>
+    <p>
+      A copy of the GNU General Public License is available as
+      <tt>/usr/share/common-licenses/GPL</tt> in the Debian GNU/Linux 
+      distribution or on the World Wide Web at 
+      <url id="http://www.gnu.org/copyleft/gpl.html" name="&urlname">. 
+      You can also obtain it by writing to the Free
+      Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+      02111-1307, USA.
+    </p>
+  </copyright>
+</titlepag>
+
+<toc detail="sect1">
+
+
+
+
+
+
+
+
+
+
+<chapt id="scope"><heading>About This Document</heading>
+
+
+
+<sect><heading>Scope</heading>
+
+<P>
+This document describes the basic ideas of I18N written for
+programmers and package maintainers of Debian GNU/Linux.
+The aim of this document is to offer an introduction to 
+basic concepts, character codes, and points of which care 
+should be taken when one writes an I18N-ed software or
+an I18N patch for an existing software.  This document
+also tries to introduce the real state and existing
+problems for each language and country.
+</P>
+
+<P>
+This document does not describe the details of programming,
+except for the last chapter where instances of I18N are
+collected.
+</P>
+
+<P>
+Minimum requirements, for example, 
+that characters should be displayed proper font (at least users
+of the software must be able to guess what is written), 
+that characters must be inputed from keyboard, and
+that softwares must not destroy characters, 
+are stressed in the document and I am trying to 
+describe a HOWTO to satisfy these requirements.
+</P>
+
+<P>
+Though this document is strongly related to programming 
+languages such as C and standardized I18N methods such as
+<prgn>gettext</prgn> and LOCALE, this document does not supply a
+detailed explanation of them.
+</P>
+
+
+
+<sect><heading>New Versions of This Document</heading>
+
+<P>
+The current version of this document is available
+at 
+<url id="http://www.debian.org/~elphick/ddp/" 
+namd="DDP (Debian Documentation Project)"> page.
+</P>
+
+
+
+<sect><heading>Feedback and Contributions</heading>
+
+<P>
+This document needs contributions, especially for a 
+chapter on each languages (<ref id="languages">)
+and a chapter on instances of I18N (<ref id="examples">). 
+These chapters are consist of contributions.
+</P>
+
+<P>
+Otherwise, this will be a mere document only on Japanization, 
+because the original author Tomohiro KUBOTA 
+(<email>kubota@debian.or.jp</email>) 
+speaks Japanese and live in Japan.
+</P>
+
+<P>
+Discussions are held at <tt>debian-devel@lists.debian.org</tt> mailing list.
+(May <tt>debian-doc</tt> or <tt>debian-i18n</tt> be more suitable?)
+</P>
+
+
+
+
+
+
+
+
+
+<chapt id="intro"><heading>Introduction</heading>
+
+<P>
+Debian system includes many softwares.  Though many of them
+have faculty to process, output, and input text data, a part
+of these programs assume text as written in English (ASCII).
+For people who use non-English language these programs are
+hardly usable.
+</P>
+
+<P>
+So far people who use non-English languages have given up
+and accepted computers as such.  However we should throw away
+such a wrong idea now.  It is nonsense that a person who
+want to use a computer has to learn English in advance.
+</P>
+
+<P>
+There are a few approaches for softwares to be able to handle
+non-English languages.  What we need to do at first is to know
+the differences between these approaches and to choose one
+approach for each case.
+</P>
+
+<P>
+<taglist>
+ <tag>a. <strong>L10N</strong> (localization)</tag>
+   <item><p>
+	This approach is to support two languages or character sets,
+	English (ASCII) and another specified one.  An example is 
+	Nemacs (Nihongo Emacs, an ancestor of MULE, MULtilingual Emacs).
+	Since a programmer has his/her own mother tongue,
+	there are numerous L10N patches and L10N softwares 
+	written to satisfy his/her own need.
+   </p></item>
+ <tag>b. <strong>I18N</strong> (internationalization)</tag>
+   <item><p>
+	This approach is to support many languages but only two 
+	of them, English (ASCII) and another one, at the same time. 
+	One have to specify the 'another' language by <tt>LANG</tt> 
+	environmental variable or so on.  
+	LOCALE in C and <prgn>gettext</prgn> is categorized into I18N.
+   </p></item>
+ <tag>c. <strong>M17N</strong> (multilingualization)</tag>
+   <item><p>
+	This approach is to support many languages at the same time.
+	For example, Mule (MULtilingual Enhancement to GNU Emacs) 
+	can treat a text file which contains multiple languages,
+	for example, a paper on difference between Korean and Chinese
+	whose main text is written in Finnish.  Now GNU Emacs 20 and 
+	XEmacs include Mule.
+   </p></item>
+</taglist>
+</P>
+
+<P>
+Generally speaking I18N approach is better than L10N and M17N than I18N.
+In other words, text-processing softwares are 'better' which can treat
+many languages at the same time, than can treat two (English and an 
+another) languages.
+</P>
+
+<P>
+Now let me classify approaches for support of non-English languages
+from an another viewpoint.
+</P>
+
+<P>
+<taglist>
+ <tag>A. Implementation <em>without</em> Knowledge on Each Language</tag>
+   <item><p>
+	By utilizing standardized methods supplied by the kernel or libraries
+	such as LOCALE, <tt>wchar_t</tt>, and <prgn>gettext</prgn>, this 
+	approach is possible.
+	The advantages of this approach are (1) that when the kernel or 
+	libraries is upgraded the software may support new additional languages
+	and (2) that programmers need not know each language.
+	The disadvantage is that there are categories or fields where
+	a standardized method is not available.  So far standardized
+	methods are available in the field of I18N such as LOCALE and
+	<prgn>gettext</prgn> and no standards are established for M17N approach.
+	Furthermore, there are no standard for number of columns a 
+	character occupies nor methods for inputting non-English 
+	language on console (that is, interface to inputting library).
+   </p></item>
+
+ <tag>B. Implementation Using Knowledge on Each Language</tag>
+   <item><p>
+	This approach is to directly implement information about 
+	each language based on knowledge of programmers and 
+	contributors.  L10N almost always uses this approach.
+	The advantage of this approach is that detailed and strict
+	implementation is possible beyond the field where 
+	standardized methods are available.  Language-specific
+	problems can be perfectly solved (of course it depends on
+	the skill of the programmer).  The disadvantages are
+	(1) that the number of supported languages is restricted
+	by the skill or the interest of the programmers or the
+	contributors, (2) that labor which should be united and
+	concentrated to upgrade the kernel or libraries is dispersed
+	into many softwares, that is, re-inventing of the wheel.
+	However a majestic M17N software such as Mule can be
+	built by strongly propel this approach.
+   </p></item>
+</taglist>
+</P>
+
+<P>
+Using this classification, let me consider L10N, I18N and M17N
+from programmer's point of view.
+</P>
+
+<P>
+L10N can be realized only using his/her own knowledge on his/her
+language.  For example, all what you have to do is to implement
+your knowledge on SHIFT-JIS coding system.  Since the motivation 
+of L10N is usually to satisfy programmer's own need, extensiveness
+for the third language is often ignored.  Then, approach B, not A, is 
+taken.
+Though L10N-ed softwares are basically useful for people who 
+speaks the same language to the programmer, it is sometimes 
+useful for other people whose coding system is similar to 
+the programmer's.  For example, a software which 
+doesn't recognize EUC-JP but doesn't break EUC-JP, does not 
+break EUC-KR also. 
+</P>
+
+<P>
+Main part of I18N is, in the case of C program, achieved using
+standardized methods such as LOCALE, <tt>wchar_t</tt>, 
+and <prgn>gettext</prgn>.
+An LOCALE approach is classified into I18N because functions
+related to LOCALE change their behavior by a parameter
+to setlocale() or environmental variables such as <tt>LANG</tt>.
+Namely, approach A is emphasized for I18N. For field where
+standardized methods are not available, however, approach B
+cannot be avoided.  Even in such a case, an interface and 
+support for each language should be designed to be separated
+so that a support for new languages can be easily added.
+</P>
+
+<P>
+Unfortunately there are no standardized methods for M17N so far.
+Exceptions are ISO-2022-INT-* and UNICODE codesets which can
+express many languages at the same time.  However, ISO-2022-INT-*
+is stateful and thus implementation may be difficult and 
+UNICODE lacks a compatibility to eastern Asian standards
+and UNICODE itself has many variants (UCS-* and UTF-*) though
+they can be converted one another easily.  Of course M17N-ed
+software cannot be written only with M17N-ed codeset.
+Thus approach B cannot be avoided for M17N so far.
+Efforts for standardization in various fields for M17N should
+be made.  Mule is the only software which achieved M17N.
+</P>
+
+<P>
+This document is focused on I18N.  Note that an I18N-ed software 
+cannot process a text file which contains more than three languages,
+for example, Finnish, Chinese, and Korean (a paper written in
+Finnish, on comparison of Chinese and Korean).  M17N is needed
+for such a case.  Don't forget that the true goal is M17N and
+I18N is a compromise.
+</P>
+
+<P>
+For people using non-Latin letters, I18N does not include
+messages written in their languages nor file names written
+their languages.  Yes, it is true they should be achieved.
+However, on considering our current state, we can say these
+requires are too much luxury.  Our true necessity is,
+for example, that characters in our languages are displayed
+using correct font without destroying the screen, that 
+a way for our characters to be inputed is supplied, and
+that our languages can be inputed correctly.  It would be
+fine if text-processing softwares such as <prgn>perl</prgn> 
+and <prgn>grep</prgn> processes our languages correctly.
+</P>
+
+<P>
+Regarding such circumstance on which we stand, the author
+concentrate on the problems which is truly needed rather
+than right and ideal I18N/M17N.  
+In other words, the focus of this document is on the way
+characters should be displayed, inputed, and processed without
+destroying them, not on the time-displaying format, currency symbol,
+and so on.
+</P>
+
+
+
+
+
+
+
+
+
+
+<chapt id="coding"><heading>Character Coding Systems</heading>
+
+<P>
+Here major character sets and codesets are introduced.
+The last section of this chapter contains information
+on each language.  Contributions for this section for
+many languages are especially welcome, though contributions
+for the whole text are of course welcome.
+</P>
+
+<sect><heading>General Discussions</heading>
+
+<sect1><heading>Character / Character Set / Coded Character Set (or Codeset)</heading>
+
+<P>
+<strong>CHARACTER CODE</strong> is a set of combinations of bits in order to 
+treat characters in computers.  To determine a character code
+it is needed that to determine a set of characters to be encoded.
+</P>
+
+<P>
+This set of character is called <strong>CHARACTER SET</strong>.  
+There are many standards of character sets in the world.  
+For example, JIS X 0208 contains main characters used in Japanese.  
+Usually, a characters set is not only a collection of characters, but
+each character in the set also has its own number.
+Usually the numbering is done so that the set
+is consistent with international standards.
+For example, many 7bit local character sets are identical to 
+one of ISO 646-* codesets. Many other local character sets are
+related to ISO 8859 or ISO 2022.
+</P>
+
+<P>
+Then one selects a character set or multiple character sets and
+assigns codes for characters included in the character set(s).
+This way to assign code is called <strong>ENCODING</strong>.
+The set of encoded characters are called <strong>CODED CHARACTER SET</strong>
+or <strong>CODESET</strong>.  
+For example, ISO-2022-JP <strong>codeset</strong> contains
+<strong>character set</strong>s of ASCII, JIS X 0201 Katakana, 
+and JIS X 0208 Kanji.
+Encoding for a codeset including multiple character sets
+is usually done in two stages, at first in each character 
+set and then for combination of character sets.
+</P>
+
+<P>
+For a codeset including only one character set, we don't 
+have to distinguish 'character set' and 'codeset'.
+For example, ASCII is a character set and a codeset at the
+same time.
+</P>
+
+
+<sect1><heading>Stateless and Stateful</heading>
+
+<P>
+For codeset including multiple character sets it is needed
+to determine the way to combine these character sets when encoding.
+There are two ways to do that.  One is to make all characters
+in the all character sets have unique codes.  The other is to
+allow characters from different character sets to have the same
+code and to have a code such as escape sequence to switch
+<strong>SHIFT STATE</strong>, that is, to select one character set.
+</P>
+
+<P>
+A codeset with shift state is called <strong>STATEFUL</strong> and
+one without shift state is called <strong>STATELESS</strong>.
+</P>
+
+<P>
+Generally stateful codesets can contain more characters than
+stateless one.  However, implementation of stateful codeset
+is much difficult than that of stateless codeset.
+</P>
+
+
+<sect1><heading>Number of Bytes, Number of Characters, and Number of Columns</heading>
+
+<P>
+One ASCII character is always expressed by one byte
+and occupies one column on console or fixed font for X.
+One must not make such an assumption for I18N programming
+and have to clearly distinguish number of bytes, characters,
+and columns.
+</P>
+
+
+<sect><heading>Standards for Character Codes</heading>
+
+<sect1><heading>ASCII and ISO 646</heading>
+
+<P>
+<strong>ASCII</strong> is a character set and also a codeset at the same time.
+ASCII is 7bit and contains 94 printable characters which are 
+encoded in the region of 0x21-0x7e.  
+</P>
+
+<P>
+<strong>ISO 646</strong> is the international standard of ASCII.  Following
+12 characters of
+<list>
+   <item>0x23 (number),
+   <item>0x24 (dollar),
+   <item>0x40 (at),
+   <item>0x5b (left square bracket),
+   <item>0x5c (backslash),
+   <item>0x5d (right square bracket),
+   <item>0x5e (caret),
+   <item>0x60 (backquote),
+   <item>0x7b (left curly brace),
+   <item>0x7c (vertical line),
+   <item>0x7d (right curly brace), and
+   <item>0x7e (tilde)
+</list>
+are called <strong>IRV</strong> (International Reference Version) 
+and other 82 (94 - 12 = 82) characters are called 
+<strong>BCT</strong> (Basic Code Table).
+Characters at IRV can be different between countries.
+For example, UK version of ISO 646 has pound currency 
+symbol at 0x23 and Japanese version has yen currency 
+symbol at 0x5c.  US version of ISO 646 is same to ASCII.
+</P>
+
+<P>
+As far as I know, all codesets in the world contains
+ISO 646 character set.
+</P>
+
+<P>
+Characters in 0x00 - 0x1f, 0x20, and 0x7f are control characters.
+</P>
+
+<P>
+Nowadays usage of codesets incompatible with ASCII is not encouraged
+and thus ISO 646-* should not be used.  One of the reason is that
+when a string is converted into Unicode, the converter doesn't
+know whether IRVs are converted into characters with same shapes
+or characters with same codes.  Another reason is that source codes
+are written in ASCII.  Source code must be readable anywhere.
+</P>
+
+
+
+<sect1><heading>ISO 8859</heading>
+
+<P>
+<strong>ISO 8859</strong> is an expansion of ASCII using all 8 bits.
+Additional 96 printable characters encoded in 0xa0 - 0xff are
+available besides 94 ASCII printable characters.
+</P>
+
+<P>
+There are 10 variants of ISO 8859 (in 1997).
+<taglist>
+ <tag>ISO-8859-1  Latin alphabet No.1 (1987)</tag>
+      <item>characters for western European languages
+ <tag>ISO-8859-2  Latin alphabet No.2 (1987)</tag>
+      <item>characters for central European languages
+ <tag>ISO-8859-3  Latin alphabet No.3 (1988)</tag>
+ <tag>ISO-8859-4  Latin alphabet No.4 (1988)</tag>
+      <item>characters for northern European languages
+ <tag>ISO-8859-5  Latin/Cyrillic alphabet (1988)</tag>
+ <tag>ISO-8859-6  Latin/Arabic alphabet (1987)</tag>
+ <tag>ISO-8859-7  Latin/Greek alphabet (1987)</tag>
+ <tag>ISO-8859-8  Latin/Hebrew alphabet (1988)</tag>
+ <tag>ISO-8859-9  Latin alphabet No.5 (1989)</tag>
+      <item>same as ISO-8859-1 except for Turkish instead of Icelandic
+ <tag>ISO-8859-10 Latin alphabet No.6 (1993)</tag>
+      <item>Adds Inuit (Greenlandic) and Sami (Lappish) letters to ISO-8859-4
+</taglist>
+</P>
+
+<P>
+A detailed explanation is found at
+<url id="http://park.kiev.ua/mutliling/ml-docs/iso-8859.html" name="&urlname">.
+</P>
+
+
+<sect1><heading>ISO 2022</heading>
+
+<P>
+<strong>ISO 2022</strong> is a very powerful codeset where multiple
+character sets including 1byte and multibyte can be
+expressed at the same time.  It is stateful.
+There are many subset codeset of ISO 2022, for example, 
+ISO-2022-JP, EUC, and compound-text.  ISO-2022-*
+is widely used for mail/news.  EUC has several variants,
+for example, EUC-JP and EUC-KR and widely used for
+UNIX(-like) systems.  Compound-text is the standard
+codeset for X Window System.
+</P>
+
+<P>
+The sixth edition of ECMA-35 is fully identical with
+ISO 2022:1994 and you can find the official document
+at <url id="http://www.ecma.ch/stand/ECMA-035.HTM" name="&urlname">.
+</P>
+
+<P>
+ISO 2022 has two versions of 7bit and 8bit.  At first
+8bit version is explained.  7bit version is a subset
+of 8bit version.
+</P>
+
+<P>
+The 8bit code space are divided into four regions,
+<list>
+ <item>0x00 - 0x1f: C0 (Control Characters 0),
+ <item>0x20 - 0x7f: GL (Graphic Characters Left),
+ <item>0x80 - 0x9f: C1 (Control Characters 1), and
+ <item>0xa0 - 0xff: GR (Graphic Characters Right).
+</list>
+</P>
+
+<P>
+GL and GR is the spaces where (printable) character sets are mapped.
+</P>
+
+<P>
+Next, all character sets, for example, ASCII, ISO 646-UK,
+and JIS X 0208, are classified into following four categories,
+<list>
+ <item>(1) character set with 1-byte 94-character,
+ <item>(2) character set with 1-byte 96-character,
+ <item>(3) character set with multibyte 94-character, and
+ <item>(4) character set with multibyte 96-character.
+</list>
+</P>
+
+<P>
+Characters in character sets with 94-character are mapped
+into 0x21 - 0x7e.  Characters in 96-character set are 
+mapped into 0x20 - 0x7f.
+</P>
+
+<P>
+For example, ASCII, ISO 646-UK, and JIS X 0201 Katakana
+are classified into (1), JIS X 0208 Japanese Kanji, 
+KS C 5601 Korean, GB 2312-80 Chinese are classified into (3),
+and ISO 8859-* are classified to (2).
+</P>
+
+<P>
+The mechanism to map these character sets into GL and GR is
+a bit complex.  There are four buffers, G0, G1, G2, and G3.  
+A character set is <strong>designated</strong> into one of these buffers 
+and then a buffer is <strong>invoked</strong> into GL or GR.
+</P>
+
+<P>
+Control sequences to 'designate' a character set into a
+buffer are determined as below.
+</P>
+
+<P>
+<list>
+ <item>A sequence to designate a character set with 1-byte 94-character
+    <list>
+     <item>into G0 set is: ESC 0x28 F,
+     <item>into G1 set is: ESC 0x29 F,
+     <item>into G2 set is: ESC 0x2a F, and
+     <item>into G3 set is: ESC 0x2b F.
+    </list>
+ <item>A sequence to designate a character set with 1-byte 96-character
+    <list>
+     <item>into G1 set is: ESC 0x2d F,
+     <item>into G2 set is: ESC 0x2e F, and
+     <item>into G3 set is: ESC 0x2f F.
+    </list>
+ <item>A sequence to designate a character set with multibyte 94-character
+    <list>
+     <item>into G0 set is: ESC 0x24 0x28 F
+       (exception: 'ESC 0x24 F' for F = 0x40, 0x41, 0x42.),
+     <item>into G1 set is: ESC 0x24 0x29 F,
+     <item>into G2 set is: ESC 0x24 0x2a F, and
+     <item>into G3 set is: ESC 0x24 0x2b F.
+    </list>
+ <item>A sequence to designate a character set with multibyte 96-character
+    <list>
+     <item>into G1 set is: ESC 0x24 0x2d F,
+     <item>into G2 set is: ESC 0x24 0x2e F, and
+     <item>into G3 set is: ESC 0x24 0x2f F.
+    </list>
+</list>
+where 'F' is determined for each character set:
+<list>
+ <item>character set with 1-byte 94-character
+    <list>
+     <item>F=0x40 for ISO 646 IRV: 1983
+     <item>F=0x41 for BS 4730 (UK)
+     <item>F=0x42 for ANSI X3.4-1968 (ASCII)
+     <item>F=0x43 for NATS Primary Set for Finland and Sweden
+     <item>F=0x49 for JIS X 0201 Katakana
+     <item>F=0x4a for JIS X 0201 Roman (Latin)
+     <item>and more
+    </list>
+ <item>character set with 1-byte 96-character
+    <list>
+     <item>F=0x41 for ISO 8859-1 Latin-1
+     <item>F=0x42 for ISO 8859-2 Latin-2
+     <item>F=0x43 for ISO 8859-3 Latin-3
+     <item>F=0x44 for ISO 8859-4 Latin-4
+     <item>F=0x46 for ISO 8859-7 Latin/Greek
+     <item>F=0x47 for ISO 8859-6 Latin/Arabic
+     <item>F=0x48 for ISO 8859-8 Latin/Hebrew
+     <item>F=0x4c for ISO 8859-5 Latin/Cyrillic
+     <item>and more
+    </list>
+ <item>character set with multibyte 94-character
+    <list>
+     <item>F=0x40 for JIS X 0208-1978 Japanese
+     <item>F=0x41 for GB 2312-80 Chinese
+     <item>F=0x42 for JIS X 0208-1983 Japanese
+     <item>F=0x43 for KS C 5601 Korean
+     <item>F=0x44 for JIS X 0212-1990 Japanese
+     <item>F=0x45 for CCITT Extended GB (ISO-IR-165)
+     <item>F=0x46 for CNS 11643-1992 Set 1 (Taiwan)
+     <item>F=0x48 for CNS 11643-1992 Set 2 (Taiwan)
+     <item>F=0x49 for CNS 11643-1992 Set 3 (Taiwan)
+     <item>F=0x4a for CNS 11643-1992 Set 4 (Taiwan)
+     <item>F=0x4b for CNS 11643-1992 Set 5 (Taiwan)
+     <item>F=0x4c for CNS 11643-1992 Set 6 (Taiwan)
+     <item>F=0x4d for CNS 11643-1992 Set 7 (Taiwan)
+     <item>and more
+    </list>
+</list>
+<footnote>
+WHERE CAN I FIND THE COMPLETE AND AUTHORITATIVE TABLE OF THIS? 
+</footnote>
+</P>
+
+<P>
+Control codes to 'invoke' one of G{0123} into GL or GR
+is determined as below.
+<list>
+ <item>A control code to invoke G0 into GL is: (L)SO ((Locking) Shift Out)
+ <item>A control code to invoke G1 into GL is: (L)SO ((Locking) Shift In)
+ <item>A control code to invoke G2 into GL is: LS2 (Locking Shift 2)
+ <item>A control code to invoke G3 into GL is: LS3 (Locking Shift 3)
+ <item>A control code to invoke one character 
+                         in G2 into GL is: SS2 (Single Shift 2)
+ <item>A control code to invoke one character 
+                         in G3 into GL is: SS3 (Single Shift 3)
+ <item>A control code to invoke G1 into GR is: LS1R (Locking Shift 1 Right)
+ <item>A control code to invoke G2 into GR is: LS2R (Locking Shift 2 Right)
+ <item>A control code to invoke G3 into GR is: LS3R (Locking Shift 3 Right)
+</list>
+<footnote>
+WHAT IS THE VALUE OF THESE CONTROL CODES?
+</footnote>
+</P>
+
+<P>
+Note that a character code in a character set invoked into GR is
+or-ed with 0x80.
+</P>
+
+<P>
+ISO 2022 also determines <strong>announcer</strong> code.  For example, 
+'ESC 0x20 0x41' means 'Only G0 buffer is used.  G0 is already
+invoked into GL'.  This simplify the coding system.  Even this
+announcer can be omitted if people who exchange data agree.
+</P>
+
+<P>
+7bit version of ISO 2022 is a subset of 8bit version.  It does not
+use C1 and GR.
+</P>
+
+<P>
+Explanation on C0 and C1 is omitted here.
+</P>
+
+
+<sect2><heading>Compound Text</heading>
+
+<P>
+<strong>Compound Text</strong> is a subset of ISO 2022, 
+which is used for X clients to communicate each other,
+for example, copy-paste.
+</P>
+
+<P>
+Compound Text is stateful.
+<footnote>
+I HAVE TO WRITE EXPLANATION.
+</footnote>
+</P>
+
+
+
+<sect2><heading>EUC (Extended Unix Code)</heading>
+
+<P>
+<strong>EUC</strong> is a subset of 8bit version of ISO 2022 except for the
+usage of SS2 and SS3 code. Though these codes are used
+to invoke G2 and G3 into GL in ISO 2022, they are invoked
+into GR in EUC.
+This is not a specific codeset but a way to generate a new codeset,
+for example, EUC-Japanese and EUC-Korean.
+</P>
+
+<P>
+EUC is stateless.
+</P>
+
+<P>
+EUC can contain 4 character sets by using G0, G1, G2, and G3
+with specific character sets designated.  
+Though there is no requirement that ASCII is designated to G0,
+I don't know any EUC codeset in which ASCII is not designated to G0.
+</P>
+
+<P>
+For EUC with G0-ASCII, all codes other than ASCII are encoded 
+in 0x80 - 0xff and this is upward compatible to ASCII.
+</P>
+
+<P>
+Expressions for characters in G0, G1, G2, and G3 character sets
+are described below in binary:
+<list>
+ <item>G0: 0???????
+ <item>G1: 1??????? [1??????? [...]]
+ <item>G2: SS2 1??????? [1??????? [...]]
+ <item>G3: SS3 1??????? [1??????? [...]]
+</list>
+</P>
+
+<P>
+where SS2 is 0x8e and SS3 is 0x8f.
+</P>
+
+
+
+<sect1><heading>ISO/IEC 10646 (UCS-4, UCS-2), UNICODE, UTF-8, UTF-16</heading>
+
+<P>
+These codesets are intended to express all characters in the 
+world in a united character set.
+</P>
+
+<P>
+In this document UCS-4 and UCS-2 are regarded as character sets
+and also codesets.  The others are codesets using UCS-4 or its
+subset as a character set.
+</P>
+
+
+<sect2><heading>Unicode 2.1</heading>
+
+<P>
+<strong>Unicode</strong> is a codeset which is designed to be able to express
+all characters in the world, like ISO 2022.
+</P>
+
+<P>
+Unicode is a stateless codeset, different from ISO 2022.
+Since all characters are 16bit-length (or multiple of 16bit
+for combining characters and surrogate pairs), Unicode is not 
+upward-compatible to ASCII, though characters at 0x0021 - 0x007e 
+of Unicode are same to 0x21 - 0x7e of ASCII.
+</P>
+
+<P>
+Unicode as a codeset includes one character set,
+a subset (plane 0 - 16) of UCS-4.  UCS-4 is explained later.
+</P>
+
+<P>
+Unicode (without surrogate pair) is same to UCS-2 (explained later).
+</P>
+
+<P>
+Unicode has three remarkable features of Han Unification,
+Combining Characters, and Surrogate Pair.
+</P>
+
+
+<sect3><heading>Han Unification</heading>
+
+<P>
+This is the point on which Unicode is criticized most strongly
+among Japanese (and also among Korean and Chinese, I suppose) people.
+</P>
+
+<P>
+A region of 0x4e00 - 0x9fff in UCS-2 is used for Japanese Kanji, 
+Chinese Hanzi, and Korean Hanja.  There are similar characters
+in these four character sets. (There are two sets of Chinese characters, 
+simplified Chinese used in P. R. China and traditional Chinese used in 
+Taiwan).  To reduce the number of these ideograms to be encoded
+(the region for these characters can contain only 20992 characters),
+these similar characters are assumed to be the same.
+This is Han Unification.
+</P>
+
+<P>
+However these characters are not exactly the same.  If fonts for
+these characters are made from Chinese one, Japanese people will
+regard them wrong characters, though they will be able to read.
+</P>
+
+<P>
+An example of Han Unification is available at
+<url id="http://charts.unicode.org/unihan/unihan.acgi$0x9AA8" name="&urlname">.
+This is a Kanji character for 'bone'. 
+<url id="http://charts.unicode.org/unihan/unihan.acgi$0x8FCE" name="&urlname">
+is an another example of a Kanji character for 'welcome'.
+</P>
+
+
+
+<sect3><heading>Combining Characters</heading>
+
+<P>
+Unicode has a way to synthesize a accented character by combining
+an accent symbol and a base character.  For example, combining 'a' and
+'~' makes 'a' with tilde.  More than two accent symbol can be added to
+a base character.  
+</P>
+
+<P>
+This faculty is convenient to express Arabic and Thai characters.
+However, a few problems arises.
+</P>
+
+<P>
+<taglist>
+ <tag>Duplicate Encoding</tag>
+    <item>
+    There are multiple ways to express the same character.
+ <tag>Open Repertoire</tag>
+    <item>
+    Number of expressible characters grows unlimitedly.
+    Non-existing characters can be expressed.
+</taglist>
+</P>
+
+<P>
+And more, this threaten the principle that all characters 
+are expressed by constant bit length.
+</P>
+
+
+<sect3><heading>Surrogate Pair aka UTF-16</heading>
+
+<P>
+Though Unicode aimed to express all characters in the world
+in a constant 16 bits, 65536 is apparently insufficient to
+express all characters in the world.
+</P>
+
+<P>
+Surrogate pair is introduced in Unicode 2.0, to expand the
+number of characters, by expressing one character by special
+two continuing 16bit codes.
+</P>
+
+<P>
+0xd800 - 0xdfff is the region reserved for surrogate pair.
+The first 16bit code must be in the region of 0xd800 - 0xdbff.
+The second 16bit code must be in the region of 0xdc00 - 0xdfff.
+Since each region has 1024 expressions, surrogate pair can
+express 1048576 (1024 * 1024 = 1048576) characters.
+</P>
+
+<P>
+Plane 1 - 16 of Group 0 of UCS-4 are mapped to these areas.
+UCS-4 will be explained later.
+</P>
+
+
+<sect3><heading>ISO 646-* Problem</heading>
+
+<P>
+You will need a codeset converter between your local codeset 
+(for example, ISO 8859-* or ISO 2022-*) and Unicode.
+If you are a Japanese, you may use Japanese version
+of ISO 646, which encodes yen currency mark at 0x5c where backslash
+is encoded in ASCII.  
+</P>
+
+<P>
+Then which should your converter convert 0x5c in your local codeset
+into in Unicode, 0x005c (backslash) or yen currency mark?
+You may say yen currency mark is the right solution.
+However, backslash (and then yen mark) is widely used for
+escape character. For example, 'new line' is expressed as
+'backslash - n' in C string literal and Japanese people use
+'yen currency mark - n'.  You may say that program sources
+must written in ASCII and the wrong point is that you 
+tried to convert program source.  Then how about your original
+configuration file for various softwares?
+</P>
+
+<P>
+For example, Shift-JIS codeset, which is the standard codeset
+for Windows/Macintosh in Japan, includes Japanese version of 
+ISO 646.  The 'right' way is convert 0x5c into yen currency mark
+in Unicode.  Now Windows comes to support Unicode and the font
+at 0x005c is yen currency mark.  As you know, backslash 
+(yen currency mark in Japan) is vitally important for Windows,
+because it is used to separate directory names.
+Fortunately, EUC-JP, which is widely used for UNIX in Japan,
+includes ASCII, not Japanese version of ISO 646.  So this 
+is not problem because it is clear 0x5c is backslash.
+</P>
+
+<P>
+Thus all local codesets should not use character sets incompatible
+to ASCII, such as ISO 646-*.
+</P>
+
+
+
+<sect3><heading>Consistency with Local Character Sets</heading>
+
+<P>
+Local character sets can be newly determined or obsoleted.
+I don't know Unicode can adapt itself to such cases.
+This is a REAL fear.  Now (1999) a new character set (JIS X 0208
+3rd and 4th level) is discussed in Japan.  This character set 
+may make older character set (JIS X 0212) obsoleted.
+</P>
+
+<P>
+And one more problem.  JIS X 0208, the main character set
+for Japanese language, has many special symbols, such as
+circle, star, parentheses, and so on.  Correspondence 
+from these characters and Unicode is not standardized.
+Thus the conversion tables are different from vender to vender.
+I guess this problem is not peculiar to JIS X 0208.
+</P>
+
+
+
+<sect2><heading>ISO 10646, UCS-2, and UCS-4</heading>
+
+<P>
+ISO 10646 determines two character sets, <strong>UCS-2</strong>
+and <strong>UCS-4</strong>.
+UCS-2 is a subset of UCS-4.
+</P>
+
+<P>
+UCS-4 is a 32bit character set. Each of 4 bytes in 32bit expression
+of UCS-4 is called <strong>Group</strong>, <strong>Plane</strong>, 
+<strong>Row</strong>, and <strong>Cell</strong>, respectively.  
+The first plane (Group = 0, Plane = 0) is called <strong>BMP</strong> 
+(Basic Multilingual Plane) and UCS-2 is same to BMP.
+</P>
+
+<P>
+Both UCS-2 and UCS-4 are not upward-compatible to ASCII,
+though characters at 0x0021-0x007e in UCS-2 
+(and 0x00000021 - 0x00007e in UCS-4) are same to 
+0x21 - 0x7e in ASCII.
+</P>
+
+<P>
+Though UCS-2 and UCS-4 are explained as character sets,
+they are also codesets.  
+</P>
+
+<P>
+When a string expressed in
+UCS-2 (or UCS-4) is stored into a file, there are two ways,
+big endian and little endian.  To clarify which endian is
+used, a magic character is added at the top of the string.
+The character is 'zero width no-break space', whose
+code is 0xfeff in UCS-2 and 0x0000feff in UCS-4.
+</P>
+
+
+
+<sect2><heading>UTF-8</heading>
+
+<P>
+In spite of the name, <strong>UTF-8</strong> is not similar to UTF-16 at all.
+</P>
+
+<P>
+UTF-8 is a codeset which includes UCS-4 as a character set and is
+upward-compatible to ASCII.
+Conversion from UCS-4 to UTF-8 is performed using a 
+simple conversion rule.
+<example>
+UCS-4 (binary)                       UTF-8 (binary)
+00000000 00000000 00000000 0???????  0???????
+00000000 00000000 00000??? ????????  110????? 10??????
+00000000 00000000 ???????? ????????  1110???? 10?????? 10??????
+00000000 000????? ???????? ????????  11110??? 10?????? 10?????? 10??????
+000000?? ???????? ???????? ????????  111110?? 10?????? 10?????? 10?????? 10??????
+0??????? ???????? ???????? ????????  1111110? 10?????? 10?????? 10?????? 10?????? 10??????
+</example>
+</P>
+
+
+
+<sect2><heading>UTF-2000</heading>
+
+<P>
+I heard that there is a new code UTF-2000.  I don't know at all except
+for the name UTF-2000.
+<footnote>
+I HAVE TO WRITE EXPLANATION.
+</footnote>
+</P>
+
+
+
+
+<chapt id="languages"><heading>Characters in Each Country</heading>
+
+<P>
+This chapter describes a specific information for each language.
+Contributions from people speaking each language are welcome.
+If you are to write a section on your language, please include
+these points:
+<enumlist>
+  <item>kinds and number of characters used in the language,
+  <item>explanation on character set(s) which is (are) standardized,
+  <item>explanation on codeset(s) which is (are) standardized,
+  <item>usage and popularity for each codeset,
+  <item>de-facto standard, if any, on how many columns characters occupy, 
+  <item>writing direction and combined characters,
+  <item>how to layout characters (word wrapping and so on),
+  <item>widely used value for <tt>LANG</tt> environmental variable,
+  <item>the way to input characters from keyboard and whether
+        you want to input yes/no (and so on) in your language 
+        or in English,
+  <item>a set of information needed for beautiful displaying, for example, 
+        where to break a line, hyphenation, word wrapping, and so on, and
+  <item>other topics.
+</enumlist>
+</P>
+
+
+<P>
+Writers whose languages are written in different direction
+from European languages or needs a combined characters
+(I heard that is used in Thai) are encouraged to explain 
+how to treat such languages.
+</P>
+
+
+
+&japanese-japan;
+
+
+
+
+
+
+
+
+<chapt id="output"><heading>Output to Display</heading>
+
+<P>
+Here 'Output to Display' does not mean I18N of messages using 
+<prgn>gettext</prgn>.
+I will concern on whether characters are correctly outputted so that
+we can read it.  For example, install <package>libcanna1g</package> 
+package and display
+<tt>/usr/doc/libcanna1g/README.jp.gz</tt> on console or <prgn>xterm</prgn>
+ (of course after
+ungzipping).  This text file is written in Japanese but even Japanese
+people can not read such a row of strange characters.  Which you would
+prefer if you were a Japanese speaker, an English message which can be read
+with a dictionary or such a row of strange characters which is 
+a result of <prgn>gettext</prgn>ization?  
+(Yes, there <em>is</em> a way to display 
+Japanese characters correctly -- <prgn>kon</prgn> (in <package>kon2</package>
+package)  for console and <prgn>kterm</prgn> for X, and 
+Japanese people are happy with <prgn>gettext</prgn>ized Japanese messages.)
+</P>
+
+<P>
+Problems on displaying non-English characters are discussed below.
+Since the mother tongue of the author is Japanese, the content may
+be biased to Japanese.
+</P>
+
+
+
+<sect><heading>Console Softwares</heading>
+
+<P>
+Softwares running on the console are not responsible for displaying.
+The console itself is responsible.  There are terminal emulators
+which can display non-English languages such as <prgn>kterm</prgn> (Japanese),
+<prgn>krxvt</prgn>, <prgn>grxvt</prgn>, and <prgn>crxvt</prgn> 
+(Japanese, Greek, and Chinese, included
+in <package>rxvt-ml</package> package), <prgn>cxterm</prgn> 
+(Chinese, Korean, and Japanese, non-free),
+and so on and softwares with which non-English characters can be 
+displayed on console such as <package>kon2</package> (Japanese).
+</P>
+
+<P>
+All what a software on console (including terminal emulator and so on) 
+has to do is that output a correct code to the console. 
+</P>
+
+<P>
+At first, it is important not to destroy string data.
+Sometimes it can be done only by 8bit-clean-ize.
+'8bit-clean' means that the software does not destroy the
+most significant bit (MSB) of data the software treats.
+</P>
+
+<P>
+Next, be careful for a software which sends control codes such
+as location every time it output 1 byte.  Such codes destroy
+the continuity of multibyte character.  
+</P>
+
+<P>
+Be also careful for destruction of multicolumn characters.
+For example, when a string exceeds the width of the console, 
+the string is divided at the end of the line.  Terminal emulators
+should have a faculty to avoid such a 'excess of line width' type
+destruction of character but so far no terminal emulators
+have such a faculty.  (Only one exception --- shell mode of Emacs.
+However, unfortunately shell mode of Emacs is a dumb terminal and 
+many softwares cannot be run on it.)  Thus each software on 
+console should be careful.
+</P>
+
+<P>
+There is another reason to destroy multicolumn characters.
+When a message is overwritten on another string, a part
+of a character which is a part of a previous string can be
+left not overwritten.  This may be more troublesome than many
+people would think because multicolumn character can be
+written at every columns, not only at the multiple of the
+width of the character.
+</P>
+
+<P>
+These destruction of continuity of multibyte characters may 
+be a cause of the destruction of the whole line following 
+the character.  Whether this can occur depends on the internal
+implementation of console program.  This can occur if the
+terminal emulator does not treat columns, bytes and characters
+properly separately.  The shell mode of Emacs is the only example
+doing that but there are no chance to overwrite character on
+the shell mode of Emacs, because it is a dumb terminal.
+</P>
+
+<P>
+There are no standards for number of columns a character occupies.
+This can be a large problem for softwares with <tt>ncurses</tt>.
+There is no 'right' way to solve this.  Each software has to
+have an information for each character set.  Consult section 2.6
+for each language.  Take care of the distinction between number 
+of columns, bytes, and characters.  For subset of EUC-JP
+(ASCII alphabets and JIS X 0208 kanji), number of bytes and columns 
+are equal (1-byte character occupy 1 column and 2-byte character
+occupy 2 columns).
+</P>
+
+<P>
+Another important point is that the string has to be converted 
+into a codeset which the console can understand.  So far there
+are no consoles which understand Unicode.
+</P>
+
+
+
+<sect><heading>X Clients</heading>
+
+<P>
+X itself is already internationalized.  Thus many languages can
+be displayed if fonts are properly prepared.  It is users'
+responsibility to prepare fonts and all what softwares have
+to do is to be careful to selection of fonts.
+</P>
+
+<P>
+Though codesets other than ASCII often contains multiple character sets,
+fontsets for X are prepared for each character sets.  So a set of fontsets
+for set of character sets should be used instead of a single fontset.
+</P>
+
+<P>
+For example, C programs using Xlib should use series of functions
+related to XFontSet structure instead of functions for XFontStruct
+structure.
+<example>
+Font              | FontSet
+==================+====================
+XFontStruct       | XFontSet
+------------------+--------------------
+XLoadFont()       | XCreateFontSet()
+------------------+--------------------
+XUnloadFont()     | XFreeFontSet()
+------------------+--------------------
+XQueryFont()      | XFontsOfFontSet()
+------------------+--------------------
+XDrawString()     | XmbDrawString()
+XDrawString16()   | XwcDrawString()
+------------------+--------------------
+XDrawText()       | XmbDrawText()
+XDrawText16()     | XwcDrawText()
+------------------+--------------------
+</example>
+</P>
+
+<P>
+If a software uses the left-hand functions it have to be rewritten
+using the corresponding right-hand functions in the table.  Note that
+this table is not perfect but only for an example.  Since these 
+right-hand functions use wide characters and multibyte characters
+in C, setlocale() has to be called in advance.
+</P>
+
+<P>
+The same problem exists for softwares using toolkits such as
+athena, GTK+, Qt, and so on.
+</P>
+
+
+
+
+
+
+
+<chapt id="input"><heading>Input from Keyboard</heading>
+
+<P>
+I18N of display is a prerequisite for I18N of input from keyboard.
+I18N is not necessary only for answering Yes/No.  Most 
+Japanese-speaking people regard it is too troublesome only for 
+answer Y/N to invoke the input method, input alphabetical 
+representation of Japanese, and convert to Japanese character. 
+This would be true for Korean and Chinese.  On the other hand
+softwares such as text editor, word processor, terminal emulator,
+and shell should have I18N-ed input support.
+</P>
+
+
+
+<sect><heading>Console Softwares</heading>
+
+<sect1><heading>Invoked in the Console and Kon</heading>
+
+<P>
+Canna and Wnn is client/server type Japanese input methods.
+Wnn has its variants for Korean and Chinese.
+They have their own protocols and there are no standards.
+There are softwares to add a faculty of inputting Japanese
+to console by connecting console and these input methods,
+but these softwares (canuum for Canna and uum for Wnn) are 
+not Debianized yet.  There are a few softwares which can talk 
+Canna or Wnn protocol directly, for example, nvi-m17n-canna.
+In Debian system, these softwares 'depends' on libcanna or wnn 
+packages.
+</P>
+
+<P>
+GNU Emacs offers methods for inputting many languages
+such as Japanese, Chinese, Korean, Latin-{12345}, Russian,
+Greek, Hebrew, Thai, Vietnamese, Czech, and so on
+in the console environment.  XEmacs also offers similar
+mechanism but the set of supported languages are different.
+We will be very happy if the input faculty of (X)Emacs 
+becomes a library and other softwares can use.  The author
+doesn't know this can be achieved or not.
+</P>
+
+<P>
+After an input method is supplied, 
+inputed codes must be treated correctly.
+That is, the software must be aware of the number
+of bytes, characters, and columns.
+For example, you have to know how many bytes should be
+deleted and how many '^H' code should be sent to console
+when 'BS' key is pushed.
+</P>
+
+
+<sect1><heading>Invoked in an X Terminal Emulator</heading>
+
+<P>
+X has a standard to input various languages.  That is XIM.
+Kinput2 is a software to connect Canna and/or Wnn and XIM protocol.
+And more, terminal emulators such as kterm and krxvt have a
+faculty to connect to XIM.  So the way to input various languages
+is supplied.
+</P>
+
+<P>
+All what softwares running on a terminal emulator have to do is
+to accept the input properly.
+</P>
+
+<P>
+At first 8bit-clean-ize is needed.  
+Important softwares such as <prgn>bash</prgn> and <prgn>tcsh</prgn> 
+are already 8bit-clean-ized
+and they accept non-ASCII characters.
+</P>
+
+<P>
+However, since these softwares aren't conscious of multibyte 
+characters, editing the inputed line is a bit hard. For example,
+we have to push Backspace key twice to erase a 2byte character.
+If we make a mistake, the inputed string will be broken.
+For stateful codesets or a character whose bytes and columns are different,
+editing would be much more difficult.
+(Fortunately, most of Japanese and Korean characters are expressed in 
+2 bytes and occupies 2 columns.  That is, number of bytes and columns 
+are identical.)
+Thus the softwares should be conscious of multibyte codesets.
+</P>
+
+
+
+
+
+<sect><heading>X Clients</heading>
+
+<P>
+All you need is that:
+<list>
+ <item>To accept input from XIM.  'Over-the-spot' conversion is desirable but
+       not essential.
+ <item>To accept 'paste' using Compound Text.
+</list>
+</P>
+
+
+
+
+
+
+
+<chapt id="internal"><heading>Internal Processing and File I/O</heading>
+
+<P>
+From a user's point of view, a software can use any internal codesets
+if I/O is done correctly.  It is because a user cannot be aware of
+which kind of internal code is used in the software.
+</P>
+
+<P>
+From a programmer's point of view, he/she
+<list>
+  <item>can count number of <em>character</em> (not <em>bytes</em> or
+        <em>columns</em>) correctly,
+  <item>cannot split a multibyte character, and
+  <item>don't have to be careful in shift state
+</list>
+without knowledge on specific codesets, by using
+wide character in C, kinds of Unicode, and so on.
+</P>
+
+<P>
+Since you may not assume anything about
+implementation of wide character (value of <tt>wchar_t</tt>),
+you cannot do anything more than the library prepares,
+for example, obtain number of columns a character occupies.
+</P>
+
+
+
+
+
+
+
+
+<chapt id="other"><heading>Other Special Topics</heading>
+
+<sect><heading>Locale in C</heading>
+
+<P>
+Locale is the main faculty for I18N of C language.
+The easiest way to use locale is to call <tt>setlocale(LC_ALL, "")</tt>.
+</P>
+
+
+
+<sect><heading>Multibyte and Wide characters in C</heading>
+
+<P>
+Multibyte character is a character which is expressed by
+two or more bytes.  Multibyte character corresponds to 
+the 'real' codeset used for input/output. The expression
+of multibyte character depends on <tt>LC_CTYPE</tt>.
+</P>
+
+<P>
+Since multibyte character can be stateful (that is, can have 
+shift status) and the number of bytes a character does not
+have to be a constant, implementation using multibyte character
+can be difficult.  Thus wide character can be used.
+</P>
+
+<P>
+Wide character is stateless and the size of every wide characters
+are same.  Functions for conversion between multibyte character
+and wide character (and string of multibyte characters and
+string of wide characters) are supplied by library.
+Wide character is expressed using <tt>wchar_t</tt> type.
+String of wide characters is expressed
+as a array of <tt>wchar_t</tt>, like string of ASCII characters is expressed
+as a array of <tt>char</tt>.
+</P>
+
+<P>
+Thus it is convenient to input multibyte characters from a stream,
+convert them into wide characters, process, convert back into
+multibyte characters, and output them to a stream.  <tt>wchar_t</tt> is 
+used as a internal code.
+</P>
+
+<P>
+Functions for conversion between multibyte and wide characters/strings 
+are shown below:
+<list>
+ <item><tt>mbtowc()</tt> and <tt>mbrtowc()</tt> to convert 
+       from multibyte to wide character.
+ <item><tt>mblen()</tt>, <tt>mbrlen()</tt> to obtain the number 
+       of characters of multibyte character string.
+ <item><tt>mbstowcs()</tt>, <tt>mbsrtowcs()</tt> to convert from 
+       multibyte to wide character string.
+ <item><tt>wctomb()</tt>, <tt>wcrtomb()</tt> to convert from wide 
+       to multibyte character.
+ <item><tt>wcstombs()</tt>, <tt>wcsrtombs()</tt> to convert from 
+       wide to multibyte character string.
+ <item><tt>mbsinit()</tt> to check shift status.
+ <item><tt>btowc()</tt> and <tt>wctob()</tt> to convert 1byte and 
+       wide characters.
+</list>
+</P>
+
+<P>
+'<tt>r</tt>' version of these functions (for example, <tt>mbrtowc</tt>) 
+have an additional parameter to a pointer to a <tt>mbstate_t</tt> 
+variable which contains the shift status.  Since non-'<tt>r</tt>' 
+version of these functions have shift status in their internal 
+(static) variable, these can treat only one succession of string at a time.
+</P>
+
+<P>
+See manpages of these functions for further information.
+</P>
+
+<P>
+The implementation of wchar_t is not determined by any 
+standards, though UCS-4 is used for glibc.  You must not 
+assume the implementation of <tt>wchar_t</tt>.
+</P>
+
+<P>
+Though usual functions such as <tt>printf()</tt> can be used for multibyte
+characters for input/output, one have to take care of escape 
+character '<tt>%</tt>' used in formatted input/output functions, because 
+a part of a multibyte character can have same value as ASCII 
+code of '<tt>%</tt>'.  
+</P>
+
+
+<sect><heading>Gettext</heading>
+
+<P>
+Gettext is a tool to internationalize messages a software outputs
+according to locale status of <tt>LC_MESSAGES</tt>.
+GNU gettext is a part of Debian system.
+</P>
+
+<P>
+Install <package>gettext</package> package and read info pages for details.
+</P>
+
+<P>
+Don't use non-ASCII characters for '<tt>msgid</tt>'.
+Be careful because you may tend to use ISO-8859-1 characters.
+For example, '&copy;' (copyright mark) is non-ASCII character
+(0xa9 in ISO-8859-1).
+Otherwise, translators may feel difficulty to edit catalog files
+because of conflict between codesets for <tt>msgid</tt> and in
+<tt>msgstr</tt>.
+</P>
+
+<P>
+Be sure the message can be displayed in the assumed environment.
+In other words, you have to read the chapter of 'Output to Display' 
+in this document and internationalize the output mechanism
+of your software prior to <prgn>gettext</prgn>ization.
+<em>ENGLISH MESSAGES ARE PREFERRED EVEN FOR NON-ENGLISH-SPEAKING PEOPLE,
+THAN MEANINGLESS BROKEN MESSAGES.</em>
+</P>
+
+<P>
+The 2nd (3rd, ...) byte of multibyte characters or 
+all bytes of non-ASCII characters in stateful codesets
+can be 0x5c (same to backslash in ASCII) or 0x22
+(same to double quote in ASCII).
+These characters have to properly escaped because
+present version of GNU gettext doesn't care the 
+'charset' subitem of '<tt>Content-Type</tt>' item for '<tt>msgstr</tt>'.
+</P>
+
+<P>
+A <prgn>gettext</prgn>ed message must not used in multiple contexts.
+This is because a word may have different meaning in different context.
+For example, a verb means an order or a command if it appears
+at the top of the sentence in English.  However, different languages
+have different grammar.  If a verb is <prgn>gettext</prgn>ed and it is used
+both in a usual sentence and in an imperative sentence,
+one cannot translate it.
+</P>
+
+
+<P>
+If a sentence is <prgn>gettext</prgn>ed, never divide the sentence.
+If a sentence is divided in the original source code,
+connect them so as to single string contains the full
+sentence.  
+This is because the order of words in a sentence
+is different among languages.
+</P>
+
+<P>
+A software with <prgn>gettext</prgn>ed messages should not depend on
+the length of the messages.  The messages may get longer
+in different language.
+</P>
+
+<P>
+When two or more '%' directive for formatted output functions
+such as <tt>printf()</tt> appear in a message,
+the order of these '%' directives may be changed by
+translation.  In such a case, the translator can specify
+the order.
+See section of 'Special Comments preceding Keywords'
+in info page of <prgn>gettext</prgn> for detail.
+</P>
+
+<P>
+Now there are projects to translate messages in various softwares.
+For example, 
+<url id="http://www.iro.umontreal.ca/~pinard/po/HTML/" 
+name="Translation Project">.
+</P>
+
+
+
+<sect1><heading>Gettext-ize a software</heading>
+
+<P>
+At first, the software has to have the following lines.
+<example>
+int main(int argc, char **argv)
+{
+        ...
+        setlocale (LC_ALL, "");   /* This is not for gettext but 
+                                     all i18n software should have
+                                     this line. */
+        bindtextdomain (PACKAGE, LOCALEDIR);
+        textdomain (PACKAGE);
+        ...
+}
+</example>
+where <var>PACKAGE</var> is the name of the catalog file and 
+<var>LOCALEDIR</var> is <tt>"/usr/share/locale"</tt> for Debian.
+<var>PACKAGE</var> and <var>LOCALEDIR</var> should be defined 
+in a header file or <tt>Makefile</tt>.
+</P>
+
+<P>
+It is convenient to prepare the following header file.
+<example>
+#include <libintl.h>
+#define _(String) gettext((String))
+</example>
+and messages in source files should be written as
+<tt>_("message")</tt>, instead of <tt>"message"</tt>.
+</P>
+
+<P>
+Next, catalog files have to be prepared.
+</P>
+
+
+
+
+<sect><heading>Mail/News</heading>
+
+<P>
+Headers and main texts of mail and news messages have
+to expressed in 7bit.  Headers and main texts have 
+different standard for using non-ASCII codesets.
+(ESMTP, the extension of SMTP, can treat 8bit messages.)
+</P>
+
+<P>
+Codesets for main text is specified in 
+'<tt>codeset</tt>' subitem of
+'<tt>Content-type</tt>' header item.
+The whole list of parameters which can be written
+is found at ***.
+<footnote>
+I HAVE TO FIND THIS LIST (RFC?)
+</footnote>
+</P>
+
+<P>
+'B' encoding and 'Q' encoding are used to use non-ASCII codesets
+in the headers.  These 'B' and 'Q' encodings are not codesets themselves.
+They are a way to express non-ASCII strings using ASCII characters.
+<footnote>
+I HAVE TO WRITE EXPLANATION
+</footnote>
+</P>
+
+
+
+
+
+
+
+<chapt id="examples"><heading>Examples of I18N</heading>
+
+<P>
+Programmers who have internationalized softwares, have
+written a patch of L10N, and so on are encouraged to contribute
+to this chapter.
+</P>
+
+
+
+&minicom;
+&user-ja;
+
+
+
+
+
+
+
+
+
+<chapt id="reference"><heading>References</heading>
+
+<P>
+General
+<list>
+ <item>
+   <url id="http://i44www.info.uni-karlsruhe.de/~drepper/conf96/paper.html" 
+   name="i18n in GNU Project">
+ <item>
+   <url id="http://cns-web.bu.edu/pub/djohnson/web_files/i18n/i18n.html" 
+   name="Concept of C/UNIX i18n">
+</list>
+</P>
+
+<P>
+Characters (general)
+<list>
+ <item>
+   <url id="http://www.kudpc.kyoto-u.ac.jp/~yasuoka/CJK.html"
+   name="&urlname">
+</list>
+</P>
+
+<P>
+Characters (ISO 8859)
+<list>
+ <item>
+   <url id="http://czyborra.com/charsets/iso8859.html" name="&urlname">
+ <item>
+   <url id="http://park.kiev.ua/multiling/ml-docs/iso-8859.html"
+   name="&urlname">
+ <item>
+   <url id="http://www.terena.nl/projects/multiling/ml-docs/iso-8859.html"
+   name="&urlname">
+</list>
+</P>
+
+<P>
+Characters (ISO 2022)
+<list>
+ <item>
+   <url id="http://www.ewos.be/tg-cs/gconcept.htm" name="&urlname">
+ <item>
+   <url id="http://www.ecma.ch/stand/ECMA-035.HTM" name="&urlname">
+</list>
+</P>
+
+<P>
+Characters (Unicode)
+<list>
+ <item><url id="http://www.unicode.org/" name="&urlname">
+</list>
+</P>
+
+<P>
+Example of i18n
+<list>
+ <item>
+   <url id="http://www.wg.omron.co.jp/~shin/Arena-CJK-doc/"
+   name="Arena-i18n">
+   Multilingual web browser.
+ <item>
+   <url id="http://www.m17n.org/mule/" name="Mule">
+   Multilingual editor whose function is included in GNU Emacs 20
+   and XEmacs 20.
+   Mule is the most advanced m17n software in my knowledge.
+</list>
+</P>
+
+<P>
+Projects
+<list>
+ <item>
+   <url id="http://www.li18nux.org/" 
+   name="Linux Internationalization Initiative">, or Li18nux,
+   focuses on the i18n of a core set of APIs and components of Linux
+   distributions.  The results will be proposed to LSB.
+ <item>
+   <url id="http://www.iro.umontreal.ca/~pinard/po/HTML/" 
+   name="Translation Project">
+</list>
+<P>
+
+
+
+
+
+</book>
+</debiandoc>
