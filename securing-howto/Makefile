@@ -119,7 +119,7 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 # HTML
 
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml  $(MANUAL).%.ent $(wildcard %/*.sgml)
-	debiandoc2html -t$(MANUAL) -l $* -c $<
+	debiandoc2html -l $* -c $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	newfile=`echo $$file|\
