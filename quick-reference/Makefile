@@ -110,7 +110,9 @@ ps:   $(PSS)
 pdf:  $(PDFS)
 tar:  $(MANUAL).tar.gz
 
-publish: publish-html publish-examples publish-txt publish-ps publish-pdf
+#publish: publish-html publish-examples publish-txt publish-ps publish-pdf
+# Until back-port function (BASH bug fix needed)
+publish: publish-html publish-examples publish-txt
 publish-all: publish publish-tar
 
 # =================================================================== #
