@@ -79,7 +79,7 @@ developers-reference.%.tex:	developers-reference.%.sgml
 version.ent:	debian/changelog
 	./debian/rules $@
 
-%.validate : %
+%.validate : % version.ent
 	nsgmls -wall -gues $<
 	touch $@
 
