@@ -4,12 +4,12 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for doc-debian package build.
 
-currentlang := en
+currentlang := ru
 
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := ../../../public_html/manuals.html
+PUBLISHDIR := $(CURDIR)/../../manuals.html
 
-sources := debian-faq.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
+sources := debian-faq.sgml ../faqstatic.ent ../faqdynamic.ent $(wildcard *.sgml)
 
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
@@ -20,32 +20,19 @@ publish: debian-faq.$(currentlang).html/index.$(currentlang).html
 	test -d $(PUBLISHDIR)/debian-faq || install -d -m 755 $(PUBLISHDIR)/debian-faq
 	rm -f $(PUBLISHDIR)/debian-faq/*.$(currentlang).html
 	install -p -m 644 debian-faq.$(currentlang).html/*.html $(PUBLISHDIR)/debian-faq/
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
 
-faqdynamic.ent:
-	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
-	if [ -f ../debian/changelog ]; then \
-          echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> faqdynamic.ent; \
-        else \
-          echo "<!entity docversion \"CVS\">" >> faqdynamic.ent; \
-        fi
+../faqdynamic.ent:
+	cd .. && $(MAKE) faqdynamic.ent
 
 validate:
 	nsgmls -ges -wall debian-faq.sgml
 
 html: debian-faq.$(currentlang).html/index.$(currentlang).html
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
-
 debian-faq.$(currentlang).html/index.$(currentlang).html: $(sources)
 	debiandoc2html -c -l $(currentlang) $<
 	mv debian-faq.html debian-faq.$(currentlang).html
 
 text: debian-faq.$(currentlang).txt
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
-
 debian-faq.$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
 
@@ -57,14 +44,10 @@ debian-faq.$(currentlang).ps debian-faq.$(currentlang).dvi debian-faq.$(currentl
 	debiandoc2latex$* -l $(currentlang) $<
 
 ps dvi pdf info: %: debian-faq.$(currentlang).%
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
 
 clean distclean:
 	rm -rf debian-faq*.$(currentlang).html
 	rm -f debian-faq*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
-	rm -f faqdynamic.ent *~ .*~ core tsa*
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	rm -f *~ .*~ core tsa*
 
 .PHONY: all publish clean distclean validate
