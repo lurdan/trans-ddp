@@ -1,6 +1,6 @@
 
 
-all : debian-tutorial.tar.gz debian-tutorial.text.gz debian-tutorial.dvips.gz
+all : debian-tutorial.tar.gz debian-tutorial.text.gz debian-tutorial.dvips.gz debtut.txt
 
 outputs : debian-tutorial.text debian-tutorial.html debian-tutorial.dvips
 
@@ -26,14 +26,19 @@ debian-tutorial.tar.gz : debian-tutorial.tar
 debian-tutorial.dvips.gz : debian-tutorial.dvips
 	cp -f debian-tutorial.dvips debian-tutorial.dvips.tmp
 	gzip --force debian-tutorial.dvips.tmp
-	mv debian-tutorial.dvips.tmp.gz debian-tutorial.dvips.gz	
+	mv -f debian-tutorial.dvips.tmp.gz debian-tutorial.dvips.gz	
 	chmod 644 debian-tutorial.dvips.gz
 
 debian-tutorial.text.gz : debian-tutorial.text
 	cp -f debian-tutorial.text debian-tutorial.text.tmp
 	gzip --force debian-tutorial.text.tmp
-	mv debian-tutorial.text.tmp.gz debian-tutorial.text.gz	
+	mv -f debian-tutorial.text.tmp.gz debian-tutorial.text.gz	
 	chmod 644 debian-tutorial.text.gz	
+
+debtut.txt : debian-tutorial.text
+	cp -f debian-tutorial.text debtut.txt
+	todos debtut.txt
+	chmod 644 debtut.txt
 
 clean : 
 	/bin/rm -r debian-tutorial.html
