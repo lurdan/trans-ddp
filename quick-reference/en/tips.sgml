@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.29 $"  -->
+<!-- CVS revision of this document "$Revision: 1.30 $"  -->
 
 <chapt id="tips"> &debian; tips
 
@@ -950,43 +950,110 @@ $ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
 </example>
 </sect1>
 
-<sect1><prgn>chroot</prgn>
+<sect1 id="chroot"><prgn>chroot</prgn>
+<!-- updated using the idea from Colin Walters walters@debian.org -->
 <p>
-Suppose you have installed a whole Linux distribution (this can be another
-release of &debian; or even a Red Hat distribution)
-into <file><var>/dev/hda1</var></file> and you are running another Linux
-system installed in <file><var>/dev/hda2</var></file>. You can execute the
-system in <file><var>/dev/hda1</var></file> without rebooting the running
-system in <file><var>/dev/hda2</var></file> by sharing the same kernel.
-<example>
-# mount <var>/dev/hda1 /mnt/target</var>
- ... supposing <var>/dev/hda1</var> contains one whole system
-# chroot /mnt/target
- ... Now the contents of <var>/dev/hda1</var> are seen as the root directory.
-# mount proc /proc              # just in case
- ... run commands within <var>/dev/hda1</var>
-</example>
-This enables stable/testing/unstable to be loaded on one machine.  Also, one
-may run a memory-hungry program such as <prgn>dselect</prgn> by running it on
-a host machine while NFS-mounting a satellite machine to the host as r/w and
-pointing <prgn>chroot</prgn> to the satellite machine.
+<prgn>chroot</prgn> program, <manref name="chroot" section="8">, enables
+us to run different instances of the GNU/Linux environment on a single
+system simultaneously without rebooting.
 <p>
-A <prgn>chroot</prgn> system can easily be created by the
-<prgn>debootstrap</prgn> command in Woody.
+One may also run a resource hungry program such as <prgn>apt-get</prgn>
+and <prgn>dselect</prgn> under the chroot of a fast host machine while
+NFS-mounting a slow satellite machine to the host as r/w and the chroot
+point being the mount point of the satellite machine.
+
+<sect2 id="chroot-debian">Run different &debian; flavor with <prgn>chroot</prgn>
+<p>
+A chroot &debian; environment can easily be created by the
+<prgn>debootstrap</prgn> command in Woody.  For example, to create a Sid
+chroot on <var>/sid-root</var> while having fast Internet access:
 <example>
-# mkdir <var>potatochroot</var>
-# debootstrap potato <var>potatochroot</var>
-# chroot <var>potatochroot</var>
-# apt-setup # set-up /etc/apt/sources.list
+main # cd / ; mkdir <var>/sid-root</var>
+main # debootstrap woody <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+... watch it download the whole system
+main # echo "proc-sid <var>/sid-root</var>/proc proc none 0 0" >> /etc/fstab
+main # mount proc-sid <var>/sid-root</var>/proc -t proc
+main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+main # chroot <var>/sid-root</var> /bin/bash
+chroot # apt-setup # set-up /etc/apt/sources.list
+chroot # vi /etc/apt/sources.list # point the source to unstable instead
+chroot # dselect  # you may use aptitude, install mc and vim :-)
 </example>
+<p>
+At this point you should have a fully-working &debian; system, where you
+can play around without fear of affecting your main &debian;
+installation.
+<p>
+This <prgn>debootstrap</prgn> trick can also be used to install &debian;
+to a system without using &debian; install disk but using one for
+another GNU/Linux distribution.  See <url id="&setup-chroot;">.
+
+<sect2 id="chroot-console">Setting up login for <prgn>chroot</prgn>
+<p>
+Typing <tt>chroot <var>/sid-root</var> /bin/bash</tt> is easy, but it
+keep all sorts of environment variables laying around that you may not
+want, and has other issues.  A much better approach is to run another
+login process on a separate virtual terminal where you can log into the
+chroot directly.
+<p>
+Since, on the default &debian; systems, from <tt>tty1</tt> to
+<tt>tty6</tt> it runs Linux consoles and on <tt>tty7</tt> it runs the X
+Window System, let's set up <tt>tty8</tt> for a chrooted console as an
+example.  After creating chroot system as described in <ref
+id="chroot-debian">, type from the root shell of the main system:
+<example>
+main # echo "8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> /sbin/getty 38400 tty8" \
+       >> /etc/inittab
+main # init q    # reload init
+</example>
+
+<sect2 id="chroot-x">Setting up X for <prgn>chroot</prgn>
+<p>
+You want to run the latest X and GNOME safely in your chroot? That's
+entirely possible!  The following example will make GDM run on virtual
+terminal <tt>vt9</tt>.
+<p>
+First install chroot system using the method described in 
+<ref id="chroot-debian">.  From the root of the main system, copy key
+configuration files to the chroot system.
+<example>
+main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+main # chroot <var>/sid-root</var> # or use chroot console
+chroot # apt-get install gdm gnome x-window-system
+chroot # vi /etc/gdm/gdm.conf # do s/vt7/vt9/ in [servers] section
+chroot # /etc/init.d/gdm start
+</example>
+Here, <file>/etc/gdm/gdm.conf</file> was edited to change starting 
+virtual console from <tt>vt7</tt> to <tt>vt9</tt>.
+<p>
+Now you can easily switch back and forth between full X environments in
+your chroot and your main system just by switching between Linux virtual
+terminals; e.g. by using Ctrl-Alt-F7 and Ctrl-Alt-F9. Have fun!
+<p>
+[FIXME] Add a comment and link to the init script of the chrooted gdm.
+
+<sect2 id="chroot-dist">Run other distributions with <prgn>chroot</prgn>
+<p>
+A chroot environment of the other distribution can easily be created.
+You install a system into separate partitions using the installer of the
+other distribution.  If its root partition is in
+<file><var>/dev/hda9</var></file>. 
+<example>
+main # cd / ; mkdir <var>/other-dist</var>
+main # mount -t ext3 <var>/dev/hda9</var> <var>/other-dist</var>
+main # chroot <var>/other-dist</var> /bin/bash
+</example>
+Then the rests are similar as <ref id="chroot-debian">, <ref
+id="chroot-console">, and <ref id="chroot-x">.
+
+<sect2 id="chroot-build">Build package with <prgn>chroot</prgn>
 <p>
 There is a more specialized chroot package, <package>pbuilder</package>,
 which constructs a chroot system and builds a package inside the
 chroot. It is an ideal system to use to check that a package's
 build-dependencies are correct, and to be sure that unnecessary and
 wrong build dependencies will not exist in the resulting package.
-<p>
-See <url id="&setup-chroot;">
+
 </sect1>
 
 <sect1>How to check hard links
