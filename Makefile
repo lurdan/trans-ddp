@@ -7,22 +7,22 @@ SUBDIRS	:=	\
 		debian-bugs	 	\
 		developers-reference	\
 		dictionary 		\
-		meta 			\
-		network-administrator 	\
-		project-history 	\
-		system-administrator 	\
-		securing-howto		\
-		user			\
-		programmer		\
-		intro-i18n		\
-		java-faq		\
 		euro-support		\
-		quick-reference		\
 		faq			\
 		fr			\
+		intro-i18n		\
+		java-faq		\
+		meta 			\
+		network-administrator 	\
+		programmer		\
+		project-history 	\
+		quick-reference		\
+		securing-howto		\
+		system-administrator 	\
+		user			\
 		users-guide		\
-		progeny-debian-manual
-# above wil be erased with next update
+# above will be erased with next update and new documents are created from CVS
+# a document with broken Makefile incident will be moved to the bottom
 
 # Since test(1) bug, maint-guide is build manually until woody release.
 #		maint-guide		
@@ -37,7 +37,9 @@ DEADDIRS :=	\
 		sgmltools-startup 	\
 		menu 			\
 		markup 			\
-		users_manual 
+		users_manual		\
+		progeny-debian-manual	\
+# or just as archive without building them
 
 # where we should publish to
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
