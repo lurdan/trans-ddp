@@ -1,7 +1,14 @@
 #!/bin/sh
 
-# This should solve issues with debiandoc for CJK
+# This should solve issues with debiandoc for CJK (Chinese, Japanese, ...)
 # This should solve issues with debiandoc for Polish quotation if fixed.
+
+# A few remarks which may be useful for adding Chinese support to
+# debiandoc-sgml:
+# * be careful with non-CJK 8bit characters, such as umlauts "ä" and the
+#   copyright symbol "©" (sgml: &copy;), it's replaced with "©" in .tex but
+#   cannot replaced back to \copyright{}, because it is part of CJK multibyte
+#   characters and cannot be recognized.
 
 # $1 locale (normal pt_BR style)
 # $2 .tex filename
@@ -14,48 +21,71 @@ dir=$(echo $locale | tr [A-Z]_ [a-z]-) # change pt_BR to pt-br
 # include $dir/LaTeXmacros.sty file with language specific macros and
 # LaTeXmacros.sty for general use in all translations
 # (these files do not need to exist)
-sed '/\\documentclass/ a\
+sed '/^\\documentclass/ a\
 \\InputIfFileExists{LaTeXmacros.sty}{}{}\
 \\InputIfFileExists{'$dir'/LaTeXmacros.sty}{}{}' $file > $file.tmp
 mv $file.tmp $file
 
 case $locale in
+("de")
+	# use new German orthography (1998+) instead of old one
+	cat $file | sed '/^\\documentclass/ s/\[german/\[ngerman/' |
+	            sed '/^\\documentclass/ s/,german/,ngerman/' > $file.tmp
+	mv $file.tmp $file
+        ;;
 ("pl")
-	# '' in " ''|          \# usuwa znaki CR" isn't a quote, protect it
-	cat $file | sed "/ ''| *\\\\# usuwa znaki CR/ s/''/'{}'/" | \
+	cat $file | \
 	# use double quotes ,,text'', LaTeX: "`text"'
+	# Use &apos;&apos; for '', if '' really means '' in source
 	sed -e "s/\`\`/\"\`/g" -e "s/,,/\"\`/g" -e "s/''/\"'/g" > $file.tmp
 	mv $file.tmp $file
 	;;
 
 ("zh_TW")
-	perl -i -p \
+        perl -i -p \
 -e 's/(^\\documentclass\[.*\,)chinese(\].*$)/$1english$2/g;' \
 -e 's/(^\\usepackage\[)big5(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
--e 's/(^\\begin\{document\}$)/$1\n\\begin\{CJK\}\{Bg5\}\{song\}/g;' \
--e 's/(^\\end\{document\}$)/\\end\{CJK\}\n$1/g;' \
+-e 's/(^\\begin\{document\}$)/\\renewcommand\{\\vpageref\}\[1\]\{\(²Ä \\pageref\{\#1\} ­¶\)\}$1\n\\begin\{CJK\}\{Bg5\}\{kai\}/g;' \
+-e 's/(^\\end\{document\}$)/\\clearpage\\end\{CJK\}\n$1/g;' \
 -e 's/([\x80-\xff])\\textbackslash\{\}/$1\\/g;' \
 -e 's/([\x80-\xff])\\textasciitilde\{\}/$1\~/g;' \
 -e 's/([\x80-\xff])\\textasciicircum\{\}/$1\^/g;' \
 -e 's/([\x80-\xff])\\\}/$1\}/g;' \
 -e 's/([\x80-\xff])\\\{/$1\{/g;' \
 -e 's/([\x80-\xff])\\\_/$1_/g;' $file
-	;;
+        mv $file $file.tmp
+        bg5conv < $file.tmp > $file
+        rm $file.tmp
+        ;;
 
 ("zh_CN")
-	perl -i -p \
+        perl -i -p \
 -e 's/(^\\documentclass\[.*\,)chinese(\].*$)/$1english$2/g;' \
--e 's/(^\\usepackage\[)big5(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
--e 's/(^\\begin\{document\}$)/$1\n\\begin\{CJK\}\{gb2312\}\{song\}/g;' \
--e 's/(^\\end\{document\}$)/\\end\{CJK\}\n$1/g;' \
--e 's/([\x80-\xff])\\textbackslash\{\}/$1\\/g;' \
--e 's/([\x80-\xff])\\textasciitilde\{\}/$1\~/g;' \
--e 's/([\x80-\xff])\\textasciicircum\{\}/$1\^/g;' \
--e 's/([\x80-\xff])\\\}/$1\}/g;' \
--e 's/([\x80-\xff])\\\{/$1\{/g;' \
--e 's/([\x80-\xff])\\\_/$1_/g;' $file
-	;;
+-e 's/(^\\usepackage\[)gb2312(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
+-e 's/(^\\begin\{document\}$)/$1\n\\begin\{CJK\}\{GB\}\{kai\}/g;' \
+-e 's/(^\\end\{document\}$)/\\clearpage\\end\{CJK\}\n$1/g;' $file \
+        ;;
+
 (*)
 	: # do nothing
 ;;
 esac
+
+# do not use hyperref package for Chinese pdf (and for Sid ps)
+if [ $locale = "zh_CN" -o $locale = "zh_TW" ]; then
+   # the \ifpdf macro isn't used anymore, it's possible to remove it
+   sed '4 a\
+\% extracted from pdfTeX-FAQ.pdf for latex and pdflatex compatibility\
+\\newif\\ifpdf\
+\\ifx\\pdfoutput\\undefined\
+  \\pdffalse\
+\\else\
+  \\pdfoutput=1\
+  \\pdftrue\
+  \\pdfcompresslevel=9\
+\\fi\
+' $file | \
+   # do not use hyperref package (comment it out)
+   sed 's/^\\usepackage.*{hyperref}/%\\ifpdf\\else&\\fi/' > $file.tmp
+   mv $file.tmp $file
+fi

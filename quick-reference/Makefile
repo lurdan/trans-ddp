@@ -85,6 +85,9 @@ HTMLS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).html.stamp)
 # List of txt to be built
 TXTS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).txt)
 
+# List of dvi to be built
+DVIS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).dvi)
+
 # List of ps to be built
 PSS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).ps)
 
@@ -98,6 +101,9 @@ HTMLS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).html.stamp)
 
 # List of txt to be built
 TXTS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).txt)
+
+# List of dvi to be built
+DVIS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).dvi)
 
 # List of ps to be built
 PSS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).ps)
@@ -116,13 +122,14 @@ html: html1 html2
 text1 txt1:  $(TXTS1)
 text2 txt2:  $(TXTS2)
 text txt:  text1 text2
+dvi1:   $(DVIS1)
+dvi2:   $(DVIS2)
+dvi:   dvi1 dvi2
 ps1:   $(PSS1)
 ps2:   $(PSS2)
-zhps:   $(PSSX1) $(PSSX2)
 ps:   ps1 ps2
 pdf1:  $(PDFS1)
 pdf2:  $(PDFS2)
-zhpdf:  $(PDFSX1) $(PDFSX2)
 pdf:  pdf1 pdf2
 tar:  $(MANUAL1).tar.gz
 publish: publish-html publish-txt publish-examples publish-ps publish-pdf
@@ -153,10 +160,11 @@ $(MANUAL2).%.ent:
 
 # Version list
 README: README.org
-	cat README.org > README
 	-bin/doc-check -ha  >README.html
-	-w3m -dump -cols 72 README.html >>README
-	-rm README.html
+	-w3m -dump -cols 78 README.html >README.txt
+	sed -e "/^  ----------------------------------------------------------------------------/r README.txt"  \
+	   <README.org >README
+	-rm README.html README.txt
 
 # =================================================================== #
 #                 Build rule part: Routine                            #
@@ -207,20 +215,48 @@ $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
 	bin/fixtxt $* $(MANUAL2).$*.txt
 
+# generate LaTeX format file with all necessary languages preloaded
+ 
+# even if language.dat is in . it isn't found without setting TEXINPUTS
+# (. is always in path, so I do not understand this!)
+
+latex.fmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n tex -p tex) \
+	fmtutil --byfmt latex --fmtdir .
+
+pdflatex.fmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
+	fmtutil --byfmt pdflatex --fmtdir .
+
+# required by thumbpdf (called from debiandoc2latexpdf)
+pdftex.fmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
+	fmtutil --byfmt pdftex --fmtdir .
+
+# DVI
+
+$(MANUAL1).%.dvi: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
+	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+
+$(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
+	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+
 # PS
 
-$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
+$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
-$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
+$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
-$(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
+$(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) \
+                  pdflatex.fmt pdftex.fmt
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
-$(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
+$(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) \
+                  pdflatex.fmt pdftex.fmt
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 # TAR
@@ -491,6 +527,17 @@ validate1-%: $(SGMLSRCS) $(MANUAL1)-%.ent
 validate2-%: $(SGMLSRCS) $(MANUAL2)-%.ent 
 	nsgmls -gues -wall $(MANUAL2)-$*.sgml
 
+# check hyphenations created by LaTeX against {en,...}/validLaTeX.hyphen
+check-hyphen:
+	for i in $(LANGS1); do $(MAKE) check-hyphen1-$$i ; done
+	for i in $(LANGS2); do $(MAKE) check-hyphen2-$$i ; done
+
+check-hyphen1-%: $(MANUAL1).%.dvi
+	hyphen_show $(MANUAL1).$*.dvi $*/validLaTeX.hyphen
+
+check-hyphen2-%: $(MANUAL2).%.dvi
+	hyphen_show $(MANUAL2).$*.dvi $*/validLaTeX.hyphen
+
 #====[ cleaning up ]===========================================================
 distclean: clean
 	make "PUBLISHDIR=~/public_html/" publish-clean
@@ -503,9 +550,10 @@ publish-clean:
 	rm -f $(PUBLISHDIR)/debian-reference
 
 clean:
-	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
-	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
+	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt,hyp}
+	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt,hyp}
 	rm -f *~ prior.aux pprior.aux *.log typescript README README.html
+	rm -f {latex,pdflatex,pdftex}.{fmt,log} *.tex[01]pdf *.tex[01]ps
 	rm -f $(MANUAL0).tar.gz
 	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent
 	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent date.ent
