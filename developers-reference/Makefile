@@ -3,9 +3,11 @@
 MANUAL		:= $(notdir $(shell pwd))
 PUBLISHDIR	:= ../../../public_html/manuals.html
 
+SOURCES		:= $(wildcard *.sgml)
+
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
-		   $(filter-out developers-reference.ja.pdf, \
-		      $(foreach langext,.ja .fr, \
+		     $(filter-out developers-reference.ja.pdf, \
+		       $(foreach langext,.ja .fr, \
 		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
@@ -20,6 +22,9 @@ MAX_TEX_RECURSION := 5
 
 .PHONY:	all
 all:    $(TARGETS)
+
+.PHONY: validate
+validate:	$(addsuffix .validate,$(SOURCES))
 
 # hmmm, this rule may need to be revised/tested
 publish:	all
@@ -72,13 +77,17 @@ developers-reference.%.tex:	developers-reference.%.sgml
 version.ent:	debian/changelog
 	./debian/rules $@
 
+%.validate : %
+	nsgmls -wall -gues $<
+	touch $@
+
 USERMAP	:= ../../ddp/CVSROOT/users
 .PHONY: prepare
 prepare:
 	@[ -f CVS/Root -a -f $(USERMAP) ] || \
 		( echo "silly rabbit, prepare is for Adam" 1>&2; exit 1 )
 	cvs2cl -r --usermap $(USERMAP)
-#	cvs ci -m "update for next release" ChangeLog
+	cvs ci -m "update for next release" ChangeLog
 
 .PHONY: clean
 clean:
@@ -91,6 +100,7 @@ clean:
 	      developers-reference*.out developers-reference*.dvi
 	rm -f version.ent
 	rm -f `find . -name "*~"`
+	rm -f *.validate
 
 developers-reference$(SRCEXT).sgml: version.ent common.ent
 
