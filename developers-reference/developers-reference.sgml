@@ -6,7 +6,7 @@
   <!ENTITY % commondata  SYSTEM "common.ent" > %commondata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.240 $">
+  <!ENTITY cvs-rev "$Revision: 1.241 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -1125,7 +1125,7 @@ why you can not remove an upload once it has been accepted.
 
       <sect1 id="delayed-incoming-broken">Delayed incoming
 	<p>
-<em>Note:</em> This description here is currently disabled, because
+<em>Note:</em> This description here is currently not working, because
 ftp-master is restricted. Please see <ref id="delayed-incoming"> for
 the currently working way.
 	<p>
@@ -2642,6 +2642,12 @@ The way to invoke <prgn>dpkg-buildpackage</prgn> is as
 set <var>porter-email</var> to your email address.  This will do a
 binary-only build of only the architecture-dependent portions of the
 package, using the `binary-arch' target in <file>debian/rules</file>.
+	<p>
+If you are working on a Debian machine for your porting efforts and you
+need to sign your upload locally for the acceptance in the archive, you
+can run <prgn>debsign</prgn> on your <file>.changes</file> file to have
+it signed conveniently, or use the remote signing mode of <prgn>dpkg-sig</prgn>.
+
 
 	<sect2 id="binary-only-nmu">
           <heading>Recompilation or binary-only NMU</heading>
@@ -2652,7 +2658,14 @@ library, bad compiler, ...). Then you may just need to recompile it in
 an updated environment. However, you have to bump the version number in
 this case, so that the old bad package can be replaced in the Debian archive
 (<prgn>katie</prgn> refuses to install new packages if they don't have a
-version number greater than the currently available one).  Despite the
+version number greater than the currently available one).
+	<p>
+You have to make sure that your binary-only NMU doesn't render the package
+uninstallable. This could happen when a source package generates
+arch-dependend and arch-independend packages that depend on each other via
+$(Source-Version).
+	<p>
+Despite the
 required modification of the changelog, these are called binary-only NMUs
 &mdash; there is no need in this case to trigger all other architectures
 to consider themselves out of date or requiring recompilation.
@@ -2669,6 +2682,10 @@ if the latest version you are recompiling against was version
 ``2.9-3'', your NMU should carry a version of ``2.9-3.0.1''.  If the
 latest version was ``3.4-2.1'', your NMU should have a version number
 of ``3.4-2.1.1''.
+	<p>
+Similar to initial porter uploads, the correct way of invoking
+<prgn>dpkg-buildpackage</prgn> is <tt>dpkg-buildpackage -B</tt> to only
+build the architecture-dependent parts of the package.
 
 
 	<sect2 id="source-nmu-when-porter">
@@ -2680,17 +2697,11 @@ the wait cycle for a porter's source NMU is smaller than for a
 non-porter, since porters have to cope with a large quantity of
 packages.
 Again, the situation varies depending on the distribution they are
-uploading to.
-
-<!-- 
-FIXME: commented out until I can work out how to upload to testing directly
-
-  Crucial fixes (i.e., changes need to get a source
-package to compile for a released-targeted architecture) can be
-uploaded with <em>no</em> waiting period for the `frozen' distribution.
- -->
+uploading to. It also varies whether the architecture is a candidate
+for inclusion into the next stable release; the release managers
+decide and announce which architectures are candidates.
 	  <p>
-However, if you are a porter doing an NMU for `unstable', the above
+If you are a porter doing an NMU for `unstable', the above
 guidelines for porting should be followed, with two variations.
 Firstly, the acceptable waiting period &mdash; the time between when the
 bug is submitted to the BTS and when it is OK to do an NMU &mdash; is seven
@@ -2698,6 +2709,8 @@ days for porters working on the unstable distribution.  This period
 can be shortened if the problem is critical and imposes hardship on
 the porting effort, at the discretion of the porter group.  (Remember,
 none of this is Policy, just mutually agreed upon guidelines.)
+For uploads to stable or testing, please coordinate with the appropriate
+release team first.
 	  <p>
 Secondly, porters doing source NMUs should make sure that the bug they
 submit to the BTS should be of severity `serious' or greater.  This
@@ -2785,86 +2798,50 @@ distributions quickly.
     <sect id="nmu">Non-Maintainer Uploads (NMUs)
       <p>
 Under certain circumstances it is necessary for someone other than the
-official package maintainer to make a release of a package.  This is
+official package maintainer to make a release of a package. This is
 called a non-maintainer upload, or NMU.
        <p>
-Debian porters, who compile packages for different architectures,
-occasionally do binary-only NMUs as part of their porting activity
-(see <ref id="porting">).  Another reason why NMUs are done is when a
-Debian developer needs to fix another developer's packages in order to
-address serious security problems or crippling bugs, especially during
-the freeze, or when the package maintainer is unable to release a fix
+This sections handles only source NMUs, i.e. NMUs which upload a new
+version of the package. For binary-only NMUs by porters or QA members,
+please see <ref id="binary-only-nmu">.
+For buildd uploads (which are strictly speaking also NMUs), please see <ref
+id="buildd">.
+	<p>
+The main reason why NMUs are done is when a
+developer needs to fix another developer's packages in order to
+address serious problems or crippling bugs
+or when the package maintainer is unable to release a fix
 in a timely fashion.
-      <p>
-This chapter contains information providing guidelines for when and
-how NMUs should be done.  A fundamental distinction is made between
-source and binary-only NMUs, which is explained in the next section.
-
-      <sect1 id="nmu-terms">Terminology
 	<p>
-There are two new terms used throughout this section: ``binary-only NMU''
-and ``source NMU''.  These terms are used with specific technical
-meaning throughout this document.  Both binary-only and source NMUs are
-similar, since they involve an upload of a package by a developer who
-is not the official maintainer of that package.  That is why it's a
-<em>non-maintainer</em> upload.
+First and foremost, it is critical that NMU patches to source should
+be as non-disruptive as possible.  Do not do housekeeping tasks, do
+not change the name of modules or files, do not move directories; in
+general, do not fix things which are not broken.  Keep the patch as
+small as possible.  If things bother you aesthetically, talk to the
+Debian maintainer, talk to the upstream maintainer, or submit a bug.
+However, aesthetic changes must <em>not</em> be made in a non-maintainer
+upload.
 	<p>
-A source NMU is an upload of a package by a developer who is not the
-official maintainer, for the purposes of fixing a bug in the package.
-Source NMUs always involves changes to the source (even if it is just
-a change to <file>debian/changelog</file>).  This can be either a
-change to the upstream source, or a change to the Debian bits of the
-source.  Note, however, that source NMUs may also include
-architecture-dependent packages, as well as an updated Debian diff.
-	<p>
-A binary-only NMU is a recompilation and upload of a binary package
-for a given architecture.  As such, it is usually part of a porting
-effort.  A binary-only NMU is a non-maintainer uploaded binary version
-of a package, with no source changes required.  There are many cases
-where porters must fix problems in the source in order to get them to
-compile for their target architecture; that would be considered a
-source NMU rather than a binary-only NMU.  As you can see, we don't
-distinguish in terminology between porter NMUs and non-porter NMUs.
-	<p>
-Both classes of NMUs, source and binary-only, can be lumped by the
-term ``NMU''.  However, this often leads to confusion, since most
-people think ``source NMU'' when they think ``NMU''.  So it's best to
-be careful.  In this chapter, if we use the unqualified term ``NMU'',
-we refer to any type of non-maintainer upload NMUs, whether source and
-binary, or binary-only.
+And please remember the Hippocratic Oath: "Above all, do no harm."
+It is better if a package has an grave bug open, than if a not working
+patch was applied, and the bug is only hidden now but not resolved.
 
 
-      <sect1 id="nmu-who">Who can do an NMU
+      <sect1 id="nmu-guidelines">How to do a NMU
 	<p>
-Only official, registered Debian maintainers can do binary or source
-NMUs.  An official maintainer is someone who has their key in the
-Debian key ring.  Non-developers, however, are encouraged to download
-the source package and start hacking on it to fix problems; however,
-rather than doing an NMU, they should just submit worthwhile patches
-to the Bug Tracking System.  Maintainers almost always appreciate
-quality patches and bug reports.
-
-
-      <sect1 id="nmu-when">When to do a source NMU
+NMUs which fix important, serious or higher severity bugs are encouraged
+and accepted.
+You should endeavor to reach the current maintainer of the package; they
+might be just about to upload a fix for the problem, or have a better
+solution present.
 	<p>
-Guidelines for when to do a source NMU depend on the target
-distribution, i.e., stable, unstable, or experimental.  Porters have
-slightly different rules than non-porters, due to their unique
-circumstances (see <ref id="source-nmu-when-porter">).
+NMUs should be made to assist a package's maintainer in resolving bugs.
+Maintainers should be thankfull for that help, and NMUers should respect
+the decisions of maintainers, and try to personally help the maintainer by
+their work.
 	<p>
-When a security bug is detected, the security team may do an NMU.
-Please refer to <ref id="bug-security"> for more information.
-	<p>
-During the release cycle (see <ref id="sec-dists">), NMUs which fix
-serious or higher severity bugs are encouraged and accepted.  Even
-during this window, however, you should endeavor to reach the current
-maintainer of the package; they might be just about to upload a fix
-for the problem.  As with any source NMU, the guidelines found in <ref
-id="nmu-guidelines"> need to be followed. Special exceptions are made
-for <ref id="qa-bsp">.
-	<p>
-Uploading bug fixes to unstable by non-maintainers should only be done
-by following this protocol:
+A NMU should follow all conventions, written down in this section.
+For an upload to testing or unstable, this order of steps is recommended:
 	<p>
 <list>
 	    <item>
@@ -2900,27 +2877,30 @@ before uploading the fixes, and shortening the DELAYED period. It is
 important to notice that even in these so-called "bug squashing party"
 times, the NMU'er has to file bugs and contact the developer first,
 and act later.
-
-      <sect1 id="nmu-guidelines">How to do a source NMU
+Please see <ref id="qa-bsp"> for details.
 	<p>
-The following applies to porters insofar as they are playing the dual
-role of being both package bug-fixers and package porters.  If a
-porter has to change the Debian source archive, their upload is
-automatically a source NMU and is subject to its rules.  If a porter is
-simply uploading a recompiled binary package, the rules are different;
-see <ref id="porter-guidelines">.
+For the testing distribution, the rules may be changed by the release
+managers. Please take additional care, and acknowledge that the usual way
+for a package to enter testing is through unstable.
 	<p>
-First and foremost, it is critical that NMU patches to source should
-be as non-disruptive as possible.  Do not do housekeeping tasks, do
-not change the name of modules or files, do not move directories; in
-general, do not fix things which are not broken.  Keep the patch as
-small as possible.  If things bother you aesthetically, talk to the
-Debian maintainer, talk to the upstream maintainer, or submit a bug.
-However, aesthetic changes must <em>not</em> be made in a non-maintainer
-upload.
+For the stable distribution, please take extra care. Of course, the release
+managers may also change the rules here. Please verify before upload that
+all your changes are ok for inclusion into the next stable release by the
+release manager.
+	<p>
+When a security bug is detected, the security team may do an NMU, using
+their own rules. Please refer to <ref id="bug-security"> for more
+information.
+	<p>
+For the differences for Porters NMUs, please see 
+<ref id="source-nmu-when-porter">.
+	<p>
+Of course, it is always possible to agree on special rules with a maintainer
+(like the maintainer asking "please upload this fix directly for me, and no
+diff required").
 
 
-	<sect2 id="nmu-version">Source NMU version numbering
+	<sect1 id="nmu-version">NMU version numbering
 	  <p>
 Whenever you have made a change to a package, no matter how trivial,
 the version number needs to change.  This enables our packing system
@@ -2948,9 +2928,13 @@ make a release based on a new upstream version then the person making
 the release should start with the <var>debian-revision</var> value
 `0.1'.  The usual maintainer of a package should start their
 <var>debian-revision</var> numbering at `1'. 
+	<p>
+If you upload a package to testing or stable, sometimes, you need to
+"fork" the version number tree. For this, version numbers like
+1.1-3sarge0.1 could be used.
 
 
-	<sect2 id="nmu-changelog">
+	<sect1 id="nmu-changelog">
 	  <heading>Source NMUs must have a new changelog entry</heading>
 	  <p>
 A non-maintainer doing a source NMU must create a changelog entry,
@@ -2965,7 +2949,7 @@ By convention, source NMU changelog entries start with the line
 </example>
 
 
-	<sect2 id="nmu-patch">Source NMUs and the Bug Tracking System
+	<sect1 id="nmu-patch">Source NMUs and the Bug Tracking System
 	  <p>
 Maintainers other than the official package maintainer should make as
 few changes to the package as possible, and they should always send a
@@ -2982,7 +2966,7 @@ send a patch.
 If the source NMU (non-maintainer upload) fixes some existing bugs,
 these bugs should be tagged <em>fixed</em> in the Bug Tracking
 System rather than closed.  By convention, only the official package
-maintainer or the original bug submitter are allowed to close bugs.
+maintainer or the original bug submitter close bugs.
 Fortunately, Debian's archive system recognizes NMUs and thus marks
 the bugs fixed in the NMU appropriately if the person doing the NMU
 has listed all bugs in the changelog with the <tt>Closes:
@@ -2993,9 +2977,11 @@ bug was fixed in an NMU; however the bug is left open until the
 changes in the NMU are incorporated officially into the package by
 the official package maintainer.
 	  <p>
-Also, after doing an NMU, you have to open a new bug and include a
-patch showing all the changes you have made. Alternatively you can send
-that information to the existing bugs that are fixed by your NMU.
+Also, after doing an NMU, you have to send
+that information to the existing bugs that are fixed by your NMU,
+including the unified diff.
+Alternatively you can open a new bug and include a
+patch showing all the changes you have made.
 The normal maintainer will either apply the patch or employ an alternate
 method of fixing the problem.  Sometimes bugs are fixed independently
 upstream, which is another good reason to back out an NMU's patch.
@@ -3007,7 +2993,7 @@ In addition, the normal maintainer should <em>always</em> retain the
 entry in the changelog file documenting the non-maintainer upload.
 
 
-	<sect2 id="nmu-build">Building source NMUs
+	<sect1 id="nmu-build">Building source NMUs
 	  <p>
 Source NMU packages are built normally.  Pick a distribution using the
 same rules as found in <ref id="distribution">, follow the other
@@ -3035,6 +3021,57 @@ you in your work, so you should be thankful. You may also want to
 ask them if they would be interested in helping you on a more frequent
 basis as co-maintainer or backup maintainer
 (see <ref id="collaborative-maint">).
+
+      <sect1 id="nmu-vs-qa">NMU vs QA uploads
+	<p>
+Unless you know the maintainer is still active, it is wise to check the
+package to see if it has been orphaned.  The current list of orphaned
+packages which haven't had their maintainer set correctly is available at
+<url id="&url-debian-qa-orphaned;">.  If you perform an NMU on an
+improperly orphaned package, please set the maintainer to ``Debian QA Group
+&lt;packages@qa.debian.org&gt;''.
+
+      <sect1 id="nmu-who">Who can do an NMU
+	<p>
+Only official, registered Debian maintainers can do binary or source
+NMUs.  An official maintainer is someone who has their key in the
+Debian key ring.  Non-developers, however, are encouraged to download
+the source package and start hacking on it to fix problems; however,
+rather than doing an NMU, they should just submit worthwhile patches
+to the Bug Tracking System.  Maintainers almost always appreciate
+quality patches and bug reports.
+
+      <sect1 id="nmu-terms">Terminology
+	<p>
+There are two new terms used throughout this section: ``binary-only NMU''
+and ``source NMU''.  These terms are used with specific technical
+meaning throughout this document.  Both binary-only and source NMUs are
+similar, since they involve an upload of a package by a developer who
+is not the official maintainer of that package.  That is why it's a
+<em>non-maintainer</em> upload.
+	<p>
+A source NMU is an upload of a package by a developer who is not the
+official maintainer, for the purposes of fixing a bug in the package.
+Source NMUs always involves changes to the source (even if it is just
+a change to <file>debian/changelog</file>).  This can be either a
+change to the upstream source, or a change to the Debian bits of the
+source.  Note, however, that source NMUs may also include
+architecture-dependent packages, as well as an updated Debian diff.
+	<p>
+A binary-only NMU is a recompilation and upload of a binary package
+for a given architecture.  As such, it is usually part of a porting
+effort.  A binary-only NMU is a non-maintainer uploaded binary version
+of a package, with no source changes required.  There are many cases
+where porters must fix problems in the source in order to get them to
+compile for their target architecture; that would be considered a
+source NMU rather than a binary-only NMU.  As you can see, we don't
+distinguish in terminology between porter NMUs and non-porter NMUs.
+	<p>
+Both classes of NMUs, source and binary-only, can be lumped by the
+term ``NMU''.  However, this often leads to confusion, since most
+people think ``source NMU'' when they think ``NMU''.  So it's best to
+be careful. Best use always ``binary NMU'' or ``binNMU'' for binary-only
+NMUs.
 
 
     <sect id="collaborative-maint">
@@ -3222,9 +3259,9 @@ b | 1; depends: a=1 |  2; depends: a=2
 	<p>
 Package a is not considered for update, and package b also not.
 	<p>
-Currently, this requires some manual hinting from the release masters.
-Please, send mail to debian-release@lists.debian.org if that happens to
-one of your packages.
+Currently, this requires some manual hinting from the release team.
+Please, contact them by sending mail to &email-debian-release; if that
+happens to one of your packages.
 
 
 	<sect2>
@@ -3237,7 +3274,8 @@ even if it is still RC-buggy. The second exception is if the version
 of the package in testing is out of sync on the different arches: Then
 any arch might just upgrade to the version of the source package;
 however, this can happen only if the package was previously forced
-through, or the arch is in fuckedarches.
+through, the arch is in fuckedarches or there was no binary package of that
+arch present in unstable at all during the testing migration.
 	<p>
 In summary this means: The only influence that a package being in testing
 has on a new version of the same package is that the new version might
