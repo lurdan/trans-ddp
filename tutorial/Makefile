@@ -77,11 +77,9 @@ debtut.txt : $(MANUAL).text
 	chmod 644 debtut.txt
 
 clean : 
-	/bin/rm -rf $(MANUAL).html
-	/bin/rm $(MANUAL).text
-	/bin/rm $(MANUAL).dvips
-	/bin/rm $(MANUAL).text.gz
-	/bin/rm $(MANUAL).dvips.gz
+	rm -rf $(MANUAL).html
+	rm -f $(MANUAL).text $(MANUAL).text.gz
+	rm -f $(MANUAL).dvips $(MANUAL).dvips.gz
 
 distclean:	clean
 
