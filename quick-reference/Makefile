@@ -45,8 +45,13 @@ endif
 SGMLMSTR := qref.sgml
 SGMLSRCS := custom.ent default.ent  dynamic.%.ent date.ent \
 	    $(foreach lang, $(ALL_LANGS), $(wildcard $(lang)/*.sgml ) )
+ifeq ("$(HTDOCS)", "manuals.sgml")
 TARSRCS = examples/* bin/* ??/*.sgml\
 	  Makefile index.php TODO PROJECT README
+else
+TARSRCS = examples/* bin/* ??/*.sgml\
+	  Makefile TODO PROJECT README
+endif
 ALLSRCS := $(SGMLSRCS)
 
 
