@@ -1,119 +1,1505 @@
-<!-- CVS revision of this document "$Revision: 1.5 $"  -->
-<!-- CVS revision of original english document "1.34"  -->
+<!-- CVS revision of this document "$Revision: 1.6 $"  -->
+<!-- CVS revision of original english document "1.201"  -->
 
-<chapt id="gateway"> Tworzenie bramy sieciowej z systemem &debian;
+<chapt id="gateway">Konfiguracja sieci
 
 <p>
-&debian; oferuje oprogramowanie ogólnego przeznaczenia do uruchomienia
-bramki sieciowej, która obs³uguje NAT, pocztê, DHCP, buforowanie DNS, 
-buforowanie zapytañ HTTP (proxy), CVS, NFS i zasoby Samba dla domowej sieci 
-lokalnej. Przeczytaj <url id="&netfilterhome;" name="Netfilter">, gdzie
-jest opisanych wiele problemów z konfiguracj± sieci.
-
-<sect>Konfiguracja sieci
+<!-- I keep above id as gateway to have the same html file name. -->
+<!-- Once all translations are in sync, I may change it to network.
+-->
+Ten rozdzia³ skupia siê na administracji sieci± w sytemie &debian;. Ogólne
+wprowadzenie do sieci w GNU/Linuksie mo¿esz przeczytaæ w 
+<url id="&net-howto;" name="Net-HOWTO">.
+<p>
+By system &debian; móg³ korzystaæ z internetu, jego interfejsy sieciowe
+musz± byæ obs³ugiwane przez j±dro oraz poprawnie skonfigurowane.
+<p>
+Pierwszym wymaganiem jest obs³uga przez j±dro urz±dzenia sieciowego takiego
+jak karta sieciowa, karta Wi-Fi czy modem. By uzyskaæ tê obs³ugê, mo¿liwe,
+¿e bêdziesz musia³ przekompilowaæ j±dro lub za³adowaæ modu³y tak jak to
+opisano w <ref id="kernel">.
+<p>
+Konfiguracja sieciowych urz±dzeñ jest opisana poni¿ej.
+Informacje z tego rozdzia³u zosta³y zaktualizowane dla Sarge. Spora czê¶æ
+nie dotyczy wcze¶niejszych wersji.
+<!--
+I move these to comment, Thomas, please remove once you are ready
+<p>
+ 	 <list compact>
+  	 <item>XXX FIXME XXX: Update HW config, Ethernet kernel module
+  	 <item>XXX FIXME XXX: Add section to reconfigure network on initial install.
+	 </list>
+-->
 <p>
 
-<sect1 id="ip-class">Konfiguracja stacji sieciowej przeznaczonej na bramê
+<sect id="net-basic">Podstawy sieciowe
 <p>
-Sieæ lokalna u¿ywa adresów IP z puli prywatnych adresów sieciowych po to,
-by zapobiec kolizjom adresów z tymi u¿ywanymi w Internecie.
+Komputer z systemem &debian; mo¿e posiadaæ wiele interfejsów, ka¿dy z innym
+adresem IP. Interfejsy mog± byæ ró¿nego typu, w³±czaj±c:
+<list compact>
+<item>Loopback:  <tt>lo</tt>
+<item>Ethernet:  <tt>eth0</tt>, <tt>eth1</tt>, ...
+<item>Wi-Fi:  <tt>wifi0</tt>, <tt>wifi1</tt>, ...
+<footnote>
+Zauwa¿, ¿e interfejs Wi-Fi jest tak w³a¶ciwie aliasem na interfejs
+Ethernet, który umo¿liwia dostêp do parametrów konfiguracyjnych
+specyficznych dla Wi-Fi. Parametry te s± kontrolowane programem 
+<prgn>iwconfig</prgn>.
+</footnote>
+<item>Token Ring:  <tt>tr0</tt>, <tt>tr1</tt>, ...
+<item>PPP:  <tt>ppp0</tt>, <tt>ppp1</tt>, ...
+</list>
+Istnieje jeszcze wiele innych urz±dzeñ sieciowych, w³±czaj±c SLIP, PLIP
+(szeregowa i równoleg³a linia IP), urz±dzenia "shaper" s³u¿±ce do kontroli
+przepustowo¶ci na innych interfejsach, 
+frame relay, AX.25, X.25, ARCnet, i LocalTalk.
+<p>
+Ka¿dy interfejs sieciowy pod³±czony bezpo¶rednio do internetu (albo sieci
+bazuj±cej na IP) jest identyfikowany za pomoc± unikalnego 32 bitowego
+adresu IP. 
+<footnote>
+Jest to prawd± gdy u¿ywana jest 4 wersja protoko³u IP. W IPv6 adresy s± 128
+bitowe. Zobacz <url id="&ipv6home;">.
+</footnote>
+Adres IP mo¿e byæ podzielony na czê¶æ, która okre¶la sieæ oraz czê¶æ
+okre¶laj±ca komputer. Je¶li we¼miesz adres IP, ustawisz na 1 wszystkie
+bity, które s± czê¶ci± adresu sieci i na 0 wszystkie bity, które s± czê¶ci±
+adresu komputera, to otrzymasz maskê sieciow± danej sieci.
+
+<p>
+Dawniej, sieci IP by³y pogrupowane w klasy, których czê¶æ sieciowa adresu
+by³a d³uga na 8, 16 lub 24 bity.
+<footnote>
+Taki system by³ ma³o elastyczny i powodowa³ marnotrastwo wielu adresów IP,
+wiêc dzisiaj sieci IPv4 s± dzielone z adresami sieciowymi o ró¿nych
+d³ugo¶ciach.
+</footnote>
 <example>
-Klasa A: 10.0.0.0                    z mask± 255.0.0.0
-Klasa B: 172.16.0.0 - 172.31.0.0     z mask± 255.255.0.0
-Klasa C: 192.168.0.0 - 192.168.255.0 z mask± 255.255.255.0
+          Adresy IP                      maska sieci     d³ugo¶æ
+Klasa A   1.0.0.0     - 126.255.255.255  255.0.0.0     =  /8
+Klasa B   128.0.0.0   - 191.255.255.255  255.255.0.0   = /16
+Klasa C   192.0.0.0   - 223.255.255.255  255.255.255.0 = /24
+</example>
+Adresy IP spoza tych zakresów s± u¿ywane do specjalnych celów.
+<p>
+W ka¿dej klasie istniej± zakresy adresów zarezerwowanych do u¿ycia
+w sieciach lokalnych (LAN). Istnieje gwarancja, ¿e te adresy nie bêd±
+w konflikcie z innymi adresami w internecie. (Z tego samego powodu, je¶li
+jeden z takich adresów jest przydzielony do komputera, ten komputer nie
+mo¿e mieæ bezpo¶redniego dostêpu do internetu, a tylko poprzez bramkê,
+która pracuje jako serwer po¶rednicz±cy dla us³ug lub wykonuje translacjê
+adresów (NAT)). W poni¿szej tabeli s± wyszczególnione te zakresy adresów 
+wraz z ich liczb± w ka¿dej klasie.
+<example>
+          adres sieci                  d³ugo¶æ  ile
+Klasa A   10.x.x.x                     /8       1
+Klasa B   172.16.x.x -  172.31.x.x     /16      16
+Klasa C   192.168.0.x - 192.168.255.x  /24      256
+</example>
+
+Pierwszy adres w ka¿dej sieci jest równocze¶nie adresem tej sieci.
+Ostatni adres jest adresem rozg³oszeniowym sieci (broadcast).
+<footnote>
+Adres sieci mo¿na otrzymaæ poprzez mno¿enie logiczne jakiegokolwiek adresu 
+z sieci z mask± sieci. Adres rozg³oszeniowy mo¿na otrzymaæ przez sumowanie
+logiczne adresu sieci z dope³nion± jedynkami mask± sieci.
+</footnote>
+
+Wszystkie inne adresy mog± byæ przydzielane komputerom w sieci.
+Najczê¶ciej pierwszy lub ostatni adres jest przydzielany bramce
+internetowej danej sieci.
+<p>
+Tablica routingu zawiera informacje j±dra na temat tego jak przesy³aæ
+pakiety na ich miejsce przeznaczenia. 
+Poni¿ej znajduje siê przyk³adowa tablica routingu z komputera znajduj±cego
+siê w sieci lokalnej o adresie 192.168.50.x/24.
+Komputer 192.168.50.1 (równie¿ w tej sieci) jest routerem dla sieci
+korporacyjnej 172.20.x.x/16, a komputer 192.168.50.254 (równie¿ w tej
+sieci) jest routerem dla internetu.
+<!-- I shrunk shell output within 72 characters -->
+<example>
+# route
+Kernel IP routing table
+Destination   Gateway        Genmask       Flags Metric Ref Use Iface
+127.0.0.0     *              255.0.0.0     U     0      0     2 lo
+192.168.50.0  *              255.255.255.0 U     0      0   137 eth0
+172.20.0.0    192.168.50.1   255.255.0.0   UG    1      0     7 eth0
+default       192.168.50.254 0.0.0.0       UG    1      0    36 eth0
+</example>
+
+<list compact>
+<item>
+Pierwsza linia po nag³ówkach mówi, ¿e ruch przeznaczony dla sieci 
+<tt>127.x.x.x</tt> bêdzie przesy³any poprzez <tt>lo</tt>, interfejs zwrotny.
+<item>
+Druga linia mówi, ¿e ruch przeznaczony dla komputerów z sieci lokalnej
+bêdzie przesy³any przez <tt>eth0</tt>.
+<item>
+Trzecia linia mówi, ¿e ruch przeznaczony dla sieci korporacyjnej bêdzie
+przesy³any przez bramkê <tt>192.168.50.1</tt> równie¿ przez <tt>eth0</tt>.
+<item>
+Czwarta linia mówi, ¿e ruch przeznaczony dla internetu bêdzie kierowany
+przez bramkê <tt>192.168.50.254</tt> równie¿ przez <tt>eth0</tt>.
+</list>
+
+Adresy IP w tablicy mog± pojawia siê równie¿ jako nazwy, które s± pobierane
+z pliku <file>/etc/networks</file> lub poprzez mechanizm rozwi±zuj±cy nazwy
+(C Library resolver).
+<p>
+Dodatkowo, oprócz routingu, j±dro mo¿e wykonywaæ translacjê adresów,
+ograniczanie przepustowo¶ci czy filtrowanie.
+<p>
+Zobacz <url id="&net-howto;" name="Net-HOWTO"> i 
+<url id="&net-howto-over;" name="other networking HOWTOs"> po wiêcej
+informacji.
+
+<sect id="net-low">Zaawansowana konfiguracja sieci
+<p>
+Tradycyjne zaawansowane narzêdzia do konfiguracji sieci w GNU/Linuksie to
+programy <prgn>ifconfig</prgn> i <prgn>route</prgn> znajduj±ce siê
+w pakiecie <package>net-tools</package>. Te narzêdzia zosta³y oficjalnie
+zast±pione przez <prgn>ip</prgn> z pakietu <package>iproute</package>. 
+Program <prgn>ip</prgn> dzia³a z Linuksem 2.2 lub nowszymi i jest bardziej
+dostosowany. Jednak¿e, stare narzêdzia nadal dzia³aj± i s± znane wiêkszo¶ci
+u¿ytkowników.
+
+<sect1 id="low-ifconfig">Zaawansowana konfiguracja sieci &ndash;
+<prgn>ifconfig</prgn> i <prgn>route</prgn>
+
+<p>
+Poni¿ej ilustracja jak zmieniæ adres IP interfejsu <tt>eth0</tt> z 
+<tt>192.168.0.3</tt> na <tt>192.168.0.111</tt> oraz ustawiæ <tt>eth0</tt> 
+by przesy³ane by³y przez niego dane do sieci <tt>10.0.0.0</tt> poprzez
+<tt>192.168.0.1</tt>. Zaczynamy od uruchomienia <prgn>ifconfig</prgn> i 
+<prgn>route</prgn> bez ¿adnych argumentów by wy¶wietliæ aktualny stan
+wszystkich interfejsów oraz routing.
+
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.3  Bcast:192.168.0.255  Mask:255.255.255.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     RX packets:23363 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:21798 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:100
+     RX bytes:13479541 (12.8 MiB)  TX bytes:20262643 (19.3 MiB)
+     Interrupt:9
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     UP LOOPBACK RUNNING  MTU:16436  Metric:1
+     RX packets:230172 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:230172 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:0
+     RX bytes:22685256 (21.6 MiB)  TX bytes:22685256 (21.6 MiB)
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask          Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.0.0      U     0      0     0 eth0
+default      192.168.0.1  255.255.255.255  UG    0      0     0 eth0
+</example>
+Na pocz±tek wy³±czamy interfejs.
+<example>
+# ifconfig eth0 inet down
+# ifconfig
+lo   Link encap:Local Loopback
+  ... (brak pozycji eth0)
+# route
+  ... (brak wpisów w tabeli routingu)
+</example>
+
+Nastêpnie przywracamy go z powrotem z nowym adresem IP i nowym routingiem.
+<example>
+# ifconfig eth0 inet up 192.168.0.111 \
+           netmask 255.255.0.0 broadcast 192.168.255.255
+# route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.1 dev eth0
+</example>
+Rezultat:
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.111  Bcast:192.168.255.255  Mask:255.255.0.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     ...
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     ...
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask      Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.0.0  U     0      0     0 eth0
+10.0.0.0     192.168.0.1  255.0.0.0    UG    0      0     0 eth0
+</example>
+
+<p>
+Wiêcej informacji uzyskasz w <manref name="ifconfig" section="8"> i
+<manref name="route" section="8">.
+
+<sect1 id="low-ip">Zaawansowana konfiguracja sieci &ndash; <prgn>ip</prgn>
+<p>
+Odpowiedniki poprzednich poleceñ z wykorzystaniem <prgn>ip</prgn> zamiast 
+<prgn>ifconfig</prgn> i <prgn>route</prgn> s±:
+<list compact>
+<item><tt>ip link show</tt>
+<item><tt>ip route list</tt>
+<item><tt>ip link set eth0 down</tt>
+<item><tt>ip addr del dev eth0 local 192.168.0.3</tt>
+<item><tt>ip addr add dev eth0 local 192.168.0.111/16 broadcast 192.168.255.255</tt>
+<item><tt>ip link set eth0 up</tt>
+<item><tt>ip route add dev eth0 to 10.0.0.0/8 src 192.168.0.111 via 192.168.0.1</tt>
+</list>
+
+<p>
+Program <prgn>ip</prgn> wy¶wietla sk³adniê swoich poleceñ gdy jest
+uruchamiany z argumentem <tt>help</tt>.
+Przyk³adowo <tt>ip link help</tt> wy¶wietli:
+
+<example>
+Usage: ip link set DEVICE { up | down | arp { on | off } |
+                             dynamic { on | off } |
+                             multicast { on | off } | txqueuelen PACKETS |
+                             name NEWNAME |
+                             address LLADDR | broadcast LLADDR |
+                             mtu MTU }
+       ip link show [ DEVICE ]
+</example>
+
+Zobacz równie¿ <manref name="ip" section="8">.
+
+<sect1 id="low-wifi">Konfiguracja interfejsu Wi-Fi
+<p>
+Dla interfejsów Wi-Fi wraz z <prgn>ifconfig</prgn> lub <prgn>ip</prgn>
+u¿ywany jest program <prgn>iwconfig</prgn> z pakietu 
+<package>wireless-tools</package>.
+<p>
+Zobacz <manref name="iwconfig" section="8">.
+  	 
+<sect1 id="low-ppp">Konfiguracja interfejsu PPP
+<p>
+Je¶li korzystasz z internetu poprzez modem podpiêty do wdzwanianej linii
+telefonicznej wtedy po³±czenie jest negocjowane przy pomocy protoko³u 
+Point-to-Point (PPP). Takie po³±czenia s± dostêpne jako interfejsy sieciowe 
+<tt>ppp0</tt>, <tt>ppp1</tt> i tak dalej.
+<p>
+Interfejs PPP jest zarz±dzany przez demona PPP <prgn>pppd</prgn> z pakietu 
+<package>ppp</package>. Z tego powodu dla u¿ytkownika, konfigurowaæ
+interfejs PPP znaczy konfiguracjê <prgn>pppd</prgn>.
+
+<sect2 id="ppp-pppd">Rêczna konfiguracja <prgn>pppd</prgn>
+
+<p>
+By zestawiæ po³±czenie sieciowe, port komunikacyjny (zazwyczaj port
+szeregowy) musi zostaæ otwarty, polecenia musz± zostaæ przes³ane do
+urz±dzenia ³±cz±cego siê (zazwyczaj modemu), numer telefoniczny musi zostaæ
+wybrany, to¿samo¶æ musi zostaæ zweryfikowana przez odleg³y demon PPP,
+interfejs PPP musi zostaæ utworzony i wtedy tablice routingu musz± zostaæ
+odpowiednio zmodyfikowane by ruch by³ wysy³any przez to po³±czenie.
+<prgn>pppd</prgn> mo¿e wykonaæ to wszystko, a w zwi±zku z tym posiada
+bardzo d³ug± listê dostêpnych opcji. Opcje te zosta³y opisane w 
+<manref name="pppd" section="8">.
+<p>
+W systemie &debian; globalne opcje ustawia siê w pliku 
+<file>/etc/ppp/options</file>. Opcje specyficzne dla u¿ytkownika mo¿na
+ustawiæ w <file>~/.ppprc</file>. Opcje zale¿ne od portu komunikacyjnego s±
+przechowywane w <file>/etc/ppp/options.<var>nazwa_portu</var></file>.
+Przyk³adowo, za³ó¿my, ¿e masz dwa modemy &mdash; wbudowany modem Lucent LT
+dostêpny przez /dev/LT-modem i zewnêtrzny modem dostêpny przez /dev/ttyS0.
+Stwórz dwa poni¿sze pliki z opcjami.
+<example>
+# cat &gt; /etc/ppp/options.LT-modem &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-LT-modem"
+EOF
+# cat &gt; /etc/ppp/options.ttyS0 &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-ttyS0"
+EOF
+</example>
+
+To odnosi siê do nastêpuj±cych skryptów chat. Najpierw 
+<file>/etc/chatscripts/setup-LT-modem</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATW2X2 S7=70 S11=55'
+OK AT
+</example>
+A teraz <file>/etc/chatscripts/setup-ttyS0</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATL1M1Q0V1W2X4&amp;C1&amp;D2 S6=4 S7=70 S11=55 S95=63 S109=1 +FCLASS=0'
+OK AT
+</example>
+
+Zawarto¶æ tych plików oczywi¶cie zale¿y od Twojego sprzêtu.
+<p>
+Opcje mog± równie¿ zostaæ przekazane do <prgn>pppd</prgn> jako argumenty.
+<p>
+W systemie &debian; <prgn>pppd</prgn> jest zazwyczaj uruchamiany u¿ywaj±c
+polecenia <prgn>pon</prgn>. Kiedy <prgn>pon</prgn> zostaje u¿yty, jego
+pierwszym argumentem jest nazwa pliku z opcjami znajduj±cego siê w 
+<file>/etc/ppp/peers/</file>, który bêdzie odczytany przez <prgn>pppd</prgn>.
+<footnote>
+Ta opcja jest za³±czona u¿ywaj±c opcji <tt>call</tt>.
+</footnote>
+
+To miejsce gdzie ustawiasz opcje specyficzne na przyk³ad dla konkretnego 
+po³±czenia &mdash; konkretnego dostawcy internetu (ISP).
+<p>
+Za³ó¿my przyk³ado ¿e doje¿d¿asz pomiêdzy Amsterdamem i Den Haag. W ka¿dym
+mie¶cie masz dostêp do dwóch dostawców internetu &mdash; Planet i KPN.
+Najpierw utwórz podstawowy plik z opcjami dla ka¿dego dostawcy.
+<example>
+# cat &gt; /etc/ppp/peers/KPN &lt;&lt;EOF
+remotename KPN
+noauth
+user kpn
+noipdefault
+ipparam KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet &lt;&lt;EOF
+remotename Planet
+auth
+user user3579@planet.nl
+noipdefault
+mru 1000
+mtu 1000
+ipparam Planet
+EOF
+</example>
+
+Te pliki ustawiaj± ró¿ne opcje pomiêdzy dostawcami. 
+Wspólne opcje mog± byæ umieszczone w <file>/etc/ppp/options</file> 
+lub w jednym z plików zwi±zanym z konkretnym interfejsem.
+<p>
+Teraz stwórz pliki z opcjami dla ka¿dego dostawcy w ka¿dym mie¶cie.
+W naszym przyk³adzie jedyn± ró¿nic± w po³±czeniach do dostawców w ró¿nych
+lokalizacjach bêdzie wymagany skrypt chat. 
+(Skrypt chat jest ró¿ny poniewa¿ lokalny dostêp do numeru telefonicznego
+jest inny.)
+<example>
+# cat &gt; /etc/ppp/peers/KPN-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-Amsterdam"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/KPN-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-DenHaag"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-Amsterdam"
+file /etc/ppp/peers/Planet
+EOF
+# cat &gt; /etc/ppp/peers/Planet-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-DenHaag"
+file /etc/ppp/peers/Planet
+EOF
+</example>
+
+Ka¿da dyrektywa <tt>file</tt> za³±cza jeden z plików z opcjami pokazanych
+wcze¶niej. Dyrektywa <tt>connect</tt> okre¶la polecenie z którego skorzysta 
+<prgn>pppd</prgn> do nawi±zania po³±czenia. 
+Zazwyczaj u¿ywa siê programu <prgn>chat</prgn> do tego odpowiednio
+dostosowuj±c skrypt chat do dostawcy.
+Poni¿ej skrypt chat dla Den Haag; skrypt dla Amsterdamu mo¿e byæ podobny
+z wyj±tkiem numeru telefonu lub mo¿e siê znacznie ró¿niæ je¶li tam dostawca
+oferuje us³ugi poprzez inn± firmê.
+
+<example>
+# cat &gt; /etc/chatscripts/KPN-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676012321</var>
+CONNECT 
+EOF
+# cat &gt; /etc/chatscripts/Planet-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676002505</var>
+CONNECT 
+EOF
+</example>
+
+By móc po³±czyæ siê z tymi dostawcami potrzebujesz nazwê klienta oraz has³o
+któe <prgn>pppd</prgn> mo¿e wykorzystaæ przy po³±czeniu.
+Te informacje przechowywane s± albo w <file>/etc/ppp/pap-secrets</file> 
+(je¶li u¿ywany jest protokó³ PAP) albo w <file>/etc/ppp/chap-secrets</file>
+(je¶li u¿ywany jest protokó³ CHAP). Mimo, ¿e CHAP jest bardziej bezpieczny
+to PAP jest czê¶ciej u¿ywany. Poniewa¿ te pliki zawieraj± poufne
+informacje, grupa oraz inni nie powinni mieæ uprawnieñ do czytania czy
+zapisywania ich. Format tych plików opisany jest w 
+<manref name="pppd" section="8">. Has³o (trzecie pole) jest wybierane na
+podstawie nazwy klienta (pierwsze pole) i/lub nazwy serwera (drugie pole).
+Podczas ³±czenia siê z dostawcami generalnie nie jest znana nazwa serwera
+wiêc przesy³ana jest w zamian nazwa klienta; jest to wykonywane
+w powy¿szych plikach w liniach <tt>user</tt> w <file>peers/KPN</file> 
+i <file>peers/Planet</file>.
+
+<example>
+# nazwa klienta     nazwa serwera  has³o
+kpn                 *              kpn
+user3579@planet.nl  *              myfavoritepet
+</example>
+
+<sect2 id="ppp-pppconfig">Konfiguracja <prgn>pppd</prgn> u¿ywaj±c
+<package>pppconfig</package>
+
+<p>
+Szybkim sposobem na konfiguracjê <prgn>pppd</prgn> jest u¿ycie programu 
+<prgn>pppconfig</prgn> z pakietu o tej samej nazwie. <prgn>pppconfig</prgn> 
+ustawia powy¿sze pliki po zadaniu u¿ytkownikowi pytañ w przyjaznym
+interfejsie. 
+<p>
+Je¶li zamierzasz u¿ywaæ <package>resolvconf</package> upewnij siê, ¿e
+wybra³e¶ "None" na ekranie "Configure Nameservers".
+
+<sect2 id="ppp-wvdial">Konfiguracja interfejsu PPP u¿ywaj±c 
+<package>wvdial</package>
+
+<p>
+Innym sposobem na u¿ywanie <prgn>pppd</prgn> jest uruchamianie go z 
+<prgn>wvdial</prgn> który znajduje siê w pakiecie <package>wvdial</package>.
+Zamiast uruchamiaæ <prgn>pppd</prgn> wraz z <prgn>chat</prgn> do negocjacji
+i nawi±zania po³±czenia, <prgn>wvdial</prgn> sam wdzwania siê i negocjuje
+po³±czenie a nastêpnie uruchamia <prgn>pppd</prgn> do reszty zadañ.
+Podaj±c tylko numer telefonu, nazwê u¿ytkownika i has³o <prgn>wvdial</prgn> 
+radzi sobie z nawi±zaniem po³±czenia w wiêkszo¶ci przypadków.
+
+<sect id="net-name">Przydzielanie nazwy komputerowi
+<p>
+
+<sect1 id="name-host">Nazwa komputera
+<p>
+System &debian; czasem potrzebuje identyfikacji poprzez nazwê.
+Do tych celów <strong>hostname</strong> jest zarz±dzany przez j±dro.
+<p>
+Skrypt startowy <file>/etc/init.d/hostname.sh</file> ustawia nazwê
+komputera podczas uruchamiania systemu (u¿ywaj±c polecenia 
+<prgn>hostname</prgn>) i przetrzymuje j± w <file>/etc/hostname</file>.
+Ten plik powinien zawieraæ <strong>tylko</strong> nazwê komputera, a nie
+jego pe³n± nazwê domenow±.
+<p>
+By wy¶wietliæ aktualn± nazwê komputera uruchom <prgn>hostname</prgn> bez
+argumentów.
+
+<sect1 id="name-mail">Nazwa pocztowa (mailname)
+<p>
+<strong>mailname</strong> danego komputera jest nazw±, której programy
+zwi±zane z poczt± elektroniczn± u¿ywaj± do identyfikacji komputera.
+Plik <file>/etc/mailname</file> zawiera tê nazwê zakoñczon± now± lini±.
+Nazwa pocztowa jest zazwyczaj jedn± z pe³nych domenowych nazw komputera
+(fully qualified domain name). Zobacz <manref name="mailname" section="5">.
+<p>
+
+To co odbiorca wiadomo¶ci email wys³anej przez Twój system &debian; widzi 
+przy nag³ówku <tt>From:</tt> zale¿y od tego jak serwer oraz klient pocztowy
+s± skonfigurowane.
+Za³ó¿my, ¿e lokalny u¿ytkownik <tt><var>foo</var></tt> wysy³a wiadomo¶æ
+z komputera o nazwie pocztowej <tt><var>mojkomputer.dom</var></tt>.
+W nag³ówku <tt>From:</tt> wiadomo¶ci wychodz±cej bêdzie:
+<list compact>
+<item>"<tt>From: <var>foo</var>@<var>mojkomputer.dom</var></tt>"
+je¶li klient nie ma ustawionego nag³ówka <tt>From:</tt>;
+<item>"<tt>From: <var>bar</var>@<var>mojkomputer.dom</var></tt>"
+je¶li klient ma ustawiony nag³ówek "<tt>From: <var>bar</var></tt>";
+<item>"<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>"
+je¶li klient ma ustawiony nag³ówek "<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>"
+</list>
+
+Nawet je¶li klient ma ustawiony nag³ówek <tt>From:</tt>, serwer mo¿e dodaæ
+nag³ówek "<tt>Sender:<var>foo</var>@<var>herman.dom</var></tt>" tak by
+zaznaczyæ prawdziwe ¼ród³o pochodzenia.
+<p>
+Oczywi¶cie je¶li serwer podejmie próbê podmienienia adresu tak jak zosta³o
+to omówione w <ref id="addr-catchall"> i <ref id="addr-rewrite">, adres
+email widoczny dla odbiorcy mo¿e byæ zmieniony na cokolwiek.
+
+<sect id="net-dns">Us³uga nazw (DNS)
+<p>
+Komputery rozpoznawane s± przez domenê tak samo jak przez adresy IP.
+DNS jest systemem typu klient-serwer, który zamienia nazwy na podstawie
+danych z serwerów nazw tak by nazwa by³a powi±zana z adresem IP i innymi
+w³a¶ciwo¶ciami komputera.
+Biblioteka GNU C <manref name="resolver" section="3"> mo¿e równie¿
+poszukiwaæ adresów IP w plikach lub odwo³ywaæ siê do Network Information 
+Services (NIS).
+<p>
+By zobaczyæ jaka nazwa domeny jest powi±zana z lokalnym komputerem, u¿yj
+polecenia <prgn>hostname --fqdn</prgn>. Spowoduje to wy¶wietlenie pierwszej
+pe³nej nazwy domenowej znalezionej dla lokalnego komputera przez program
+rozwi±zuj±cy nazwy.
+<footnote>
+Technicznie, jest to FQDN zwracany przez 
+<manref name="gethostbyname" section="2"> dla komputera zwracanego przez
+<manref name="gethostname" section="2">.
+</footnote>
+<p>
+
+<sect1 id="dns-resolver">Resolver
+
+<p>
+Odszukiwaniem informacji o tym jaki adres IP jest powi±zany z konkretn± 
+nazw± domeny zajmuje siê resolver. Najczê¶ciej u¿ywanym resolverem jest 
+zbiór funkcji o tej nazwie (<manref name="resolver" section="3">) 
+w bibliotece GNU C.
+
+Innym jest FireDNS resolver z pakietu <package>libfiredns</package>.
+
+<p>
+To w jaki sposób resolver LIBC rozwi±zuje nazwy jest zdefiniowane w lini
+<tt>hosts</tt> pliku konfiguracyjnego <file>/etc/nsswitch.conf</file>.
+Ta linia zawiera us³ugi, które powinny byæ u¿yte do rozwi±zania nazwy: np.
+<tt>dns</tt>, <tt>files</tt>, <tt>nis</tt>, <tt>nisplus</tt>.
+
+<footnote>
+Przyjmuje siê, ¿e to w jaki sposób resolver rozwi±zuje nazwy jest równie¿
+zdefiniowane w pliku konfiguracyjnym <file>/etc/host.conf</file>.
+Linia <tt>order</tt> tego pliku zawiera listê metod, które powinny 
+zostaæ u¿yte do rozwi±zania nazwy:
+<tt>bind</tt>, <tt>hosts</tt>, <tt>nis</tt>.
+Zobacz <manref name="host.conf" section="5">.
+Uwa¿am, ¿e ta linia zosta³a zast±piona przez <tt>hosts</tt>
+<file>nsswitch.conf</file>, ale nie jestem pewien.
+</footnote>
+
+Zobacz <manref name="nsswitch.conf" section="5">.
+Dopóki u¿ywana jest us³uga <tt>files</tt>, zachowanie resolvera definiuje
+równie¿ plik konfiguracyjny <file>/etc/hosts</file>.
+Zobacz <manref name="hosts" section="5">.
+<p>
+Wszystkie wymienione pliki s± statyczne i mog± byæ edytowane przy pomocy
+ulubionego edytora.
+<p>
+Dopóiki u¿ywana jest us³uga <tt>dns</tt>, zachowanie resolvera
+definiuje równie¿ plik konfiguracyjny <file>/etc/resolv.conf</file>.
+Zobacz <manref name="resolv.conf" section="5">.
+
+Jedn± z najwa¿niejszych funkcji <file>resolv.conf</file>
+jest lista adresów IP serwerów nazw z którymi bêdzie nawi±zywany kontakt
+w celu rozwi±zania nazwy.
+Ta lista czêsto zale¿y od ¶rodowiska sieciowego, a ono mo¿e siê zmieniaæ
+od czasu do czasu gdy komputer jest uruchomiony.
+Takie programy jak <prgn>pppd</prgn> i <prgn>dhclient</prgn>
+maj± mo¿liwo¶æ manipulowania plikiem <file>resolv.conf</file>, poprzez 
+dodawanie i usuwanie linii, ale te funkcje nie zawsze dzia³aj± poprawnie 
+i konfliktuj± ze sob±.
+Pakiet <package>resolvconf</package> radzi sobie z tym problemem lepiej 
+poprzez standard aktualizowania tego pliku.
+Zobacz <ref id="dns-resolvconf">.
+<p>
+
+<sect1 id="dns-resolvconf">Zarz±dzanie informacjami o serwerach nazw &ndash; <package>resolvconf</package>
+
+<p>
+Pakiet <package>resolvconf</package> dostarcza standard do dynamicznego
+zarz±dzania informacj± o dostêpnych serwerach nazw.
+Rozwi±zuje dawny problem zarz±dzania dynamiczn± list± serwerów nazw dla 
+resolvera i buforu DNS.
+Resolvconf ustawia siê jako po¶rednik miêdzy programami, które kontroluj± 
+interfejsy sieciowe i dostarczaj± informacji o serwerach nazw, a programami, 
+które tych informacji potrzebuj±.
+ <p>
+<package>resolvconf</package> jest zaprojektowany by dzia³aæ, bez potrzeby
+jakiejkolwiek rêcznej konfiguracji.
+Jednak¿e pakiet ten jest raczej nowy i mo¿e wymagaæ rêcznej interwencji
+by dzia³a³ poprawnie. To bêdzie z pewno¶ci± wymagane je¶li kiedykolwiek
+instalowa³e¶ w³asne pakiety, które aktualizuj± <file>/etc/resolv.conf</file>:
+wtedy bêdziesz musia³ wy³±czyæ te aktualizacje.
+  	 <p>
+Szczegó³y w <url id="&f-resolvconf;">.
+
+<sect1 id="dns-dnsmasq">Buforowanie rozwi±zanych nazw &ndash; 
+<package>dnsmasq</package>
+<p>
+Je¿eli Twój serwer nazw nie musi byæ autorytatywnym dla domeny to lepiej 
+w³±czyæ buforowanie rozwi±zywania nazw na przyk³ad przy pomocy 
+<package>dnsmasq</package>. Wspó³pracuje dobrze z 
+<package>resolvconf</package>.
+  	 
+<sect1 id="dns-bind-cache">Buforowanie rozwi±zanych nazw &ndash;
+<package>bind</package>
+<p>
+Mo¿esz równie¿ u¿yæ <package>bind9</package> lub
+<package>bind</package>a jako lokalny bufor rozwi±zanych nazw.
+Równie¿ dobrze wspó³pracuje z <package>resolvconf</package>, ale w momencie
+pisania tego (pa¼dziernik 2003), trzeba ustawiaæ go rêcznie.
+Instrukcje w <url id="&f-resolvconf;">.
+
+<sect1 id="dns-bind-server">Udostêpnianie DNS &ndash; <package>bind</package>
+<p>
+Je¶li musisz udostêpniaæ autorytatywnych informacji o nazwach dla
+domeny, potrzebujesz pe³nego serwera nazw, takiego jak <prgn>named</prgn>,
+który znajduje siê albo w pakiecie <package>bind9</package> albo 
+<package>bind</package>.
+Dla nowych instalacji zalecany jest <package>bind9</package>.
+<p>
+By zainstalowaæ <package>bind9</package>, zainstaluj te podstawowe pakiety:
+<package>bind9</package>;
+<package>dnsutils</package>.
+Je¶li chcesz, mo¿esz doinstalowaæ równie¿ te pakiety z narzêdziami:
+<package>bind9-host</package>;
+<package>dns-browse</package>;
+<package>dnscvsutil</package>;
+<package>nslint</package>.
+Je¶li chcesz, mo¿esz doinstalowaæ równie¿ pakiet z dokumentacj±:
+<package>bind9-doc</package>.
+Je¶li chcesz, mo¿esz doinstalowaæ równie¿ pakiety deweloperskie:
+<package>libbind-dev</package>;
+<package>libnet-dns-perl</package>.
+Je¶li konfigurujesz interfejsy przy u¿yciu DHCP, to przydatn mo¿e okazaæ
+siê pakiet:
+<package>dhcp-dns</package>.
+<p>
+Zainstaluj <package>bind9</package> lub przekonfiguruj go przy pomocy 
+<prgn>dpkg-reconfigure</prgn> by dokonaæ podstawowych ustawieñ.
+Konfiguracja dokonuje siê poprzez edycjê pliku <file>named.conf</file>.
+W systemie &debian; ten plik znajduje siê w <file>/etc/bind/</file> i jest
+u¿ywany g³ównie do definicji podstawowych stref DNS; <tt>zawiera</tt> 
+dwa inne pliki:
+<file>named.conf.local</file>, u¿ywany do definicji lokalnych stref, oraz
+<file>named.conf.options</file>, u¿ywany do ustawieñ opcji.
+Ten drugi jest przetwarzany przez <package>resolvconf</package> by utworzyæ
+<file>/var/run/bind/named.options</file>, który jest identyczny
+z oryginalnym poza opcj± <tt>forwarders</tt>, która zawiera listê aktualnie
+dostêpnych nielokalnych serwerów nazw.
+By z niego skorzystaæ, zmieñ liniê <tt>include</tt> w
+<file>named.conf</file> tak by zawiera³a 
+<file>/var/run/bind/named.options</file>.
+Zobacz <ref id="dns-resolvconf">.)
+<p>
+Pliki z danymi wprowadzone w <file>named.conf*</file> bez pe³nej ¶cie¿ki
+bêd± przetrzymywane w <file>/var/cache/bind/</file>.
+To prawid³owe miejsce na przetrzymywanie plików generowanych przez 
+<prgn>named</prgn>a: na przyk³ad, plików z danymi dla stref dla których
+jest serwerem podrzêdnym.
+Statyczne pliki z danymi w <file>/etc/bind/</file> s± i musz± byæ wpisane 
+w <file>named.conf</file> wraz z pe³nymi ¶cie¿kami.
+Szczegó³y w <url id="&f-bind9;">.
+
+<sect id="net-dhcp">Konfiguracja interfejsów sieciowych z wykorzystaniem DHCP
+<p>
+Zaawansowana konfiguracja interfejsów sieciowych mo¿e byæ zautomatyzowana
+przez Dynamic Host Configuration Protocol (DHCP).
+Twój firewall lub router lub dostawca internetu mo¿e udostêpniaæ adresy IP
+i inne parametry w ten sposób.
+<p>
+By skorzystaæ z tych us³ug musisz zainstalowaæ jeden z nastêpuj±cych
+pakietów:
+<list compact>
+<item><package>dhcp3-client</package> (wersja 3, Internet Software Consortium)
+<item><package>dhcpcd</package> (Yoichi Hariguchi i Sergei Viznyuk)
+<item><package>pump</package> (Redhat)
+</list>
+<package>pump</package> jest prosty i popularny.
+<package>dhcp3-client</package> jest bardziej skomplikowany, ale równie¿ ma
+wiêksze mo¿liwo¶ci konfiguracyjne.
+<footnote>
+W pa¼dzierniku 2003 roku dostêpny jest równie¿ pakiet 
+<package>dhcp-client</package>. Zawiera on wersjê 2 klienta DHCP ISC, który
+zosta³ zast±piony przez wersjê 3 z pakietu <package>dhcp3-client</package>.
+Opiekunowie zamierzaj± przechrzciæ pewnego dnia 
+<package>dhcp3-client</package> na <package>dhcp-client</package>, ale
+wygl±da na to, ¿e nie stanie siê to przed wydaniem Sarge.
+</footnote>
+
+<sect id="net-high">Konfiguracja sieci wy¿szego poziomu w systemie &debian;
+<p>
+W celu u³atwienia konfiguracji sieci, system &debian; dostarcza
+standardowe narzêdzia konfiguracyjne wy¿szego poziomu, na które sk³adaj± siê
+programy <prgn>ifup</prgn> i <prgn>ifdown</prgn> oraz plik
+<file>/etc/network/interfaces</file>.
+<footnote>
+Format pliku <file>/etc/network/interfaces</file> dla aktualnej wersji 
+<package>ifupdown</package> jest niekompatybilny z formatem u¿ywanym we
+wcze¶niejszych wersjach pakietu w Potato.
+Skrypt poinstalacyjnych pakietu <package>ifupdown</package> powinien
+zaktualizowaæ plik automatycznie, je¶li pojawi siê taka konieczno¶æ.
+
+<!-- 
+However, if you are upgrading from Potato then you should read
+<manref name="interfaces" section="5"> and examine
+<file>/etc/network/interfaces</file> to make sure that the file
+was converted properly.
+My intial note was issues over downgrade from Woody to Potato but it is
+not needed since Woody is stable already and no more old-stable support
+exist for Potato.
+-->
+
+</footnote>
+
+Je¶li zdecydujesz siê na u¿ycie <package>ifupdown</package> do zarz±dzania
+konfiguracj± swojej sieci, <strong>nie</strong> powiniene¶ jednocze¶nie
+u¿ywaæ poleceñ ni¿szego poziomu.
+<footnote>
+To oznacza równie¿, ¿e nie powiniene¶ u¿ywaæ innych narzêdzi
+konfiguracyjnych wy¿szego poziomu, takich jak <package>whereami</package>,
+który korzysta z narzêdzi ni¿szego poziomu.
+</footnote>
+<package>Ifupdown</package> zosta³ napisany z my¶l±, ¿e bêdzie u¿ywany
+samodzielnie do konfiguracji i dekonfiguracji interfejsów sieciowych.
+<p>
+By zaktualizowaæ konfiguracjê interfejsów:
+
+<example>
+# ifdown eth0
+# editor /etc/network/interfaces  # dostosuj wed³ug potrzeb
+# ifup eth0
 </example>
 <p>
-&debian; u¿ywa pliku <file>/etc/network/interfaces</file> do konfiguracji IP.
+
+Wiêcej informacji uzyskasz w <manref name="interfaces" section="5">,
+<url id="&f-ifupdown;"> i <manref name="ifup" section="8">.
+
+<sect1 id="high-static">Konfiguracja interfejsu ze statycznym adresem IP
 <p>
-Na przyk³ad, je¶li <file>eth0</file> ³±czy Ciê z Internetem z wykorzystaniem
-adresu IP pobieranego przez DHCP, a <file>eth1</file> ³±czy Ciê z sieci±
-lokaln± (LAN), plik <file>/etc/network/interfaces</file> wygl±da nastêpuj±co
-(w przypadku Woodiego lub nowszej dystrybucji):
+Za³ó¿my, ¿e chcesz skonfigurowaæ interfejs Ethernet tak by mia³ adres 
+<tt>192.168.0.123</tt>. Ten adres zaczyna siê od <tt>192.168.0</tt>, tak
+wiêc musi znajdowaæ siê w sieci lokalnej (LAN).
+Za³ó¿my dodatkowo, ¿e <tt>192.168.0.1</tt> jest adresem bramki sieciowej.
+Przeedytuj <file>/etc/network/interfaces</file> tak by zawiera³ linie
+podobne do poni¿szych:
 <example>
-auto eth0
+iface eth0 inet static
+        address 192.168.0.123
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+</example>
+
+Je¶li posiadasz zainstalowany <package>resolvconf</package> mo¿esz dodaæ
+linie okre¶laj±ce informacje DNS. Przyk³ado:
+<example>
+iface eth0 inet static
+        address 192.168.0.123
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        dns-search extradomena.org
+        dns-nameservers 195.238.2.21 195.238.2.22
+</example>
+
+Po podniesieniu interfejsu, argumenty opcji <tt>dns-search</tt> i 
+<tt>dns-nameservers</tt> s± dostêpna dla <package>resolvconf</package>, by
+móg³ je w³±czyæ do <file>resolv.conf</file>.
+Argument <tt>extradomena.org</tt> opcji <tt>dns-search</tt> odpowiada
+argumentowi opcji <tt>search</tt> w <manref name="resolv.conf" section="5">.
+Argumenty <tt>195.238.2.21</tt> i <tt>195.238.2.22</tt> opcji 
+<tt>dns-nameservers</tt> odpowiadaj± argumentom opcji <tt>nameserver</tt> 
+w <manref name="resolv.conf" section="5">.
+Inne rozpoznawane opcje to <tt>dns-domain</tt> i <tt>dns-sortlist</tt>.
+Zobacz <ref id="dns-resolvconf">.
+
+<sect1 id="high-dhcp">Konfiguracja interfejsu z u¿yciem DHCP
+<p>
+By skonfigurowaæ interfejs z u¿yciem DHCP przeedytuj 
+<file>/etc/network/interfaces</file> tak by zawiera³ linijkê podobn± do:
+<example>
+iface eth0 inet dhcp
+</example>
+Aby to zadzia³a³o musisz mieæ zainstalowany jeden z klientów DHCP
+wspomnianych w <ref id="net-dhcp">.
+
+<sect1 id="high-wifi">Konfiguracja interfejsu bezprzewodowego Wi-Fi
+<p>
+Pakiet <package>wireless-tools</package> zawiera skrypt 
+<file>/etc/network/if-pre-up.d/wireless-tools</file>, który pozwala na
+konfigurowanie sprzêtu Wi-Fi (802.11a/b/g) zanim interfejs zostanie
+podniesiony. Konfiguracji dokonuje siê u¿ywaj±c programu <prgn>iwconfig</prgn>;
+zobacz <manref name="iwconfig" section="8">.
+Dla ka¿dego mo¿liwego parametru polecenia <prgn>iwconfig</prgn> mo¿esz
+do³±czyæ opcjê o takiej samej nazwie w <file>/etc/network/interfaces</file> 
+poprzedzaj±c j± przedrostkiem "wireless-".
+Przyk³adowo by ustawiæ  ESSID dla <tt>eth0</tt> na 
+<tt>myessid</tt> i klucz szyfruj±cy na 
+<tt>123456789e</tt> przed podniesieniem interfejsu 
+<tt>eth0</tt> u¿ywaj±c DHCP, przeedytuj 
+<file>/etc/network/interfaces</file> tak by zawiera³ poni¿sze linie:
+<example>
+iface eth0 inet dhcp
+        wireless-essid myessid
+        wireless-key 123456789e
+</example>
+
+<sect1 id="high-ppp">Konfiguracja interfejsu PPP
+<p>
+Programy <prgn>ifup</prgn> i <prgn>ifdown</prgn> u¿ywaj± <prgn>pon</prgn> 
+i <prgn>poff</prgn> do dodawania i usuwania interfejsów PPP wiêc najpierw
+przeczytaj <ref id="low-ppp">.
+<p>
+Za³ó¿my, ¿e ustawi³e¶ PPP by dzia³a³o z po³±czeniem <tt>mojisp</tt>.
+Przeedytuj <file>/etc/network/interfaces</file> tak by zawiera³ poni¿sze
+linie:
+<example>
+iface ppp0 inet ppp
+        provider mojisp
+</example>
+
+Z takim ustawieniem <prgn>ifup ppp0</prgn> uruchomi 
+<example>
+pon mojisp
+</example>
+Niestety nie ma w tej chwili mo¿liwo¶ci by przekazaæ dodatkowe opcje dla 
+<prgn>pppd</prgn> w liniach dotycz±cych <tt>ppp</tt> znajduj±cych siê
+<file>/etc/network/interfaces</file>.
+<footnote>
+Zobacz b³±d <url id="&bug-iud-pon-args;" name="#196877">.
+</footnote>
+<p>
+Nie jest w tej chwili mo¿liwe u¿ycie <package>ifupdown</package> do
+przeprowadzenia pomocniczej konfiguracji interfejsów PPP. Poniewa¿ 
+<prgn>pon</prgn> istnieje zanim <prgn>pppd</prgn> skoñczy nawi±zywanie
+po³±czenia, <prgn>ifup</prgn> uruchamia skrypty <tt>up</tt> zanim interfejs
+PPP jest gotowy do u¿ycia.
+Dopóki ten b³±d
+<footnote>
+Zobacz b³±d <url id="&bug-iud-ppp-wait;" name="#127786">.
+</footnote>
+nie zostanie poprawiony, wymagane jest konfigurowanie przez edycjê plików 
+<file>/etc/ppp/ip-up</file> lub <file>/etc/ppp/ip-up.d/</file>.
+
+<sect1 id="high-pppoe">Konfiguracja interfejsu PPPoE
+<p>
+Wiele dostawców internetu (ISP) u¿ywa PPP do negocjacji po³±czenia nawet
+w momencie gdy maszyna klienta pod³±czona jest poprzez Ethernet lub/i 
+sieæ ATM. Realizuje siê to u¿ywaj±c PPP ponad Ethernetem (PPPoE), który
+jest technik± pakowaia strumieni PPP w ramkach Ethernetu.
+Za³ó¿my, ¿e Twój dostawca nazywa siê <tt><var>mojisp</var></tt>.
+Najpierw skonfigurujemy PPP i PPPoE do po³±czenia <tt><var>mojisp</var></tt>.
+Najprostszym sposobem osi±gniêcia tego jest instalacja pakietu 
+<package>pppoeconf</package> i uruchomienie w konsoli
+<prgn>pppoeconf</prgn>. Nastêpnie przeedytuj 
+<file>/etc/network/interfaces</file> tak by zawiera³o poni¿sze linie:
+<example>
+iface eth0 inet ppp
+        provider <var>mojisp</var>
+</example>
+
+<!--
+The better one is following but need verification
+<example>
+mapping eth0
+        script /root/bin/echo-ppp0
+
+iface ppp0 inet ppp
+        provider <var>myisp</var>
+</example>
+where,
+<example>
+# cat &gt; /root/bin/echo-ppp0 &lt;&lt;EOF
+# /bin/sh
+echo ppp0
+EOF
+# chmod 755 /root/bin/echo-ppp0
+</example>
+-->
+
+<p>
+Czasami wystêpuj± problemy z Maksymaln± Jednostk± Transmisji (MTU)
+w po³±czeniu z PPPoE przez Digital Subscriber Line (DSL).
+Szczegó³y znajdziesz w <url id="&dsl-howto;" name="DSL-HOWTO">.
+<p>
+Zauwa¿, ¿e je¶li Twój modem zawiera router, wtedy modem/router obs³uguje
+po³±czenie PPPoE samodzielnie i pojawia siê w sieci jako zwyk³a bramka
+Ethernetowa.
+ 
+<sect1 id="high-dual">Konfiguracja wielu interfejsów Ethernet
+<p>
+Za³ó¿my, ¿e interfejs <file>eth0</file> jest pod³±czony do Internetu
+z adresem pobieranym poprzez DHCP, a <file>eth1</file> jest pod³±czony do
+sieci lokalnej ze statycznym adresem <tt>192.168.1.1</tt>.
+Zmodyfikuj <file>/etc/network/interfaces</file> by zawiera³o poni¿sze
+wpisy:
+<example> 	 
 iface eth0 inet dhcp
 
-auto eth1
 iface eth1 inet static
-address 192.168.1.1
-network 192.168.1.0
-netmask 255.255.255.0
-broadcast 192.168.1.255
+	address 192.168.1.1
+	netmask 255.255.255.0
 </example>
-Wprowad¼ poni¿sze polecenie, by uaktualniæ konfiguracjê sieciow± u¿ywaj±c
-nowego pliku <file>/etc/network/interfaces</file>:
+
+Je¶li na tym komputerze uaktywnisz NAT, tak jak to opisano w 
+<ref id="net-router">, bêdziesz móg³ wspó³dzieliæ po³±czenie internetowe
+ze wszystkimi komputerami z sieci.
+
+<sect1 id="high-virtual">Konfigurowanie interfejsów wirtualnych
+<p>
+U¿ywaj±c interfejsów wirtualnych mo¿esz skonfigurowaæ jedn± kartê Ethernet
+by by³a interfejsem do wielu podsieci. Za³ó¿my, ¿e Twój komputer jest 
+w sieci 192.168.0.x/24. Teraz chcemy pod³±czyæ go do Internetu u¿ywaj±c tej
+samej karty i adresu publicznego dostarczanego przez DHCP.
+Zmodyfikuj <file>/etc/network/interfaces</file> tak by zawiera³ poni¿sze
+linie:
 <example>
-# /etc/init.d/networking restart
+iface eth0 inet static
+	address 192.168.0.1
+	netmask 255.255.255.0
+	network 192.168.0.0
+	broadcast 192.168.0.255
+
+iface eth0:0 inet dhcp
 </example>
-Pamiêtaj: Plik <file>/etc/network/interfaces</file> z Woodiego (i pó¼niejszych
-wersji) nie jest kompatybilny z podobnym plikiem z Potato. (Taka sama sytuacja
-mo¿e zaistnieæ miêdzy Woody a Sarge.)
+
+Interfejs <tt>eth0:0</tt> jest interfejsem wirtualnym.
+Jego rodzicem jest <tt>eth0</tt>.
+
+<sect id="net-reconf"><strong>Re</strong>konfiguracja sieci
+
 <p>
-Je¶li system u¿ywa karty sieciowej PCMCIA, nale¿y skonfigurowaæ sieæ
-w pliku <file>/etc/pcmcia/network.opts</file> (dotyczy tylko Potato).
-W Woodym ten problem zosta³ rozwi±zany.
+W poni¿szych rozwa¿aniach wa¿ne jest by czytelnik rozumia³ ró¿nicê pomiêdzy 
+<strong>fizycznym</strong>, a <strong>logicznym</strong> interfejsem.
+
+<footnote>
+Taka terminologia jest u¿ywana w dokumentacji pakietu 
+<package>ifupdown</package>.
+</footnote>
+
+
+Interfejs fizyczny jest tym co do tej pory nazywali¶my "interfejsem",
+a wiêc rzeczy okre¶lane jako <tt>eth0</tt>, <tt>ppp1</tt> i podobnie.
+
+Logiczny interfejs to zbiór warto¶ci, które mog± byæ przydzielone do
+zmienny parametrów interfejsu fizycznego. Je¶li jest to dla Ciebie
+niezrozumia³e, zamieniaj podczas czytania wyra¿enie 
+"skonfigurowany jako interfejs logiczny <tt>X</tt>" na 
+"skonfigurowany z profilem interfejsu <tt>X</tt>".
 <p>
-Je¶li nie jeste¶ pewien, przyjrzyj siê wynikowi poni¿szych poleceñ:
+Definicje <tt>iface</tt> w <file>/etc/network/interfaces</file> s±
+definicjami logicznych interfejsów, a nie fizycznych.
+
+<footnote>
+Zauwa¿, ¿e interfejsy wymienione w liniach <tt>auto</tt> s± fizycznymi,
+a nie logicznymi interfejsami.
+</footnote>
+
+Je¶li nie zamierzasz nigdy rekonfigurowaæ interfejsów, to mo¿esz zignorowaæ
+ten fakt, bo fizyczny interfejs <tt>X</tt> domy¶lnie bêdzie skonfigurowany
+jako logiczny interfejs <tt>X</tt>.
+<p>
+
+Za³ó¿my jednak¿e, ¿e Twój komputer to laptop, którego przewozisz miêdzy
+prac± i domem. Gdy pod³±czasz go do sieci korporacyjnej lub do sieci
+domowej, musisz odpowiedni skonfigurowaæ <tt>eth0</tt>.
+<p>
+Najpierw zdefiniuj dwa logiczne interfejsy <tt>dom</tt> i <tt>praca</tt>
+(zamiast jednego <tt>eth0</tt> jak to robili¶my wcze¶niej), które opisuj±
+jak interfejsy powinny byæ skonfigurowane dla odpowiednich sieci.
+<example>
+iface dom inet static
+	address 192.168.0.123
+	netmask 255.255.255.0
+	gateway 192.168.0.1
+  	 
+iface praca inet static
+	address 81.201.3.123
+	netmask 255.255.0.0
+	gateway 81.201.1.1
+</example>
+
+Wtedy fizyczny interfejs <tt>eth0</tt> mo¿e zostaæ podniesiony dla sieci
+domowej z u¿yciem odpowiedniej konfiguracji, u¿ywaj±c w linii poleceñ:
+
+<example>
+# ifup eth0=dom
+</example>
+
+<p>
+By przekonfigurowaæ <tt>eth0</tt> do u¿ycia w pracy, wprowad¼ polecenia:
+<example>
+# ifdown eth0
+# ifup eth0=praca
+</example>
+
+<p>
+Zauwa¿, ¿e przy tak napisanym pliku <file>interfaces</file> 
+nie ma mo¿liwo¶ci podniesienia <tt>eth0</tt> wpisuj±c samo 
+<tt>ifup eth0</tt>.
+Powodem jest fakt, ¿e <prgn>ifup</prgn> domy¶lnie u¿ywa fizycznej nazwy
+interfejsu jako logicznej, a w tym momencie nie ma zdefiniowanych ¿adnego
+interfejsu logicznego <tt>eth0</tt>.
+
+
+<sect id="net-magic-reconf">Magiczna rekonfiguracja sieci
+<p>
+Nazwy logicznych interfejsów mog± byæ "zmapowane" na inne nazwy podczas
+uruchamiania <prgn>ifup</prgn>.
+To jak nazwy bêd± mapowane mo¿e byæ uzale¿nione od ró¿nych warunków.
+Zatem <prgn>ifup</prgn> mo¿e byæ tak skonfigurowany, ¿e bêdzie podnosi³
+dany interfejs fizyczny jako odpowiedni interfejs logiczny wybrany
+z predefiniowanych alternatyw.
+<p>
+Mapowanie nazw logicznych interfejsów odbywa siê nastêpuj±co:
+<list compact>
+<item>Je¶li w linii poleceñ <prgn>ifup</prgn> nie podano nazwy logicznego
+interfejsu, nazwa fizycznego zostanie u¿yta jako wstêpna nazwa.
+<item>Je¶li nazwa logicznego interfejsu pasuje do wzorca u¿ytego w czê¶ci
+<tt>mapping</tt> to jest ona u¿yta do tworzenia nowej nazwy logicznego
+interfejsu. Odbywa siê to rekursywnie a¿ do braku dopasowañ.
+<item>Je¶li ostatnia nazwa logicznego interfejsu jest etykiet± defuuchu
+ubterfejsu w <file>/etc/network/interfaces</file>, to fizyczny interfejs
+jest podnoszony jako logiczny.
+W przeciwnym wypadku <prgn>ifup</prgn> wy¶wietla komunikat 
+"Ignoring unknown interface" i koñczy swoje dzia³anie.
+</list>
+Sk³adnia czê¶ci <tt>mapping</tt> wygl±da nastêpuj±co:
+
+<example>
+mapping <var>wzorzec</var>
+	script <var>nazwa-skryptu</var>
+	[map <var>dane skryptu</var>]
+</example>
+
+Skrypt okre¶lony w czê¶ci <tt>mapping</tt> jest uruchamiany z nazw±
+fizycznego interfejsu jako jego argument oraz z zawarto¶ci± wszystkich
+nastêpuj±cych linii "map" podanych na wej¶cie standardowe skryptu.
+Skrypt wypisuje rezultat mapowania na swoim standardowym wyj¶ciu tu¿ przed
+zakoñczeniem.
+<p>
+Przyk³adowo poni¿szy wpis <tt>mapping</tt> sprawi, ¿e <prgn>ifup</prgn>
+podniesie interfejs <tt>eth0</tt> jako interfejs logiczny <tt>dom</tt>.
+<example>
+mapping eth0
+	script /usr/local/sbin/echo-home
+</example>
+gdzie <prgn>/usr/local/sbin/echo-home</prgn> jest:
+<example>
+#!/bin/sh
+echo home
+</example>
+<p>
+Poniewa¿ mapowanie odbywa siê w skrypcie, istnieje mo¿liwo¶æ wyboru
+logicznego interfejsu na podstawie ró¿nych testów.
+Zacznijmy od przyk³adu. Za³ó¿my, ¿e masz inne karty sieciowe w domu
+i w pracy. Katalog <file>/usr/share/doc/ifupdown/examples/</file> 
+zawiera skrypt mapuj±cy, który mo¿e byæ wykorzystany do wyboru logicznego
+interfejsu na podstawie adresu MAC. Najpierw zainstaluj skrypt
+w odpowiednim katalogu.
+<example>
+# install -m770 /usr/share/doc/ifupdown/examples/match-mac-address.sh \
+/usr/local/sbin/
+</example>
+Nastêpnie dodaj poni¿szy wpis do <file>/etc/network/interfaces</file>:
+<example>
+mapping eth0
+	script /usr/local/sbin/match-mac-address.sh
+	map 02:23:45:3C:45:3C dom
+	map 00:A3:03:63:26:93 praca
+</example>
+<p>
+Bardziej skomplikowane programy mapuj±ce s± opisane poni¿ej w 
+<ref id="high-guessnet">,
+<ref id="high-ifupdown-roam"> i 
+<ref id="high-laptop-net">.
+
+<sect1 id="high-guessnet">guessnet
+<p>
+Zainstaluj <package>guessnet</package> i dodaj poni¿szy wpis do 
+<file>/etc/network/interfaces</file>:
+<example>
+mapping eth0
+	script guessnet-ifupdown
+	map dom
+	map praca
+</example>
+
+Teraz przy wpisaniu <prgn>ifup eth0</prgn> <prgn>guessnet</prgn> sprawdzi
+czy <tt>eth0</tt> mo¿e byæ podniesiony jako <tt>dom</tt> czy jako
+<tt>praca</tt>. By to osi±gn±æ <prgn>guessnet</prgn> u¿ywa informacji
+przechowywanej w definicjach logicznych interfejsów. Korzysta z ¿±dañ ARP
+by wykryæ bramê sieciow± albo z komputera opisanego w linii
+<tt>test-peer</tt>.
+<p>
+<package>guessnet</package> jest w ci±g³ym rozwoju.
+
+<sect1 id="high-ifupdown-roam">ifupdown-roam
+<p>
+Pakiet <package>ifupdown-roam</package> zawiera program
+<prgn>ifscout</prgn>, którego mo¿liwo¶ci mapowania s± rozszerzeniem
+guessnet. <prgn>ifscout</prgn> wywo³uje <prgn>guessnet</prgn> by odszukaæ
+komputery w bezprzewodowej sieci Ethernet, ale potrafi równie¿ wykryæ
+serwery DHCP i bezprzewodowe punkty dostêpu. <prgn>ifscout</prgn> jest
+skryptem pow³oki wiêc mo¿e byæ dostosowany do Twoich potrzeb.
+<p>
+Aktualnie (pa¼dziernik 2003) <package>ifupdown-roam</package> nie jest
+czê¶ci± Debiana. Mo¿liwe, ¿e w chwili gdy to czytasz jest ju¿ w archiwach
+Debiana; w przeciwnym razie mo¿esz go pobraæ z jego 
+<!-- <url id="&iudroam-home;" name="the ifupdown-roam home page"> -->
+gdzie znajdziesz równie¿ informacje na temat instalacji i u¿ytkowania.
+  	 
+<sect1 id="high-laptop-net">laptop-net
+<p>
+Pakiet <package>laptop-net</package> stosuje inne podej¶cie do
+automatycznej rekonfiguracji sieci. 
+Nie korzysta z logicznych interfejsów <package>ifupdown</package>,
+a zamiast tego ma swój system "schematów" i "profili".
+Mimo to laptop-net nadal u¿ywa <package>ifupdown</package> do konfiguracji
+fizycznych interfejsów. Wiêcej informacji znajdziesz w przystêpnie
+napisanej dokumentacji z pakietu <package>laptop-net-doc</package>.
+ 	 
+<sect id="net-trigger">Wywo³ywanie rekonfiguracji sieci
+<p>
+Widzieli¶my ju¿ jak mo¿na przekonfigurowaæ interfejsy. Rekonfiguracja musi
+siê odbywaæ w odpowiednim momencie.
+
+<p>
+Tradycyjnie sieæ jest konfigurowana podczas sekwencji uruchomieniowej przez 
+skrypt inicjalizacyjny <file>/etc/rcS.d/S40networking</file> i jest rzadko
+zmieniana. Us³ugi wykorzystuj±ce sieæ s± uruchamiane pó¼niej. Podczas
+wy³±czania systemu skrypty inicjalizuj±ce s± uruchamiane w odwrotnej
+kolejno¶ci.
+<p>
+Jednak¿e aktualnie mo¿na zauwa¿yæ trend w którym GNU i Linux zmierza do
+obs³ugi sprzêtu i wyj±tków, które zmieniaj± siê dynamicznie.
+Na pocz±tku dodano obs³ugê dla wymienialnych kart PCMCIA; pó¼niej zosta³
+zaimplementowany mechanizm <tt>hotplug</tt>, który umo¿liwia wymianê
+wiêkszej ilo¶ci sprzêtu podczas pracy komputera. 
+Zawiera siê w tym równie¿ sprzêt sieciowy. Zauwa¿, ¿e us³ugi, które zale¿±
+od wymienialnego podczas pracy sprzêtu musz± byæ uruchamiane po
+w³o¿eniu owego sprzêtu, a zatrzymywane po jego wyjêciu. To oznacza, ¿e te
+us³ugi musz± byæ usuniête spod kontroli systemu inicjalizuj±cego System
+V i obs³ugiwane przez <package>ifupdown</package>.
+<p>
+Za³ó¿my przyk³adowo, ¿e us³uga <tt>foo</tt> obs³ugiwana przez skrypt
+inicjalizacyjny <file>/etc/init.d/foo</file> zale¿y od dynamicznie
+rekonfigurowanego interfejsu sieciowego <tt>eth0</tt>.
+<list compact>
+<item>Najpier usuñ <tt>foo</tt> spod kontroli systemu inicjalizuj±cego:
+<example>
+# update-rc.d -f foo remove
+</example>
+<item>Nastêpnie umie¶æ <tt>foo</tt> pod kontrol± 
+<package>ifupdown</package> dodaj±c w <file>/etc/network/interfaces</file>
+przy interfejsie <tt>eth0</tt> opcje <tt>up</tt> i <tt>down</tt>,
+które bêd± wywo³ywaæ skrypt inicjalizuj±cy <tt>foo</tt>:
+<example>
+iface eth0 inet dhcp
+	up /etc/init.d/foo start
+	down /etc/init.d/foo stop
+</example>
+</list>
+
+<sect1 id="trigger-auto">Wywo³ywanie konfiguracji sieci podczas uruchamiania
+<p>
+Podczas uruchamiania systemu skrypt inicjalizuj±cy 
+<prgn>/etc/rcS.d/S40networking</prgn> uruchamia polecenie <prgn>ifup -a</prgn>.
+Podnosi to wszystkie fizyczne interfejsy wymienione
+w <file>/etc/network/iterfaces</file> z opcj± <tt>auto</tt>.
+<p>
+Na dzieñ dzisiejszy w wielu przypadkach lepiej jest zarz±dzaæ konfiguracj±
+sieci w sposób dynamiczny. W momencie gdy mechanizmy obs³uguj±ce
+dynamicznie zmieniaj±cy siê sprzêt s± uruchomione, mo¿na du¿o ³atwiej
+traktowaæ sprzêt statyczny jakby by³ równie¿ dynamiczny. 
+Uruchamianie mo¿na wtedy postrzegaæ jako kolejne zdarzenie hotplug (zmiany
+sprzêtu). (Zobacz <ref id="trigger-hotplug">.)
+<p>
+Jednak¿e w wiêkszo¶ci przypadków bêdziesz chcia³ podnosiæ podczas
+uruchamiania przynajmniej interfejs zwrotny <tt>lo</tt>. 
+W zwi±zku z tym upewnij siê, ¿e <file>/etc/network/interfaces</file>
+zawiera nastêpuj±cy wpis:
+<example>
+auto lo
+face lo inet loopback
+</example>
+<!--
+Above should be separated by some space to show that they are
+distinct stanzas
+-->
+Mo¿esz dopisaæ inne fizyczne interfejsy je¶li chcesz by równie¿ by³y 
+podnoszone podczas uruchamiania systemu. 
+<strong>Nigdy</strong> nie wpisuj interfejsów PCMCIA w czê¶ci <tt>auto</tt>.
+<prgn>cardmgr</prgn> PCMCIA jest uruchamiany po uruchomieniu 
+<prgn>/etc/rcS.d/S40networking</prgn>.
+  	 
+<sect1 id="trigger-hotplug">Wywo³ywanie konfiguracji sieci &ndash;
+<package>hotplug</package>
+<p>
+By otrzymaæ obs³ugê hotplug (urz±dzenia, które mog± byæ dok³adane/usuwane
+podczas pracy komputera), zainstaluj pakiet <package>hotplug</package>.
+<p>
+
+Sprzêt sieciowy mo¿e byæ do³o¿ony albo podczas uruchamiania albo ju¿ po nim
+gdy karta (np. karta PCMCIA) jest w³o¿ona do komputera albo narzêdzie 
+<prgn>discover</prgn> zostaje uruchomione i ³aduje odpowiednie modu³y
+sterowników.
+<footnote>
+Je¶li Twój system uruchamia <prgn>discover</prgn> w pliku 
+<file>/etc/rcS.d/S36discover</file>, musisz przenie¶æ go do 
+<file>/etc/rcS.d/S40discover</file>. Zobacz b³±d 
+<url id="&bug-rcs-discover;" name="#208155">.
+</footnote>
+<p>
+Kiedy j±dro wykrywa nowe urz±dzenie, inicjalizuje sterownik, a nastêpnie
+uruchamia program <prgn>hotplug</prgn> by je skonfigurowaæ.
+Pó¼niej gdy sprzêt jest usuwany, j±dro uruchamia <prgn>hotplug</prgn>
+ponownie, ale z innymi zmiennymi ¶rodowiskowymi. W systemie &debian;, podczas 
+gdy wywo³ywany jest <prgn>hotplug</prgn>, uruchamia on skrypty z 
+<file>/etc/hotplug/</file> i <file>/etc/hotplug.d/</file>. Szczegó³y
+znajdziesz w <manref name="hotplug" section="8">.
+<p>
+Nowo w³o¿ony sprzêt sieciowy jest konfigurowany przez skrypt 
+<file>/etc/hotplug/net.agent</file>.
+<footnote>
+Mo¿e byæ równie¿ konfigurowany przez jakikolwiek inny skrypt umieszczony 
+w <file>/etc/hotplug.d/net/</file>.
+</footnote>
+
+Za³ó¿my, ¿e Twoja karta sieciowa PCMCIA zosta³a w³o¿ona, a co za tym idzie
+interfejs <tt>eth0</tt> jest dostêpny do wykorzystania. 
+<file>/etc/hotplug/net.agent</file> wykonuje nastêpuj±ce polecenie:
+<example>
+ifup eth0=hotplug
+</example>
+Je¶li nie dodasz definicji interfejsu logicznego lub mapowania o nazwie
+<tt>hotplug</tt> w <file>/etc/network/interfaces</file> to to polecenie nic
+nie zdzia³a. By sprawiæ, aby to polecenie skonfigurowa³o <tt>eth0</tt>,
+dodaj nastêpuj±cy wpis do <file>/etc/network/interfaces</file>:
+<example>
+mapping hotplug
+	script echo
+</example>
+Tak jak wyja¶niono to w <ref id="net-reconf"> taki wpis zmapuje pokazane
+polecenie, wiêc odpowiada nastêpuj±cemu:
+<example>
+ifup eth0=eth0
+</example>
+<p>
+
+(<strong>Nie</strong> u¿ywaj tego typu wpisów mapowania je¶li do kontroli
+interfejsu u¿ywasz <prgn>ifplugd</prgn> uruchamionego przez 
+<prgn>hotplug</prgn>, tak jak to opisano w <ref id="trigger-ifplugd">.)
+<p>
+Je¶li chcesz jedynie by <tt>eth0</tt> zosta³o podniesione, u¿yj 
+<prgn>grep</prgn> zamiast <prgn>echo</prgn> jak w przyk³adzie poni¿ej:
+
+<example>
+mapping hotplug
+	script grep
+	map eth0
+</example>
+
+Wiêcej wskazówek znajdziesz w <ref id="net-magic-reconf"> i 
+<url id="&f-hotplug;">.
+  	 
+<sect1 id="trigger-ifplugd">Wywo³ywanie konfiguracji sieci &ndash;
+<package>ifplugd</package>
+<p>
+<package>ifplugd</package> podnosi interfejs w zale¿no¶ci od tego czy
+sprzêt jest pod³±czony do sieci czy nie.
+Mo¿e on wykryæ pod³±czenie kabla Ethernet lub punkt dostêpowy zwi±zany
+z interfejsem Wi-Fi. Gdy <prgn>ifplugd</prgn> zauwa¿y, ¿e stan po³±czenia
+siê zmieni³, uruchamia po¶redni skrypt, który domy¶lnie uruchamia 
+<prgn>ifup</prgn> lub <prgn>ifdown</prgn> dla danego interfejsu.
+<p>
+<package>ifplugd</package> dobrze wspó³pracuje z <package>hotplug</package>.
+Po w³o¿eniu karty, które powoduje mo¿liwo¶ci± skorzystania z interfejsu, 
+<file>/etc/hotplug.d/net/ifplugd.hotplug</file> uruchamia instancjê 
+<prgn>ifplugd</prgn> dla tego interfejsu.
+Gdy <prgn>ifplugd</prgn> wykryje, ¿e karta jest pod³±czona do sieci
+podnosi interfejs korzystaj±c z <prgn>ifup</prgn>.
+  	 
+<sect1 id="trigger-waproamd">Wywo³ywanie konfiguracji sieci &ndash;
+<package>waproamd</package>
+<p>
+By powi±zaæ punkt dostêpowy z kart± Wi-Fi mo¿liwe, ¿e zaistnieje
+konieczno¶æ zaprogramowania jej z odpowiednim kluczem szyfruj±cym WEP.
+Je¶li do kontrolowania <prgn>ifup</prgn> korzystasz z <prgn>ifplugd</prgn> 
+tak jak to opisano w <ref id="trigger-ifplugd"> to oczywiste jest, ¿e 
+nie mo¿esz ustawiæ klucza szyfruj±cego, bo <prgn>ifup</prgn> odpalany jest
+ju¿ po fakcie. Jednym z mo¿liwych rozwi±zañ jest zaprogramowanie wszystkich
+wymaganych kluczy w nienaruszalnej pamiêci karty Wi-Fi. Je¶li jednak
+przemieszczasz siê pomiêdzy wieloma sieciami, to Twoja karta Wi-Fi
+prawdopodobnie nie bêdzie w stanie przechowywaæ tak wiele kluczy.
+<p>
+Innym rozwi±zaniem jest skorzystanie z <prgn>waproamd</prgn>, który ustawia 
+klucz szyfruj±cy WEP w zale¿no¶ci od tego jaki punkt dostêpowy zostanie
+wyszukany. 
+<p>
+<package>waproamd</package> dobrze wspó³pracuje z <package>hotplug</package>.
+Gdy karta zostanie w³o¿ona, przez co uzyskamy mo¿liwo¶æ wykorzystania
+interfejsu, <file>/etc/hotplug.d/net/waproamd.hotplug</file> uruchamia
+instancjê <prgn>waproamd</prgn> dla tego interfejsu.
+<prgn>waproamd</prgn> dobrze wspó³pracuje równie¿ z <prgn>ifplugd</prgn>.
+<p>
+Sprawd¼ plik README z pakietu <package>waproamd</package> by dowiedzieæ siê
+wiêcej.
+
+<sect1 id="trigger-pcmcia">Konfiguracja sieci i PCMCIA
+<p>
+W poprzednich wydaniach systemu &debian; standardowym sposobem konfiguracji 
+kart sieciowych PCMCIA by³o wykorzystanie mo¿liwo¶ci pakietu 
+<package>pcmcia-cs</package>.
+Skrypty z <file>/etc/pcmcia/</file> s± wykonywane przez <prgn>cardmgr</prgn>, 
+daemon, który zarz±dza 16-bitowymi kartami PCMCIA, po ich w³o¿eniu lub
+wyjêciu. 
+Niektórzy u¿ywaj± <package>pcmcia-cs</package> w jego domy¶lnej
+konfiguracji, w której <file>/etc/pcmcia/network</file> wywo³uje 
+<prgn>ifup</prgn> po dodaniu interfejsu i <prgn>ifdown</prgn> po jego
+usuniêciu. Inni u¿ywaj± specjalnego systemu wywo³añ niskopoziomowych
+poleceñ konfiguracyjnych, które s± zaimplementowane w 
+<file>/etc/pcmcia/network</file> i uaktywnione gdy w 
+<file>/etc/pcmcia/network.opts</file> odpowiednie opcje ustawione s± na 
+<tt>y</tt>. Ten drugi sposób poci±ga za sob± wiele problemów. Dzia³a tylko
+z 16-bitowymi kartami PCMCIA oraz duplikuje funkcje 
+<package>ifupdown</package>.
+Z kolei mechanizm <package>pcmcia-cs</package> konfiguracji sieci jest
+uwa¿any za przestarza³y na rzecz <package>hotplug</package> opisanego w 
+<ref id="trigger-hotplug">.
+<p>
+By wy³±czyæ wszystkie mechanizmy konfiguracji interfejsów sieciowych w 
+<package>pcmcia-cs</package>, dodaj nastêpuj±c± liniê:
+<example>
+exit 0
+</example>
+na pocz±tku pliku <file>/etc/pcmcia/network</file>.
+<p>
+Zauwa¿, ¿e nie ma nic z³ego w u¿ywaniu <prgn>cardmgr</prgn>.
+Po prostu nie chcemy by wywo³ywa³ programy konfiguracji sieci.
+Zobacz <ref id="kernel-pcmcia"> i 
+<url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">.
+  	 
+<sect id="net-service-conf">Konfiguracja us³ug sieciowych
+<p>
+Typowa konfiguracja us³ug sieciowych na komputerze/serwerze domowym
+zawiera:
+<list compact>
+<item>Internet <em>super-server</em> i daemon TCP/IP wrapper,
+zobacz <ref id="tcpd">.
+<list compact>
+	<item><file>/etc/inetd.conf</file>
+</list>
+<item><package>ssh</package>: OpenSSH bezpieczna pow³oka, zobacz 
+<ref id="ssh">.
+<list compact>
+	<item><file>/etc/ssh/ssh_config</file>
+	<item><file>/etc/ssh/sshd_config</file>
+</list>
+<item><package>exim</package>: agent transportu poczty, zobacz
+<ref id="name-mail">. 
+<!-- fenio - dodaæ po aktualizacji  i <ref id="mta">. -->
+<list compact>
+	<item><file>/etc/exim/exim.conf</file>
+	<item><file>/etc/mailname</file>
+	<item><file>/etc/aliases</file>
+	<item><file>/etc/email-addresses</file>
+</list>
+<item><package>fetchmail</package>: daemon do pobierania wiadomo¶ci e-mail
+z konta POP3, zobacz <ref id="fetchmail">.
+<list compact>
+	<item><file>/etc/fetchmailrc</file>
+</list>
+<item><package>procmail</package>: lokalna dystrybucja wiadomo¶ci e-mail
+oraz program filtruj±cy, zobacz <ref id="procmail">.
+<list compact>
+	<item><file>~/.procmailrc</file>
+</list>
+<item>Nazwa hosta i DNS (serwer po¶rednicz±cy, bufor, ...), 
+zobacz <ref id="name-host"> i <ref id="net-dns">.
+<list compact>
+	<item><file>/etc/host.conf</file>
+	<item><file>/etc/hostname</file>
+	<item><file>/etc/hosts</file>
+	<item><file>/etc/hosts.allow</file>
+	<item><file>/etc/hosts.deny</file>
+	<item><file>/etc/resolv.conf</file>
+	<item><file>/etc/bind/named.conf</file> (przeedytuj)
+	<item><file>/etc/bind/db.lan</file> (dodaj dla komputerów z sieci lokalnej)
+	<item><file>/etc/bind/db.<var>192.168.0</var></file> (dodaj dla
+				komputerów z sieci lokalnej, zwrotny DNS)
+</list>
+<item>DHCP, zobacz <ref id="net-dhcp">.
+<list compact>
+	<item><file>/etc/dhcp3/dhclient.conf</file> (DHCP klient)
+	<item><file>/etc/default/dhcp3-server</file> (DHCP serwer)
+	<item><file>/etc/dhcp3/dhcpd.conf</file> (DHCP serwer)
+</list>
+<item><package>cvs</package>: zobacz <ref id="cvs">.
+<list compact>
+	<item><file>/etc/cvs-cron.conf</file>
+	<item><file>/etc/cvs-pserver.conf</file>
+</list>
+<item><package>nfs-kernel-server</package>: sieciowy system plików, zobacz
+<ref id="nfs">. (dla systemów uniksowych)
+<list compact>
+	<item><file>/etc/exports</file>
+</list>
+<item><package>samba</package>: wspó³dzielenie plików i drukarek w sieciach
+Windows, zobacz <ref id="samba"> i <ref id="smbmount">.
+<list compact>
+	<item><file>/etc/samba/smb.conf</file>
+</list>
+<item>Daemon systemu drukowania, zobacz <ref id="printer">.
+<list compact>
+	<item><file>/etc/printcap</file> (dla lpr)
+</list>
+<item><package>apache</package> i <package>apache2</package>: serwer WWW.
+<list compact>
+	<item><file>/etc/apache/*</file>
+	<item><file>/etc/apache2/*</file>
+</list>
+<item><package>squid</package>: serwer po¶rednicz±cy WWW.
+<list compact>
+	<item><file>/etc/squid/*</file>
+</list>
+</list>
+  	 
+  	 <!--
+  	 XXX FIXME XXX:
+  	 The network service section needs more detailed contents.
+  	 Volunteers are welcomed.
+  	 -->
+  	 <!-- explain each types under sect1 -->
+  	 <!-- equivalent ones under sect2 -->
+  	 <!-- avoid duplication with tune.sgml -->
+  	 <!-- this needs major rewrite -->
+  	 <!-- Keep It Short and Simple (KISS) -->
+  	 <!-- Use /bin/sh instead of English -->
+  	 
+<sect id="net-trouble">Rozwi±zywanie problemów zwi±zanych z sieci±
+<p>
+Je¶li do¶wiadczysz problemów z sieci±, wyniki nastêpuj±cych poleceñ to
+pierwsze co musisz sprawdziæ:
+
 <example>
 # ifconfig
 # cat /proc/pci
 # cat /proc/interrupts
-# dmesg|more
+# dmesg | more
 </example>
-<p>
-Wiele nowych us³ug ADSL korzysta do po³±czeñ z PPPoE. Instalator Woodiego
-nie posiada menu dla PPPoE ale ma wszelkie potrzebne do tego pakietu, np.
-<package>pppoe</package> i <package>pppoeconf</package>. By ³atwo 
-skonfigurowaæ po³±czenie podczas procesu instalacji uruchom 
-<prgn>pppoeconf</prgn>. Czasami przy po³±czeniu DSL (PPPoE) trzeba
-zainteresowaæ siê tematem MTU. Szczegó³owe informacje znajduj± siê w LDP 
-<url id="&dsl-howto;" name="DSL-HOWTO">. 
-<p>
-Je¶li masz problemy z niektórymi stronami, zobacz <ref id="killecn">.
-</sect1>
 
-<sect1 id="ip-check">Lista &ldquor;do zrobienia&rdquor; konfiguracji sieci
+Zobacz równie¿ podrozdzia³y <ref id="net-test">.
+  	 <!-- add id="..." to corresponding 3 sect1 tags in tips.sgml -->
+  	 <!-- That section should be moved here //JDTH -->
+  	 <!-- Yes.  But when you do, do it for all languages and fix
+  	  version tracking number if you can -->
 <p>
-Typowy zestaw programów:
-<example>
-# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
-# apt-get install ssh cvs
-</example>
-<p>
-Nastêpnie przyjrzyj siê nastêpuj±cym plikom:
-<example>
-/etc/init.d/dhcpd       (zmodyfikuj, by mieæ tylko LAN = eth1)
-/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) dla NFS
-/etc/exports            (potrzebny dla NFS)
-/etc/bind/db.192.168.1  (dodaj)
-/etc/bind/db.lan        (dodaj)
-/etc/bind/named.conf    (zmodyfikuj)
-/etc/resolv.conf        (zmodyfikuj)
-/etc/hosts
-/etc/dhcpd.conf         (zmodyfikuj dla LAN = eth1)
-/etc/dhclient.conf      (zmodyfikuj by wymusiæ lokalny DNS)
-/etc/samba/smb.conf
-/etc/exim/exim.conf
-/etc/mailname
-/etc/aliases
-/etc/squid.conf         (dodaj adresy IP wszystkich dozwolonych hostów)
-</example>
-<prgn>bind</prgn> tworzy lokalny serwer buforuj±cy DNS i zmienia adres serwera
-DNS na localhost. Przyjrzyj siê plikowi <file>/etc/resolv.conf</file>:
-<example>
-nameserver 127.0.0.1
-search lan.aokiconsulting.com
-</example>
-</sect1>
+Je¶li masz problemy z konkretnymi stronami, zobacz <ref id="killecn">.
 
-<sect id="netfilter">Konfiguracja Netfilter
+<sect id="net-router">Budowanie bramy sieciowej
+<p>
+Komputer z systemem &debian; mo¿e pe³niæ funkcjê pe³nej bramy sieciowej,
+która wykonuje zamianê adresów sieciowych (NAT, znany równie¿ jako
+maskarada), obs³uguje pocztê, DHCP, buforowanie DNS, po¶redniczenie HTTP,
+us³ugê CVS, udostêpnianie NFS lub Samby. Zobacz w <ref id="ipmap">
+przyk³ady takich ustawieñ.
+ 	 
+<sect1 id="router-netfilter">Konfiguracja netfiltra
+
 <p>
 Projekt netfilter/iptables jest podsystemem ¶ciany ogniowej dla
 Linuksa 2.4 i nowszych.
 Udaj siê na stronê <url id="&netfilterhome;" name="Netfilter">, gdzie
 opisano i wyja¶niono wiele zagadnieñ dotycz±cych konfiguracji sieciowej.
 
-<sect1 id="netfilter-basics">Netfilter - podstawy
+<sect2 id="netfilter-basics">Netfilter - podstawy
 <p>
 Netfilter przetwarza pakiety przy u¿yciu piêciu wbudowanych ³añcuchów:
 PREROUTING, INPUT, FORWARD, OUTPUT i POSTROUTING.
@@ -132,7 +1518,7 @@ interfejs  ROUTING  \       ¶ledzenie    /       ROUTING     interfejs
                             program przestrzeni u¿ytkownika
 </example>
 
-<sect1 id="netfilter-table">Tablice Netfilter 
+<sect2 id="netfilter-table">Tablice Netfilter 
 <p>
 Pakiety s± przetwarzane w ka¿dym ³añcuchu w poszczególnych tablicach.
 <list compact>
@@ -156,7 +1542,7 @@ routingiem)
 </list>
 </list>
 
-<sect1 id="netfilter-target">Cele Netfilter
+<sect2 id="netfilter-target">Cele Netfilter
 <p>
 Regu³y ¶ciany ogniowej maj± wiele celów (miejsc przeznaczenia):
 <list compact>
@@ -198,7 +1584,7 @@ Regu³y ¶ciany ogniowej maj± wiele celów (miejsc przeznaczenia):
 </list>
 </list>
 
-<sect1 id="netfilter-command">Polecenia Netfiltera
+<sect2 id="netfilter-command">Polecenia Netfiltera
 <p>
 Podstawowe polecenia <prgn>iptables</prgn>:
 <example compact>
@@ -216,16 +1602,17 @@ iptables -A <var>³añcuch</var> \                 # dodaje regu³kê do <var>³añcuc
          -o <var>interfejs-wyj¶ciowy</var>       # dla FORWARD, OUTPUT, POSTROUTING
 </example>
 
-<sect1 id="ip-masq">Maskarada IP
+<sect2 id="ip-masq">Zamiana adresów sieciowych (NAT)
+
 <p>
 Komputery w sieci lokalnej mog± mieæ dostêp do Internetu przez bramkê
-sieciow±, na której dzia³a maskarada IP (NAT) dziel±c pojedynczy, osi±galny
-z zewn±trz adres IP.
+sieciow±, która zamienia adresy sieci na adresy u¿ywane w Internecie.
 <example>
 # apt-get install ipmasq
 </example>
 Zastosuj przyk³adowe regu³y, by zwiêkszyæ zabezpieczenia <prgn>ipmasq</prgn>.
-Przeczytaj <file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
+Przeczytaj <url id="&f-ipmasq-strong;">.
+
 W przypadku debianowego kernel-image-2.4 upewnij siê, ¿e za³adowa³e¶
 odpowiednie modu³y. Opis potrzebnej konfiguracji jest w
 <ref id="kernel-net">.
@@ -240,14 +1627,14 @@ po³±czenia ze zdalnymi serwerami (dobre dla du¿ych listów elektronicznych, itp.)
 # 1 day, 10 min, 10 min - przyk³ad d³u¿szego czasu ¿ycia
 $IPCHAINS -M -S 86400 600 600
 </example>
-Równie¿ je¶li sieæ jest osi±galna przez kartê PCMCIA, <prgn>ipmasq</prgn>
+Je¶li sieæ jest osi±galna przez kartê PCMCIA, <prgn>ipmasq</prgn> 
 musi byæ wystartowane z pliku
-<file>/etc/pcmcia/network.opts</file>. Przeczytaj plik
-<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
-</sect1>
+<file>/etc/pcmcia/network.opts</file>. Przeczytaj 
+<url id="&f-ipmasq;">.
+</sect2>
 
 
-<sect1 id="ip-redirect">Przekierowanie po³±czeñ SMTP (2.4)
+<sect2 id="ip-redirect">Przekierowanie po³±czeñ SMTP (2.4)
 <p>
 Za³ó¿my, ¿e masz notebooka, który jest tak skonfigurowany, ¿e u¿ywa
 ró¿nych ¶rodowisk sieciowych i chcesz u¿ywaæ swojego agenta (serwer)
@@ -264,9 +1651,8 @@ pakietu <package>ipmasq</package> i dodanie
 <url id="&examples;" name="M30redirect.def"> do katalogu
 <file>/etc/ipmasq/rules/</file>.
 
-</sect>
 
-<sect>Zarz±dzanie wieloma po³±czeniami z sieci±
+<sect1>Zarz±dzanie wieloma po³±czeniami z sieci±
 <p>
 [FIXME] Routing rozszerzony (policy routing) (autor: Phil Brutsche
 <email>pbrutsch@tux.creighton.edu</email>):
