@@ -4,22 +4,33 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for doc-debian package build.
 
+manual := debian-faq
+
 currentlang := en
+currentlangcn := $(shell echo $(currentlang) | tr A-Z a-z | tr - _)
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
 
-sources := debian-faq.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
+sources := $(manual).sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
 
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
 
 all: html text ps pdf
 
-publish: debian-faq.$(currentlang).html/index.$(currentlang).html
-	test -d $(PUBLISHDIR)/debian-faq || install -d -m 755 $(PUBLISHDIR)/debian-faq
-	rm -f $(PUBLISHDIR)/debian-faq/*.$(currentlang).html
-	install -p -m 644 debian-faq.$(currentlang).html/*.html $(PUBLISHDIR)/debian-faq/
+publish: all
+	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
+	rm -f $(PUBLISHDIR)/$(manual)/*.$(currentlangcn).html
+	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
+# possible non-POSIX syntax below. fuck POSIX.
+	cd $(PUBLISHDIR)/$(manual) && for file in *.en.html; do \
+          ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
+        done
+	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
+	ln -sf $(manual).en.txt $(PUBLISHDIR)/$(manual)/$(manual).txt
+	ln -sf $(manual).en.ps $(PUBLISHDIR)/$(manual)/$(manual).ps
+	ln -sf $(manual).en.pdf $(PUBLISHDIR)/$(manual)/$(manual).pdf
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
 
@@ -32,37 +43,38 @@ faqdynamic.ent:
         fi
 
 validate:
-	nsgmls -ges -wall debian-faq.sgml
+	nsgmls -ges -wall $(manual).sgml
 
-html: debian-faq.$(currentlang).html/index.$(currentlang).html
+html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
 
-debian-faq.$(currentlang).html/index.$(currentlang).html: $(sources)
+$(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	debiandoc2html -c -l $(currentlang) $<
-	mv debian-faq.html debian-faq.$(currentlang).html
+	mv $(manual).html $(manual).$(currentlang).html
 
-text: debian-faq.$(currentlang).txt
+text: $(manual).$(currentlang).txt
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
 
-debian-faq.$(currentlang).txt: $(sources)
+$(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
 
-debian-faq.$(currentlang).info: $(sources)
+$(manual).$(currentlang).info: $(sources)
 	debiandoc2info -l $(currentlang) $<
 
-debian-faq.$(currentlang).ps debian-faq.$(currentlang).dvi debian-faq.$(currentlang).pdf: \
-  debian-faq.$(currentlang).%: $(sources)
+$(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
+  $(manual).$(currentlang).%: $(sources)
 	debiandoc2latex$* -l $(currentlang) $<
 
-ps dvi pdf info: %: debian-faq.$(currentlang).%
+ps dvi pdf info: %: $(manual).$(currentlang).%
+	@echo foooooooooooooooooooooooooo $@
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
 
 clean distclean:
-	rm -rf debian-faq*.$(currentlang).html
-	rm -f debian-faq*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
+	rm -rf $(manual)*.$(currentlang).html
+	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
 	rm -f faqdynamic.ent *~ .*~ core tsa*
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
