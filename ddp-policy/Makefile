@@ -112,8 +112,7 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 	        $< > $(MANUAL).$*.sgml
 
 # HTML
-
-$(MANUAL).%.html.stamp: $(MANUAL).%.sgml  $(MANUAL).%.ent $(wildcard %/*.sgml)
+$(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 	debiandoc2html -t$(MANUAL) -l $* -c $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
 	touch $(MANUAL).$*.html.stamp
