@@ -63,7 +63,7 @@ SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
 # List of html stamp files to be built
 HTMLS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html.stamp)
 
-# List of pdf to be built
+# List of txt to be built
 TXTS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).txt)
 
 # List of ps to be built
@@ -85,10 +85,10 @@ text txt:  $(TXTS)
 ps:   $(PSS)
 pdf:  $(PDFS)
 
-publish: publish-html publish-txt publish-ps publish-pdf
 # NOTE: PS and PDF generation might not work OK for all 
-# languages (notably Japanese), consider using this instead:
-#publish: publish-html publish-txt 
+# languages (notably Japanese)
+# publish: publish-html publish-txt publish-ps publish-pdf
+publish: publish-html publish-txt 
 
 # =================================================================== #
 #                 Build rule part: If not package build               #
