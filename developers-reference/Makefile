@@ -77,11 +77,14 @@ version.ent:	debian/changelog
 
 USERMAP	:= ../../ddp/CVSROOT/users
 .PHONY: prepare
-prepare:
-	@[ -f CVS/Root -a -f $(USERMAP) ] || \
-		( echo "silly rabbit, prepare is for Adam" 1>&2; exit 1 )
-	cvs2cl -r --usermap $(USERMAP)
+prepare:	ChangeLog
 	cvs ci -m "update for next release" ChangeLog
+
+.PHONY: ChangeLog
+ChangeLog:
+	@[ -f CVS/Root -a -f $(USERMAP) ] || \
+		( echo "usermap file '$(USERMAP)' not found" 1>&2; exit 1 )
+	cvs2cl -r --usermap $(USERMAP)
 
 .PHONY: clean
 clean:
