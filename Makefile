@@ -65,13 +65,13 @@ publish:: $(SUBDIRS-publish)
 clean: $(SUBDIRS-clean)
 
 $(SUBDIRS):
-	time -p $(MAKE) -C $@
-	uptime
+	time -f "%C took %E real, %U user, %S sys time" \
+	  $(MAKE) -C $@
 
 $(SUBDIRS-publish):
-	time -p $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
-	uptime
+	time -f "%C took %E real, %U user, %S sys time" \
+	  $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
 
 $(SUBDIRS-clean):
-	time -p $(MAKE) -C $(subst -clean,,$@) clean
-	uptime
+	time -f "%C took %E real, %U user, %S sys time" \
+	  $(MAKE) -C $(subst -clean,,$@) clean
