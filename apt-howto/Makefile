@@ -4,6 +4,8 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
@@ -37,7 +39,7 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
 
 # generating PostScript
-texfriendly := $(filter-out $(MANUAL).ko.sgml,$(filter-out $(MANUAL).ja.sgml,$(wildcard *.??*.sgml)))
+texfriendly := $(filter-out $(MANUAL).ko.sgml,$(wildcard *.??*.sgml))
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
 $(MANUAL).pt-br.ps: $(MANUAL).pt-br.sgml
