@@ -1,0 +1,164 @@
+#!/bin/sh
+# Recovering a Debian system without any backup of /var/lib/dpkg.
+# ref: http://www.linuxworld.com/2003/0113.petreley.html
+
+# ---------------------------------------------------------------------- 
+# (C) 2003, Karsten M. Self kmself@ix.netcom.com
+# (C) 2003, Osamu Aoki osamu@debian.org (fixup)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+# ---------------------------------------------------------------------- 
+# Changes:
+#
+# KMself: Sun Dec  7 15:40:44 PST 2003
+#   Removed bashisms (again).
+#   Added /var//cache/apt/archives/partial
+# ---------------------------------------------------------------------- 
+
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+cat <<-EOF
+	Copyright 2003, Karsten M. Self and Osamu Aoki
+	This is free software with ABSOLUTELY NO WARRANTY.
+
+	This script attempts to rebuild your package database and create
+	portions of /var which have been damaged or deleted.  While it
+	_should_ provide sufficient /var structure to get your system up
+	and running, it *CANNOT* restore the data you'd had under /var,
+	other than can be imputed from your package status.
+
+	This works by using the directories under /usr/share/doc to
+	impute packages you'd previously had installed.  This works
+	because Debian Policy requires every package to create a
+	documentation directory here.
+
+	What *WON'T* be preserved are:
+
+	- "Held" package status.  All installed packages will be in mode
+	  "install", not "hold".  Manually adjust if necessary.
+
+	- Package version.  You will install the current version of
+	  packages for your particular release, as represented in your
+	  archive source.  Additional packages may also be installed if
+	  dependencies have changed in your selected release.
+
+	- Package pinning.  If you've pinned any packages to a
+	  particular release, you'll have to restore this setting
+	  manually.  Installation will be of your default pin release.
+
+	There's sanity checking to prevent overwriting any directories
+	which exist.  Decide if you want to preserve any such
+	directories or modify the script at "Create a minimal /var
+	structure" below. 
+
+	EOF
+
+echo -e "Continue? [yN] \c"
+read ans
+case $ans in
+    [Yy]*) ;;
+    *) exit;;
+esac
+
+# Let's (not) be verbose....
+# set -v
+
+# Test existence of any subdirs in /var. If they exist, exit, otherwise
+# risk destroying an active system. If they don't exist, the remainder
+# of this script is safe.
+
+function create_new_dir () {
+    if [ ! -f $1 && ! -d $1 ]
+	then mkdir $1
+    else
+	echo "$1 exists, aborting" 1>&2
+	exit 1
+    fi
+}
+
+# Create a minimal /var structure
+echo -e "\nCreating stub /var directories..."
+for d in \
+    /var/log 
+    /var/cache/debconf \
+    /var/cache/apt/archives \
+    /var/cache/apt/archives/partial \
+    /var/lib/dpkg/info \
+    /var/lib/dpkg/parts \
+    /var/lib/dpkg/alternatives \
+    /var/lib/dpkg/methods \
+    /var/lib/dpkg/updates 
+do
+    create_new_dir $d
+done
+
+# Create a rudimentary status file
+echo -e "\nCreating a rudimentary status file..."
+cat <<-EOF > /var/lib/dpkg/status
+	Package: libc6
+	Status: install ok installed
+	Version: 2.3.1-9
+	EOF
+
+# Update package cache
+echo -e "\nUpdating package cache..."
+apt-get update
+apt-get dist-upgrade
+
+# Register as installed crucial packages.
+echo -e "\nRegistering crucial packages..."
+dpkg --clear-avail
+apt-get update
+apt-get dist-upgrade
+cd /var/cache/apt/archives
+dpkg -i libncurses*
+dpkg -i perl-base*
+dpkg -i libstdc++*
+dpkg -i dselect*
+dpkg -i dpkg*
+
+# Reinstall libc to register it.
+echo -e "\nReinstalling libc6..."
+apt-get install --reinstall libc6
+
+# Reinstall base packages.
+echo -e "\nReinstalling base packages..."
+apt-get dist-upgrade
+
+# Generate list of installed packages to re-register previously
+# installed packages as installed, using /usr/share/doc as a fallback
+# package registry.  ref: dpkg -l $( ls /usr/share/doc | grep -v [A-Z] )
+# >/dev/null
+
+echo -e "\nSpecifying list of previously installed packages..."
+ls /usr/share/doc |
+    grep -v [A-Z] |
+    grep -v '^texmf$' |
+    grep -v '^debian$' |
+    awk '{print $1 " install"}' |
+    dpkg --set-selections 
+
+# Re-register everything.
+echo -e "\nRe-registering all previously installed packages with apt-get..."
+apt-get dist-upgrade
+
+# At this point, you should be (mostly) cooking on gas.
+cat <<-EOF
+
+	$( basename $0) complete.  Please check your system and make any
+	manual adjustments necessary.
+
+	EOF
