@@ -42,10 +42,10 @@ BUILD_TYPE  := web
 
 # Publish directory
 # This can and will be overridden by a higher level makefile
-ifeq ("$(BUILD_TYPE)", "web")
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
-else
+ifeq ("$(BUILD_TYPE)", "sf")
 PUBLISHDIR := ~/public_html
+else
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 endif
 
 # Locales for "distclean" target for the DDP:
