@@ -22,27 +22,29 @@
 <author>
 <name>Javier Fernández-Sanguino Peña</name>
 <email>jfs@computer.org</email>
-<version>v1.95
-<date>Tue, 20 Nov 2001 14:58:24 +0100
-
+</author>
+<version>v1.96
+<date>Wed, 19 Dec 2001 17:08:19 +0100
 
 
 
 <abstract>
 This document describes the process of securing and hardening the default
 Debian installation. It covers some of the common taks to setup
-a secure network environment using Debian GNU/Linux.
+a secure network environment using Debian GNU/Linux and also gives additional
+information on the security work done by the Debian security team.
 </abstract>
 
 <copyright> 
 <copyrightsummary>
+Copyright &copy;  2002 Javier Fernández-Sanguino Peña
 Copyright &copy;  2001  Alexander Reelsen, Javier Fernández-Sanguino Peña
 Copyright &copy;  2000  Alexander Reelsen
-however it is distributed under the terms of the GNU
-free documentation license.
-This document is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.
 </copyrightsummary>
+<p>This document is distributed under the terms of the GNU
+Free Documentation License. It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY.
+
 
 </titlepag>
 
@@ -170,6 +172,8 @@ proxy services
 <package>tsocks</package>). Should point to the HOWTO for any
 other info.
 
+<item>Informaton on service configuring with file-rc
+
 <item>Check all the reference URLs and remove/fix those no longer available.
 
 <item>Add information on available replacements (in Debian) for common
@@ -222,14 +226,6 @@ id="http://packages.debian.org/kernel-patch-2.2.18-openwall">
 
 </list>
 
-<!-- DONE
-<item>Add info on how the <url name="Security Team"
-id="http://security.debian.org"> works in Debian. For example:
-security bugs are backported to the stable distribution if possible
-(even if the version has not changed), alerts are sent to mailing
-lists (including bugtraq)...  
--->
-
 <item>Details of turning off unnecessary network services (besides
 inetd), it is partly in the hardening procedure but could be broadened
 a bit.
@@ -255,6 +251,19 @@ to policy.
 
 <sect>Changelog
  <p>
+<sect1>Version 1.96
+<p>Changes by Javier Fernández-Sanguino Peña.
+<list>
+
+<item>Reorganized service installation and removal and added some new notes.
+
+<item>Added some notes regarding using integrity checkers as intrusion
+detection tools.
+
+<item>Added a chapter regarding package signatures.
+
+</list>
+
 <sect1>Version 1.95
 <p>Changes by Javier Fernández-Sanguino Peña.
 <list>
@@ -757,12 +766,96 @@ You should not install services which are not needed on your
 machine. Every installed service introduces new, perhaps not obvious,
 but real security holes on your machine. If you still want to have
 some services but you use these rarely, use the update-commands,
-e.g. 'update-inetd' for removing them from the startup process.
+e.g. 'update-inetd' and 'update-rc.d' for removing them from the startup process.
+
+<p>As you may already know, when you install a given service the
+default behavior is to activate it. In a default Debian installation,
+with no services installed, the footprint of running services is quite
+low and it's even lower when talking about services offered in the
+network. The footprint in Debian 2.1 wasn't as tight as in Debian 2.2
+(some inetd services were enabled by default) and in Debian 2.2 the
+rpc portmapper is enabled upon installation. Rpc is installed by
+default because it is needed for many services, for example NFS, to
+run on a given system. I can be easily removed, however, see <ref
+id="rpc"> on how to disable it.
+
+<p>When you install a new network-related service (daemon) in your
+	  Debian GNU/Linux system it can be enabled in two ways:
+	  through the inetd superdaemon (i.e. a line will be added to
+	  <file>/etc/inetd.conf</file>) or through a standalone
+	  program that binds itself to your network
+	  interfaces. Standalone programs are controlled through the
+	  <file>/etc/init.d</file> files, which are called at boot
+	  time through the SysV mechanism (or an alternative one) by
+	  using symlinks in <file>/etc/rc?.d/*</file>.
 
 <p>FIXME: This section needs a list of services, and information about
 what they do and the security risk level involved, for newbies who
 don't have a clue.
 
+
+<sect1 id="disableserv">Disabling daemon services
+
+<p>Disabling a daemon service is quite simple. There are different
+methods. The simplest one in a Debian system is to remove the links
+from /etc/rc${runlevel}.d/. You can do this manually or using
+<tt>update-rc.d</tt> (see <manref section="8" name="update-rc.d">).
+
+<p>You can disable a service from executing in the multi-user
+	    runlevels by doing:
+<example>
+update-rc.d stop XX 2 3 4 5 .
+</example>
+
+<p>Please note that, if you are <em>not</em> 
+using <package>file-rc</package>,
+<tt>update-rc.d _service_ remove</tt> will work just fine, since all
+links are removed, upon re-installation or upgrade of the package this
+links will be re-generated (probably not what you wanted). If you
+are using <package>file-rc</package> all the information regarding
+services bootup is handled by a common configuration file and thus,
+is maintained even if packages are removed from the system.
+
+<p>Other (not recommended) methods of disabling services are:
+<tt>chmod 644 /etc/init.d/daemon</tt> (but that gives an error message
+when booting), or modifying the <file>/etc/init.d/daemon</file> script (by
+adding an <prgn>exit 0</prgn> line at the beginning
+or commenting out the <tt>start-stop-daemon</tt> part in it). Since
+init.d files are configfiles, they will not get overwritten upon upgrade.
+
+<p>FIXME: Add more information on handling daemons using file-rc
+
+
+<sect1 id="inetd">Disabling inetd services
+<p>
+You should stop all unneeded services on your system, like
+echo, chargen, discard, daytime, time, talk, ntalk and the HIGHLY
+insecure considered r-services (rsh, rlogin and rcp. Use ssh
+instead). After disabling those, you should check if you really need
+the inetd daemon.  Many people prefer to use daemons instead of
+calling services via inetd. Denial of Service possibilities exist
+against inetd, which can increase the machine's load tremendously. If
+you still want to run some kind of inetd service, switch to a more
+configurable inet daemon like xinetd or rlinetd.
+
+<p>
+You can disable services by editing <file>/etc/inetd.conf</file>
+directly, but Debian provides a better alternative to do this:
+<tt>update-inetd</tt>. You could remove the telnet daemon by executing
+this commands to change the config file and to restart the daemon (in
+this case the telnet service is disabled):
+
+<example>
+/usr/sbin/update-inetd --disable telnet
+</example>
+<!-- # /etc/init.d/inetd restart Not needed since the manpage says update-inetd
+sends a SIGHUP, commented out as suggested by Dariusz Puchalak -->
+
+<p>If you do want services listening, but do not want to have them
+listen on all IP addresses of your host, you might want to use some
+undocumented feature on inetd. <!-- FIXME write the information sent
+by Alexander to the debian-security mailing list -->. Or use an
+alternate inetd daemon like <prgn>xinetd</prgn>.
 
 <sect>Read the debian security mailing lists
 
@@ -1130,38 +1223,6 @@ define user resource limits. If you use PAM, the file
 <file>/etc/security/limits.conf</file> instead.
 
 <p>FIXME: Get a good limits.conf up here
-
-
-<sect id="inetd">Customize /etc/inetd.conf
-<p>
-You should stop all unneeded services on your system, like
-echo, chargen, discard, daytime, time, talk, ntalk and the HIGHLY
-insecure considered r-services (rsh, rlogin and rcp. Use ssh
-instead). After disabling those, you should check if you really need
-the inetd daemon.  Many people prefer to use daemons instead of
-calling services via inetd. Denial of Service possibilities exist
-against inetd, which can increase the machine's load tremendously. If
-you still want to run some kind of inetd service, switch to a more
-configurable inet daemon like xinetd or rlinetd.
-
-<p>
-You can disable services by editing <file>/etc/inetd.conf</file>
-directly, but Debian provides an alternative to this:
-<tt>update-inetd</tt>. You could remove the telnet daemon by executing
-this commands to change the config file and to restart the daemon (in
-this case the telnet service is disabled):
-
-<example>
-/usr/sbin/update-inetd --disable telnet
-</example>
-<!-- # /etc/init.d/inetd restart Not needed since the manpage says update-inetd
-sends a SIGHUP, commented out as suggested by Dariusz Puchalak -->
-
-<p>If you do want services listening, but do not want to have them
-listen on all IP addresses of your host, you might want to use some
-undocumented feature on inetd. <!-- FIXME write the information sent
-by Alexander to the debian-security mailing list -->. Or use an
-alternate inetd daemon like <prgn>xinetd</prgn>.
 
 <sect>Edit /etc/login.defs
 <p>
@@ -2313,7 +2374,7 @@ manually.  Another possibility is to <tt>chmod 644
 booting. You can also strip off the <tt>start-stop-daemon</tt> part in
 <file>/etc/init.d/portmap</file> shell script.
 
-<sect>Automatic hardening of Debian systems
+<chapt>Automatic hardening of Debian systems
 
 <p>After reading through all the information in the following chapters
 you might be wondering "I have to do quite a lot of things in order to
@@ -2337,7 +2398,7 @@ the local system based on previous configuration by the administrator
 (the building of the configuration can be a guided process done with
 siple yes/no questions).
 
-<sect1>Harden
+<sect>Harden
 
 <p>The <package>harden</package> package tries to make it more easy to
 install and administer hosts that need good security . This package
@@ -2403,7 +2464,7 @@ Do you want to continue (Y/n)
 <p>This should set off some warnings in the administrator head, who should
 reconsider his actions.
 
-<sect1>Bastille Linux
+<sect>Bastille Linux
 
 <p><url name="Bastille Linux" id="http://www.bastille-linux.org"> is
 an automatic hardening tool originally oriented towards the RedHat and
@@ -2431,6 +2492,325 @@ policy (using <manref name="AutomatedBastille" section="8">)
 
 </list>
 
+<chapt>Package signing in Debian
+<p>This chapter could also be titled "how to upgrade/update safely your
+Debian GNU/Linyx system" and it deserves its own chapter basicly because
+it will not fit with any othe chapter.
+<p>As of today (december 2001) Debian does not provide signed packages for
+the distribution and the woody release (3.0) will not integrate that
+feature. There is a solution for signed packages which will
+be, hopefully, provided in the next release.
+
+<sect>The proposed scheme for package signature checks
+<p>The current (unimplemented) scheme for package signature checking using
+apt is:
+
+<list>
+<item>the Release file includes the md5sum of Packages.gz 
+(which contains the md5sums of packages) and will be signed.
+The signature is one of a trusted source.
+
+<item>This signed Releases file is downloaded by 'apt-get update'
+and stored in the HD along with Packages.gz.
+
+<item>When a package is going to be installed, it is first downloaded,
+then the md5sum is generated.
+
+<item>The signed Release file is checked (signature ok) and it extracts from
+it the md5sum for the Packages.gz file, the Packages.gz checksum is generated
+and (if ok) the md5sum of the downloaded package is extracted from it.
+
+<item>If the md5sum from the downloaded package is the same as the one in the
+Packages.gz file the package will be 
+installed otherwise the administrator will be alerted and the package will
+be left in cache (so the administrator can decidy wether to install it or not). 
+If the package is not in the Packages.gz and the administrator has configured
+the system to only install checked packages it will not be installed either.
+</list>
+
+<p>By following the chain of MD5 sums <prgn>apt</prgn> is capable of verifying
+that a package originates from a a specific release. This is less
+flexible than signing each package one by one, but can be combined with
+that scheme too (see below).
+
+<sect>Alternative per-package signing scheme
+<p>The additional scheme of signing each and every packages 
+allows packages to be checked when they are no 
+longer referenced by an existing Packages
+file, and also third-party packages where no Packages ever existed for
+them can be also used in Debian but will not be default scheme.
+
+<p>This package signing scheme can be implemented using
+<package>debsig-verify</package>and <package>debsigs</package>.
+These two packages can sign and verify
+embeded signatures in the .deb itself. Debian already has the
+capability to do this now, but implementing the policy and tools 
+wont be started until after woody releases 
+(so as not to slow down its release cycle).
+
+<p>NOTE: Currently <file>/etc/dpkg/dpkg.conf</file> ships with
+"no-debsig" as per default.
+
+<sect>Checking packages releases
+<p>In case you want to add now the additional security checks you can use the
+script below, provided by Anthony Thown. 
+This script can automatically do some new security checks
+to allow the user to be sure that the software s/he's downloading 
+matches the software Debian's distributing. 
+This stops Debian developers from hacking into someone's
+system without the accountability provided by uploading to the main archive, or
+mirrors mirroring something almost, but not quite like Debian, or mirrors
+providing out of date copies of unstable with known security problems.   
+
+<p>This sample code, renamed as <prgn>apt-release-check</prgn>, should be 
+used in the following way:
+<example>
+# apt-get update
+# apt-release-check
+(...results...)
+# apt-get dist-upgrade
+</example>
+
+<p>First you need to:
+
+<list>
+<item>get the keys the archive software uses to to sign Release files, <url id="http://ftp-master.debian.org/ziyi_key.asc">, and
+<url id="http://ftp-master.debian.org/ziyi_key2.asc">, and 
+add them to <file>~/.gnupg/trustedkeys.gpg</file> (which is what <prgn>gpgv</prgn> uses by default)
+
+<item>remove any <file>/etc/apt/sources.list</file>
+ lines that don't use the normal "dists"
+structure, or change the script so that it works with them.
+
+<item>be prepared to ignore the fact that Debian security updates don't
+have signed Release files, and that Sources files don't have
+appropriate checksums in the Release file (yet).
+
+<item>be prepared to check that the appropriate sources are signed by
+the appropriate keys.
+
+</list>
+
+
+<example>
+#!/bin/bash
+# This script is copyright (c) 2001, Anthony Towns
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+rm -rf /tmp/apt-release-check
+mkdir /tmp/apt-release-check || exit 1
+cd /tmp/apt-release-check
+
+>OK
+>MISSING
+>NOCHECK
+>BAD
+
+arch=`dpkg --print-installation-architecture`
+
+am_root () {
+        [ `id -u` -eq 0 ]
+}
+
+get_md5sumsize () {
+        cat "$1" | awk '/^MD5Sum:/,/^SHA1:/' | 
+          MYARG="$2" perl -ne '@f = split /\s+/; if ($f[3] eq $ENV{"MYARG"}) { print "$f[1] $f[2]\n"; exit(0); }'
+}
+checkit () {
+        local FILE="$1"
+        local LOOKUP="$2"
+
+        Y="`get_md5sumsize Release "$LOOKUP"`"
+        Y="`echo "$Y" | sed 's/^ *//;s/  */ /g'`"
+
+        if [ ! -e "/var/lib/apt/lists/$FILE" ]; then
+                if [ "$Y" = "" ]; then
+                        # No file, but not needed anyway
+                        echo "OK"
+                        return
+                fi
+                echo "$FILE" >>MISSING
+                echo "MISSING $Y"
+                return
+        fi
+        if [ "$Y" = "" ]; then
+                echo "$FILE" >>NOCHECK
+                echo "NOCHECK"
+                return
+        fi
+        X="`md5sum < /var/lib/apt/lists/$FILE` `wc -c < /var/lib/apt/lists/$FILE`"
+        X="`echo "$X" | sed 's/^ *//;s/  */ /g'`"
+        if [ "$X" != "$Y" ]; then
+                echo "$FILE" >>BAD
+                echo "BAD"
+                return
+        fi
+        echo "$FILE" >>OK
+        echo "OK"
+}
+
+echo
+echo "Checking sources in /etc/apt/sources.list:"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo
+(echo "You should take care to ensure that the distributions you're downloading"
+echo "are the ones you think you are downloading, and that they are as up to"
+echo "date as you would expect (testing and unstable should be no more than"
+echo "two or three days out of date, stable-updates no more than a few weeks"
+echo "or a month)."
+) | fmt
+echo
+
+cat /etc/apt/sources.list | 
+  sed 's/^ *//' | grep '^[^#]' |
+  while read ty url dist comps; do
+        if [ "${url%%:*}" = "http" -o "${url%%:*}" = "ftp" ]; then
+                baseurl="${url#*://}"
+        else
+                continue
+        fi
+        echo "Source: ${ty} ${url} ${dist} ${comps}"
+        
+        rm -f Release Release.gpg
+        wget -q -O Release "${url}/dists/${dist}/Release"
+
+        if ! grep -q '^' Release; then
+                echo "  * NO TOP-LEVEL Release FILE"
+        else
+                origline=`sed -n 's/^Origin: *//p' Release | head -1`
+                lablline=`sed -n 's/^Label: *//p' Release | head -1`
+                suitline=`sed -n 's/^Suite: *//p' Release | head -1`
+                codeline=`sed -n 's/^Codename: *//p' Release | head -1`
+                dateline=`grep "^Date:" Release | head -1`
+                dscrline=`grep "^Description:" Release | head -1`
+                echo "  o Origin: $origline/$lablline"
+                echo "  o Suite: $suitline/$codeline"
+                echo "  o $dateline"
+                echo "  o $dscrline"
+
+                if [ "${dist%%/*}" != "$suitline" -a "${dist%%/*}" != "$codeline" ]; then
+                        echo "  * WARNING: asked for $dist, got $suitline/$codeline"
+                fi
+
+                wget -q -O Release.gpg "${url}/dists/${dist}/Release.gpg"
+                sigline="`gpgv --status-fd 3 Release.gpg Release 3>&1 >/dev/null 2>&1 | sed -n "s/^\[GNUPG:\] GOODSIG [0-9A-Fa-f]* //p"`"
+                if [ "$sigline" ]; then
+                        echo "  o Signed by: $sigline"
+                else
+                        echo "  * NO VALID SIGNATURE"
+                        >Release
+                fi
+        fi
+        okaycomps=""
+        for comp in $comps; do
+                if [ "$ty" = "deb" ]; then
+                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/binary-${arch}/Release" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Release")
+                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/binary-${arch}/Packages" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Packages")
+                        if [ "$X $Y" = "OK OK" ]; then
+                                okaycomps="$okaycomps $comp"
+                        else
+                                echo "  * PROBLEMS WITH $comp ($X, $Y)"
+                        fi
+                elif [ "$ty" = "deb-src" ]; then
+                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/source/Release" | sed 's,//*,_,g'`" "${comp}/source/Release")
+                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/source/Sources" | sed 's,//*,_,g'`" "${comp}/source/Sources")
+                        if [ "$X $Y" = "OK OK" ]; then
+                                okaycomps="$okaycomps $comp"
+                        else
+                                echo "  * PROBLEMS WITH component $comp ($X, $Y)"
+                        fi
+                fi
+        done
+        [ "$okaycomps" = "" ] || echo "  o Okay:$okaycomps"
+        echo
+  done
+
+echo "Results"
+echo "~~~~~~~"
+echo
+
+allokay=true
+
+cd /tmp/apt-release-check
+diff <(cat BAD MISSING NOCHECK OK | sort) <(cd /var/lib/apt/lists && find . -type f -maxdepth 1 | sed 's,^\./,,g' | grep '_' | sort) | sed -n 's/^> //p' >UNVALIDATED
+
+cd /tmp/apt-release-check
+if grep -q ^ UNVALIDATED; then
+    allokay=false
+    (echo "The following files in /var/lib/apt/lists have not been validated."
+    echo "This could turn out to be a harmless indication that this script"
+    echo "is buggy or out of date, or it could let trojaned packages get onto"
+    echo "your system."
+    ) | fmt
+    echo
+    sed 's/^/    /' < UNVALIDATED
+    echo
+fi
+
+if grep -q ^ BAD; then
+    allokay=false
+    (echo "The contents of the following files in /var/lib/apt/lists does not"
+    echo "match what was expected. This may mean these sources are out of date,"
+    echo "that the archive is having problems, or that someone is actively"
+    echo "using your mirror to distribute trojans."
+    if am_root; then 
+        echo "The files have been renamed to have the extension .FAILED and"
+        echo "will be ignored by apt."
+        cat BAD | while read a; do
+            mv /var/lib/apt/lists/$a /var/lib/apt/lists/${a}.FAILED
+        done
+    fi) | fmt
+    echo
+    sed 's/^/    /' < BAD
+    echo
+fi
+
+if grep -q ^ MISSING; then
+    allokay=false
+    (echo "The following files from /var/lib/apt/lists were missing. This"
+    echo "may cause you to miss out on updates to some vulnerable packages."
+    ) | fmt
+    echo
+    sed 's/^/    /' < MISSING
+    echo
+fi
+
+if grep -q ^ NOCHECK; then
+    allokay=false
+    (echo "The contents of the following files in /var/lib/apt/lists could not"
+    echo "be validated due to the lack of a signed Release file, or the lack"
+    echo "of an appropriate entry in a signed Release file. This probably"
+    echo "means that the maintainers of these sources are slack, but may mean"
+    echo "these sources are being actively used to distribute trojans."
+    if am_root; then 
+        echo "The files have been renamed to have the extension .FAILED and"
+        echo "will be ignored by apt."
+        cat NOCHECK | while read a; do
+            mv /var/lib/apt/lists/$a /var/lib/apt/lists/${a}.FAILED
+        done
+    fi) | fmt
+    echo
+    sed 's/^/    /' < NOCHECK
+    echo
+fi
+
+if $allokay; then
+    echo 'Everything seems okay!'
+    echo
+fi
+
+rm -rf /tmp/apt-release-check
+</example>
+
 <chapt>Before the compromise
 
 <sect>Set up Intrusion Detection.
@@ -2457,7 +2837,7 @@ installed on every router to keep an eye on your network. Just install
 it via <tt>apt-get install snort</tt>, follow the questions  and watch
 it log.
 
-<p> Snort in Debian is enabled with
+<p>Snort in Debian is enabled with
 many security checks which you might want, ; however, you should
 customize the setup to take into account the particular services you
 run on your system. You might also want to retrieve additional checks
@@ -2465,10 +2845,10 @@ specific to these services
 
 
 <sect1>Host based detection
-
 <p><package>Tiger</package> is an old intrusion detection tool which
-has been ported to Debian since woody. Tiger provides check of common
-issues related to security breakins, checks passwords strength,
+has been ported to Debian since the woody distribution.
+Tiger provides check of common issues related to security 
+break-ins, checks passwords strength,
 filesystem problems, communicating processes... The Debian version
 includes new security checks Debian-specific: MD5sums of provided
 binaries, and checks of installed and vulnerable packages. The default
