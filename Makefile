@@ -61,13 +61,13 @@ publish:: $(SUBDIRS-publish)
 clean: $(SUBDIRS-clean)
 
 $(SUBDIRS):
-	time nice -19 $(MAKE) -C $@
+	time -p nice -19 $(MAKE) -C $@
 	uptime
 
 $(SUBDIRS-publish):
-	time nice -19 $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
+	time -p nice -19 $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
 	uptime
 
 $(SUBDIRS-clean):
-	nice -19 $(MAKE) -C $(subst -clean,,$@) clean
+	time -p nice -19 $(MAKE) -C $(subst -clean,,$@) clean
 	uptime
