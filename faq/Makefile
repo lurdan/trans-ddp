@@ -19,7 +19,7 @@ all:		publish
 publish:	$(MANUAL).html/index.html
 # 		fail if there is no PUBLISHDIR
 		[ -d $(PUBLISHDIR) ] || exit 1
-		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+		rm -f $(PUBLISHDIR)/$(MANUAL)/ch-*.html $(PUBLISHDIR)/$(MANUAL)/index.html
 		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
 			$(PUBLISHDIR)/$(MANUAL)/
