@@ -1,42 +1,71 @@
-# template makefile for a manual in the Debian Documentation Project
-# manuals.sgml tree.
+#
+# Standard Debian Documentation Project Makefile
+#
+# Should work both for a manual in the DDP CVS tree, and for a package build.
 
-# Where are we publishing to?
+# Basename for SGML
+MANUAL := $(notdir $(CURDIR))
+
+# this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
-# How to install stuff in publish directory
-install_file :=	install -p -m 664
-install_dir :=	install -d -m 2775
 
-# Manual name and its source files
-manual :=	$(notdir $(CURDIR))
-sources :=	$(manual).sgml $(wildcard *.sgml)
+all: html txt ps pdf
 
-# What do we want by default?
-all: $(manual).html/index.html
+# generating HTML
+# ugly because the normal stuff works only as PHONYs. :(
+#$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
+#	debiandoc2html -c -l $* $<
+html:
+	@for i in *.??*.sgml; do \
+          j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
+          langfoo=`echo $$lang | tr 'A-Z_' 'a-z-'`; \
+	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$langfoo.html ]; then \
+            echo debiandoc2html -c -l $$lang $$i "($$langfoo)"; \
+            debiandoc2html -c -l $$lang $$i; \
+          fi; \
+        done
 
-# This target installs the generated HTML in the published directory.
-publish: $(manual).html/index.html
-	[ -d $(PUBLISHDIR)/$(manual) ] || $(install_dir) $(PUBLISHDIR)/$(manual)
-	$(install_file) $(manual).html/*.html $(PUBLISHDIR)/$(manual)/
+# generating plain text
+txt text: $(patsubst %.sgml,%.txt,$(wildcard *.??*.sgml))
 
-$(manual).html/index.html: $(sources)
-	debiandoc2html $(manual).sgml
+$(MANUAL).%.txt: $(MANUAL).%.sgml
+	debiandoc2text -l $* $<
 
-$(manual).txt: $(sources)
-	debiandoc2text $(manual).sgml
+# generating PostScript
+texfriendly := $(filter-out $(MANUAL).ko.sgml,$(filter-out $(MANUAL).ja.sgml,$(wildcard *.??*.sgml)))
+ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
-$(manual).ps $(manual).dvi $(manual).pdf: $(manual).%: $(sources)
-	debiandoc2latex$* $(manual).sgml
+$(MANUAL).%.ps: $(MANUAL).%.sgml
+	debiandoc2latexps -l $* $<
 
-# ensure our SGML is valid
-#   (add this to the `all' rule to prevent building if not)
+# generating Portable Document Format
+pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
+
+$(MANUAL).%.pdf: $(MANUAL).%.sgml
+	debiandoc2latexpdf -l $* $<
+
+# publishing to the DDP web pages
+publish: all
+	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
+# possible non-POSIX syntax below. fuck POSIX.
+	cd $(PUBLISHDIR)/$(MANUAL) && for file in *.en.html; do \
+          ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
+        done
+	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
+	ln -sf $(MANUAL).en.txt $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).txt
+	ln -sf $(MANUAL).en.ps $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
+	ln -sf $(MANUAL).en.pdf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).pdf
+
+# validating SGML
 validate:
-	nsgmls -ges -wall $(manual).sgml
+	@set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
 
+# cleaning up
 clean distclean:
-	rm -rf $(manual).html
-	rm -f $(manual).txt $(manual).ps $(manual).dvi $(manual).pdf \
-          $(manual).aux $(manual).log $(manual).man $(manual).tex \
-          $(manual).toc *~ .*~ core tsa*
+	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*} *~
+	rm -rf $(MANUAL)*.html
 
 .PHONY: all publish clean distclean validate
+.SUFFIXES:
