@@ -612,117 +612,126 @@
   BIN     = /usr/local/bin
 
   # Where to put icons on 'make install'?
-  # gentoo will not find the icons as it starts up. You're going to
-  # have to alter gentoo's icon path (in the config window, "Paths"
-  # tab) to get it work.
-  ICONS   = /usr/local/lib/gentoo/
+  ICONS   = /usr/local/share/gentoo
   </example>
 
-<!-- updated for v1.2 from head to here: 2002 Apr 18 -->
+  <p>オリジナルの設定では、それぞれのファイルを <file>/usr/local</file> 以下に
+  インストールするようになっていることがわかります。
+  これらのパスを以下のように変更してください：
 
-
-  <p>まず始めに、以下のような新しい行を 2 行挿入しましょう。
-
-  <p><example>
-  # Edited for Debian GNU/Linux.
-  DESTDIR =
-  </example>
-  これはパッケージ構築の過程で必要になります(後の <ref id="rules"> 
-  の項で説明します)。
-
-  <p>次に、 Makefile で最終的に生成されたバイナリがインストールされる
-  場所が指定されているところを探し、こんな風に変えます。
   <p><example>
   # Where to put binary on 'make install'?
-  BIN     = $(DESTDIR)/usr/X11R6/bin
+  BIN     = $(DESTDIR)/usr/bin
+
+  # Where to put icons on 'make install'?
+  ICONS   = $(DESTDIR)/usr/share/gentoo
   </example>
 
   <p>しかしなぜこのディレクトリなんでしょう。他の所じゃだめでしょうか？
   だめです。
-  というのも Debian ではどこにプログラムをインストールするかいくつかの
-  ルールが決められているからです。これは「ファイルシステム体系基準」
-  (/usr/share/doc/debian-policy/fhs)で指定されています。
-  Gentoo は X11 用のプログラムですので、/usr/local/bin ではなく 
-  /usr/X11R6/bin にインストールしなければなりません。
-   man ページは(大抵のプログラムには付属していますが、無い場合も
-  あります。今回は無いのであとでひとつ書くことにします) /usr/local/man/man1 
-  ではなく /usr/share/man/man1 にインストールしなければなりません。
+  なぜなら Debian パッケージの場合、<file>/usr/local</file> 以下へファイルを
+  インストールすることは絶対に無いと決まっているからです。このディレクトリ
+  以下は個別のシステムの管理者が使うために予約されています。
+  Debian システム上でパッケージからインストールされるファイルは
+  その代わりに <file>/usr</file> へインストールされます。
 
-  <p>さて次はちょっと厄介な問題です。例えばあなたが次の行を以下のように
-  変更したとします。
+  <p>バイナリ、アイコン、文書など、それぞれのファイルを
+  保存すべき場所については、
+   「ファイルシステム体系基準」 (/usr/share/doc/debian-policy/fhs を参照)
+  の中でより正確に規定されています。もしまだ読んだことが無ければ、
+  ざっと目を通して、あなたのパッケージに関係しそうな箇所をきちんと
+  読んでおくことをお勧めします。
+
+  <p>そういうわけで、バイナリは /usr/local/bin ではなく /usr/bin へ
+  インストールしなければなりませんし、マニュアルページは
+  /usr/local/man/man1 の代わりに /usr/share/man/man1 へ
+  インストールする必要があります。
+  ここで gentoo の makefile にはマニュアルページに関する記述が
+  まったく無いことに注意してください。Debian ポリシーでは
+  すべてのプログラムがそれぞれマニュアルを用意しなければならないと
+  定めていますから、後で gentoo のマニュアルを作成して、それを
+  /usr/share/man/man1 以下へインストールすることにします。
+
+  <p>プログラムの中には、このようなパスを定義するための makefile 変数を
+  使っていないものもあります。このような場合、C のソースそのものを
+  いじって、指定された場所を使うように修正しなければなりません。
+  でもどこを、そして何を探せばよいのでしょうか？
+  以下のコマンドを実行すれば該当箇所を見つけることができます。
 
   <p><example>
-  ICONS   = $(DESTDIR)/usr/share/gentoo/
+  grep -rn usr/local/lib *.[ch]
   </example>
-  さて、ポリシーに合わせたのは良いのですが、今度は C のソースそのものを
-  いじってアイコンを参照しているところすべてを修正しなければなりません。
-  でもどこを、そして何を探せばよいのでしょうか？修正すべき個所を探すには
-  ( .c と .h という拡張子のファイルを含むすべてのディレクトリで)
-  こんな風に実行すればよいでしょう。
-  <p><example>
-  grep -n usr/local/lib *.[ch]
-  </example>
+
+  <p>これを使うと、grep がソースツリーを再帰的に検索し、
+  該当箇所を見つけたらそのファイルの名前と検索対象の文字列
+  （ここでは usr/local/lib）を含む行とを表示します。
   
-   Grep は usr/local/lib という文字列を探して、見つかったファイル名と
-   それが何行めであるかを教えてくれるでしょう。そうしたらそれらのファイルを
-   編集して usr/local/lib という部分を usr/share に置き換えてやれば
-   良いのです。それでおしまい。usr/local/lib をあなたの指定した場所に
-   置き換えるだけです。
-   他の部分をいじってぐちゃぐちゃにしないよう気をつけましょう。
-   もしあなたが C プログラミングについてあまりご存知ないならば :-)
+  <p>見つかったファイルを編集して usr/local/ という部分を usr/ に
+   置き換えてください。これでもう作業完了です。
+   他の部分をいじってぐちゃぐちゃにしないよう気をつけましょう。:-)
 
   <p>修正が終ったら、インストールターゲットを探しましょう(「install:」
-  で始まる行を探してみてください)。Makefile の先頭で
-  直接定義されているものを除いて、ディレクトリへの参照を
+  で始まる行を探してください。この方法でたいていうまくいきます)。
+  Makefile の先頭で直接定義されているものを除いて、ディレクトリへの参照を
   すべて変更してください。
   gentoo の元々のインストールターゲットはこんな感じでした。
 
   <p><example>
-  # ----------------------------------------- Installation
-
-  # You're going to have to be root to do this!
   install:        gentoo
                   install ./gentoo $(BIN)
-                  install icons $(ICONS)
+                  install icons/* $(ICONS)
                   install gentoorc-example $(HOME)/.gentoorc
   </example>
 
   <p>修正後はこんな風になります。
   <example>
-  # ----------------------------------------- Installation
-
-  # You're going to have to be root to do this!
   install:        gentoo-target
                   install -d $(BIN) $(ICONS) $(DESTDIR)/etc
                   install ./gentoo $(BIN)
                   install -m644 icons/* $(ICONS)
                   install -m644 gentoorc-example $(DESTDIR)/etc/gentoorc
+  </example>
+
+  <p>たぶんお気づきになったでしょうが、変更後はこのルールの
+  先頭に <tt>install -d</tt> コマンドが追加されています。
+  普通「make install」を実行するようなシステムなら /usr/local/bin や
+  その他のディレクトリは既にシステム上に存在しているでしょうから、
+  もともとの makefile ではこのコマンドは使われていませんでした。
+  しかし、Debian パッケージを作成する場合には、空っぽの（あるいは
+  まだ存在さえしていない）ディレクトリにインストールするわけですから、
+  これらのディレクトリのそれぞれを毎回作成する必要があります。
+
+  <p>ルールの最後には、上流作者が省略することの多い付加的な資料の
+  インストールなど、他の作業を追加することもできます。
+
+  <p><example>
                   install -d $(DESTDIR)/usr/share/doc/gentoo/html
                   cp -a docs/* $(DESTDIR)/usr/share/doc/gentoo/html
   </example>
 
+
   <p>鋭い人なら私が「install:」の行の「gentoo」を「gentoo-target」に変えた
   のに気づくでしょう。 こういうのをバグフィックスというのですな。:-)
 
-  <p>今のような、特に Debian パッケージだけに関係しない変更はすべて
-  上流メンテナに報告し、プログラムの次のリビジョンに反映してもらうように
-  しましょう。注意すべきことは debian/* 以下のファイルを送る必要は無いと
-  いうことです。それらを除いたパッチを用意して送りましょう。
+  <p>今のような、特に Debian パッケージだけに限定されない変更を行った場合、
+  毎回その内容を上流メンテナに報告し、プログラムの次のリビジョンに反映して
+  もらうことで、他のすべての利用者にとっても有益な結果をもたらすように
+  しましょう。
   また、あなたの修正を送る前に、Debian や Linux (あるいは Unix でさえも!)
   だけに通用するものでなく、できるだけ広範囲に通用するよう心がけることで、
-  上流の開発者にとっての負担を軽減するように努めましょう。
+  上流の開発者があなたの変更を採用しやすくなるように努めましょう。
+
+  <p>上流開発者に debian/ 以下のファイルを送る必要はありません。
+  注意してください。
 
   <sect id="difflibs">使用ライブラリの違い
 
   <p>よくある問題としてもう一つ、ライブラリの問題があります。
   ライブラリはしばしばプラットフォームごとに異なります。
-  例えば、 Makefile は Debian 上には、あるいはもしかしたら Linux 上
-  には存在しないライブラリへの参照すら含んでいるかもしれません。
-  その場合、その個所を探して、Debian 上に存在する互換のライブラリを
+  例えば、 Makefile は Debian システム上に存在しない
+  ライブラリへの参照すら含んでいるかもしれません。
+  その場合には、Debian 上に存在する互換のライブラリを
   指すように変更してやらなければなりません。
-  一番良いのはそういう行をコメントにしておくことです。
-  そうしておけば、他の人が違うプラットフォーム上でコンパイルしようとして
-  何か問題が起こったときに、解決のヒントになるかも知れませんから。
 
   <p>そんなわけで、もしあなたのプログラムの Makefile (または Makefile.in) 
   に以下のような部分があったら(そしてうまくコンパイルできなかったら)、
@@ -732,108 +741,167 @@
   </example>
 
   <p>こういう風に変えましょう。今度はきっと大丈夫です。
-
   <p><example>
   LIBS = -lncurses -lなんとか -lかんとか
-  #LIBS = -lcurses -lなんとか -lかんとか
   </example>
 
   <chapt id="dreq"> debian/ ディレクトリ以下に無くてはならないファイル
 
-  <p>プログラムのメインディレクトリ (「gentoo-0.9.12」) の中に、
-  「debian」という名前の新しいディレクトリが作られています。
-  このディレクトリ内には様々なファイルが納められていますが、
-  パッケージの動作をカスタマイズするために、これらのファイルを
-  これから編集していきます。
+  <p>プログラムのソースディレクトリの中に、「debian」という
+  名前の新しいディレクトリが作られています。
+  パッケージの動作を自分の意図に合わせて調整するには、
+  このディレクトリに存在する多くのファイルをその編集します。
   最も重要なファイルは「control」、「changelog」、「copyright」、
   そして「rules」であり、これらのファイルはすべてのパッケージが
   必ず用意しなければならないものです。
 
   <sect id="control">「control」ファイル
 
-  <p>このファイルには dpkg と dselect がパッケージを管理するために
-  利用する様々な情報が納められています。
-  以下は dh_make が作ってくれる control ファイルのひな型です。
+  <p>このファイルには <prgn/dpkg/ と <prgn/dselect/ が
+  パッケージを管理するために利用する
+  様々な情報が記載されています。
+
+  <p>以下は dh_make が作ってくれる control ファイルのひな型です。
 
   <p><example>
   1  Source: gentoo
   2  Section: unknown
   3  Priority: optional
   4  Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
-  5  Standards-Version: 3.0.1
-  6
-  7  Package: gentoo
-  8  Architecture: any
-  9  Depends: ${shlibs:Depends}
-  10 Description: &lt;insert up to 60 chars description&gt;
-  11  &lt;insert long description, indented with spaces&gt;
+  5  Build-Depends: debhelper (>> 3.0.0)
+  6  Standards-Version: 3.5.2
+  7  
+  8  Package: gentoo
+  9  Architecture: any
+  10 Depends: ${shlibs:Depends}
+  11 Description: &lt;insert up to 60 chars description&gt;
+  12  &lt;insert long description, indented with spaces&gt;
   </example>
   (行番号は筆者が書き加えました)
 
-  <p>1-5 行目はソースパッケージの管理情報です。1行目はソースパッケージの
-  名前です。
+  <p>1-6 行目はソースパッケージの管理情報です。
 
-  <p>2 行目はディストリビューションにおいてこのパッケージが所属する
-  セクションです。
-  既にお気づきかも知れませんが、Debian はいくつかのセクションに
+  <p>1 行目はソースパッケージの名前です。
+
+  <p>2 行目はディストリビューションにおいて
+  このパッケージが所属するセクションです。
+
+  <p>既にお気づきかも知れませんが、Debian はいくつかのセクションに
   分割されています。セクションには main (完全にフリーなソフトウェア)、
   non-free (実際の所フリーであるとはいえないソフトウェア)、そして
   contrib (それ自身はフリーなソフトウェアであるけれども、non-free な
   ソフトウェアが無ければ使えないもの) があります。
-  更に、これらの下にはどんなパッケージが含まれているのか簡単に説明する
-  ような名前の付いた、論理的なサブセクションがいくつか
-  存在しています。
-  つまり、管理者専用のプログラムのために「admin」、基本的なツールの
-  ために「base」、プログラマーのためのツールが含まれる「devel」、文書の
-  「doc」、ライブラリの「libs」、電子メールを読み書きするための
-  リーダやデーモンのための「mail」、ネットワーク関係のアプリケーション
-  やデーモンの「net」、X11 用のプログラムのための「x11」など、そして
-  さらに多くのものが用意されています。
+  更に、これらの下には各パッケージをおおまかに分類する
+  論理的なサブセクションが用意されており、
+  そこに含まれるパッケージの種類を簡単に説明するような
+  名前がつけられています。
+  つまり、管理者専用のプログラムのために「admin」、
+  基本的なツールのために「base」、
+  プログラマーのためのツールが含まれる「devel」、
+  文書の「doc」、ライブラリの「libs」、
+  電子メールの読み書きに使うリーダや
+  電子メールサーバを構築するためのデーモンは「mail」、
+  ネットワーク関係のアプリケーションやデーモンの「net」、
+  他のどんな分類にもあてはまらないような X11 用の
+  プログラムは「x11」など、そしてさらに多くのものが
+  用意されています。（訳注：「デーモン」とは多くの場合
+  「サーバー」を作るためのものです。ご存知ですよね。）
 
   <p>ここでは x11 に変更しておきましょう。
+  （「main」セクションは省略時のデフォルトなので、
+  ここには書きません。）
 
-  <p>3行目はこのパッケージがこのパッケージをインストールする
+  <p>3 行目はこのパッケージをインストールすることが
   ユーザにとってどれくらい重要なものかを示しています。
-  セクション(Section) と優先度 (Priority) は、実際には dselect が
-  パッケージをソートするときとデフォルトを選ぶときにしか
-  使われません。そしてこれらのフィールドは
-  (よくあることですが) 我々の FTP メンテナたちによって上書きされることが
-  あります。
-  これらのフィールドに何を設定すべきかについては、ポリシーマニュアル
-  の説明を読んでください。
+  このフィールドに何を設定すべきかについては、
+  ポリシーマニュアルの説明を読んでください。
+  新規パッケージの場合、優先度「optional」（選択可能）
+  としておけば、通常は問題無いでしょう。
 
-  <p>この gentoo は通常の優先度を持つパッケージなので、
-  ここでは optional のままにしておきましょう。
+  <p>セクション(Section) と優先度 (Priority) は、
+  <prgn/dselect/ のようなフロントエンドが
+  パッケージをソートする時とデフォルトを選ぶ時に
+  使われます。パッケージを Debian にアップロードすると、
+  これらのフィールドの値はアーカイブメンテナたちによって
+  上書きされる場合があります。このような場合、該当する
+  パッケージのメンテナにそのことを知らせるための
+  電子メールが届きます。
+  （訳注：具体的な仕組みを説明すると、dpkg などのツールは
+  アーカイブ中に用意される「Packages」ファイルの情報を
+  パッケージ自体に記録された情報より優先するようになって
+  います。そしてこの Packages ファイルの作成と更新は
+  アーカイブメンテナの（たくさんある）仕事のひとつ、
+  というわけです。）
+  
+  <p>この gentoo は通常の優先度を持つパッケージですし、
+  他のパッケージと衝突することもありませんから、
+  ここでは「optional」のままにしておきましょう。
 
   <p>4 行目はメンテナの名前と電子メールアドレスです。
+  電子メールの宛先として問題無くそのまま使えるように
+  記載してください。Debian のバグ追跡システムは、
+  パッケージがアップロードされたら、ここに記載された
+  情報を使ってあなたにユーザーからのバグ報告を
+  転送しようとします。コンマ ,、アンド記号 &、
+  および括弧 () などの使用は避けてください。
 
-  <p>5 行目はこのパッケージが準拠している Debian ポリシー基準の
-  バージョン (インストールされている debian-policy パッケージの
-  2 つのメジャーバージョン) です。
+  <p>5 行目はあなたのパッケージを生成するために必要となる
+  パッケージのリストです。例えば gcc や make のように
+  暗黙の前提としてこのリストに含まれているパッケージも
+  いくつかあります。詳しくは <package/build-essential/
+  パッケージをご覧ください。もしあなたのパッケージを
+  生成するために、このリストに記載されていない、
+  標準的でないコンパイラやその他のツールが必要なら、
+  それらを「Build-Depends」行に追加しておきます。
+  複数のパッケージを記載する場合は、コンマで区切ってください。
+  このフィールドの書式については、バイナリ依存関係（後述）の
+  ところでもうすこし詳しく説明します。
 
-  <p>もしパッケージを生成するために標準的でないコンパイラ、または
-  その他のツールが必要なら、ここ (5 行目と 6 行目(空行) の間) に
-  「Build-Depends」行を追加して、必要なパッケージをそこに記載して
-  おきましょう。これについての詳細は、パッケージングマニュアル
-  (8.7 節) および「build-essential」パッケージの附属文書を参照して
-  ください。
+  <p>ここには Build-Depends-Indep や Build-Conflicts など、
+  その他のソース依存関係を設定することもできます。
+  これらの情報は Debian がサポートしている他のコンピュータ
+  プラットフォーム用にバイナリパッケージを作成する
+  自動パッケージ生成プログラムによって利用されます。
+  ソース依存関係についての詳細はポリシーマニュアルを、
+  また Debian がサポートしているプラットフォーム
+  （アーキテクチャ）と、ソフトウェアをそれらへ移植
+  （ポート）する方法については開発者レファレンスを
+  参照してください。
 
-  <p>7 行目はバイナリパッケージの名前です。
+  <p>以下のようにすれば、自分のパッケージを生成するために
+  必要となるパッケージを見つけることができます。
+  <example>
+  strace -f -o /tmp/log ./configure
+  # or make instead of ./configure, if the package don't use autoconf
+  for x in `dpkg -S $(grep open /tmp/log|perl -pe 's!.* open\(\"([^\"]*).*!$1!' |grep "^/"| sort | uniq| grep -v "^\(/tmp\|/dev\|/proc\)" ) 2>/dev/null|cut -f1 -d":"| sort | uniq`; do echo -n "$x (>=" `dpkg -s $x|grep ^Version|cut -f2 -d":"` "), "; done
+  </example>
 
-  <p>8 行目にはバイナリパッケージをコンパイル可能な CPU アーキテクチャ
+  <p>Gentoo の場合、パッケージを生成するために
+  <package/xlibs-dev/、<package/libgtk1.2-dev/ 
+  および <package/libglib1.2-dev/ が必要でしたので、
+  これらを <package/debhelper/ に追加しておきます。
+
+  <p>6 行目はこのパッケージが準拠している Debian ポリシー基準の
+  バージョン、つまりあなたがパッケージを作成する際に参照した
+  ポリシーマニュアルのバージョンです。
+
+  <p>8 行目はバイナリパッケージの名前です。これは通常ソースパッケージ
+  の名前と同じですが、いつもそうだとは限りません。
+
+  <p>9 行目にはバイナリパッケージをコンパイル可能な CPU アーキテクチャ
   を記述します。
   ここを「any」のままにしておけば、
   <manref name="dpkg-gencontrol" section="1">が、このパッケージを
   コンパイルしたマシンに合わせて適当に埋めてくれます。
-  (パッケージのポーティングについては、開発者レファレンスを参照して
-  ください。)
+
+  <p>
   あなたのパッケージが特定のアーキテクチャに依存しないのであれば
   (例えば、シェルや Perl のスクリプトであるとか、あるいは
   文書のパッケージである場合) ここを「all」に変更し、パッケージの
   生成に「binary-arch」ではなく「binary-indep」を使う方法について
   の説明をあとで <ref id="rules"> の項で読んでおいてください。
 
-  <p>9 行目は Debian パッケージ管理システムの最も強力な機能のひとつ
+  <p>10 行目は Debian パッケージ管理システムの最も強力な機能のひとつ
   を示しています。
   それぞれのパッケージは様々な形で相互に関係情報を持つことができます。
   パッケージ間の関係には、Depends: すなわち「依存」の他に、Recommends:、
@@ -847,9 +915,8 @@
   (<manref name="dpkg" section="8">、
    <manref name="dselect" section="8">、
    <manref name="apt" section="8">、
-   <manref name="console-apt" section="8">、
-   <manref name="gnome-apt" section="8">
-  を参照してください)。
+   <manref name="aptitude" section="1">
+  などを参照してください)。
 
   <p>以下にこれらの依存関係が通常持つ意味を説明します。
 
@@ -862,40 +929,51 @@
   場合には、これを使いましょう。</item>
 
   <item>Recommends: 「推奨」
-  <p>dselect はここで指定されたパッケージがインストールされていない限り
-  あなたのパッケージをインストールしません。
-  dpkg と APT の場合には、無視してインストールすることが可能です。
-  厳密に言えばあなたのプログラムの動作に必須ではないけれど、
-  一緒に使うことがほぼ前提となっているようなパッケージは
-  ここで指定しましょう。</item>
+  <p>dselect や aptitude などのフロントエンドの場合、ユーザが
+  インストールのためにパッケージを選択すると、それが「推奨」
+  しているパッケージも一緒にインストールするよう促します。
+  さらに dselect の場合には、「Q」または「X」キーで強制的に
+  やめさせるまで、推奨されたパッケージをインストールするよう、
+  何度でも繰り返し確認を求めてきます。
+  しかし dpkg と apt-get の場合、「推奨」されたパッケージに
+  関する情報は無視され、あるパッケージをインストールしても、
+  そのパッケージが「推奨」しているパッケージについては何の
+  メッセージも表示しませんし、もちろんインストールもしません。
+  このフィールドには、厳密に言えばあなたのプログラムの動作に
+  必須ではないけれど、一緒に使うことがほぼ前提となっている
+  ようなパッケージを指定しましょう。</item>
 
   <item>Suggests: 「提案」
-  <p>dselect はあなたのプログラムをインストールする際に、
-  ここで指定したパッケージをインストールするかどうかユーザに質問します。
-  dpkg と APT はこの指定を無視します。
-  必要というわけではないが、あなたのプログラムと一緒に使うと
-  便利というパッケージについては、ここで指定しておきましょう。</item>
+  <p>ユーザがパッケージをインストールする際、dselect や aptitude の
+  ようなフロントエンドはすべて、選択したパッケージによって「提案」
+  されているパッケージも合わせてインストールするかどうか聞いてきます。
+  dpkg と apt-get の場合はまったく気にしません。
+  あなたのパッケージの動作に必要というわけではないが、これがあると
+  もっと便利に使える、というパッケージについては、この指定を使って
+  ください。</item>
 
   <item>Pre-Depends: 「先行依存」
   <p>これは Depends: よりも強い関係を示します。
-  ここで指定されたパッケージがあらかじめインストールされ、<em>かつ</em>
-  適切に設定されていない限り、あなたのパッケージは
-  インストールされません。
+  ここで指定されたパッケージがあらかじめインストールされ、
+  <em>かつ適切に設定されて</em> いない限り、どのパッケージ
+  管理ツールもあなたのパッケージをインストールしません。
   これを使う前に、まずは debian-devel メーリングリストで
-  相談しましょう。できるだけ使わないようにしましょう。
+  相談しましょう。
+  <strong>できるだけ</strong> 使わないようにしましょう。
   早い話が、使っちゃいけません。:-)</item>
 
   <item>Conflicts: 「競合」
-  <p>ここで指定されたすべてのパッケージが削除されない限り、
-  あなたのパッケージはインストールされません。特定のパッケージが
-  存在しているとあなたのプログラムが動作しない (または非常に重大な
-  問題が起きる) 場合には、これを使います。</item>
+  <p>ここで指定されたパッケージがすべて削除されない限り、
+  あなたのパッケージはインストールされません。
+  特定のパッケージが存在しているとあなたのプログラムが
+  動作しない (または非常に重大な問題が起きる) 場合に、
+  この指定を使います。</item>
 
   <item>Provides: 「提供」
-  <p>ほぼ同じ機能を持つパッケージが複数あって、選択の余地があるような
-  場合のために仮想パッケージ名というものが定義されています。
+  <p>ほぼ同じ機能を持つパッケージが複数あって、選択の余地が
+  ある場合のために、仮想パッケージ名が定義されています。
   仮想パッケージ名の一覧は、ファイル
-  /usr/share/doc/debian-policy/virtual-package-names-list.text.gz
+  /usr/share/doc/debian-policy/virtual-package-names-list.txt.gz
   にあります。
   あなたのプログラムが既存の仮想パッケージに相当する機能を
   提供する場合には、これを使います。</item>
@@ -903,10 +981,10 @@
   <item>Replaces: 「置換」
   <p>あなたのプログラムが他のパッケージに含まれるファイルを
   上書きする場合、または他のパッケージ全体を完全に置き換えて
-  しまう場合 (この場合は Conflicts: も一緒に指定してください) には、
-  これを使います。
-  指定されたパッケージに含まれる (上書き対象の) ファイルは、
-  あなたのプログラムをインストールする前に削除されます。
+  しまう場合 (この場合は Conflicts: も一緒に指定してください)
+  この指定を使います。
+  ここで指定されたパッケージに含まれるファイルは、
+  あなたのパッケージのファイルによって上書きされます。
   </item>
   </list>
 
@@ -914,47 +992,64 @@
   指定したいパッケージ名をコンマで区切って並べてください。
   もしいくつか選択肢があれば、それらのパッケージ名を
   縦棒 <tt>|</tt> (パイプ記号)で区切って並べてください。
-  あるバージョンより上でなければダメ、などというようにパッケージの
-  バージョン番号によって制限を加えることも可能です。
-  これを指定したい場合にはそれぞれのパッケージ名の後で丸カッコ(パーレン)
-  を開き、以下の関係式に続けてバージョン番号を指定してください。
-  使用できる関係式は
+
+  <p>あるバージョンより上でなければダメ、などというように
+  パッケージのバージョン番号によって制限を加えることも可能です。
+  これを指定したい場合にはそれぞれのパッケージ名の後で
+  丸カッコ (パーレン) を開き、以下の関係式に続けて
+  バージョン番号を指定してください。使用できる関係式は
   <tt>&lt;&lt;</tt>、<tt>&lt;=</tt>、<tt>=</tt>、<tt>&gt;=</tt>、
   <tt>&gt;&gt;</tt>で、それぞれ
   「指定されたものより古いバージョンのみ」、
-  「指定されたもの以前か指定のバージョン」、
+  「指定されたバージョン以前」(指定のバージョンも当然含まれます)、
   「指定のバージョンのみ」
-  「指定されたもの以降か指定のバージョン」、
+  「指定されたバージョン以降」(指定のバージョンも当然含まれます)、
   「指定されたものより新しいバージョンのみ」
   を意味します。
+
+  今まで説明してきた依存関係を使うことで、例えば以下のような
+  指定も可能です。
+
+  <p><example>
+  Depends: foo (>= 1.2), libbar1 (= 1.3.4)
+  Conflicts: baz
+  Recommends: libbaz4 (>> 4.0.7)
+  Suggests: quux
+  Replaces: quux (<< 5), quux-foo (<= 7.6)
+  </example>
   
   <p>最後に、知っておかなければいけない機能をもうひとつ。
-  それは $(shlibs:Depends) で、例えば libc6 や xlib6g のような
-  あなたのプログラムが利用している共有ライブラリの名前すべてが
+  それは $(shlibs:Depends) です。パッケージを生成する際に、
+  その中身が一時的なディレクトリにインストールされた後、
+  そこに含まれるバイナリとライブラリによって利用されている
+  共有ライブラリと、それらの共有ライブラリを含むパッケージ
+  の名前 (例えば libc6 や xlib6g など) が
   <manref name="dh_shlibdeps" section="1"> によって自動的に
-  調べられ、その結果は
-  <manref name="dh_gencontrol" section="1"> によってこの記述と
-  置換されます。
+  調べられます。そしてその結果は
+  <manref name="dh_gencontrol" section="1"> に渡され、control
+  ファイル中の $(shlibs:Depends) と置換されます。
   これを使えば、あなた自身が自分で共有ライブラリを調べて記述する
   必要はありません。
-  以上の説明から、今回は 9 行目をそのままにしておくことができます。
 
-  <p>ここで 10 行目に gentoo が「提案」するパッケージの一覧を
-  追加します。
-  gentoo は「file」プログラム/パッケージによって提供される機能をいくつか
-  利用することができるので、ここではそれだけを記載しておきましょう。
+  <p>ここまでの説明でわかるように、今回は 10 行目を dh_make が
+  生成してくれたデフォルトの状態のままにしておくことができます。
+  gentoo は「file」プログラム/パッケージによって提供される機能を
+  いくつか利用することができるので、10 行目の後に新しい行を追加
+  して、<tt>Suggests: file</tt> を記入します。
 
-  <p>11 行目はこのパッケージに関する簡潔な説明です。多くの人々は
-  一行半角 80 文字幅のスクリーンでこれを見ますから、
-  半角 60 文字以上にしてはいけません。
-  今回は「A fully GUI configurable GTK+ file manager」としました。
+  <p>11 行目はこのパッケージに関する短い説明です。多くの人々は
+  一行 (半角) 80 文字幅のスクリーンでこれを見ますから、
+  (半角) 60 文字以上にしてはいけません。
+  今回は「A fully GUI configurable X file manager using GTK+」
+  としました。
 
   <p>12 行目はこのパッケージに関する詳細な説明文です。
   ここでは一つの段落でパッケージについてより詳しく説明するように
-  してください。それぞれの行は空白で始めなければいけません。
+  してください。それぞれの行の先頭は空白 (スペース文字) で
+  始めなければいけません。
   また空白行を入れてはいけませんが、先頭の空白の後に . 
-  (半角ピリオド) を書くことで、それらしく見せることができます。
-  また、説明文の後に空白行があってはいけません。
+  (半角ピリオド) をひとつ書くことで、それらしく見せることができます。
+  さらに、説明文の後には空白行をひとつも入れてはいけません。
 
   <p>以下が修正後の control ファイルです。
 
@@ -963,31 +1058,34 @@
   2  Section: x11
   3  Priority: optional
   4  Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
-  5  Standards-Version: 3.0.1
-  6
-  7  Package: gentoo
-  8  Architecture: any
-  9  Depends: ${shlibs:Depends}
-  10 Suggests: file
-  11 Description: A fully GUI configurable GTK+ file manager
-  12  gentoo is a file manager for Linux written from scratch in pure C. It
-  13  uses the GTK+ toolkit for all of its interface needs. gentoo provides
-  14  100% GUI configurability; no need to edit config files by hand and re-
-  15  start the program. gentoo supports identifying the type of various
-  16  files (using extension, regular expressions, or the 'file' command),
-  17  and can display files of different types with different colors and icons.
-  18  .
-  19  gentoo borrows some of its look and feel from the classic Amiga file
-  20  manager "Directory OPUS" (written by Jonathan Potter).
+  5  Build-Depends: debhelper (>> 3.0.0), xlibs-dev, libgtk1.2-dev, libglib1.2-dev
+  6  Standards-Version: 3.5.2
+  7
+  8  Package: gentoo
+  9  Architecture: any
+  10 Depends: ${shlibs:Depends}
+  11 Suggests: file
+  12 Description: A fully GUI configurable GTK+ file manager
+  13  gentoo is a file manager for Linux written from scratch in pure C. It
+  14  uses the GTK+ toolkit for all of its interface needs. gentoo provides
+  15  100% GUI configurability; no need to edit config files by hand and re-
+  16  start the program. gentoo supports identifying the type of various
+  17  files (using extension, regular expressions, or the 'file' command),
+  18  and can display files of different types with different colors and icons.
+  19  .
+  20  gentoo borrows some of its look and feel from the classic Amiga file
+  21  manager "Directory OPUS" (written by Jonathan Potter).
   </example>
+  (行番号は筆者が書き加えました)
 
   <sect id="copyright">「copyright」ファイル
 
   <p>このファイルにはパッケージの上流 (upstream) に関する
   リソース (URI など)、著作権、およびライセンスなどの情報を記載します。
   このファイルの書式はポリシーに規定されていませんが、内容については
-  (6.5 節に) 規定されています。
-  dh_make はデフォルトとして以下のようなひな型を作成します。
+  (13.6 節、「Copyright information (著作権情報)」に) 規定されています。
+
+  <p>dh_make はデフォルトとして以下のようなひな型を作成します。
 
   <p><example>
   1  This package was debianized by Josip Rodin jrodin@jagor.srce.hr on
@@ -1012,8 +1110,8 @@
    /usr/share/common-licenses/ の中の適切なファイルを参照することで
   ライセンスの内容をすべて示すことができる場合に限って、
   全文をここに引用する必要はありません。
-  gentoo は GNU 一般使用許諾 (GPL) に従って配布されていますから、
-  こんな風に変更しましょう。
+
+  <p>つまり、gentoo の copyright ファイルはこんな風になります。
 
   <p><example>
   1  This package was debianized by Josip Rodin jrodin@jagor.srce.hr on
@@ -1029,15 +1127,16 @@
   11 You are free to distribute this software under the terms of
   12 the GNU General Public License.
   13 On Debian systems, the complete text of the GNU General Public
-  14 License can be found in /usr/share/common-licenses/GPL file.
+  14 License can be found in the file `/usr/share/common-licenses/GPL'.
   </example>
   (行番号は筆者が書き加えました)
 
   <sect id="changelog">「changelog」ファイル
 
-  <p>これは必須のファイルです。パッケージングマニュアル (3.2.3 節)
-  にはこのファイルのための特別な書式が規定されています。
-  この書式は dpkg やその他のプログラムによってあなたのプログラムの
+  <p>これは必須のファイルです。ポリシーマニュアル 5.3 節
+  「debian/changelog」にはこのファイルのための特別な書式が
+  規定されています。
+  この書式は dpkg やその他のプログラムによってあなたのパッケージの
   バージョン番号、レビジョン、ディストリビューション、それに緊急度
   (urgency) を識別するために利用されます。
 
@@ -1060,9 +1159,6 @@
   4
   5  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
   6
-  7  Local variables:
-  8  mode: debian-changelog
-  9  End:
   </example>
   (行番号は筆者が書き加えました)
 
@@ -1070,9 +1166,9 @@
   そして緊急度 (urgency) です。
   ここに書くパッケージ名はソースパッケージの名前と一致していなければ
   なりません。
-  またディストリビューションは (今の時点では) 「unstable」または
-  「experimental」のどちらかにすべきであり、緊急度は「low」より
-  高いものに変更するべきではありません :-)
+  またディストリビューションは「unstable」(または「experimental」)
+  にすべきであり、緊急度は「low」より高いものに変更するべきでは
+  ありません :-)
   
   <p>3-5 行目はログエントリで、ここにこのリビジョンのパッケージで
   行われた変更を記述します (上流プログラムそのものの変更点では
@@ -1081,11 +1177,11 @@
   専用のファイルが存在しています)。
   新しい行はアスタリスク(「*」)で始まる最初の行の直前に挿入します。
   この操作は
-  <manref name="dch" section="1">、や <manref name="emacs" section="1">
-  (7-10 行目は Emacs エディタ用のモード情報です) を使うと
-  便利ですが、その他の普通のテキストエディタを使って実行しても
+  <manref name="dch" section="1"> を使うと便利ですが、
+  その他の普通のテキストエディタを使って実行しても
   もちろん構いません。
-  最終的にこんな風になればよいわけです。
+
+  <p>最終的にこんな風になればよいわけです。
 
   <p><example>
   1  gentoo (0.9.12-1) unstable; urgency=low
@@ -1096,56 +1192,23 @@
   6
   7  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
   8
-  9  Local variables:
-  10  mode: debian-changelog
-  11 End:
   </example>
   (行番号は筆者が書き加えました)
 
-  <p>パッケージの新バージョンをリリースする際には、バージョン番号を
-  増やさなければいけません。
-  これは単に「dch -i」を実行するか、あるいは
-  「dch -v &lt;version&gt;-&lt;revision&gt;」によって明示的に
-  バージョン番号を指定して、その後で好みのエディタを使って
-  必要なコメントを記載していきます。
-  ヒント: 規定の書式で日時を入力する簡単な方法。
-  「822-date」または「date -R」を使いましょう。
-
-  <p>新バージョンについての情報は changelog ファイルの先頭に追加されます。
-  作業後 changelog はこんな風になります。
-
-  <p><example>
-  1  gentoo (0.9.12-2) unstable; urgency=low
-  2
-  3   * Fixed a glitch in the menu file.
-  4
-  5  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 22:15:39 +0100
-  6
-  7  gentoo (0.9.12-1) unstable; urgency=low
-  8
-  9   * Initial Release.
-  10  * This is my first Debian package.
-  11  * Adjusted the Makefile to fix $DESTDIR problems.
-  12
-  13 -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
-  14
-  15 Local variables:
-  16 mode: debian-changelog
-  17 End:
-  </example>
-  (行番号は筆者が書き加えました)
-
-  <p>あとから <ref id="update"> の中で新しいパッケージの
-  バージョンとレビジョンについてもっと詳しく説明します。
+  <p>後述する <ref id="update"> の中で、changelog ファイルを
+  更新する方法についてもっと詳しく説明します。
 
   <sect id="rules">「rules」ファイル
 
   <p>さて、今度は <manref name="dpkg-buildpackage" section="1"> が
   実際にパッケージを作成するために使う「rules」ファイルを
   調べる必要があります。
-  このファイルは「make -f」で実行されるため、実はもう一つの
-  Makefile といったものですが、上流ソースに含まれる Makefile とは
-  違います。
+  このファイルは実はもう一つの Makefile といったものですが、
+  上流ソースに含まれる Makefile とは違います。
+  また debian/ ディレクトリに含まれる他のファイルとは異なり、
+  このファイルには実行属性が付けられています。
+
+<!-- updated for version 1.2, t-sano, 2002 Apr 21 -->
 
   <p>すべての「rules」ファイルは、他の Makefile と同じく、ソースから
   プログラムを構築する方法を記述したいくつかのルールによって
@@ -1706,7 +1769,7 @@
 
   <list>
   <item>旧バージョンからアップグレードする (Debian ディストリビューションの
-  旧版に納められているバージョンからのアップグレードもやってみてください)
+  旧版に収録されているバージョンからのアップグレードもやってみてください)
   <item>またダウングレードする。
   <item>新パッケージとしてインストールする(前のバージョンがインストール
   されていない状態からインストール)
