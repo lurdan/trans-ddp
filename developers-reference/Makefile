@@ -69,10 +69,16 @@ developers-reference.%.tex:	developers-reference.%.sgml
 	fi
 	rm -f prior.aux pprior.aux
 
-
-
 version.ent:	debian/changelog
 	./debian/rules $@
+
+USERMAP	:= ../../ddp/CVSROOT/users
+.PHONY: prepare
+prepare:
+	@[ -f CVS/Root -a -f $(USERMAP) ] || \
+		( echo "silly rabbit, prepare is for Adam" 1>&2; exit 1 )
+	cvs2cl -r --usermap $(USERMAP)
+#	cvs ci -m "update for next release" ChangeLog
 
 .PHONY: clean
 clean:
