@@ -10,6 +10,8 @@
 #         Use with caution, aimed at woody system                     #
 #   "ps" and "pdf" tends to break in some ill-configured system       #
 # ------------------------------------------------------------------- #
+# Read local texmf.cnf file
+export TEXMFCNF=texmf/
 
 # Following default shall be editted buy the cordinaor for the entire
 # set of languages.  If each subsection owner wish to overide setyings,
@@ -70,9 +72,9 @@ EXAMPLES := $(wildcard $(EXAMPLE)/*)
 
 # List of all files in tar
 ifeq ("$(BUILD_TYPE)", "sf")
-TARSRCS = $(EXAMPLES) bin/* $(SGMLSRCS) Makefile TODO PROJECT README index.php
+TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile TODO PROJECT README index.php
 else
-TARSRCS = $(EXAMPLES) bin/* $(SGMLSRCS) Makefile TODO PROJECT README
+TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile TODO PROJECT README
 endif
 
 # =================================================================== #
@@ -151,13 +153,13 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
 
 # PS
 
-#$(MANUAL).%.ps: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
-#	debiandoc2latexps -l $* $<
+$(MANUAL).%.ps: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
+	debiandoc2latexps -l $* $<
 
 # PDF
 
-#$(MANUAL).%.pdf: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
-#	debiandoc2latexpdf -l $* $<
+$(MANUAL).%.pdf: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
+	debiandoc2latexpdf -l $* $<
 
 # TAR
 
@@ -184,7 +186,7 @@ endif
 # Ugly but until updating all the web pages, needs these symlinks
 ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; rm -f quick-reference ; ln -sf $(MANUAL) quick-reference
-	cd $(PUBLISHDIR) ; rm -Rf reference ; ln -sf $(MANUAL) reference
+	cd $(PUBLISHDIR) ; rm -f reference ; ln -sf $(MANUAL) reference
 endif
 
 publish-examples: $(EXAMPLES)
@@ -257,68 +259,3 @@ clean:
 .PHONY: all html text txt ps pdf files tar sf \
 	publish publish-all publish-html publish-files publish-tar \
 	clean distclean validate
-#########################################################################
-# maximum times we're willing to run TeX to get cross-references right, 
-# if you subtract by 3
-MAX_TEX_RECURSION	:= 6
-#----[ generating teTeX ]------------------------------------------------------
-$(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
-	debiandoc2latex -l $* $<
-
-#----[ generating PostScript ]-------------------------------------------------
-#$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexps -l $* $<
-
-# debiandoc2latexps is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent  $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich latex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-latex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.ps=.log) for details
-	dvips -t `cat /etc/papersize` -o $(MANUAL).$*.ps $(MANUAL).$*
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
-
-#----[ generating PDF ]--------------------------------------------------------
-# for translated languages
-#$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexpdf -l $* $<
-
-# debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich pdflatex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.pdf=.log) for details
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
