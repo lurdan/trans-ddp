@@ -1,0 +1,1711 @@
+<!doctype debiandoc system>
+<debiandoc>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+<translator>
+Traduït per: Antoni Bella Perez <email>bella5 AT teleline DOT es</email>
+</translator>
+<translator>
+Revisat per: Orestes Mas <email>orestes AT tsc.upc DOT es</email>
+</translator>
+
+<version>1.8.5 - Juliol de 2003</version>
+
+<abstract>
+Aquest document pretén proveir a l'usuari d'una bona comprensió sobre la
+funcionalitat de l'eina per a gestionar els paquets de Debian, APT.  El seu
+objectiu és el de facilitar la vida als nous usuaris de Debian i el de servir
+d'ajuda als que volen tenir un coneixement més profund sobre l'administració
+d'aquest sistema.  Fou creada per al projecte Debian per ajudar a millorar el
+suport disponible per als usuaris d'aquesta distribució.
+</abstract>
+
+<copyright>
+<copyrightsummary>
+Copyright &copy; 2001, 2002 Gustavo Noronha Silva
+</copyrightsummary>
+<p>
+Aquest manual està llicenciat sota els termes de la FDL de GNU (Free
+Documentation License "Llicència de documentació lliure").  Ha estat escrit amb
+l'esperança de que siga d'utilitat per a la comunitat però ve sense cap
+garantia, useu-lo sota el vostre propi risc.
+</copyright>
+
+<toc>
+
+<chapt>Introducció
+<p>
+Al principi hi havien els .tar.gz.  Els usuaris havien de compilar al seu
+sistema GNU/Linux cada programa que volien usar.  Quan es va crear Debian, es
+jutjava com a necessari el fet que el sistema havia d'incloure un mètode de
+gestió per a l'instal·lació de paquets a la màquina.  A aquest sistema se
+l'anomenà <prgn>dpkg</prgn>.  Així fou com nasqué el primer "paquet" en el món
+GNU/Linux, fins i tot abans de que Red Hat decidís crear el seu propi sistema
+"rpm".
+<p>
+Ràpidament s'arribà a un nou dilema en les ments dels creadors de GNU/Linux.
+Ells necessitaven un mode ràpid, pràctic i eficient per a instal·lar paquets de
+manera que es gestionessin automàticament les dependències i que es fes càrrec
+dels fitxers de configuració mentre s'actualitzava.  Altra vegada, Debian en
+fou el precursor i creà a APT, "Advanced Packaging Tool" (eina avançada
+d'empaquetament), la qual ha estat portada per Conectiva per a usar-la amb rpm
+i posteriorment ha estat adoptada per algunes altres distribucions.
+<p>
+Aquest manual no cobreix el apt-rpm, el nom amb el que és coneix al port APT de
+Conectiva, però "pedaços" a aquest document serien benvinguts.
+<p>
+Aquest manual està basat en la següent distribució de Debian, <tt>Sarge</tt>.
+</chapt>
+
+<chapt id="basico">Configuració bàsica
+
+<sect id="sources.list">El fitxer /etc/apt/sources.list
+<p>
+Com a part del seu funcionament, APT usa un fitxer que llista les "fonts" des
+d'on podrà obtenir els paquets.  Aquest fitxer és
+<tt>/etc/apt/sources.list</tt>.
+<p>
+Les entrades en aquest fitxer normalment segueixen aquest format:
+
+<p>
+<example>
+deb http://lloc.http.org/debian distribució secció_1 secció2 secció_3
+deb-src http://lloc.http.org/debian distribució secció_1 secció_2 secció_3
+</example>
+
+<p>
+Per descomptat, les anteriors entrades són fictícies i no s'han d'usar.  La
+primera paraula a cada línia, <tt>deb</tt> o <tt>deb-src</tt>, indica el tipus
+d'arxiu cap al que apunta: tan si conté paquets binaris (<tt>deb</tt>), aquests
+són, els paquets pre-compilats que s'usen normalment, o, els paquets font
+(<tt>deb-src</tt>), que són el codi font del programa original a més del fitxer
+de control de Debian (<tt>.dsc</tt>) junt amb el fitxer <tt>diff.gz</tt>, el
+qual conté els canvis necessaris per a "debianitzar" el programa.
+<p>
+Usualment trobarem el següent al sources.list per defecte de Debian:
+<p>
+<example>
+# See sources.list(5) for more information, especialy
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+</example>
+
+<p>
+Aquestes són les línies necessàries per a una instal·lació bàsica de Debian.  La
+primera línia <tt>deb</tt> apunta cap a l'arxiu oficial, la segona cap a l'arxiu
+non-US i la tercera cap a l'arxiu d'actualitzacions de seguretat de Debian.
+<p>
+Les dues últimes línies estan comentades (amb un caràcter "#" al davant), de
+manera que apt-get les ignorarà.  Aquestes són línies <tt>deb-src</tt>, el
+qual ens indica que apunten cap al codi font de Debian dels programes.  Si tot
+sovint descarregueu paquets font per a provar-los o recompilar-los, llavors
+descomenteu-les.
+<p>
+El fitxer <tt>/etc/apt/sources.list</tt> pot contenir diversos tipus de línies.
+Pel que un servidor coneix, APT sap com negociar amb arxius dels protcols
+<tt>http</tt>, <tt>ftp</tt>, <tt>file</tt> (fitxers locals, p.ex., un directori
+que continga un sistema de fitxers ISO9660 muntat) i <tt>ssh</tt>.
+<p>
+No us oblideu d'executar <tt>apt-get update</tt> després de modificar el fitxer
+<tt>/etc/apt/sources.list</tt>.  Haureu de fer-ho per a obtenir els llistats
+de paquets des de les fonts que heu especificat.
+</sect>
+
+<sect id="dpkg-scanpackages">Com s'usa APT localment
+<p>
+A vegades tindreu uns quants paquets .deb amb els quals us agradaria usar APT
+per a instal·lar-los de manera que les dependències siguen resoltes
+automàticament.
+<p>
+Per a fer-ho, creeu un directori i ubiqueu-hi els fitxers .deb que hi voleu
+indexar.  Per exemple:
+<p>
+<example>
+# mkdir /root/debs
+</example>
+<p>
+Podreu modificar directament les especificacions establertes en el fitxer de
+control dels paquets per al vostre repositori usant un fitxer <tt>override</tt>.
+Dintre d'aquest fitxer es poden definir algunes opcions per a solapar a les que
+venen amb el paquet.  De la manera que segueix:
+<p>
+<example>
+paquet prioritat secció
+</example>
+<p>
+«paquet» és el nom del paquet en si, la «prioritat» pot ser baixa, mitjana o
+alta i «secció» és la secció a la qual pertany el paquet.  El nom del fitxer no
+importa, tan sols haureu de passar-lo com argument a <prgn>dpkg-scanpackages</prgn>.
+Si no desitgeu escriure un fitxer <tt>override</tt>, llavors, simplement useu
+<file>/dev/null</file> quan crideu a <prgn>dpkg-scanpackages</prgn>.
+<p>
+Estan encara al directori /root feu el següent:
+<p>
+<example>
+# dpkg-scanpackages debs <var>fitxer</var> | gzip &gt; debs/Packages.gz
+</example>
+<p>
+A l'anterior línia, <var>fitxer</var> és el fitxer <tt>override</tt>, dit
+comandament genera un fitxer <file>Packages.gz</file> que conté informació
+diversa quant als paquets, la qual serà usada per APT.  Finalment, per a usar
+aquests paquets afegiu:
+<p>
+<example>
+deb file:/root debs/
+</example>
+<p>
+Després d'això, useu els comandaments usuals d'APT.  També podríeu generar un
+repositori de fonts.  Per a fer-ho useu el mateix procediment, però recordeu que
+necessitareu tenir en el directori els fitxers <tt>.orig.tar.gz</tt>,
+<tt>.dsc</tt> i <tt>.diff.gz</tt>, i que usareu <tt>Sources.gz</tt> en comptes
+de <tt>Packages.gz</tt>.  El programa emprat també és un altre.  Aquest serà
+<prgn>dpkg-scansources</prgn>.  La línia de comandaments es veuria així:
+<p>
+<example>
+# dpkg-scansources debs | gzip &gt; debs/Sources.gz
+</example>
+<p>
+Observeu que <prgn>dpkg-scansources</prgn> no necessita un fitxer
+<tt>override</tt>.  La línia per al sources.list seria:
+<p>
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">Decidir quina rèplica és la que s'inclourà al fitxer
+sources.list: netselect, netselect-apt
+<p>
+Un dubte molt freqüent, principalment entre els usuaris més novells és: "Quina
+rèplica de Debian incloc al <tt>sources.list</tt>?".  Hi ha moltes maneres de
+decidir-ho.  Els experts probablement tindran un script que determinarà
+mitjançant ping quina rèplica és més ràpida.  Però hi ha un programa que fa això
+per nosaltres: <strong>netselect</strong>.
+<p>
+Per a instal·lar netselect, com de costum:
+<p>
+<example>
+# apt-get install netselect
+</example>
+<p>
+Executar-lo sense paràmetres us mostrarà l'ajuda.  Executar-lo amb una llista de
+màquines (rèpliques) separades per un espai, us retornarà un llistat amb la
+puntuació obtinguda per cadascuna de les màquines.  Aquesta puntuació serà
+tinguda en compte segons el temps estimat de ping i el nombre de salts (el
+nombre de màquines per les que es travessa per arribar a destinació), el
+resultat és inversament proporcional al de la velocitat de descàrrega estimada
+(a més baix, millor).  La màquina retornada és la que ha obtingut una puntuació
+menor (per a visualitzar la llista completa podeu afegir l'opció -vv).  Mireu
+aquest exemple: <p>
+<example>
+# netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+#
+</example>
+<p>
+Això significa que de les rèpliques incloses com a paràmetres a netselect,
+<tt>ftp.debian.org.br</tt> ha estat la millor, amb una puntuació de 365.
+(Atenció!!  Aquesta prova ha estat feta sobre el meu ordinador i la ubicació
+geogràfica de la xarxa és extremadament diferent depenent del punt de connexió,
+aquest valor no és necessàriament la velocitat correcta en d'altres ordinadors).
+<p>
+Ara, només haureu d'afegir la rèplica més ràpida que hagi trobat netselect al
+fitxer <tt>/etc/apt/sources.list</tt> (consultar <ref id="sources.list">) i
+seguir els consells en <ref id="apt-get">.
+<p> <strong>Nota:</strong> La llista de les rèpliques es pot trobar en el fitxer
+<url id="http://www.debian.org/mirror/mirrors_full"
+name="http://www.debian.org/mirror/mirrors_full">.
+<p>
+Començat amb la versió 0.3, el paquet netselect inclou l'script
+<strong>netselect-apt</strong>, el qual automatitza l'anterior procés.  Sols cal
+introduir l'arbre de la distribució com a paràmetre (per defecte és stable) i el
+fitxer <tt>sources.list</tt> serà generat amb les millors rèpliques de main i
+non-US, i aquest serà desat al directori actual.  El següent exemple genera un
+sources.list de la distribució stable:
+<p>
+<example>
+# ls sources.list
+ls: sources.list: File or directory not found
+# netselect-apt stable
+(...)
+# ls -l sources.list
+sources.list
+#
+</example>
+<p>
+<strong>Recordar:</strong> El fitxer <tt>sources.list</tt> és generat sota el
+directori actual, i l'haureu de more cap al directori <tt>/etc/apt</tt>.
+<p>
+Després, seguiu els consells en <ref id="apt-get">.
+</sect>
+
+<sect id="cdrom">Afegir un CD-ROM al fitxer sources.list
+<p>
+Si preferiu usar el vostre CD-ROM per actualitzar o instal·lar paquets al vostre
+sistema automàticament usant APT, podeu afegir-lo al vostre
+<tt>sources.list</tt>.  Per a fer-ho, podeu usar el programa
+<prgn>apt-cdrom</prgn> d'aquesta manera:
+
+<p>
+<example>
+# apt-cdrom add
+</example>
+
+<p>
+amb el CD-ROM de Debian a la unitat lectora.  Això muntarà el CD-ROM i si és un
+CD vàlid, Debian cercarà la informació de paquets al disc.  Si la configuració
+del vostre CD-ROM és un xic inusual, també podeu usar les següents opcions:
+
+<p>
+<example>
+-h           - Ajuda del programa
+-d directori - Punt de muntatge del CD-ROM
+-r           - Renomena a un CD-ROM reconegut
+-m           - No muntar
+-f           - Mode ràpid, no comprova els fitxers d'índex
+-a           - Mode d'exploració acurada
+</example>
+
+<p>
+Per exemple:
+
+<p>
+<example>
+# apt-cdrom -d /home/kov/el_meu_cdrom add
+</example>
+
+<p>
+També podeu identificar un CD-ROM sense afegir-lo a la vostra llista:
+
+<p>
+<example>
+# apt-cdrom ident
+</example>
+
+<p>
+Tingueu en compte que aquest programa tan sols funcionarà si el vostre CD-ROM
+està adequadament configurat al vostre sistema <tt>/etc/fstab</tt>.
+</sect>
+
+</chapt>
+
+<chapt id="apt-get">Tracte amb els paquets
+<sect id="update">Actualització del llistat de paquets disponibles
+<p>
+El sistema d'empaquetament usa una base de dades per a seguir quins paquets hi
+ha instal·lats, quins no i quins estan disponibles.  El programa
+<prgn>apt-get</prgn> usa aquesta base de dades per a saber com instal·lar els
+paquets requerits pel usuari i obtenir la informació necessària dels paquets
+addicionals que seran necessaris i el seu ordre d'instal·lació per a que un
+paquet funcioni correctament.
+<p>
+Per actualitzar aquest llistat haureu d'usar el comandament <prgn>apt-get
+update</prgn>.  Aquest comandament cercarà els llistats de paquets en els arxius
+indicats a <tt>/etc/apt/sources.list</tt>; per a més informació quant a aquest
+fitxer consulteu <ref id="sources.list">.
+<p>
+És una bona idea executar aquest comandament de forma regular per a mantindre-us
+informats sobre de possibles actualitzacions, en particular les actualitzacions
+de seguretat.
+</sect>
+
+<sect id="install">Instal·lació de paquets
+<p>
+Finalment, el procés que estàveu esperant!  Amb el vostre fitxer sources.list
+llest i el llistat de paquets disponibles al dia, tot el que haureu de fer és
+executar <tt>apt-get</tt> per a obtenir el paquet que desitgeu instal·lar.
+Per exemple, podeu executar:
+
+<p>
+<example>
+# apt-get install xchat
+</example>
+
+<p>
+APT cercarà a la seva base de dades per a la versió més recent de dit paquet i
+el descarregarà des de l'arxiu especificat al <tt>sources.list</tt>.  En el cas
+que aquest paquet depengui de cap altre -com en aquest cas- APT en resoldrà les
+dependències i instal·larà els paquets necessaris.  Vegeu aquest exemple:
+
+<p>
+<example>
+# apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+El paquet <package>nautilus</package> depèn de les biblioteques compartides
+citades, així doncs, APT les obtindrà des de l'arxiu.  Si prèviament especifiqueu
+el nom d'aquestes biblioteques a la línia de comandaments de <tt>apt-get</tt>,
+APT no us preguntarà si desitgeu continuar; donarà automàticament per fet que
+accepteu la instal·lació d'aquests paquets.
+<p>
+Això vol dir que APT tan sols demana confirmació si necessita instal·lar paquets que
+no li heu especificat a la línia de comandaments.
+<p>
+Les següents opcions per a apt-get poden ser d'utilitat:
+
+<p>
+<example>
+-h  Aquest text d'ajuda.
+-d  Sols descàrrega - NO instal·la o desempaqueta els arxius
+-f  Intenta continuar si falla la comprovació d'integritat
+-s  No acta.  Simula l'execució del procés ordenat
+-y  Assumeix Si a totes les preguntes
+-u  Mostra una llista dels paquets a actualitzar
+</example>
+
+<p>
+Es poden seleccionar múltiples paquets per a instal·lar en una sola línia.  Els
+fitxers descarregats des de la xarxa seran ubicats en el directori
+<tt>/var/cache/apt/archives</tt> per a la seva posterior instal·lació.
+<p>
+També podeu especificar paquets a eliminar a la mateixa línia de comandaments.
+Tan sols heu de posar un guionet "-" immediatament després del nom del paquet a
+eliminar, així:
+
+<p>
+<example>
+# apt-get install nautilus gnome-panel-
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Per a més detalls sobre la eliminació d'un paquet consulteu la secció
+<ref id="remove">.
+<p>
+Si d'alguna manera malmeteu cap dels paquets instal·lats o simplement desitgeu
+reinstal·lar els fitxers d'un paquet amb la versió més nova que hi hagi
+disponible, podeu usar l'opció <tt>--reinstall</tt> tal i com es mostra:
+
+<p>
+<example>
+# apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+</sect>
+
+<sect id="remove">Eliminació de paquets
+<p>
+Si ja no requeriu més l'ús d'un paquet, podeu eliminar-lo del vostre sistema
+usant APT.  Per a fer-ho simplement escriviu: <tt>apt-get remove paquet</tt>.
+Per exemple:
+
+<p>
+<example>
+# apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Tal i com podreu apreciar a l'anterior exemple, APT també es fa càrrec
+d'eliminar paquets que en depenen preguntant-vos si els voleu eliminar.  No hi
+ha cap manera d'eliminar un paquet usant APT sense també eliminar els paquets
+que en depenen.
+<p>
+Executant <prgn>apt-get</prgn> de la manera mostrada causarà que s'eliminin tots
+els paquets, però els seus fitxers de configuració, si n'hi ha cap, romandran
+intactes en el sistema. Per a una eliminació completa del paquet, executeu:
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session*
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Tingueu en compte que l'asterisc "*" després dels noms indica que els fitxers de
+configuració per a cadascun d'aquests també seran eliminats.
+<p>
+A l'igual que en el cas del mètode <tt>install</tt>, podeu usar un símbol amb
+<tt>remove</tt> per a invertir la mesura per a un paquet en particular, si
+afegiu un caràcter <tt>"+"</tt> a la dreta després del nom del paquet, aquest
+serà instal·lat en comptes d'eliminat.
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session*
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Observeu que <prgn>apt-get</prgn> llista els paquets addicionals que s'hauran
+d'instal·lar (és a dir, els paquets que necessita la instal·lació del paquet que
+heu solicitat), els que s'eliminaran i els que s'instal·laran (incloguen altra
+vegada als paquets extra).
+</sect>
+
+<sect id="upgrade">Actualització de paquets
+<p>
+Les actualitzacions de paquets són una de les millors aportacions del sistema
+APT.  Es poden realitzar des d'una única línia de comandaments:
+<tt>apt-get upgrade</tt>.  Podeu usar aquest comandament per actualitzar els
+paquets de l'actual distribució, o bé, per actualitzar a una de nova, millor
+usar el comandament <tt>apt-get dist-upgrade</tt>; per a més detalls consulteu
+la secció <ref id="dist-upgrade">.
+<p>
+El seu ús és de molta utilitat junt amb l'opció <tt>-u</tt>.  Aquesta opció
+causa que APT mostri la llista completa de paquets a actualitzar.  Sense, estareu
+actualitzant a cegues.  APT descarregarà les últimes versions de cada paquet i
+llavors els instal·larà en l'ordre adequat.  Tot i que cal ressaltar que és molt
+important executar prèviament el comandament <tt>apt-get update</tt>.  Consulteu
+la secció <ref id="update">.  Observeu aquest exemple:
+
+<p>
+<example>
+# apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+El procés és molt simple.  Tingueu en compte que en les primeres línies
+<tt>apt-get</tt> indica alguns paquets que seran <tt>mantinguts</tt>.  Això
+significa que hi ha una versió més nova però que no seran actualitzats per algun
+motiu.  Possiblement siga per culpa a dependències trencades (un paquet del qual
+depenen no disposa d'una versió més nova per actualitzar) o dependències noves
+(el paquet ara depèn de nous paquets que no pas la versió anterior).
+<p>
+No hi ha una solució clara per al primer cas.  Per al segon, n'hi ha prou amb
+executar <tt>apt-get install</tt> per al paquet en qüestió, de manera que és
+descarregaran les dependències.  Una solució encara millor és la d'usar
+<tt>dist-upgrade</tt>.  Consulteu la secció <ref id="dist-upgrade">.
+</sect>
+
+<sect id="dist-upgrade">Actualització a una nova versió
+<p>
+Aquesta característica d'APT us permet actualitzar tot un sistema Debian d'una
+sola vegada a través de l'Internet o des d'un CD (comprat o descarregat com a
+imatge ISO).
+<p>
+també s'usa quan es fan canvis entre les relacions dels paquets instal·lats.  Amb
+<tt>apt-get upgrade</tt>, aquests paquets serien omesos (<tt>mantinguts</tt>).
+<p>
+Per exemple, suposem que esteu usant la revisió 0 de la versió stable de Debian
+i que compreu un CD amb la revisió 3.  En aquest punt podeu usar APT per
+actualitzar el vostre sistema des del nou CD.  Per a fer-ho usareu
+<prgn>apt-cdrom</prgn> (consultar la secció <ref id="cdrom">) per afegir el CD
+al vostre <tt>/etc/apt/sources.list</tt> i executareu un
+<tt>apt-get dist-upgrade</tt>.
+<p>
+És important fer menció que APT sempre cercarà la versió més recent dels paquets.
+Així doncs, si el vostre <tt>/etc/apt/sources.list</tt> tingués llistat un arxiu
+amb una versió més recent que la del CD, APT descarregaria el paquet des d'allí.
+<p>
+A l'exemple mostrat a la secció <ref id="upgrade">, observem que alguns paquets
+són <tt>mantinguts</tt>.  Resoldrem aquest problema amb el mètode
+<tt>dist-upgrade</tt>:
+
+<p>
+<example>
+# apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx
+The following packages have been kept back
+  lilo
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Observeu que ara els paquets s'actualitzaran, i que hi ha nous paquets que també
+seran instal·lats (les noves dependències del paquets).  Tingueu també en compte
+que lilo seguirà <tt>mantingut</tt>.  Probablement tinga un problema més seriós
+que una simple nova dependència.  Això ho podrem esbrinar si executem:
+
+<p>
+<example>
+# apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx
+The following packages will be REMOVED:
+  debconf-tiny
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx
+The following packages will be upgraded
+  lilo
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Tal i com es veu a sobre, lilo té un nou conflicte amb el paquet
+<package>debconf-tiny</package>, el qual vo dir que no podrà ser instal·lat (o
+actualitzat) sense eliminar debconf-tiny.
+<p>
+Per a saber què manté o elimina un paquet podeu usar:
+
+<p>
+<example>
+# apt-get -o Debug::pkgProblemResolver=yes dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Starting
+Starting 2
+Investigating python1.5
+Package python1.5 has broken dep on python1.5-base
+  Considering python1.5-base 0 as a solution to python1.5 0
+  Holding Back python1.5 rather than change python1.5-base
+Investigating python1.5-dev
+Package python1.5-dev has broken dep on python1.5
+  Considering python1.5 0 as a solution to python1.5-dev 0
+  Holding Back python1.5-dev rather than change python1.5
+ Try to Re-Instate python1.5-dev
+Done
+Done
+The following packages have been kept back
+  gs python1.5-dev
+0 packages upgraded, 0 newly installed, 0 to remove and 2  not upgraded.
+</example>
+
+<p>
+D'aquesta manera és fàcil advertir que el paquet python1.5-dev no pot ser
+instal·lat degut a una dependència insatisfeta: python1.5.
+
+</sect>
+
+<sect id="clean">Eliminació dels fitxers de paquet no usats: apt-get clean i autoclean
+<p>
+Quan instal·leu un paquet, APT descarregarà els fitxers necessaris des de les
+màquines llistades al /etc/apt/sources.list, llavors els desa en un repositori
+local (<file>/var/cache/apt/archives/</file>), i des d'allí procedeix a la seva
+instal·lació, consulteu <ref id="install">.
+<p>
+Amb el passar del temps, dit repositori local pot créixer considerablement i
+ocupar una preuada quantitat d'espai en disc.  Afortunadament, APT proveeix
+d'eines per a gestionar el seu repositori local: els mètodes
+<prgn>apt-get</prgn> <tt>clean</tt> i <tt>autoclean</tt>.
+<p>
+<prgn>apt-get clean</prgn> ho elimina tot a excepció dels fitxers de blocat
+de <file>/var/cache/apt/archives/</file> i
+<file>/var/cache/apt/archives/partial/</file>.  D'aquesta manera, si necessiteu
+reinstal·lar un paquet APT haurà de descarregar-lo una altra vegada.
+<p>
+<prgn>apt-get autoclean</prgn> tan sols elimina els fitxers de paquet que no poden
+ser descarregats de nou.
+<p>
+El següent exemple mostra com funciona la neteja automàtica d'apt-get:
+
+<p>
+<example>
+# ls /var/cache/apt/archives/logrotate* /var/cache/apt/archives/gpm*
+logrotate_3.5.9-7_i386.deb
+logrotate_3.5.9-8_i386.deb
+gpm_1.19.6-11_i386.deb
+</example>
+
+<p>
+A /var/cache/apt/archives hi ha dos fitxers per al paquet
+<package>logrotate</package> i un per al paquet <package>gpm</package>.
+
+<p>
+<example>
+# apt-show-versions -p logrotate
+logrotate/stable uptodate 3.5.9-8
+# apt-show-versions -p gpm
+gpm/stable upgradeable from 1.19.6-11 to 1.19.6-12
+</example>
+
+<p>
+<prgn>apt-show-versions</prgn> mostra que <file>logrotate_3.5.9-8_i386.deb</file>
+proveeix la versió d'actualització de <package>logrotate</package>, de manera que
+<file>logrotate_3.5.9-7_i386.deb</file> ja no és necessari.  També ens indica que
+<file>gpm_1.19.6-11_i386.deb</file> tampoc no és necessari atés a que ja es pot
+descarregar una versió més recent del paquet.
+
+<p>
+<example>
+# apt-get autoclean
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Del gpm 1.19.6-11 [145kB]
+Del logrotate 3.5.9-7 [26.5kB]
+</example>
+
+<p>Finalment, <tt>apt-get autoclean</tt> tan sols elimina els fitxers antics.  Per a
+més informació quant a apt-show consulteu <ref id="apt-show-versions">.
+</sect>
+
+<sect id="dselect-upgrade">L'ús d'APT amb dselect
+<p>
+<prgn>dselect</prgn> és un programa d'ajuda a l'usuari per a la selecció de
+paquets Debian per a l'instal·lació.  És considerat com un mica complicat i un
+xic avorrit, però amb la pràctica podreu usar la seva interfície de ncurses
+basada en consola.
+<p>
+Una de les característiques de dselect és que coneix com usar la capacitat dels
+paquets Debian per a "recomanar" i "suggerir" l'instal·lació d'altres paquets.
+Per a usar el programa, executeu <tt>"dselect"</tt> com a root.  Escolliu "apt"
+com al vostre mètode d'accés.  Això últim no és realment necessari, però si no
+esteu usant un CD-ROM i desitgeu descarregar els paquets des de l'Internet, la
+millor mode és usant dselect.
+<p>
+Per a entendre millor el seu ús, llegiu la seva documentació que es troba en la
+pàgina de Debian <url id="http://www.debian.org/doc/ddp"
+name="http://www.debian.org/doc/ddp">.
+<p>
+Després de seleccionar els paquets amb dselect, useu:
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+</example>
+
+<p>
+com al següent exemple:
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images
+The following packages will be upgraded
+  debian-policy
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Compareu-ho amb el que es veu en executar «apt-get dist-upgrade» en el mateix
+sistema:
+
+<p>
+<example>
+# apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Observeu que la majoria de paquets seran instal·lats per causa d'un "suggeriment"
+o "recomanació" d'altres paquets.  D'altres s'estan instal·lant o eliminant (com
+per exemple en el cas de lbxproxy) per les seleccions que hem realitzat
+mitjançant la navegació a través del llistat de paquets de dselect.  Dselect pot
+ser una poderosa eina usada en conjunció amb APT.
+</sect>
+
+<sect id="default-version">Com mantenir un sistema híbrid
+<p>
+Algunes vegades la gent està interessada en usar una de les versions de Debian
+com a distribució del sistema principal i un o més paquets d'una altra branca.
+<p>
+Per a establir quina és la vostra versió de Debian principal haureu d'editar el
+<file>/etc/apt/apt.conf</file> amb una línia com la següent:
+<p>
+<example>
+APT::Default-Release "<var>versió</var>";
+</example>
+<p>
+A on <var>versió</var> serà la versió de Debian que voleu usar com a distribució
+principal.  Les versions que podeu usar són <tt>stable</tt>, <tt>testing</tt> i
+<tt>unstable</tt>.  Per a instal·lar paquets des d'una altra versió podeu usar
+APT de la següent manera:
+
+<p>
+<example>
+# apt-get -t <var>distribució</var> install <var>paquet</var>
+</example>
+
+<p>
+Per a que això funcioni, almenys necessitareu incloure una línia font per a APT
+en el vostre <file>/etc/apt/sources.list</file> per a la distribució de la qual
+voleu el paquet, i dit paquet haurà d'existir en la font.
+<p>
+També podreu requerir una versió específica d'un paquet usant la següent sintaxi:
+
+<example>
+# apt-get install <var>paquet</var>=<var>versió</var>
+</example>
+
+Per exemple, a la línia de a sota s'instal·larà la versió <tt>2.2.4-1</tt> del
+paquet <package>nautilus</package>:
+
+<example>
+# apt-get install nautilus=2.2.4-1
+</example>
+
+<p>
+<em>IMPORTANT</em>: La versió "unstable" de Debian és la versió en la que primer
+es pugen els paquets de Debian.  En definitiva és la que veu tots els canvis que
+aniran als paquets, uns petits i d'altres més dràstics doncs afectaran a tot el
+sistema.  Per aquest motiu, aquesta versió de la distribució <em>no</em> hauria
+de ser emprada per usuaris sense experiència o pels que necessiten proveir-se
+d'un sistema estable.
+<p>
+La distribució "testing" no és necessàriament millor que "unstable", això és deu
+a que no reb ràpidament les actualitzacions de seguretat.  Per a servidors i
+d'altres sistemes en producció sempre s'hauria d'usar stable.
+</sect>
+
+<sect id="apt-show-versions">Com actualitzar paquets des de versions
+específiques de Debian
+<p>
+<prgn>apt-show-versions</prgn> proveeix d'una manera segura per actualitzar
+sistemes híbrids sense tenir que obtenir una distribució menys estable de la
+que tenien pensada.  Per exemple, és possible actualitzar tan sols els vostres
+paquets de unstable després de tenir instal·lat el paquet
+<package>apt-show-versions</package>:
+<p>
+<example>
+# apt-get install `apt-show-versions -u -b | grep unstable`
+</example>
+</sect>
+
+<sect id="pin">Com mantenir versions específiques de paquets instal·lats
+(complexe)
+<p>
+Possiblement tindreu l'ocasió de modificar quelcom en un programa i no disposareu
+de prou temps per a portar dits canvis cap a la nova versió del programa.  O,
+podria ser que hagueu actualitzat la vostra distribució de Debian a 3.0, però
+alguns paquets tingan que continuar amb la versió que hi ha a la Debian 2.2.
+Podeu "marcar" la versió que ha de restar instal·lada de manera que aquesta no
+siga actualitzada.
+<p>
+L'ús d'aquest recurs és simple.  Sols necessitareu editar el fitxer
+<tt>/etc/apt/preferences</tt>.
+<p>
+El format és simple:
+<p>
+<example>
+Package: &lt;paquet&gt;
+Pin: &lt;marca de definició&gt;
+Pin-Priority: &lt;marca de prioritat&gt;
+</example>
+<p>
+Per exemple, per a mantenir el paquet <package>sylpheed</package> que he
+modificat per a usar "reply-to-list" en la seva versió 0.4.99, afegeixo:
+<p>
+<example>
+Package: sylpheed
+Pin: version 0.4.99*
+</example>
+<p>
+Observeu que he usat un <tt>*</tt> (asterisc).  Aquest és un "jòquer", el qual
+especifica que desitjo que aquesta "marca" siga vàlida per a totes les versions
+que comencin per 0.4.99.  Això és fa així per culpa de les versions Debian d'aquest
+paquet amb una "revisió Debian" i quan no desitjo bloquejar l'instal·lació de les
+esmentades revisions.  Així doncs, les revisions 0.4.99-1 i 0.4.99-10 seran instal·lades
+tan aviat com estigan disponibles.  Tingueu en compte que si vàreu modificar el
+programa no voldreu fer això.
+<p>
+El camp <tt>Pin-Priority</tt> és opcional; si no s'especifica, està per omissió
+a 989.
+<p>
+Ara veurem com funcionen les prioritats de "marca".  Una prioritat menor que 0
+indica que el paquet no hauria d'instal·lar-se mai.  Les prioritats de 0 a 100
+denoten paquets que no estan instal·lats i que no tenen versions disponibles.
+Aquests no estaran presents en el procés d'escollir versions.  La prioritat 100
+és assignada a un paquet instal·lat - per a la versió instal·lada que serà
+reemplaçada per una versió diferent, el reemplaç haurà de tenir una prioritat
+major que 100.
+<p>
+Les prioritats majors que 100 indiquen que el paquet ha de ser instal·lat.
+Típicament, la versió instal·lada d'un paquet només canvia al ser actualitzada a
+una nova versió.  Qualsevol prioritat entre 100 i 1000 (inclusiu) indica aquest
+típic comportament.  Un paquet amb dita prioritat no serà degradat per una
+versió anterior disponible cap a un número de versió menor.  Per exemple, si
+teniu instal·lat sylpheed 0.5.3 i definiu la marca com a sylpheed 0.4.99 amb
+prioritat 999, el paquet 0.4.99 <em>no</em> serà instal·lat per a satisfer dita
+marca.  Per a fer "degradable" a un paquet, satisfent la marca, aquesta necessita
+posseir una prioritat major que 1000.
+<p>
+Una marca pot ser especificada sobre la <tt>versió</tt>, <tt>versió de
+Debian</tt> o a l'<tt>origen</tt> d'un paquet.
+<p>
+Marcant sobre una <tt>versió</tt>, tal i com hem vist, suporta els números de
+versió literalment així com l'ús de jòquers per a especificar diversos números
+de versió a la vegada.
+<!-- what's available?  standard shell globs?  ?*[]   or more? -->
+<p>
+L'opció <tt>release</tt> dependrà del fitxer Release d'una rèplica APT o del
+d'un CD.  Aquesta opció podria no ser de molta utilitat si esteu usant
+repositoris de paquets que no proveeixin aquest fitxer.  Podeu veure el contingut
+dels fitxers Release que teniu en <tt>/var/lib/apt/lists/</tt>.  Els seus
+paràmetres són:
+<tt>a</tt> (arxiu), <tt>c</tt> (components), <tt>v</tt> (versió),
+<tt>o</tt> (origen) i <tt>l</tt> (nivell).
+<p>
+Un exemple:
+<p>
+<example>
+Package: *
+Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+Pin-Priority: 1001
+</example>
+<p>
+En aquest exemple, escollim la versió 2.2* of Debian (la qual pot ser 2.2r2,
+2.2r3 -- això són "versions puntuals" que típicament inclouen adobs de seguretat
+i d'altres actualitzacions importants), el repositori <tt>stable</tt>, secció
+<tt>main</tt> (com a oposada a <tt>contrib</tt> o <tt>non-free</tt>) i
+origen i nivell de Debian.  L'origen (o=) defineix qui va crear el fitxer
+Release, el nivell (l=) defineix el nom de la distribució: Debian per a Debian
+mateix i Progeny per a Progeny, per exemple.   Exemple d'un fitxer Release:
+<p>
+<example>
+$ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+Archive: stable
+Version: 2.2r3
+Component: main
+Origin: Debian
+Label: Debian
+Architecture: i386
+</example>
+</sect>
+</chapt>
+
+<chapt id="helpers">Ajudants de molta utilitat
+<sect id="equivs">Com instal·lar paquets instal·lats localment: equivs
+<p>
+A vegades, la gent desitja usar una versió específica d'un programa disponible
+tan sols des del codi font, no des d'un paquet Debian.  Fer això pot ser problemàtic
+per al sistema d'empaquetament.  Suposeu que voleu compilar una nova versió del
+vostre servidor de correu.  Tot està correcte, però hi ha diversos paquets que
+depenen d'un MTA (Agent per al transport de correu).  Donat que l'heu instal·lat
+mitjançant una compilació pròpia, el sistema de paquets no en sap res al
+respecte.
+<p>
+Aquí és a on <package>equivs</package> entra en escena.  Per a usar-lo,
+instal·leu el paquet amb aquest nom.  El que fa és crear un paquet buit que
+possibilita el satisfer totes les dependències, fent que el sistema de paquets
+doni per satisfetes dites dependències.
+<p>
+Abans de començar és una bona cosa el recordar-vos que hi ha maneres més segures
+de compilar un programa que ja està empaquetat per a Debian amb diferents
+opcions i que no hauríeu d'usar equivs per a reemplaçar dependències sinó sabeu
+el que esteu fent.  Per a més informació consulteu la secció <ref id="sourcehandling">.
+<p>
+Ara continuem amb l'exemple del MTA, tot just acabeu d'instal·lar el vostre nou
+<prgn>postfix</prgn> compilat i aneu a instal·lar <package>mutt</package>.  De
+sobte descobriu que <package>mutt</package> vol instal·lar un altre MTA.  Però
+ja teniu llest el vostre.
+<p>
+Aneu a algun directori (<file>/tmp</file>, per exemple) i executeu:
+
+<p>
+<example>
+# equivs-control <var>nom</var>
+</example>
+
+<p>
+Substituïu <var>nom</var> pel nom del fitxer de control que voleu crear.  El
+fitxer serà cerat de la següent manera:
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;Introduir el nom del paquet; per defecte a equivs-dummy&gt;
+Version: &lt;Introduir la versió aquí; per defecte a 1.0&gt;
+Maintainer: &lt;El vostre nom in adreça de correu electrònic; per defecte al nom d'usuari&gt;
+Pre-Depends: &lt;Paquets&gt;
+Depends: &lt;Paquets&gt;
+Recommends: &lt;Paquets&gt;
+Suggests: &lt;Paquet&gt;
+Provides: &lt;Paquet (virtual)&gt;
+Architecture: all
+Copyright: &lt;Fitxer de copyright; per defecte a GPL2&gt;
+Changelog: &lt;Fitxer de canvis; per defecte al genèric changelog&gt;
+Readme: &lt;Fitxer README.Debian; per defecte a un de genèric&gt;
+Extra-Files: &lt;Fitxers addicionals per al directori doc, separats per comes&gt;
+Description: &lt;Descripció curta; per defecte a algunes paraules sabies&gt;
+ Descripció llarga i informació rellevant.
+ .
+ Segon paràgraf.
+</example>
+
+<p>
+Nosaltres tan sols necessitarem modificar això per a fer el que vulguem.  Feu un
+cop d'ull al format del camp i a les seves descripcions, no hi ha necessitat
+d'explicar-les una a una, anem a fer el que requerim:
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+<p>
+Sí, això és tot.  <package>mutt</package> depèn de
+<package>mail-transport-agent</package>, que és un paquet virtual proveït per
+tots els MTA, aquí podria simplement anomenar al paquet
+<package>mail-transport-agent</package>, però prefereixo usar l'esquema de
+paquets virtuals, usant Provides.
+<p>
+Ara només necessitareu construir el paquet:
+
+<p>
+<example>
+# equivs-build <var>nom</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>nom</var>' en `../<var>nom</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+<p>
+I instal·lar el <tt>.deb</tt> resultant.
+<p>
+Tal com podeu veure, hi ha molts usos per a <prgn>equivs</prgn>.  Es pot crear
+un paquet <tt>els-meus-favorits</tt>, el qual dependrà dels programes que
+instal·leu normalment, per exemple.  Simplement deixeu volar la imaginació, però
+amb cura.
+<p>
+És important apuntar que hi ha fitxers de control en
+<file>/usr/share/doc/equivs/examples</file>. Comproveu-los.
+</sect>
+
+<sect id="localepurge">Eliminació de fitxers locale sense usar: localepurge
+<p>
+La majoria d'usuaris Debian tan sols usen un locale (localització de l'idioma). Un
+usuari brasiler de Debian, per exemple, usualment usarà el locale <tt>pt_BR</tt>
+durant tot el temps i no li importarà el <tt>es</tt>.
+<p>
+<package>localepurge</package> és una eina de molta utilitat per aquests
+usuaris.  Podreu alliberar una gran quantitat d'espai deixant instal·lats tan sols
+aquells locale que realment useu.  Simplement executeu
+<tt>apt-get install localepurge</tt>.
+<p>
+És molt fàcil de configurar, les preguntes de debconf guiaran a l'usuari en una
+configuració passa a passa.  Tingueu cura al respondre a la primera pregunta, una
+resposta errònia podria eliminar tots els fitxers locale, fins i tot aquells que
+necessiteu.  L'única manera de recuperar-los és la de reinstal·lar els paquets
+que els proveïen.
+</sect>
+
+<sect id="helper-show-versions">Com conèixer quins paquets poden ser actualitzats
+<p>
+<prgn>apt-show-versions</prgn> és un programa que mostra quins paquets en el
+sistema poden ser actualitzats i diversa informació d'utilitat.  L'opció
+<tt>-u</tt> mostra una llista dels paquets actualitzables:
+
+<p>
+<example>
+$ apt-show-versions -u
+libeel0/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+libeel-data/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+</example>
+</sect>
+
+</chapt>
+
+<chapt id="search">Obtenir informació quant als paquets.
+<p>
+Hi ha alguns programes d'interfície per al sistema APT que fan
+significativament fàcil l'aconseguir llistats dels paquets que estan disponibles
+per a la instal·lació o que ja ho estan, així com cercar la secció d'un paquet,
+prioritat, descripció, etc.
+<p>
+Però... el nostre objectiu aquí és el d'usar APT en estat pur.  Així que: Com
+podreu conèixer el nom d'un paquet que voleu instal·lar?
+<p>
+Disposem d'un gran nombre de recursos per a realitzar aquesta tasca.  Començarem
+exposant a <tt>apt-cache</tt>.  Aquest programa és usat pel sistema APT per a
+manipular la seva base de dades.  Nosaltres tan sols veurem algunes de les seves
+aplicacions més pràctiques.
+
+<sect id="cache">Descobrir els noms dels paquets
+<p>
+Per exemple, suposem que voleu reviure l'època daurada de l'Atari 2600.  Voleu
+usar APT per a instal·lar un emulador Atari, i després descarregar-vos alguns
+jocs.  Podeu fer el següent:
+
+<p>
+<example>
+# apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+<p>
+Hem trobat diversos paquets relacionats amb el que estem cercant, junt amb les
+seves descripcions curtes.  Per aconseguir més informació quant a un paquet
+específic, podem fer el següent:
+
+<p>
+<example>
+# apt-cache show stella
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (&gt;= 2.1), libstdc++2.10, xlib6g (&gt;= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella is a portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+<p>
+En aquesta eixida teniu molt detallada quant al paquet que voleu (o que no
+voldreu) instal·lar, junt amb una completa descripció del mateix.  Si el paquet
+ja estigués instal·lat al vostre sistema i hagués una versió més recent, veuríeu
+l'informació d'ambdues versions.  Per exemple:
+
+<p>
+<example>
+# apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (&gt;= 2.2.1-2), debconf (&gt;=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (&lt;&lt;1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (&gt;= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+<p>
+Observeu que la primera en la llista és la del paquet disponible i que la segona
+correspon al paquet que ja està instal·lat.  Per a informació més general quant
+a un paquet, podeu usar:
+
+<p>
+<example>
+# apt-cache showpkg penguin-command
+Package: penguin-command
+Versions:
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends:
+Dependencies:
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3)
+Provides:
+1.4.5-1 -
+Reverse Provides:
+</example>
+
+<p>
+I per a saber els paquets del que depèn:
+
+<p>
+<example>
+# apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+<p>
+En resum, tenim una gran varietat d'armes que podem usar per a esbrinar el nom
+d'un paquet que desitgem instal·lar.
+</sect>
+
+<sect id="dpkg-search">L'ús de dpkg per a cercar noms de paquet
+<p>
+Una de les maneres per a localitzar el nom d'un paquet és coneixent el nom d'un
+fitxer important que es trobi dins d'aquest paquet.  Per exemple, per a esbrinar
+el paquet que proveeix un fitxer <tt>".h"</tt> en particular que necessiteu per
+a una compilació podeu executar:
+
+<p>
+<example>
+# dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+<p>
+o:
+
+<p>
+<example>
+# dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+<p>
+Per a esbrinar els noms dels paquets instal·lats en el vostre sistema, el qual
+és d'utilitat, per exemple, si planegeu netejar el vostre disc dur, podeu
+executar:
+
+<p>
+<example>
+# dpkg -l | grep mozilla
+ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+</example>
+<p>
+El problema amb aquest comandament és que pot "trencar" el nom del paquet.  A
+l'anterior exemple, el nom complet del paquet és <tt>mozilla-browser</tt>.  Per
+adobar això, podeu usar la variable d'entorn <tt>COLUMNS</tt> de la següent
+manera:
+
+<p>
+<example>
+[kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+</example>
+
+<p>
+o la descripció o part d'aquesta de la següent manera:
+
+<p>
+<example>
+# apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">Com instal·lar paquets "sota demanda"
+<p>
+Esteu compilant un programa i de sobte, boom!  Apareix un error perquè necessita
+una fitxer <tt>.h</tt> que no teniu.  El programa <prgn>auto-apt</prgn> pot
+prevenir-vos d'aquestes situacions.  Us demanarà d'instal·lar certs programes
+que són requerits, aturant els processos rellevants i continuant-los una vegada
+el paquet estiga instal·lat.
+<p>
+El que es fa, és bàsicament executar:
+
+<p>
+<example>
+# auto-apt run comandament
+</example>
+
+<p>
+A on "comandament" és el comandament que al ser executat podria necessitar
+d'alguns fitxers no disponibles.  Per exemple:
+
+<p>
+<example>
+# auto-apt run ./configure
+</example>
+
+<p>
+Llavors us demanarà per a instal·lar els paquets necessaris i cridarà
+automàticament a apt-get.  Si esteu executant X,  una interfície gràfica
+substituirà a la interfície per defecte (mode text).
+<p>
+Auto-apt manté una sèrie de bases de dades que necessiten estar al dia per a que
+això siga efectiu.  El qual es pot aconseguir cridant als comandaments
+<tt>auto-apt update</tt>, <tt>auto-apt updatedb</tt> i
+<tt>auto-apt update-local</tt>.
+</sect>
+
+<sect id="apt-file">Com esbrinar a quin paquet pertany un fitxer
+<p>
+Si voleu instal·lar un paquet i no podeu esbrinar com s'anomena aquest cercant-lo
+amb <prgn>apt-cache</prgn>, però coneixeu el nom d'un fitxer del mateix programa
+o el de cap altre fitxer que pertanyi a aquest paquet, llavors podeu usar
+<prgn>apt-file</prgn> per a cercar el nom del paquet.  Això es fa de la següent
+manera:
+
+<p>
+<example>
+$ apt-file search <var>nom_fitxer</var>
+</example>
+
+<p>
+Funciona de mode similar a <tt>dpkg -S</tt>, però també us mostra paquets no
+instal·lats que contingan el fitxer.  També pot usar-se per a esbrinar quins
+paquets contenen els fitxers "include" necessaris per a la compilació de certs
+programes, tot i que per aquests casos <prgn>auto-apt</prgn> és una solució
+millor per aquests casos, consulteu <ref id="auto-apt">.
+<p>
+També podeu llistar el contingut d'un paquet executant:
+
+<p>
+<example>
+$ apt-file list <var>nom_paquet</var>
+</example>
+
+<p>
+<prgn>apt-file</prgn> manté una base de dades amb els fitxers que contenen tots
+els paquets, de la mateixa manera que ho fa auto-apt i per això necessita estar
+actualitzada.  Això s'aconsegueix executant:
+
+<p>
+<example>
+# apt-file update
+</example>
+
+<p>
+Per defecte, <prgn>apt-file</prgn> usa la mateixa base de dades que
+<prgn>auto-apt</prgn>, consulteu <ref id="auto-apt">.
+
+</sect>
+
+<sect id="apt-listchanges">Com mantindràs informat quant als canvis en els paquets.
+<p>
+Cada paquet instal·la en el seu directori de documentació
+(<tt>/usr/share/doc/nom_paquet</tt>) un fitxer anomenat
+<tt>changelog.Debian.gz</tt> el qual conté una llista dels canvis realitzats al
+paquet des de l'última versió.  Podeu llegir aquests fitxers amb l'ajuda de
+<tt>zless</tt>, per exemple, però no és gaire simple que després d'una
+actualització s'hagin d'estar cercant aquests registres de canvis per a cadascun
+dels paquets actualitzats.
+<p>
+Hi ha una manera per automatitzar aquesta tasca mitjançant una eina que s'anomena
+<prgn>apt-listchanges</prgn>.  Per a començar primer es requereix que instal·leu
+el paquet <package>apt-listchanges</package>.  Durant la seva instal·lació,
+Debconf la configurarà.  Respongueu les preguntes com desitgeu.
+<p>
+L'opció "Voldreu que apt executi automàticament apt-listchanges?" és
+realment útil perquè mostra una llista dels canvis que s'han realitzat per a
+cadascun dels paquets que està instal·lant apt durant una actualització i us
+permet analitzar-los abans de continuar.  L'opció "Tindrà apt-listchanges que
+demanar confirmació després de mostrar els canvis?" és d'utilitat perquè
+us demana si desitgeu continuar l'instal·lació després de llegir la llista de
+canvis.  Si decidiu no continuar, apt-listchanges retornarà un error i avortarà
+l'instal·lació.
+<p>
+Una vegada instal·lat apt-listchanges, tan aviat com els paquets hagin estat
+descarregats (o llegits des d'un CD o dic muntat) per APT, es mostraran les
+llistes de canvis realitzats a dits paquets abans d'instal·lar-los.
+</sect>
+</chapt>
+
+<chapt id="sourcehandling">Treballar amb els paquets font
+<sect id="source">Descàrrega de paquets font
+<p>
+És molt comú en el món de programari lliure l'estudi del codi font o fer
+correccions a codi erroni.  Per a fer això, necessitareu descarregar la font del
+programa.  El sistema APT proveeix d'una senzilla manera per a obtenir el codi
+font de la majoria de programes continguts en la distribució, inclosos tots els
+fitxers necessaris per a crear un .deb per al programa.
+<p>
+Un altre ús comú de les fonts de Debian és el d'adaptar una versió més recent
+d'un programa, des de la distribució unstable, per exemple, per a usar-lo amb la
+distribució stable.  La compilació d'un paquet dintre de stable generarà fitxers
+.deb amb les dependències ajustades per a coincidir amb els paquets disponibles
+en dita distribució.
+<p>
+Per aconseguir això, l'entrada <tt>deb-src</tt> en el vostre
+<tt>/etc/apt/sources.list</tt> haurà d'apuntar cap a unstable.  Aquesta haurà
+d'estar habilitada (sense comentar).  Consultar la secció <ref id="sources.list">.
+<p>
+Per a descarregar un paquet font, haureu d'usar el següent comandament:
+
+<p>
+<example>
+$ apt-get source nom_paquet
+</example>
+<p>
+Això us descarregarà tres fitxers: Un <tt>.orig.tar.gz</tt>, un <tt>.dsc</tt> i
+un <tt>.diff.gz</tt>.  En el cas de paquets fets específicament per Debian,
+l'últim d'aquests fitxers no serà descarregat i el primer usualment no tindrà
+<tt>"orig"</tt> en el nom.
+<p>
+El fitxer <tt>.dsc</tt> és usat per dpkg-source per a desempaquetar la font del
+paquet en el directori <var>nompaquet-versió</var>.  Amb cada paquet font
+descarregat existeix un directori <tt>debian/</tt> que conté els fitxers
+necessaris per a la creació del paquet .deb corresponent.
+<p>
+Per a construir automàticament el paquet que s'està descarregant, tan sols heu
+d'afegir <tt>-b</tt> a la línia de comandaments, d'aquesta manera:
+
+<p>
+<example>
+$ apt-get -b source nom_paquet
+</example>
+
+<p>
+Si decidiu no crear el .deb en temps de descàrrega, podreu crear-lo més tard
+executant:
+
+<p>
+<example>
+$ dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+<p>
+des del directori que ha estat creat després de descarregar el paquet.  Per a
+instal·lar el paquet que ha estat creat pels anteriors comandaments, s'haurà
+d'emprar el sistema de gestió de paquets directament, d'aquesta manera:
+
+<p>
+<example>
+# dpkg -i <var>fitxer.deb</var>
+</example>
+
+<p>
+Hi ha una diferència entre el mètode <prgn>apt-get</prgn> <tt>source</tt> i les
+seves altres opcions.  El mètode <tt>source</tt> pot ser usat per usuaris
+normals, sense necessitar poders especials de root.  Els fitxers són descarregats
+al directori des del que es crida al comandament <tt>apt-get source package</tt>.
+</sect>
+
+<sect id="build-dep"	>Paquets necessaris per a compilar un paquet font
+<p>
+Normalment, és necessària la presència de capçaleres o biblioteques compartides
+per a que un paquet font siga compilat.  Tots els paquets font tenen un camp en
+els seu fitxer de control anomenat "Build-Depends:" el qual indica quins paquets
+addicionals són necessaris per a que el paquet siga construït des de la font.
+<p>
+APT té un mode simple de descarregar aquests paquets.  Simplement executeu
+<tt>apt-get build-dep paquet</tt>, a on "paquet" serà el nom del paquet que
+aneu a construir.  Per exemple:
+
+<p>
+<example>
+# apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Els paquets que seran instal·lats són els necessaris per a construir
+<package>gmc</package> correctament.  És important fer notar que aquest
+comandament no cerca el paquet font del programa per a ser compilat.  Per a
+obtenir-lo, llavors necessitareu executar <tt>apt-get source</tt> per separat.
+
+<p>
+Si tot el que voleu és comprovar quins paquets són necessaris per a construir un
+paquet en concret, hi ha una variant del comandament <tt>apt-cache show</tt>
+(consultar <ref id="search">, el qual mostra, entre d'altre informació, la línia
+<tt>Build-Depends</tt> que està llistada en aquests paquets.
+
+<p>
+<example>
+# apt-cache showsrc <var>paquet</var>
+</example>
+
+</sect>
+</chapt>
+
+<chapt id="erros">Com batre's amb els errors
+<sect id="erros-comuns">Errors comuns
+<p>
+Els errors sempre existiran, la majoria dels quals són provocats per usuaris que
+no paren atenció.  La següent és una llista d'alguns dels errors més comuns i
+com tractar amb aquests.
+<p>
+Si rebeu un missatge semblant al següent quan intenteu executar
+<tt>apt-get install paquet</tt>...
+
+<p>
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+<p>
+us heu oblidat d'executar <tt>apt-get update</tt> després del vostre últim canvi
+al fitxer <tt>/etc/apt/sources.list</tt>.
+<p>
+Si l'error mostrat és com aquest:
+
+<p>
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+<p>
+quan escolliu qualsevol altre mètode per a <prgn>apt-get</prgn> diferent a
+<tt>source</tt>, és que no disposeu dels permisos d'usuari root, el qual ve a
+indicar, que l'esteu executant com a un usuari normal.
+<p>
+Hi ha un error similar a l'anterior que passa quan executeu dues còpies de
+<prgn>apt-get</prgn> alhora o quan intenteu executar <prgn>apt-get</prgn>
+mentres un procés <prgn>dpkg</prgn> està actiu.  L'únic mètode que es pot emprar
+simultàniament amb els altres és <tt>source</tt>.
+<p>
+Si una instal·lació peta a la meitat del procés i us trobeu amb que ja no és
+possible instal·lar o eliminar paquets, intenteu executar aquests dos
+comandaments:
+
+<p>
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+<p>
+I després proveu-ho una altra vegada.  Podria ser necessari executar el segon
+comandament més d'una vegada.  Aquest és una important lliçó per aquells
+aventurers que usen "unstable".
+
+<p>
+Si rebeu l'error "E: Dynamic MMap ran out of room" a l'executar
+<tt>apt-get update</tt>, afegiu la següent línia a
+<file>/etc/apt/apt.conf</file>:
+
+<example>
+APT::Cache-Limit 10000000;
+</example>
+
+</sect>
+
+<sect id="help">A on puc trobar ajuda?
+<p>
+Si esteu plagat de dubtes, consulteu la extensa documentació disponible per al
+sistema d'empaquetament de Debian.  L'opció <tt>--help</tt> i les pàgines del
+manual poden ser-vos de gran ajuda, així com la documentació inclosa en els
+directoris <tt>/usr/share/doc</tt>, com per exemple <tt>/usr/share/doc/apt</tt>.
+<p>
+Si aquesta documentació no aconsegueix apaivagar les vostres pors, intenteu
+cercar la resposta per les llistes de correu de Debian.  Podeu trobar més
+informació quant a les llistes específiques per a usuaris en el lloc web de
+Debian: <url id="http://www.debian.org" name="http://www.debian.org">.
+<p>
+Recordeu que aquestes llistes i recursos tan sols les han d'emprar els usuaris de
+Debian; els usuaris d'altres sistemes trobaran un millor suport des dels recursos
+comunitaris de les seves pròpies distribucions.
+</sect>
+</chapt>
+
+<chapt id="distros">Quines distribucions tenen suport per a APT?
+<p>
+Aquí hi ha els noms d'algunes de les distribucions que usen APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">)
+- aquesta fou la distribució en que es desenvolupà APT
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">)
+- aquesta fou la primera distribució en portar l'ús d'APT amb rpm
+<p>
+Libranet (<url id="http://www.libranet.com" name="http://www.libranet.com">)
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://www.pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+<p>
+Alt Linux (<url id="http://www.altlinux.ru/" name="http://www.altlinux.ru/">)
+<p>
+Red Hat (<url id="http://www.redhat.com/" name="http://www.redhat.com/">)
+<p>
+Sun Solaris (<url id="http://www.sun.com/" name="http://www.sun.com/">)
+<p>
+SuSE (<url id="http://www.suse.de/" name="http://www.suse.de/">)
+<p>
+Yellow Dog Linux (<url id="http://www.yellowdoglinux.com/"
+name="http://www.yellowdoglinux.com/">)
+</chapt>
+
+<chapt id="agradecimentos">Crèdits
+<p>
+Un gran abraç d'agraïment als meus amics en el projecte Debian-BR i al mateix
+Debian, els quals m'estan ajudant a continuar la tasca en benefici de
+l'humanitat, així com en ajudar-me amb el meu objectiu de salvar al món. :)
+<p>
+També agraeixo l'enorme ajuda que ha donat CIPSGA al nostre projecte i a tots
+els projectes lliures que ofereixen noves idees.
+<p>
+
+I un especial agraïment per a:
+<p>
+Yooseong Yang &lt;yooseong@debian.org&gt;
+<p>
+Michael Bramer &lt;grisu@debian.org&gt;
+<p>
+Bryan Stillwell &lt;bryan@bokeoa.com&gt;
+<p>
+Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt;
+<p>
+Hugo Mora &lt;h.mora@melix.com.mx&gt;
+<p>
+Luca Monducci &lt;luca.mo@tiscali.it&gt;
+<p>
+Tomohiro KUBOTA &lt;kubota@debian.org&gt;
+<p>
+Pablo Lorenzzoni &lt;spectra@debian.org&gt;
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt;
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt;
+<p>
+Erik Rossen &lt;rossen@freesurf.ch&gt;
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt;
+<p>
+Matt Kraai &lt;kraai@debian.org&gt;
+<p>
+Aaron M. Ucko &lt;ucko@debian.org&gt;
+<p>
+Jon Åslund &lt;d98-jas@nada.kth.se&gt;
+</chapt>
+
+<chapt id="novas">Noves versions d'aquest tutorial
+<p>
+Aquest manual ha estat creat pel projecte <url id="http://www.debian-br.org"
+name="Debian-BR">, amb l'objectiu d'ajuda a l'usuari de Debian en el seu fer
+diari.
+<p>
+Noves versions d'aquest document estaran disponibles a la pàgina de Projectes de
+documentació de Debian,  a <url id="http://www.debian.org/doc/ddp"
+name="http://www.debian.org/doc/ddp">.
+<p>
+Els comentaris i crítiques me les podeu enviar directament per correu a
+<email>kov@debian.org</email>.
+</chapt>
+
+</book>
+
+</debiandoc>
