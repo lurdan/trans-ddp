@@ -33,6 +33,8 @@ ifeq ("$(HTDOCS)", "manuals.sgml")
 # DDP site or checked out source from DDP
 PUBLISHDIR := ../../../public_html/manuals.html
 MANUAL := $(notdir $(shell pwd))
+LANGS := en fr it
+EXTS := html
 else
 # default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
@@ -226,7 +228,8 @@ $(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
 	@rm -f prior.aux pprior.aux
 
 #====[ publishing to the DDP web pages ]=======================================
-publish: publish-html publish-files publish-tar
+publish: publish-html
+publish-all: publish-html publish-files publish-tar
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
@@ -301,7 +304,7 @@ clean: neat
 distclean: clean
 	rm -rf $(PUBLISHDIR)/$(MANUAL)/
 
-scp: publish
+scp: publish-all
 	scp -pr $(PUBLISHDIR)/$(MANUAL)/ \
 	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/qref
 
