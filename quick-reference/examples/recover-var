@@ -1,0 +1,97 @@
+#!/bin/sh
+set -e
+# Let's be verbose....
+set -v
+# Recovering a Debian system from crashed /var directory
+# (C) 2003, Karsten M. Self <kmself@ix.netcom.com>
+# (C) 2003, Osamu Aoki <osamu@debian.org>
+#     GPL 2
+#  ref: http://www.linuxworld.com/2003/0113.petreley.html
+#  ref: postinst of base-files_*.deb
+
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+#  USA
+
+DIRS="var \
+var/backups \
+var/cache var/cache/apt var/cache/apt/archives \
+var/cache/apt/archives/partial \
+var/cache/debconf /var/cache/man \
+var/games \
+var/lib var/lib/apt var/lib/apt/lists var/lib/apt/lists/partial \
+var/lib/aptitude \
+var/lib/dpkg var/lib/dpkg/updates \
+var/local var/lock var/log var/mail var/opt var/run \
+var/spool var/state var/tmp"
+
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+# set up var directory
+for xx in $DIRS ; do
+  mkdir /$xx
+  chmod 755 /$xx
+done
+
+chown root:staff /var/local
+chown root:mail  /var/mail
+chown man:root   /var/cache/man
+
+chmod 2755 /var/cache/man
+chmod 2775 /var/local /var/mail
+chmod 1777 /var/lock  /var/tmp
+
+ln -s ../mail /var/spool/mail
+
+echo -n>/var/run/utmp
+echo -n>/var/log/wtmp
+echo -n>/var/log/lastlog
+chown root:utmp /var/run/utmp /var/log/wtmp /var/log/lastlog
+chmod 664 /var/run/utmp /var/log/wtmp /var/log/lastlog
+
+echo > /var/lib/dpkg/status
+chmod 644 /var/lib/dpkg/status
+chown root:root /var/lib/dpkg/status
+
+echo > /var/lib/dpkg/available
+
+ls /usr/share/doc | \
+grep -v [A-Z] | \
+grep -v '^texmf$' | \
+grep -v '^debian$' | \
+awk '{print $1 " install"}' | \
+dpkg --set-selections
+set +v
+echo "======================================================================"
+echo " Ready to re-install system, time to get working system :-)"
+echo "======================================================================"
+echo
+echo "Few ways to do this:"
+echo
+echo "A. Type 'dselect --expert' and ..."
+echo "   0. [A]ccess    Choose APT methods."
+echo "   1. [U]pdate    Update list of available packages."
+echo "   2. [S]elect    Deselect non-existing packages."
+echo "   3. [I]nstall   Install and upgrade :-)"
+echo
+echo "B. Type 'apttude' and press 'u' and 'g'."
+echo
+echo "C. Type 'apt-get update && apt-get dselect-update'"
+echo
+
+######### Another alternative ?
+#echo "apt apt"> /var/lib/dpkg/cmethopt
+#dselect update
+#dselect select
+#dselect install
