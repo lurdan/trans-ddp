@@ -1,7 +1,17 @@
 XML_DECL=/usr/lib/sgml/declaration/xml.decl
 DEBIAN_VERSIONS=potato slink
 
+# DDP standard
+MANUAL := $(shell basename $(shell pwd))
+PUBLISHDIR :=	../../../public_html/manuals.html
+
+
 all: 
+	@for subdir in ${DEBIAN_VERSIONS}; do \
+		(cd $$subdir && ${MAKE} $@) \
+	done
+
+html: 
 	@for subdir in ${DEBIAN_VERSIONS}; do \
 		(cd $$subdir && ${MAKE} $@) \
 	done
@@ -19,6 +29,16 @@ install:  index.html
 	done
 	$(MAKE) Debian-SGML.tar.gz
 	scp Debian-SGML.tar.gz bortz@www.debian.org:public_html/SGML-HOWTO/
+
+# DDP standard
+# This target installs the generated HTML in the published directory.
+publish:	html
+# 		fail if there is no PUBLISHDIR
+		[ -d $(PUBLISHDIR) ] || exit 1
+		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
+			$(PUBLISHDIR)/$(MANUAL)/
 
 Debian-SGML.tar: distclean
 	(cd ..; tar  --exclude=CVS --exclude=.wmlrc  -cvf Debian-HOWTO/$@ Debian-HOWTO)
