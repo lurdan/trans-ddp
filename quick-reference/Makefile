@@ -302,11 +302,6 @@ endif
 ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; ln -sf $(MANUAL1) debian-reference
 endif
-# Create index page
-ifneq ("$(BUILD_TYPE)", "package")
-	. bin/mkindexhtml "Debian Reference" "$(MANUAL1)" "$(LANGSALL)"  \
-	> $(PUBLISHDIR)/$(MANUAL1)/index.html
-endif
 
 publish-html2: html2
 # Ugly but until updating all the web pages, needs these symlinks
@@ -322,11 +317,6 @@ endif
 	 install -p -m 644 $(MANUAL2).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL2)/ ;\
 	)
-# Create index page
-ifneq ("$(BUILD_TYPE)", "package")
-	. bin/mkindexhtml "Debian Quick Reference" "$(MANUAL2)" "$(LANGSALL)" \
-	> $(PUBLISHDIR)/$(MANUAL2)/index.html
-endif
 
 publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
