@@ -55,14 +55,14 @@ developers-reference.%.tex:	developers-reference.%.sgml
 %.pdf:	%.tex
 #	 note that I have seen bi-stable .aux files, thus we check two levels deep
 	-cp -pf prior.aux pprior.aux 2>/dev/null
-	-cp -pf $(basename $<).aux prior.aux 2>/dev/null
+	-cp -pf $*.aux prior.aux 2>/dev/null
 #	 fail if we don't have pdflatex correctly installed
 	kpsewhich pdflatex.fmt >/dev/null
 #	 due to a bug in debiandoc2latex2e output, this might fail
 	-pdflatex '\nonstopmode\input{$<}' >/dev/null # see $(@:.pdf=.log) for details
 	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
+	if ! cmp $*.aux prior.aux 2>/dev/null &&		\
+	   ! cmp $*.aux pprior.aux 2>/dev/null; then	\
 		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
 		then							\
 		   echo "remaking $@ (take $(MAKELEVEL))"		;\
