@@ -5,6 +5,7 @@ DEBIAN_VERSIONS=potato slink
 MANUAL := $(shell basename $(shell pwd))
 PUBLISHDIR :=	../../../public_html/manuals.html
 
+.DELETE_ON_ERROR:
 
 all: 
 	@for subdir in ${DEBIAN_VERSIONS}; do \
