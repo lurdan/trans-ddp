@@ -14,22 +14,16 @@ ORIG_LANG=en
 # list of langs (above the canonical one)
 LANGS=fr it
 
-EXTS=ps pdf txt tov info
-
-# source file name (No language specifier part)
-SFILE           := qref
-# target file name (for html: $(TFILE).html/)
-TFILE           := qref
-# HTML start page
-INDEX           := index
+# Because Latex is hard to work with, I just to do text for now
+# When it is not a problem to enable others, we should enable the rest.
+#EXTS=ps pdf txt tov info
+EXTS=txt
 # default language for build
 TLANG           := en
 # default language for build (LATEX related specification)
 LLANG           := en
 # build flag for SGML parse.
 BOOK            := qref
-# url of this build.
-URLHERE         := ddp-page
 ##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
 
 # what will be built
@@ -70,7 +64,6 @@ dynamic.ent::
 	@echo "<!entity % lang-$(TLANG) \"INCLUDE\">" >> $@
 	@echo "<!entity booklet \"$(BOOK)\">" >> $@
 	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
-	@echo "<!entity % $(URLHERE) \"INCLUDE\">" >> $@
 
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
@@ -178,6 +171,7 @@ publish-html: $(HTMLDIRS)
 
 #----[ publish the files ]-----------------------------------------------------
 publish-files: $(ALLFILES)
+	rm -rf $(PUBLISHDIR)/qref # Sorry, I made a junk tree, removed
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	$(foreach ext,$(EXTS),\
@@ -194,14 +188,11 @@ publish-files: $(ALLFILES)
 	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
-# I need to think about where to put these examples.  Top part is not used.
-# 2nd part needs to be adopted to above script.  Now for record only.
-#	$(install_file) --preserve-timestamps \
-#	  $(MANUAL).html/*.html $(PUBLISHDIR)/$(MANUAL)/
-#	$(install_dir) $(PUBLISHDIR)/$(TFILE)/examples
-#	# excuse me for ugly script (skip CVS)
-#	$(install_file) --preserve-timestamps \
-#	  $(MANUAL).html/examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
+#	# excuse me for ugly script (skip CVS directory)
+	test -d $(PUBLISHDIR)/$(MANUAL)/examples \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
+	install -p -m 644  --preserve-timestamps \
+#	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
 
 
 #----[ publish the ps ]--------------------------------------------------------
