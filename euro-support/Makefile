@@ -2,7 +2,7 @@
 # Makefile for the Securing Debian HOWTO (copied from Makefile.intln)
 #
 # Should work both for a manual in the Debian Documentation Project
-# manuals.sgml tree, and for maint-guide package build.
+# manuals.sgml tree, and for the package build.
 
 ##### CONF PART 
 # this can and will be overriden by a higher level makefile
@@ -132,7 +132,7 @@ publish-html: $(HTMLDIRS)
 	  name=`echo $(file) | sed 's/$(MANUAL).html\///'`; \
 	  link=`echo $$name|sed 's/.$(ORIG_LANG).html$$/.html/'`;\
 	  echo "$$link -> $$name";\
-	  ln -sf $(PUBLISHDIR)/$(MANUAL)/$$name\
+	  ln -sf $$name\
 	        $(PUBLISHDIR)/$(MANUAL)/$$link;\
 	 )
 
@@ -150,7 +150,7 @@ publish-files: $(ALLFILES)
 	 install -p -m 644 $(MANUAL).$(ORIG_LANG).$(ext)\
 	                   $(PUBLISHDIR)/$(MANUAL)/;\
 	 \
-	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
+	 ln -sf $(MANUAL).$(ORIG_LANG).$(ext)\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
 
