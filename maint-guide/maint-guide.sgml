@@ -5,7 +5,7 @@
 <!ENTITY % default  SYSTEM "default.ent">  %default;
 
 ]>
-<!-- CVS revision of this document "$Revision: 1.49 $"  -->
+<!-- CVS revision of this document "$Revision: 1.50 $"  -->
 <!-- CVS revision of original english document "*.**"  -->
 
 <debiandoc>
@@ -1507,7 +1507,7 @@
   <p>This is a summary of the contents of the source code. The file is
   generated from your `control' file, and is used when
   unpacking the source with <manref name="dpkg-source" section="1">. This
-  file is PGP signed, so that people can be sure that it's really yours.
+  file is GPG signed, so that people can be sure that it's really yours.
 
   <item><em>gentoo_0.9.12-1.diff.gz</em>
 
@@ -1532,7 +1532,7 @@
   <p>This file describes all the changes made in the current package
   revision, and it is used by the Debian FTP archive maintenance programs
   to install the binary and source packages in it. It is partly generated
-  from the `changelog' file and the .dsc file. This file is PGP signed, so
+  from the `changelog' file and the .dsc file. This file is GPG signed, so
   that people can be sure that it's really yours.
 
   <p>As you keep working on the package, behavior will change and new
@@ -1617,7 +1617,55 @@
   it on machines other than your own and watch closely for any warnings
   or errors both during the installation and while the program is being run.
 
-  <chapt id="pbuilder">The <package>pbuilder</package> package
+  <sect id="dpatch">the <prgn>dpatch</prgn> system
+<p>
+The simple use of <prgn>dh_make</prgn> and
+<prgn>dpkg-buildpackage</prgn> commands will create a single large
+<file>diff.gz</file> file which contains package maintenance files in
+<file>debian/</file> and patch files to the source.  Such package is a
+bit cumbersome to inspect and understand for each source tree
+modification later.  This is not so nice.
+<footnote>
+If you are not yet Debian Developer and asking your sponsor to upload
+your package after his package review, you should make package as easy
+as possible for him to review.
+</footnote>
+<p>
+Several methods for the patch set maintenance have been proposed and in
+use with Debian packages.  The <prgn>dpatch</prgn> system is one of the
+simplest of such patch maintenance system proposed.  Other ones are
+dbs, cdbs, etc.
+<p>
+A package which is packaged properly with the <prgn>dpatch</prgn> system
+has modifications to the source clearly documented as patch set files in
+<file>debian/patches/</file> and the source tree is untouched outside of
+<file>debian/</file> directory.  If you are asking sponsor to upload
+your package, this kind of clear separation and documentation of your
+changes are very important to expedite the package review by your
+sponsor.  The usage method of <prgn>dpatch</prgn> is explained in
+<manref section="1" name="dpatch">.
+<p>
+When someone (including yourself) provides you with a patch to the
+source later, then the package modification under dpatch is quite
+simple:
+<list compact>
+<item>Edit patch to make it a -p1 patch to the source tree.
+<item>Add header using <prgn>dpatch patch-template</prgn> command.
+<item>Drop it into <file>debian/patches</file>
+<item>Add this dpatch filenames to <file>debian/patches/00list</file>
+</list>
+<p>
+Also, <prgn>dpatch</prgn> has a capability to make patches architecture
+dependent using CPP macro.
+
+  <sect id="option-sa">Including <file>orig.tar.gz</file> for upload
+  <p>
+When you first upload the package to the archive, you need to include
+the original <file>orig.tar.gz</file> source.  If package version is not
+at <tt>-1</tt> debian revision, you must provide
+<prgn>dpkg-buildpackage</prgn> command with the "<tt>-sa</tt>" option.
+
+  <sect id="pbuilder">The <package>pbuilder</package> package
   <p>
 For clean room (chroot) build environment to verify the build
 dependencies, <package>pbuilder</package> package is very useful.  This
@@ -1670,7 +1718,7 @@ See <url id="&pbuilder-home;">,
 <manref section="8" name="pbuilder"> .
 
 
-  <chapt id="upload">Uploading the pacakage
+  <chapt id="upload">Uploading the package
 
   <p>Now that you have tested your new package thoroughly, you will be ready
   to start the Debian new maintainer application process, as described at
@@ -1722,6 +1770,35 @@ See <url id="&pbuilder-home;">,
 
   <p>If you upload to "ftp-master", <prgn/dupload/ will ask for your
   password on Debian machines, and then upload the packages.
+
+  <p>If you want to create a personal package archive at
+  <url id="http://people.debian.org/~account_name"> as a developer with
+  simple invocation of <tt>dupload -t <var>target_name</var></tt>, you
+  should add following to <file>/etc/dupload.conf</file> file:
+<example>
+# Developer account
+$cfg{'<var>target_name</var>'} = {
+        fqdn =&gt; "people.debian.org",
+        method =&gt; "scpb",
+        incoming =&gt; "/home/<var>account_name</var>/public_html/package/",
+        # I do not need to announce
+        dinstall_runs =&gt; 1,
+};
+$cfg{'<var>target_name</var>'}{postupload}{'changes'} = "
+        echo 'mkdir -p public_html/package ;
+        cd public_html/package ;
+        dpkg-scanpackages . /dev/null &gt;Packages || true ;
+        dpkg-scansources . /dev/null &gt;Sources || true ;
+        gzip -c Packages &gt;Packages.gz ;
+        gzip -c Sources &gt;Sources.gz ' | ssh people.debian.org  2>/dev/null ;
+        echo 'Package archive created!'";
+</example>
+Here, APT archive is built with a quick and dirty remote shell execution
+with SSH.  The override files required by <prgn>dpkg-scanpackages</prgn>
+and <prgn>dpkg-scansources</prgn> are given as <file>/dev/null</file>.
+This technique can be used by non Debian Developer to host his packages
+in his personal web host site.
+
 
   <chapt id="update">Updating the package
 
@@ -1785,6 +1862,29 @@ See <url id="&pbuilder-home;">,
   <ref id="watch">, you can run <manref name="uscan" section="1"> to
   automagically look for revised sources, download them, and run
   <prgn/uupdate/.
+
+  <sect id="cvs-buildpackage">The <prgn>cvs-buildpackage</prgn> command and similes
+<p>
+You should consider to use some source code management system to manage.
+There are several wrapper scripts which are customized to use most
+popular one.
+<list compact>
+<item>CVS
+<list compact>
+<item><package>cvs-buildpackage</package>
+</list>
+<item>Subversion
+<list compact>
+<item><package>svn-buildpackage</package>
+</list>
+<item>Arch (tla)
+<list compact>
+<item><package>tla-buildpackage</package>
+<item><package>arch-buildpackage</package>
+</list>
+</list>
+<p>
+These commands also automate the packaging of new upstream release.
 
   <sect id="upgrading">Verifying package upgrades
 
