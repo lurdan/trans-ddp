@@ -1,104 +1,135 @@
-<!-- CVS revision of this document "$Revision: 1.5 $"  -->
-<!-- CVS revision of original english document "1.88" -->
+<!-- CVS revision of this document "$Revision: 1.6 $"  -->
+<!-- CVS revision of original english document "1.122" -->
 
 
 <chapt id="package">Debian 套件管理系統
 
 <p>
-為了減少 &debian; 檔案庫 (repository) 的網路負擔，請在使用 APT 下載套件時，確認一下是否使用 <prgn>squid</prgn> 設定了本地端的 HTTP proxy，如果需要的話，也請在 <file>/etc/apt/apt.conf</file> 中設定 <tt>http</tt> 的值。這樣可大幅的改善網路升級的效能，尤其是當 LAN 中有多台 Debian 機器同時升級時。
+進階級套件管理工具 <prgn>aptitude</prgn> 是首選的 APT 前端程式。它會紀錄額外安裝的軟體並解決惱人的相依性問題。<prgn>aptitude</prgn>也會移除掉不被已安裝軟體需要的套件。它內建了一個套件過濾器，但比較難上手。
 <p>
-儘管 <manref name="apt_preferences" section="5"> 的 pinning 功能十分強大，但它並不能解決所有的相依性問題，因為相依性的需求總傾向於拉進其它較新版本的基本套件。
+<prgn>synaptic</prgn> 是目前首選的以 Gtk 為 toolkit 的視窗化 APT 前端程式。它的套件過濾器就比<prgn>aptitude</prgn>來的友善且簡單多了。更多的功能和支援請參閱<url id="&debtags;" name="Debian Package Tags">。
 <p>
-<![%f-ref;[在 <ref id="chroot"> 中所敘述的方法非常適合於]]><![%q-ref;[chroot 的方法非常適合於]]>需要同時結合系統的穩定性和使用最新版軟體的情況。
+為了減少 &debian; 檔案庫 (repository) 的網路負擔並加速您的下載速度，您可以考慮從 &debian; 鏡射站台下載。
 <p>
-本章是基於 Woody 系統所撰寫的，但大部分資訊均適用於 Potato 系統 (除了 <manref name="apt_preferences" section="5"> 和 <file>/etc/apt/preferences</file> 的相關主題之外) 。
+如果您的區網內需要安裝重複的套件到多台電腦上，請在使用 APT 下載套件時，考慮使用 <prgn>squid</prgn> 設定本地端的 HTTP proxy。必要的話，設定<tt>http_proxy</tt>環境變數或加入 <tt>http</tt> 設定到<file>/etc/apt/apt.conf</file>。
+<p>
+儘管 <manref name="apt_preferences" section="5"> 的 pinning 功能十分強大，但造成的影響是難以偵錯和管理。除非熟悉該工具才考慮採用。
+<p>
+<![%f-ref;[在 <ref id="chroot"> 中所敘述的方法非常適合於]]><![%q-ref;[chroot 適合於]]>需要同時結合系統的穩定性和使用最新版軟體的情況。
+<p>
+本章是基於 Woody 之後的系統所撰寫的，有些資訊只適用於 Sarge 或更新的系統。
 
 <sect id="pkg-intro">介紹
 <p>
 如果你沒精力閱讀完所有的開發文件，那麼先看看本章的內容，然後就開始體驗 Debian <tt>testing</tt>/<tt>unstable</tt> 的威力吧 :-)
 
-<sect1>主要的工具
+<sect1>主要的套件管理工具
 <p>
 <example>
-dselect   &ndash; 使用選單介面的套件管理工具 (最上層)
-dpkg      &ndash; 安裝套件 (以套件檔為中心)
-apt-get   &ndash; 安裝套件 (以套件存檔區 (archive) 為中心, CLI APT)
-tasksel   &ndash; 安裝 task (一組套件)
-aptitude  &ndash; 安裝套件 (套件 &amp; task, 使用 ncurses 的 APT 工具)
-deity     &ndash; 另一個使用 ncurses 的 APT 工具
-synaptic, gsynaptic &ndash; 可供替代的圖形介面 APT 工具
+dpkg      &ndash; 安裝 &debian; 套件的工具
+apt-get   &ndash; APT 安裝套件的指令
+aptitude  &ndash; 進階級的文字介面的 APT 前端工具
+synaptic  &ndash; 圖形介面的 APT 前端工具
+dselect   &ndash; 使用選單介面的套件管理工具 
+tasksel   &ndash; 安裝 task
 </example>
-這些並不是同級的工具。 <prgn>dselect</prgn> 運行於 APT (命令列指令是 <prgn>apt-get</prgn> ) 和 <prgn>dpkg</prgn> 之上。
+這些工具並非是為了取代對方而產生的，相反的，他們甚至能共用彼此。例如說 <prgn>dselect</prgn> 能搭配使用 APT 和 <prgn>dpkg</prgn>來安裝套件。
 <p>
-APT 使用 <file>/var/lib/apt/lists/*</file> 來追蹤可用的套件，而 <prgn>dpkg</prgn> 則是使用 <file>/var/lib/dpkg/available</file> 。如果直接用 <prgn>apt-get</prgn> 或類似工具如 <prgn>aptitude</prgn> 來安裝套件的話，別忘了要使用 dselect 的 <tt>[U]pdate</tt> 選項，或在執行 <tt>dselect update</tt> 、 <tt>tasksel</tt> 或 <tt>dpkg -l</tt> 前，以命令列執行 "<tt>dselect update</tt>" 來更新 <file>/var/lib/dpkg/available</file> 。
+APT 使用 <file>/var/lib/apt/lists/*</file> 來追蹤可用的套件，而 <prgn>dpkg</prgn> 則是使用 <file>/var/lib/dpkg/available</file> 。如果直接用 <prgn>aptitude</prgn> 或類似工具來安裝套件的話，別忘了要使用 dselect 的 <tt>[U]pdate</tt> 選項，或在執行 <tt>dselect update</tt> 來更新 <file>/var/lib/dpkg/available</file> 。
 <p>
-在處理套件相依性的方式上， <prgn>apt-get</prgn> 會自動搜尋下載 <strong>depends</strong> 的套件，但不會理睬 <strong>recommends</strong> 和 <strong>suggests</strong> 的套件，而 <prgn>dselect</prgn> 在套件的選擇方面提供了選單方式的操作，對 <strong>depends</strong> 、 <strong>recommends</strong> 和 <strong>suggests</strong> 三種套件均給出選取的提示。 <prgn>aptitude</prgn> 則提供了選項能自動下載安裝所有 <strong>depends</strong> 、 <strong>recommends</strong> 和 <strong>suggests</strong> 的套件。<![%f-ref;[請參閱 <ref id="depends"> 。]]>
+在處理套件相依性的方式上， <prgn>apt-get</prgn> 會自動搜尋下載相依的套件，但不會額外安裝該軟體推薦或建議的套件。
+<p>
+相反地，<prgn>aptitude</prgn> 可以設定成是否要額外安裝 "推薦" 或 "建議" 的套件。
+<p>
+<prgn>dselect</prgn> 在套件的選擇方面提供了選單方式的操作，會列出該軟體推薦或建議的套件並個別決定是否要安裝。
+<![%f-ref;[請參閱 <ref id="depends"> 。]]>
 </sect1>
 
 <sect1>方便的工具
 <p>
 <example>
-apt-cache         - 檢查本地端暫存的套件 archive 。
 dpkg-reconfigure  - 重新設定一個已經安裝的套件
                     (如果它是使用 debconf 的話)
 dpkg-source       - 管理套件源碼檔案
 dpkg-buildpackage - 自動重新編建套件檔案
-...
+apt-cache         - check package archive in local cache
 </example>
 </sect1>
 </sect>
 
-<sect id="apt-install">&debian; 套件管理的基礎
+<sect id="apt-install">體驗 &debian; 套件管理
 <p>
-你可以用 <em>task</em> 的方式來安裝一整組的套件，還可以使用下列所介紹的套件管理工具來個別安裝套件或升級系統。<![%f-ref;[也請參考 <ref id="install"> ， <ref id="woody"> 和 <ref id="bin-editor"> 。]]>
 
-<sect1 id="tasksel">用 <prgn>tasksel</prgn> 或 <prgn>aptitude</prgn> 來安裝 <em>task</em> 
+<sect1 id="setup-apt">設定 APT
 <p>
-<prgn>tasksel</prgn> 是 <strong>Debian Task 安裝工具</strong>，它在系統安裝的過程中作為一種"<tt>簡易</tt>"的安裝方式。
+參閱<ref id="testing-transition">來設定<file>sources.list</file>。
+<footnote>
+如果您的系統以<tt>testing</tt> 或 <tt>unstable</tt>為主，您可以移除<file>/etc/apt/sources.list</file> 和 <file>/etc/apt/preferences</file>中的 <tt>stable</tt>敘述，因為<tt>testing</tt>初使是拷貝自<tt>stable</tt>。
+</footnote>
+
+ <![%f-ref;[
+ 請參考
+<ref id="install">, <ref id="woody">和 <ref id="bin-editor">.
+ ]]>
+
+<sect1 id="tasksel">tasks 安裝 
 <p>
-如果你希望安裝由多個套件所共同組成的常見功能，最好的辦法就是使用這種方式來安裝。使用如下的命令：
-<example>
-# dselect update
-# tasksel
-</example>
+您可以安裝一個許多軟體集合的套件來規畫特定用途的 &debian; 系統。而該集合就叫作 "Task"。
 <p>
-<prgn>aptitude</prgn> 也可以使用 <em>task</em>。用它不僅可以選擇 <em>tasks</em> 還可以對 <em>task</em> 以選單的方式來去除選取個別的套件。
+安裝 tasks 最簡單的方法就是在安裝系統過程中，執行 <prgn>tasksel</prgn>。請記得先執行<example>dselect update</example>。
+<p>
+建議使用 <prgn>aptitude</prgn> 來安裝 tasks，而這也是它的特色之一。它能在您選擇好 tasks 並準備安裝之前再額外刪除掉您不需要的軟體。
 </sect1>
 
-<sect1 id="setup-apt">設定 APT 系統
+<sect1 id="aptitude"><prgn>aptitude</prgn>
 <p>
-如果你要用這裡所說的混合系統的話，可能會造成一些套件相依性的衝突。最好不要用混合的系統。接下來是給喜歡實驗的人應知道的風險。
-<!--
-Yes. This is sloppy fix but better than nothing.  I saw many newbie
-confused.
--->
+<prgn>aptitude</prgn> 是一套全新的套件安裝系統，類似於 <prgn>dselect</prgn>，不同的是針對 APT 重新設計的。
+它也能當作 <prgn>apt-get</prgn> 另一個指令介面且完全相容 <prgn>apt-get</prgn>的參數喔。請參閱 <manref name="aptitude" section="1"> 和 <file>&f-aptitude-readme;</file>。
 <p>
-為了要在跟隨 <tt>testing</tt> distribution 時作出有選擇性的升級，可以用 <ref id="woody-transition"> 中描述的方法來設定 APT 系統 (&gt;Woody)，使用 <manref name="apt_preferences" section="5"> 的功能。
+從您開始安裝軟體，建議使用<prgn>aptitude</prgn>來代替所有的安裝工具，不然會失去了<prgn>aptitude</prgn>所建立的套件追蹤清單。這會使您無法移除多餘的套件。
 <p>
-首先，在 <file>/etc/apt/sources.list</file> 中加入 <tt>stable</tt> 、 <tt>testing</tt> 和 <tt>unstable</tt> 的來源，接著編輯 <file>/etc/apt/preferences</file> 以設定合適的 Pin-Priority 。
-<footnote>
-我留下這段敘述是為了維持和其他部分的一致性。如果你真的使用 <tt>testing</tt> 或 <tt>unstable</tt> 的話，你實際上應該移除 <file>/etc/apt/sources.list</file> 和 <file>/etc/apt/preferences</file> 中的 <tt>stable</tt> 來源。這是因為 <tt>testing</tt> 剛開始即為 <tt>stable</tt> 的複本。
-</footnote>
+<prgn>aptitude</prgn> 的功能鍵如下(大部分為小寫)：
 <example>
-Package: *
-Pin: release a=stable
-Pin-Priority: 500
-
-Package: *
-Pin: release a=testing
-Pin-Priority: 600
-
-Package: *
-Pin: release a=unstable
-Pin-Priority: 50
+Keystroke   Action
+F10         Menu
+?           Help for keystroke (complete listing)
+u           Update package archive information
+           Mark the package to be upgraded or newly installed
+-           Mark the package to be removed (keep config)
+_           Mark the package to be purged (remove config)
+=           Place the package on hold
+U           Mark all upgradable packages to be upgraded
+g           Download and install selected packages
+q           Quit current screen and save changes
+x           Quit current screen and discard changes
+Enter       View information about a package
+C           View a package's changelog
+l           Change the limit for the displayed packages
+/           Search for the first match
+\           Repeat the last search
 </example>
-
+如同<prgn>apt-get</prgn>，<prgn>aptitude</prgn>在安裝軟體時也會解決掉惱人的相依性問題。
+<prgn>aptitude</prgn> 也能設定成是否要安裝軟體額外推薦或建議的軟體。 
+利用主畫面選單上的<tt>F10 -> Options -> Dependency handling</tt>來改變預設的安裝策略。
+<p>
+<prgn>aptitude</prgn> 的其他功能：
+<list compact>
+<item><prgn>aptitude</prgn> 能存取所有版本的套件。
+<item><prgn>aptitude</prgn> 的動作會紀錄在<file>&f-aptitude-log;</file>。
+<item><prgn>aptitude</prgn> 能輕鬆地追蹤本地端建立的套件並列在 "Obsolete and Locally Created Packages"。
+<item><prgn>aptitude</prgn> 內建強大的收尋引擎並過濾顯示的套件。
+<prgn>mutt</prgn>的使用者會很容易上手，因為 expression 的文法是來自於 mutt。請參閱 <file>&f-aptitude-readme;</file> 的 "SEARCHING, LIMITING, AND EXPRESSIONS"。
+<item><prgn>aptitude</prgn>內建 <prgn>su</prgn> 的功能所以一般使用者皆可以執行直到安裝或移除軟體時再取得管理者的權限。
+</list>
+</sect1>
 
 <sect1 id="dselect"><prgn>dselect</prgn>
 <p>
-當你啟動程式時， <prgn>dselect</prgn> 會自動選取所有 "Required" 、 "Important" 和 "Standard" 分類的套件。在 Potato 系統中，某些大型的應用程式像 teTeX 和 Emacs 屬於這些套件中，而在初次安裝系統時最好手動取消對它們的選取 (輸入 `_') 。在 Woody 中，這些程式則被移入 "Optional" 的套件分類。
+從 Stable 發行到現在為止(包含Potato)，<prgn>dselect</prgn>是主要的套件維護工具。當 Sarge 發行後，您可以考慮使用 <prgn>aptitude</prgn> 來取代。
 <p>
-<prgn>dselect</prgn> 的使用介面有點怪。有四個不太明確的指令 (都是大寫的指令！)：
+當你啟動程式時， <prgn>dselect</prgn> 會自動選取所有 "Required" 、 "Important" 和 "Standard" 分類的套件。
+<p>
+雖然<prgn>dselect</prgn> 的使用介面有點怪，但大部分的人都已經習慣了。有四主要的指令 (都是大寫的指令！)：
 <example>
 按鍵        動作
 Q           離開。確認目前所選取的並離開程式。
@@ -107,63 +138,85 @@ R           回復 (Revert)！ I did not mean it.
 D           不管你 (Damn it)！我不管 dselect 怎麼想的。照我的做就是了！
 U           都照建議 (sUggested) 的來做
 </example>
-使用 <tt>D</tt> 和 <tt>Q</tt> 可以選擇有衝突的選項。要小心地用這些指令。目前 <prgn>dselect</prgn> 是一個成熟的選單式工具，在對 <strong>suggests</strong> 和 <strong>recommends</strong> 套件分類的選擇控制方面，它提供相當棒的細微操作能力。
+使用 <tt>D</tt> 和 <tt>Q</tt> 可以選擇有衝突的選項。要小心地使用這些指令。
 <p>
-在 <file>/etc/dpkg/dselect.cfg</file> 中加上一行 "expert" 選項以減少干擾。對於速度慢的機器，可以在其它速度快的機器上執行 <prgn>dselect</prgn> 先選好套件，然後用 <tt>apt-get install</tt> 來安裝。
+在 <file>/etc/dpkg/dselect.cfg</file> 中加上一行 "expert" 選項以減少干擾。
 <p>
-對於 Pin-Priority 沒有提到的套件， <prgn>dselect</prgn> 不會理它們。
+對於速度慢的機器，可以在其它速度快的機器上執行 <prgn>dselect</prgn> 先選好套件，然後用 <tt>apt-get install</tt> 來安裝。
 </sect1>
 
-<sect1 id="aptitude"><prgn>aptitude</prgn>
+<sect1 id="aptitude-track">使用 APT 來維持 &debian; 發行版本
 <p>
-<prgn>aptitude</prgn> 是一個類似 <prgn>dselect</prgn> 的新選單式套件安裝工具。也可以作為命令列工具 <prgn>apt-get</prgn> 的另一種選擇。請參閱 <manref name="aptitude" section="1"> 。
-<p>
-<prgn>aptitude</prgn> 用單一按鍵指令，通常是小寫字母。
-<example>
-按鍵        動作
-F10         選單
-?           按鍵說明
-u           更新套件 archive 資訊
-g           下載並安裝選取的套件
-q           退出目前畫面並儲存修改
-x           退出目前畫面並放棄修改
-Enter       瀏覽某套件的相關訊息
+請編輯<file>/etc/apt/preferences</file>並加入以下的說明來維持系統為 <tt>testing</tt> 版本：
+ <example>
+Package: *
+Pin: release a=testing
+Pin-Priority: 800
+
+Package: *
+Pin: release a=stable
+Pin-Priority: 600
 </example>
-<prgn>aptitude</prgn> 提供了選項可自動選取所有 <strong>depends</strong> 、 <strong>recommends</strong> 和 <strong>suggests</strong> 分類的套件。可在 <tt>F10 -> Options -> Dependency handling</tt> 選單中設定。
+要注意的是追蹤<tt>testing</tt>版本會有延誤安裝安全性修正軟體的副作用。這樣的軟體是因為上傳到<tt>unstable</tt>並移植到<tt>testing</tt>的這段期間所造成的延誤。
 <p>
-<prgn>aptitude</prgn> 可存取套件的所有版本。
+更多且複雜的範例請參考 <manref name="apt_preferences" section="5">，允許您做更多的事情，例如安裝 <tt>unstable</tt> 的套件還能把系統維持在<tt>testing</tt>。
+<p>
+關於限制替定軟體在特定的版本的範例可以在 <url id="&examples;" name="examples subdirectory"> 找到 <file>preferences.testing</file> 和 <file>preferences.unstable</file>。
+<p>
+如果您混用不同的發行版本，例如 <tt>testing</tt> 和 <tt>stable</tt> 或 <tt>unstable</tt> 和 <tt>stable</tt>，您終究會安裝到<tt>testing</tt>或<tt>unstable</tt>版本的核心軟體，例如<package>libc6</package>，而這樣的行為無法保證系統無臭蟲存在。您必須特別小心。
+<p>
+另外一個例子，<file>preferences.stable</file>會強制降級所有的軟體到<tt>stable</tt>。
+<p>
+&debian; 不支援將某個 <strong>套件</strong>降級到先前的發行版本。但新版的套件出問題時，重裝舊版的套件是被允許的。您可以在本地端的 <file>/var/cache/apt/archives/</file> 或遠地端的 <url id="&snapshothome;"> 找到先前發行的版本。請參考 <ref id="rescue-dpkg">。
+<p>
+&debian; 也不支援將某個 <strong>發行版本</strong> 降級到先前的版本且這樣做往往會造成很多問題。如果您願意冒險的話，也是值得嘗試看看。
 </sect1>
 
-<sect1 id="apt-commands"><prgn>apt-cache</prgn> 和 <prgn>apt-get</prgn> 命令
+<sect1 id="apt-commands"><prgn>aptitude</prgn>，<prgn>apt-get</prgn>和<prgn>apt-cache</prgn> 命令
 <p>
-當像之前的例子一樣跟隨著 <tt>testing</tt>，我們可以下列的指令來管理系統。
+當像之前的例子一樣跟隨著 <tt>testing</tt>，您可以下列的指令來管理系統。
 <list>
-<item><tt>apt-get -u upgrade</tt>
- <p>跟隨 <tt>testing</tt> distribution ，當安裝 <tt>testing</tt> 的套件時，會升級系統中所有與其相依的套件。
-<item><tt>apt-get -u dist-upgrade</tt>
- <p>跟隨 <tt>testing</tt> distribution ，當安裝和分析 <tt>testing</tt> 相依的套件時，會升級系統中所有與其相依的套件。
-<item><tt>apt-get -u dselect-upgrade</tt>
- <p>跟隨 <tt>testing</tt> distribution ，跟據 <prgn>dselect</prgn> 的選取來升級系統中所有的套件。
-<item><tt>apt-get -u install <var>package</var></tt>
- <p>由 <tt>testing</tt> distribution 來安裝 <var>package</var> 和所有與其相依的套件。
-<item><tt>apt-get -u install <var>package</var>/unstable</tt>
+<item><tt>aptitude upgrade</tt> (或
+      <tt>apt-get upgrade</tt> 或
+      <tt>aptitude dist-upgrade</tt> 或
+      <tt>apt-get dist-upgrade</tt>)
+<p>
+這樣會跟隨<tt>testing</tt>版本 &mdash;
+他們會安裝目前<tt>testing</tt>版本上可提供升級的套件以及其相依的軟體。
+<footnote>
+<tt>upgrade</tt>與<tt>dist-upgrade</tt>不同的地方是對於那些升級套件的相依性問題的處理方式。請參閱<manref name="apt-get" section="8">來了解更多細節。
+<p>
+<tt>aptitude upgrade</tt> 和 <tt>aptitude dist-upgrade</tt> 是<prgn>aptitude</prgn> 的組合指令。按下 <tt>e</tt>可以全螢幕顯示。
+</footnote>
+<item><tt>apt-get dselect-upgrade</tt>
+ <p>這會跟隨<tt>testing</tt>版本 &mdash;
+上述指令升級的方法是依照<prgn>dselect</prgn>的處理方式來決定的。
+<item><tt>aptitude -R -G install <var>package</var></tt> (或
+      <tt>apt-get install <var>package</var></tt>)
+ <p>這樣會從<tt>testing</tt>版本安裝軟體以及其相依的軟體。
+<item><tt>aptitude -r -G install <var>package</var></tt>
+ <p>這樣會從<tt>testing</tt>版本安裝軟體以及其相依和推薦的軟體。
+<item><tt>aptitude -r -g install <var>package</var></tt>
+ <p>這樣會從<tt>testing</tt>版本安裝軟體以及其相依和推薦或建議的軟體。
+<item><tt>aptitude install <var>package</var>/unstable</tt>
  <p>由 <tt>unstable</tt> distribution 安裝 <var>package</var> ，並由 <tt>testing</tt> distribution 安裝相依的套件。
-<item><tt>apt-get -u install -t unstable <var>package</var></tt>
+<item><tt>aptitude install -t unstable <var>package</var></tt>
  <p>將 <tt>unstable</tt> 的 Pin-Priority 設為 990，會由 <tt>unstable</tt> distribution 安裝 <var>package</var>，也從 <tt>unstable</tt> distribution 安裝相依的套件。
 <item><tt>apt-cache policy <var>foo bar ...</var></tt>
  <p>檢查 <var>foo bar ...</var> 套件的狀態。
-<item><tt>apt-cache show <var>foo bar ...</var> | less</tt>
+<item><tt>aptitude show <var>foo bar ...</var> | less</tt>
+(或 <tt>apt-cache show <var>foo bar ...</var> | less</tt>)
  <p>檢查 <var>foo bar ...</var> 套件的資料。
-<item><tt>apt-get install <var>foo=2.2.4-1</var></tt>
+<item><tt>aptitude install <var>foo=2.2.4-1</var></tt>
  <p>安裝 <var>foo</var> 套件的特定版本 <var>2.2.4-1</var> 。
-<item><tt>apt-get -u install <var>foo bar-</var></tt>
+<item><tt>aptitude install <var>foo bar-</var></tt>
  <p>安裝 <var>foo</var> 套件，並移除 <var>bar</var> 套件
-<item><tt>apt-get remove <var>bar</var></tt>
- <p>移除 <var>bar</var> 套件，但完整保留設定的檔案。
-<item><tt>apt-get remove --purge <var>bar</var></tt>
- <p>移除 <var>bar</var> 套件，也把所有的設定檔移除。
+<item><tt>aptitude remove <var>bar</var></tt>
+ <p>移除 <var>bar</var> 套件但不刪除設定檔。
+<item><tt>aptitude purge <var>bar</var></tt>
+ <p>移除 <var>bar</var> 並刪除其設定檔。
 </list>
-在上面的例子中，在<prgn>apt-get</prgn> 中使用 <tt>-u</tt> 選項會列出所有要升級的套件列表，並在動作前請示使用者。下面的作法會使 <tt>-u</tt> 選項變成預設的動作：
+在上面的例子中，在<prgn>apt-get</prgn> 中使用 <tt>-u</tt> 選項會列出所有要升級的套件列表，並在動作前請示使用者。下面的作法也會使 <prgn>apt-get</prgn>完成上述的動作：
 <example>
 $ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
 // 總是列出要升級的套件 (-u)
@@ -171,71 +224,11 @@ APT::Get::Show-Upgraded "true";
 .
 </example>
 <p>
-使用 <tt>-s</tt> 選項則只是做個模擬升級的動作，而不是真正做了升級。
-
-<sect1 id="apt-tracking">跟隨一個 &debian; distribution 的風格
-<p>
-根據你想要跟隨的 &debian; 風格，你可以修改 <ref id="setup-apt"> 中的 <file>/etc/apt/preferences</file> 範例來符合你的需求：
-<example>
-跟隨 stable ：            將 testing 的 Pin-Priority 改為 50
-跟隨 testing ：           保持之前的設定
-跟隨 testing(unstable) ： 將 unstable 的 Pin-Priority 改為 500
-跟隨 unstable(testing) ： 將 unstalbe 的 Pin-Priority 改為 800
-</example>
-A guideline for the choice of Pin-Priority is to move from the top to bottom
-in the above table as the time moves from a time immediately after a
-distribution release to a time of freeze for the next release.
-<p>
-注意：
-跟隨 &debian; 的 <tt>testing</tt> 風格會有的副作用是安全修正會很慢。
-<p>
-先提醒你，如果你在 &debian; 的 <tt>stable</tt> 中混合使用 <tt>testing</tt> ，或在 <tt>stable</tt> 中混合使用 <tt>unstable</tt> 的話，將會不經意地從 <tt>testing</tt> 或 <tt>unstable</tt> 中拉入可能有問題的關鍵套件。
-<p>
-在 <url id="&examples;" name="examples subdirectory"> 中的 <file>preferences.testing</file> 和 <file>preferences.unstable</file> ，有些範例是在 <file>/etc/apt/preferences</file> 中設定，可將某些關鍵的套件鎖定在較成熟的版本，即使是在跟隨一些非必要套件的較不成熟的版本時。另一方面， <file>preferences.stable</file> 可強迫所有的套件都降級至 <tt>stable</tt> 。
-
-<sect1 id="apt-stable">將所有套件降級至 <tt>stable</tt>
-<p>
-要把所有的套件降級至 <tt>stable</tt>，請依下列來編輯 <file>/etc/apt/preferences</file> 檔：
-<example>
-Package: *
-Pin: release a=stable
-Pin-Priority: 1001
-</example>
-然後執行 "<tt>apt-get upgrade</tt>" ，因為 Pin-priority &gt; 1000 的原因，所以會強制降級。警告你，這會在相依性上造成點小問題。
-
-<sect1 id="apt-preferences"><file>/etc/apt/preferences</file> 概觀
-<p>
-在 <ref id="setup-apt"> 中的 <file>/etc/apt/preferences</file> 範例中，第一行的 "Package: *" 表示這一段的指令會作用在所有套件上。你可以把 "*" 換成某個套件名稱來為某個特定的套件設定 Pin-Priority 。
-<p>
-在第二行中， "Pin: release a=stable" 的意思是 <prgn>apt-get</prgn> 會從在其 <file>Release</file> 檔中有 "Archive: stable" 的 archive 來下載 <file>Packages.gz</file> 檔。
-<p>
-在最後一行中的 "Pin-Priority: 500" 則是指定 Pin-Priority 為 500 。
-<p>
-如果多個套件同名的話，系統通常會安裝具有最高 Pin-Priority 的套件。  
-<p>
-在這裡， Pin-Priority 的意思是：
-<list>
-<item>1001 以上： 可降級的優先權。
- <p>如果 Pin-Priority 在這個範圍的話，是允許將套件降級的。
-<item>100 到 1000 ：標準的優先權。
- <p>不允許將套件降級。有幾個關鍵的 Pin-Priority 值是：
-<list>
-<item>990 ： 當指定了 <manref name="apt-get" section="8"> 選項中的 <tt>--target-release</tt> 或 <tt>-t</tt> 時所使用的優先權。
-<item>500 ： 所有預設套件檔的優先權。
-<item>100 ： 目前已安裝的套件檔的優先權。
-</list>
-<item>0 到 99 ：非自動優先權。（只有尚未安裝而且也沒有其他可用的版本的時候，才會安裝）
-<item>小於 0 ：絕不會用這個版本的套件。
-</list>
-如果把 <file>/etc/apt/apt.conf</file> 如下設定，則會有和 <tt>--target-release</tt> 一樣的效果。
-<example>
-# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
-</example>
-命令列選項 <tt>--target-release</tt> 和 <file>/etc/apt/apt.conf</file> 中的設定會取代 <file>/etc/apt/preferences</file> 中的設定。在把玩 <file>/etc/apt/preferences</file> 的時候小心兩者衝突。
+搭配 <tt>--no-act</tt> 來模擬這些安裝，移除...套件等動作。
 
 <sect id="survival">Debian 生存指令
 <p>
-掌握了這些知識，就能讓你享受<strong>無窮盡</strong>的"升級"了 :-)
+掌握了這些知識，就能讓你享受無窮盡的"升級"了 :-)
 
 <sect1 id="bug-check">檢查 Debian 中的 bugs 並尋求幫助
 <P>
@@ -264,15 +257,15 @@ $ mc
 
 <sect1 id="apt-trouble">APT 升級的錯誤排除方法
 <p>
-在升級 <tt>unstable</tt>/<tt>testing</tt> 時可能會遇到在 <ref id="upgrade-system"> 所描述的套件相依性問題。在大多數情況下，是因為無法滿足你將要升級的套件所需要的相依性問題。這個問題可用下面的方法來解決：
+在升級 <tt>unstable</tt>或<tt>testing</tt> 時可能會遇到在 <ref id="upgrade-system"> 所描述的套件相依性問題。在大多數情況下，是因為將要升級的套件所相依性套件不存在。這個問題可用下面的方法來解決：
 <example>
-# apt-get dist-upgrade
+# aptitude dist-upgrade
 </example>
 如果這也沒辦法的話，就重複使用下列之一的方法至到問題自動解決：
 <example>
-# apt-get upgrade -f         # 即使遇到錯誤也繼續升級
+# aptitude -f upgrade         # 即使遇到錯誤也繼續升級
 ... 或
-# apt-get dist-upgrade -f    # 即使遇到錯誤也繼續 dist-upgrade
+# aptitude -f dist-upgrade    # 即使遇到錯誤也繼續 dist-upgrade
 </example>
 <p>
 有些升級用的 script 的確有問題，所以會持續出現狀況。通常要解決這個狀況，你最好能檢查一下這些討厭套件中的 <file>/var/lib/dpkg/info/<var>packagename</var>.{post-,pre-}{install,removal}</file> script ，並執行：
@@ -280,11 +273,11 @@ $ mc
 # dpkg --configure -a    # 設定所有部分安裝的套件
 </example>
 <p>
-如果 script 抱怨它找不到設定檔的話，在 <file>/etc</file> 中找找對應的設定檔。如果你找到的是個有 <tt>.new</tt> 的副檔名（或是類似的東西），就把它的後綴去除掉（用 <prgn>mv</prgn> ）。
+如果 script 抱怨它找不到設定檔的話，在 <file>/etc/</file> 中找找對應的設定檔。如果你找到的是個有 <tt>.dpkg-new</tt> 的副檔名（或是類似的東西），就把它的後綴去除掉（用 <prgn>mv</prgn> ）。
 <p>
-在安裝 <tt>unstable</tt>/<tt>testing</tt> 系統時也可能遇到相依性問題。可用這個方法巧妙的解決：
+在安裝 <tt>unstable</tt>或<tt>testing</tt> 系統時也可能遇到相依性問題。可用這個方法巧妙的解決：
 <example>
-# apt-get install -f <var>package</var> # override broken dependencies
+# aptitude -f install <var>package</var> # override broken dependencies
 </example>
 <p>
 要修正這些問題，另一個可用的方法是使用 <package>equivs</package> 套件。請參閱 <file>&f-equivs;</file><![%f-ref;[ 和 <ref id="equivs">]]> 。
@@ -292,30 +285,11 @@ $ mc
 
 <sect1 id="rescue-dpkg">使用 <prgn>dpkg</prgn> 來救援
 <p>
-在一個受損的系統上，想要針對崩潰的 <prgn>dselect</prgn> (APT) 進行回復的話，可以不透過 APT 而使用 <prgn>dpkg</prgn> 來達成：
+如果你在使用 APT 遇到死胡同，那麼可以從 &debian; 鏡射站台下載套件並使用<prgn>dpkg</prgn>來安裝。如果您還沒連上網路，可以鎖住 <file>/var/cache/apt/archives/</file> 的快取檔案。
 <example>
-# cd /var/cache/apt/archives
-# dpkg -i libc6* libdb2* perl*
-# dpkg -i apt* dpkg* debconf*
-# dpkg -i *  # 直到沒有錯誤發生
+# dpkg -i fetchmail_6.2.5-4_i386.deb
 </example>
-如果套件遺失的話，則可由 <url id="&mirror-site;" name="mirror sites"> 取得：
-<example>
-# mc            # 使用 "FTP link" 指向 Debian FTP 伺服器
-</example>
-現在，在 HTTP/FTP 伺服器上的實際套件可能不是在傳統的 <file>/dist</file> 目錄，而是在新的 <file>/pool</file> 目錄下。<![%f-ref;[（請參閱 <ref id="pools"> 。）]]>
-<p>
-然後，用下面的方法安裝：
-<example>
-# dpkg -i /var/cache/apt/archives/<var>packagefile.deb</var>
-</example>
-對於有問題的相依性，可以修正它，或是用：
-<example>
-# dpkg --ignore-depends=<var>package1</var>,... -i <var>packagefile.deb</var>
-# dpkg --force-depends -i <var>packagefile.deb</var>
-# dpkg --force-depends --purge <var>package</var>
-# dpkg --force-confmiss -i <var>packagefile.deb</var> # Install missing conffile
-</example>
+如果您嘗試安裝套件卻因為相依性問題失敗的話，請搭配<tt>--ignore-depends</tt><tt>--force-depends</tt>或其他參數來執行<prgn>dpkg</prgn>。<manref name="dpkg" section="8">有更詳盡的介紹。
 </sect1>
 
 <sect1 id="recover-status">回復套件的選取狀態的資料
@@ -339,6 +313,7 @@ $ mc
 <p>
 因為 <file>/var</file> 目錄下包含了常被更動的資料，如 mail ，所以比較容易會有損壞。
 把它放到獨立的分割區可以減少風險。如果災難發生了，你必需重建 <file>/var</file> 以回復 &debian; 系統。
+
 <p>
 從相同或較舊版本的最簡化的 &debian; 系統中取得 <file>/var</file> 目錄內容的架構，例如 <file><url id="&var-tar-gz;" name="var.tar.gz"></file>，將它放入受損系統的根目錄，然後
 <example>
@@ -401,11 +376,11 @@ $ zgrep -e pattern <var>/local/copy/of/debian/woody/Contents-i386.gz</var>
 </example>
 或是使用特殊的套件命令：
 <example>
-# apt-get install dlocate  
+# aptitude install dlocate  
                  # conflicts with slocate (secure version of locate)
 $ dlocate <var>filename</var>         # dpkg -L 和 dpkg -S 的快速版
 ...
-# apt-get install auto-apt # on-demand package installation tool
+# aptitude install auto-apt # on-demand package installation tool
 # auto-apt update          # 建立 auto-apt 的 db 檔
 $ auto-apt search <var>pattern</var>  
                 # 尋找符合某個 pattern 的套件，不論是否安裝
@@ -449,7 +424,7 @@ For an unattended installation，請在 <file>/etc/apt/apt.conf</file> 加入一行：
 <example>
 Dpkg::Options {"--force-confold";}
 </example>
-這等同於執行 <tt>apt-get -q -y <var>packagename</var></tt> 。因為這個作法是對所有的提示都回答 "yes" 的，所以可能會造成問題，請小心使用。參閱 <manref name="apt.conf" section="5"> 和 <manref name="dpkg" section="1"> 。
+這等同於執行 <tt>aptitude -y install <var>packagename</var></tt> 或 <tt>apt-get -q -y install <var>packagename</var></tt>。因為這個作法是對所有的提示都回答 "yes" 的，所以可能會造成問題，請小心使用。參閱 <manref name="apt.conf" section="5"> 和 <manref name="dpkg" section="1"> 。
 <p>
 你可以在稍後用 <ref id="reconfigure"> 的方法重新設定特定的套件。
 
@@ -465,6 +440,11 @@ Dpkg::Options {"--force-confold";}
 如果你要永久設定 <prgn>debconf</prgn> 為對話窗模式，請對 <prgn>debconf</prgn> 進行重設定。
 <p>
 有些程式是用做特殊設定的 scripts 。
+<footnote>
+Some <prgn>*config</prgn> scripts are disappearing in the newer Sarge 
+releases and the package configuration functionality are moved to
+the <prgn>debconf</prgn> system.
+</footnote>
 <example>
 apt-setup     - 建立 /etc/apt/sources.list
 install-mbr   - 安裝 Master Boot Record manager
@@ -488,23 +468,23 @@ update-menus        - Debian 選單系統
 <p>
 移除套件但保留它的設定檔：
 <example>
-# apt-get remove <var>package</var> ...
-# dpkg  --remove <var>package</var> ...
+# aptitude remove <var>package</var> ...
+# dpkg   --remove <var>package</var> ...
 </example>
 移除套件並清除所有的設定檔：
 <example>
-# apt-get remove --purge <var>package</var> ...
-# dpkg    --purge        <var>package</var> ...
+# aptitude  purge  <var>package</var> ...
+# dpkg    --purge  <var>package</var> ...
 </example>
 </sect1>
 
 <sect1 id="hold">維持舊的套件
 <p>
-舉例來說，下面的指令可以在 <prgn>dselect</prgn> 和 <tt>apt-get -u upgrade <var>package</var></tt> 時維持 <package>libc6</package> 和 <package>libc6-dev</package> 的版本：
+舉例來說，下面的指令可以在 <prgn>dselect</prgn> 和 <tt>aptitude install <var>package</var></tt> 時維持 <package>libc6</package> 和 <package>libc6-dev</package> 的版本：
 <example>
 # echo -e "libc6 hold\nlibc6-dev hold" | dpkg --set-selections
 </example>
-但這個方法擋不住 <tt>apt-get -u install <var>package</var></tt> 。如果要在 <tt>apt-get -u upgrade <var>package</var></tt> 或 <tt>apt-get -u dist-upgrade</tt> 時自動降級來維持版本的話，在 <file>/etc/apt/preferences</file> 中加入：
+但這個方法擋不住 <tt>aptitude install <var>package</var></tt> 。如果要在 <tt>aptitude  upgrade <var>package</var></tt> 或 <tt>aptitude dist-upgrade</tt> 時自動降級來維持版本的話，在 <file>/etc/apt/preferences</file> 中加入：
 <example>
 Package: libc6
 Pin: release a=stable
@@ -526,17 +506,17 @@ $ apt-show-versions | fgrep /testing | wc
 ... 在 testing 中的套件數目
 $ apt-show-versions -u
 ... 列出可升級的套件
-$ apt-get install `apt-show-versions -u -b | fgrep /unstable`
+$ aptitude install `apt-show-versions -u -b | fgrep /unstable`
 ... 將所有 unstalbe 的套件升級至各自最新的版本
 </example>
 </sect1>
 
 <sect1 id="cache">刪除暫存的套件檔
 <p>
-用 APT 安裝的套件會在 <file>/var/cache/apt/archives</file> 留下暫存的套件檔。這些檔案是可以刪除的。
+用 APT 安裝的套件會在 <file>/var/cache/apt/archives/</file> 留下暫存的套件檔。這些檔案是可以刪除的。
 <example>
-# apt-get autoclean # 只刪除無用的套件檔
-# apt-get clean     # 刪除所有的暫存套件檔
+# aptitude autoclean # 只刪除無用的套件檔
+# aptitude clean     # 刪除所有的暫存套件檔
 </example>
 </sect1>
 
@@ -604,7 +584,7 @@ $ su -c "dpkg -i <var>packagefile.deb</var>"
 <p>
 可以用下列的方法來建立類似官方 Debian archive 的本地端  <tt>deb</tt> repository ：
 <example>
-# apt-get install dpkg-dev
+# aptitude install dpkg-dev
 # cd <var>/usr/local</var>
 # install -d <var>pool</var> # 套件實體是放在這裡
 # install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
@@ -626,7 +606,7 @@ EOF
 <p>
 不然，你也可以用一個快速但骯髒的方法來建立本地端的 <tt>deb</tt> repository ：
 <example>
-# apt-get install dpkg-dev
+# aptitude install dpkg-dev
 # mkdir <var>/usr/local/debian</var>
 # mv <var>/some/where/package.deb</var> <var>/usr/local/debian</var>
 # dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
@@ -638,7 +618,22 @@ EOF
 
 <sect1 id="alien">轉換或安裝外來的二進位套件
 <p>
-<package>alien</package> 可將 Redhat <tt>rpm</tt> ， Stampede <tt>slp</tt> ， Slackware <tt>tgz</tt> 和 Solaris <tt>pkg</tt> 的二進位套件檔案格式轉成  &debian; 的 <tt>deb</tt> 套件。如果你不要使用你已安裝在系統中的套件，而想裝來自其他 Linux distribution 的套件的話，你可以使用 <prgn>alien</prgn> 來將其轉成你喜愛的套件格式並安裝。 <package>alien</package> 也支援 LSB 套件。
+<package>alien</package> 可將 Red Hat <tt>rpm</tt> ， Stampede <tt>slp</tt> ， Slackware <tt>tgz</tt> 和 Solaris <tt>pkg</tt> 的二進位套件檔案格式轉成  &debian; 的 <tt>deb</tt> 套件。如果你不要使用你已安裝在系統中的套件，而想裝來自其他 Linux distribution 的套件的話，你可以使用 <prgn>alien</prgn> 來將其轉成你喜愛的套件格式並安裝。 <package>alien</package> 也支援 LSB 套件。
+</sect1>
+
+<sect1 id="auto-apt">Automatically install command
+<p>
+<prgn>auto-apt</prgn> is an on-demand package installation tool.
+<example>
+$ sudo auto-apt update
+ ... update database
+$ auto-apt -x -y run
+Entering auto-apt mode: /bin/bash
+Exit the command to leave auto-apt mode.
+$ less /usr/share/doc/med-bio/copyright # access non-existing file
+ ...  Install the package which provide this file.
+ ... Also install dependencies
+</example>
 </sect1>
 
 <sect1 id="debsums">驗證已安裝的套件檔
@@ -658,7 +653,7 @@ per Joerg Wendland <email>joergland@debian.org</email> (untested).
 <p>
 <prgn>apt-spy</prgn> 會依 latency 和頻寬來自動產生 <file>sources.list</file> 檔。 <prgn>netselect-apt</prgn> 會建立更完整的 <file>sources.list</file> ，但在選站台時用的是比較差的方法 (比較 ping 的時間) 。
 <example>
-# apt-get install apt-spy
+# aptitude install apt-spy
 # cd /etc/apt ; mv sources.list sources.list.org
 # apt-spy -d testing -l sources.apt
 </example>
@@ -674,7 +669,7 @@ per Joerg Wendland <email>joergland@debian.org</email> (untested).
 <sect1 id="dpkg-divert"><prgn>dpkg-divert</prgn> 指令
 <p>
 <!-- copied from manual page -->
-檔案<strong>移轉</strong> 是強迫 <prgn>dpkg</prgn> 把某個檔案安裝在一個<strong>被轉移過的</strong>位置，而非預設的位置。當 &debian; 套件的 scripts 發生衝突時，可用<strong>移轉</strong>來將檔案移開。系統管理者也可以用移轉來多載套件的設定檔，或是用在當安裝套件新版本時，包括有些沒被標記為 <strong>conffiles</strong> 而需要被 <prgn>dpkg</prgn> 所保留的檔案。<![%f-ref;[（參閱 <ref id="conffile"> ）]]>。
+檔案移轉是強迫 <prgn>dpkg</prgn> 把某個檔案安裝在一個<strong>被轉移過的</strong>位置，而非預設的位置。當 &debian; 套件的 scripts 發生衝突時，可用<strong>移轉</strong>來將檔案移開。系統管理者也可以用移轉來多載套件的設定檔，或是用在當安裝套件新版本時，包括有些沒被標記為 conffiles 而需要被 <prgn>dpkg</prgn> 所保留的檔案。<![%f-ref;[（參閱 <ref id="conffile"> ）]]>。
 <example>
 # dpkg-divert [--add]  <var>filename</var> # 加入 "diversion"
 # dpkg-divert --remove <var>filename</var> # 刪除 "diversion"
@@ -710,38 +705,33 @@ Description: Circumventing Debian package dependencies
 
 Enter to keep the default[*], or type selection number: 2
 </example>
-在 Debian alternatives 系統中的項目都以符號連結的方式放在 <file>/etc/alternatives</file> 。
+在 Debian alternatives 系統中的項目都以符號連結的方式放在 <file>/etc/alternatives/</file> 。
 <p>
 想設定你喜歡的 X 視窗環境的話，請用 <prgn>update-alternatives</prgn> 來修改 <file>/usr/bin/x-session-manager</file> 和 <file>/usr/bin/x-window-manager</file> 。<![%f-ref;[詳請請參閱 <ref id="custom-x"> 。]]>
 <p>
 <file>/bin/sh</file> 則就直接符號連結至 <file>/bin/bash</file> 或 <file>/bin/dash</file> 。如果要相容於舊有且 bash 化的 script 的話，用 <file>/bin/bash</file> 會比較好點，但用 <file>/bin/dash</file> 可強迫訓練你與 POSIX 相容。升級至 2.4 Linux kernel 時傾向於將其設定至 <file>/bin/dash</file> 。
 </sect1>
 
-<sect1 id="sys-v">System-V <prgn>init</prgn> 和 runlevels
+<sect1 id="sys-v">Runlevel 
 <p>
-開機時預設的 runlevel 可在 <file>/etc/inittab</file> 中設定。
+大部分的&debian;套件在安裝後是被設定在 runlevel 2 到 5 時會自動執行。
+因此，&debian; 系統的 runlevel 2,3,4,5是沒有差別的，而 &debian; 是保留給系統管理者來設定。
+<![%f-ref;[
+<ref id="custombootscripts">說明如何自定 runlevels。
+]]>
+<![%q-ref;[
+自定 runlevels。
+]]>
+這樣的 runlevels 系統是與其他有名的 GNU/Linux 發行版本完全不同。
+您或許想取消 runlevel 2 上的<prgn>xdm</prgn> 或 <prgn>gdm</prgn> 在開機後自動執行 X display 管理器。您也可以試著修改 runlevel 3 的設定。
 <p>
-不同於其他的 distributions ， Debian 將管理 runlevel 的責任全放在系統管理者身上。在 Debian 上管理 System-V 風格的 <prgn>init</prgn> 是傾向於使用 <prgn>update-rc.d</prgn> 的 scripts 。
-<p>
-想要在 runlevel 1,2,3 時以 20 的 sequencing priority number (normal) 來執行 <file>/etc/init.d/<var>name</var></file> ，而在 runlevel 4,5 停止的話，可執行下面指令：
-<example>
-# update-rc.d <var>name</var> start 20 1 2 3 . stop 20 4 5 .
-</example>
-想要移除在 <prgn>init.d</prgn> 中的某個 script 的符號連結的話，可執行下面的指令：
-<example>
-# update-rc.d -f <var>name</var> remove
-</example>
-在編輯 runlevels 時我偷吃點步。我用 <prgn>mc</prgn> 的 shell 提示符號中用 Alt-Enter 來複製連結，並用 <prgn>mv</prgn> 指令來手動編輯。舉個例子：
-<example>
-# mv S99xdm K99xdm # 停止 xdm (X display manager)
-</example>
-我甚至會用點撇步來停掉 daemon ，就是在 <prgn>init.d</prgn> script 的開頭加上 <tt>exit 0</tt> 。
-These are <tt>conffiles</tt> after all.
-</sect1>
+<![%f-ref;[
+<ref id="runlevels"> 有更多 Runlevl 的資訊。
+]]>
 
 <sect1 id="disables">停止 daemon 服務程式
 <p>
-&debian; distribution 非常注重系統安全，並期望系統管理員能擔此重任。它將系統的易用性放在了第二位，許多 daemon 伺服程式都定位在最高安全等級，因而在預設的安裝狀態下，系統只啟動最少的（甚至沒有）可用的服務程式。
+&debian; distribution 非常注重系統安全，許多 daemon 伺服程式都定位在最高安全等級，因而在預設的安裝狀態下，系統只啟動最少的可用的服務程式。
 <p>
 如果你不確定你執行了什麼服務程式（像 Exim ， DHCP …）的話，執行 <tt>ps aux</tt> 或檢查一下 <file>/etc/init.d/*</file> 和 <file>/etc/inetd.conf</file> 的內容。同時也<![%f-ref;[使用 <ref id="loginctrl"> 的方法]]>確認一下 <file>/etc/hosts.deny</file> 。而 <prgn>pidof</prgn> 指令也是很有用的（請參閱 <manref name="pidof" section="8">）。
 <p>
