@@ -157,7 +157,7 @@ publish-html: html
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	# install all html
-	@$(foreach lang,$(LANGS),\
+	$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL)/ ;\
 	)
