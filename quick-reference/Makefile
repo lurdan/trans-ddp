@@ -35,7 +35,7 @@ PUBLISHDIR := ../../../public_html/manuals.html
 #MANUAL := $(notdir $(shell pwd))
 MANUAL := reference
 LANGS := en fr it
-EXTS := html txt pdf
+EXTS := html txt pdf pdf
 else
 # default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
@@ -46,7 +46,7 @@ endif
 # manuals.sgml tree, and for package build.
 # Key source files
 SGMLMSTR := qref.sgml
-SGMLSRCS := custom.ent default.ent  dynamic.%.ent date.ent \
+SGMLSRCS := custom.ent default.ent  dynamic.%.ent \
 	    $(foreach lang, $(ALL_LANGS), $(wildcard $(lang)/*.sgml ) )
 ifeq ("$(HTDOCS)", "manuals.sgml")
 TARSRCS = examples/* bin/* ??/*.sgml\
@@ -64,7 +64,7 @@ ALLSRCS := $(SGMLSRCS)
 TARGETS := $(foreach ext,$(EXTS),\
 	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
 	  )
-HTMLDIRS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html)
+HTMLDIRS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html.stamp)
 FILEEXTS = $(filter-out html,$(EXTS))
 ALLFILES = $(foreach ext,$(FILEEXTS),\
 	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
@@ -76,22 +76,6 @@ MAX_TEX_RECURSION	:= 6
 
 # generate anything some dirs want version.ent to be built, some not
 
-DEBIAN=$(wildcard debian)
-ifeq ($(DEBIAN),"debian")
-all: version.ent $(TARGETS) publish
-else
-all: $(TARGETS) publish
-endif
-
-version.ent: debian/changelog
-	./debian/rules $@
-
-DATE := `date --utc +"%Y.%m.%d-%H:%M"`
-
-date.ent:
-	: > $@                       # clear the file
-	@echo "<!entity date \"$(DATE)\">" >> $@
-
 # generate entities which are dynamically defined by the settings of this
 # build run, generally set in the top-level config file (always make)
 
@@ -99,25 +83,9 @@ dynamic.%.ent:
 	: > $@                       # clear the file
 	@echo "<!entity language \"$*\">" >> $@
 	@echo "<!entity % lang-$* \"INCLUDE\">" >> $@
-	@echo "<!entity booklet \"$(BOOK)\">" >> $@
-	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
 	@echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" >> $@
-	@if [ -f ../debian/changelog ]; then \
-	  echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> $@; \
-	else \
-	  echo "<!entity docversion \"CVS\">" >> $@; \
-	fi
-#	Build SGML with portion marked qref-dev if LANGS=en or DOCTYPE=dev.
-#	@if [ "x$(DOCTYPE)" = "xdev" ]; then \
-#	  #echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-#	elif [ "x$(DOCTYPE)" = "xdefault" -a \( "x$*" = "xen" -o "x$*" = "xit" \) ]; then \
-#	  #echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-#	else \
-#	  #echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
-#	fi
-# Note: This does work, but it's a hack, it
-# needs to be rewritten properly (jfs)
-#
+	@echo "<!entity docversion \"CVS\">" >> $@
+
 # I know.  But for now, I need to avoid circular dependence. (OA)
 #
 # Create starting SGML for each language from template
@@ -130,7 +98,7 @@ $(MANUAL).%.sgml: $(SGMLMSTR)
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
+$(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(SGMLSRCS)
 	debiandoc2html -l $* -c $< 2>_html.$*.error
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
@@ -141,18 +109,19 @@ $(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
 	   mv $$file $$newfile;\
 	   echo "Rename $$file --> $$newfile";\
 	 fi\
-	done;   
+	done;
+	touch $(MANUAL).$*.html.stamp
 
 #----[ generating plain text ]-------------------------------------------------
-$(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
 	debiandoc2text -l $* $< 2>_txt.$*.error
 
 #----[ generating tov ]--------------------------------------------------------
-$(MANUAL).%.tov: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.tov: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
 	debiandoc2textov -l $* $<
 
 #----[ generating info ]-------------------------------------------------------
-$(MANUAL).%.texinfo: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.texinfo: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
 	debiandoc2texinfo -l $* $<
 # Buggy, Top must be moved manually
 
@@ -161,13 +130,13 @@ $(MANUAL).%.texinfo: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 #	debiandoc2info -l $* $<
 
 # for now we avoid problem
-$(MANUAL).%.info: $(MANUAL).%.texinfo dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.info: $(MANUAL).%.texinfo dynamic.%.ent  $(SGMLSRCS)
 	@#makeinfo -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 	makeinfo --force -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 
 
 #----[ generating teTeX ]------------------------------------------------------
-$(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
 	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
@@ -175,7 +144,7 @@ $(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 #	debiandoc2latexps -l $* $<
 
 # debiandoc2latexps is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent  $(SGMLSRCS)
 #	 note that I have seen bi-stable .aux files, thus we check two levels deep
 	@-cp -pf prior.aux pprior.aux 2>/dev/null
 	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
@@ -205,7 +174,7 @@ $(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
 #	debiandoc2latexpdf -l $* $<
 
 # debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
+$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent $(SGMLSRCS)
 #	 note that I have seen bi-stable .aux files, thus we check two levels deep
 	@-cp -pf prior.aux pprior.aux 2>/dev/null
 	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
@@ -249,7 +218,7 @@ ifneq ("$(HTDOCS)", "manuals.sgml")
 	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL)/
 endif
 ifeq ("$(HTDOCS)", "manuals.sgml")
-	cd $(PUBLISHDIR) ; rm -Rf quick-reference ; ln -sf $(MANUAL) quick-reference
+	cd $(PUBLISHDIR) ; rm -f quick-reference ; ln -sf $(MANUAL) quick-reference
 endif
 
 #----[ publish the files ]-----------------------------------------------------
