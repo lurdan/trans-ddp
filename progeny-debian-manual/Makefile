@@ -28,7 +28,7 @@ publish-html: $(HTMLDIRS)
 	@test -d $(PUBLISHDIR)/$(MANUAL)/img \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/img
 	@install -p -m 644  --preserve-timestamps \
-	 img/[_A-BD-Za-z0-9].* $(PUBLISHDIR)/$(MANUAL)/img/
+	 img/[_A-BD-Za-z0-9]* $(PUBLISHDIR)/$(MANUAL)/img/
 
 #====[ cleaning up ]===========================================================
 clean distclean: 
