@@ -1,8 +1,3 @@
-#
-# Makefile for How Software Producers Can Distribute Their Products Directly
-# in DEB Format
-#
-
 manual := distribute-deb
 
 # this can and will be overriden by a higher level makefile
@@ -10,7 +5,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).xml
 
-all: html # pdf
+all: html pdf #dvi ps
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
@@ -24,6 +19,14 @@ html: $(manual).html
 $(manual).html: $(sources)
 	xmlto html-nochunks $<
 	tidy -mq $@
+
+dvi: $(manual).dvi
+$(manual).dvi: $(sources)
+	xmlto dvi $<
+
+ps: $(manual).ps
+$(manual).ps: $(sources)
+	xmlto ps $<
 
 pdf: $(manual).pdf
 $(manual).pdf: $(sources)
