@@ -11,9 +11,9 @@ TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
-DEBIANDOC2HTML	:= debiandoc2html -d debiandoc.decl -c
-DEBIANDOC2TEXT	:= debiandoc2text -d debiandoc.decl
-DEBIANDOC2LATEX	:= debiandoc2latex -d debiandoc.decl
+DEBIANDOC2HTML	:= debiandoc2html -c
+DEBIANDOC2TEXT	:= debiandoc2text
+DEBIANDOC2LATEX	:= debiandoc2latex
 
 make_directory	:= install -d -m 755
 install_file	:= install -m 644 -p
