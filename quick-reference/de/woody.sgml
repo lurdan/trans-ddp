@@ -1,167 +1,165 @@
-<!-- CVS revision of this document "$Revision: 1.3 $"  -->
-<!-- CVS revision of original english document "1.22"  -->
-<chapt id="woody">Aktualisieren einer Distribution
+<!-- CVS revision of this document "$Revision: 1.4 $"  -->
+<!-- CVS revision of original english document "1.33"  -->
+<!-- Last complete proofreading (and comparing with the original english
+     file) was done for rev. 1.32 (en). -->
+<chapt id="woody">Aktualisieren einer Distribution auf testing
 
 <![%f-ref;[
 <p>
 Offizielle Hinweise für die Aktualisierung finden sich unter 
-<url id="&stable-release;"> (Distribution stable, stabile Version
+<url id="&stable-release;">
 und
-<url id="&testing-release;"> (Distribution testing, Betaversion).
-
-<sect>Vorbereitung der Migration von "stable" auf "testing"
+<url id="&testing-release;"> (befindet sich in Arbeit).
 
 <p>
-Eine Aktualisierung auf "testing" über das Netzwerk kann folgendermassen 
-durchgeführt werden (das Ausführen des Skriptes <url id="&examples;" 
-name="go-woody"> erledigt diese Schritte automatisch durch ein Kommando):
+Der Prozess zur Aktualisierung ist: 
+<list>
+ <item>Zunächst ist das APT System auf die Woody Version zu aktualisieren,
+       wenn das aktuelle System Potato ist, da Potato's APT nicht über die
+       in Woody's <manref name="apt_preferences" section="5"> beschriebenen
+       Fähigkeiten verfügt.
+ <item>Modifizierung der <file>/etc/apt/sources.list</file> und
+       <file>/etc/apt/preferences</file> Dateien, um Verweise auf den
+       "testing" Abschnitt der benutzten Repositories hinzuzufügen. Sollte
+       es gewünscht sein, können auch Verweise auf den "unstable" Abschnitt
+       hinzugefügt werden.
+ <item>Aktualisierung der Paketlisten und Installation aller Pakete die sich
+       nun upgraden lassen.
+</list> 
+]]>
 
+<sect id="woody-transition">Übergang von APT auf die Woody Version
+<p>
+Ein Netzwerk Upgrade des APT Systems und einiger Kernpakete zur Woody Version 
+kann wie folgt nach Einbinden von <tt>stable</tt> in
+<file>/etc/apt/sources.list</file> erreicht werden, wenn Sie noch Potato
+nutzen.
+<example>
+# apt-get update
+# apt-get install libc6 perl libdb2 debconf
+# apt-get install apt apt-utils dselect dpkg
+</example>
+
+<sect id="testing-transition">Vorbereitung des Übergangs ("stable" nach
+                              "testing")
+<p>
+Eine Aktualisierung auf "testing" über das Netzwerk kann folgendermaßen 
+durchgeführt werden (starten Sie das Skript <url id="&examples;" 
+name="go-woody">, um dies in einem Schritt zu erledigen):
+<p>
+Neuerstellung der existierenden sources.list Datei
 <example>
 # cd /etc/apt
-# cp -f sources.list sources.old 
-# :&gt;sources.list  
+# cp -f sources.list sources.old
+# :&gt;sources.list
+</example>
+<p>
+Erzeugen einer sauberen Liste von Repositories für "stable"
+<example>
 # cd /
 # apt-setup noprobe 
- ... auswählen von http oder ftp
+  ... auswählen der Repositories, auf die mit http oder ftp
+      Methoden zugegriffen wird
+</example>
+Hinzufügen des "testing" Abschnitts zu dieser neuen Liste. Die
+<tt>deb-src</tt> Zeilen werden auskommentiert.
+<example>
 # cd /etc/apt
-# grep -e "^deb " sources.list             &gt;sources.deb
-# grep -e "^deb-" sources.list             &gt;sources.src
-# sed -e "s/^d/#d/" \
-  /usr/share/doc/apt/examples/sources.list &gt;sources.list
-# sed -e "s/stable/testing/"  \
-  sources.deb &gt;&gt;sources.list
+# grep -e "^deb " sources.list &gt;sources.deb
+# grep -e "^deb-" sources.list &gt;sources.src
+# sed -e "s/stable/testing/" sources.deb &gt;&gt;sources.list
+# sed -e "s/stable/testing/" sources.src | \
+     sed -e "s/^deb-/#deb-/" &gt;&gt;sources.list
+
 # apt-get update
 # apt-get install apt apt-utils
 # cat &gt;preferences &lt;&lt;EOF
  Package: *
  Pin: release a=testing
- Pin-Priority: 700
+ Pin-Priority: 600
  
  Package: *
  Pin: release a=unstable
- Pin-Priority: 70
+ Pin-Priority: 50
 
  EOF
-# sed -e "s/stable/unstable/" sources.deb \
-  &gt;&gt;sources.list
+</example>
+Optional kann "unstable" hinzugefügt werden.
+<example>
+# sed -e "s/stable/unstable/" sources.deb &gt;&gt;sources.list
 # sed -e "s/stable/unstable/" sources.src | \
- sed -e "s/^deb-/#deb-/"  &gt;&gt;sources.list
+     sed -e "s/^deb-/#deb-/" &gt;&gt;sources.list
 </example>
+Vergleiche <ref id="apt-install"> für genaueres zum Tuning von
+<file>/etc/apt/sources.list</file> und <file>/etc/apt/preferences</file>.
+<p>
+Nun kann ein Update und Upgrade wie im nächsten Abschnitt beschrieben
+durchgeführt werden.
+</sect>
 
-Empfehlungen für <file>/etc/apt/preferences</file> (siehe <manref
-name="apt_preferences" section="5">):
+<sect id="upgrade-system">Aktualisierung des &debian; Systems
+<p>
+Nach den korrekten Anpassungen von <file>/etc/apt/sources.list</file> und 
+<file>/etc/apt/preferences</file>, kann eine Aktualisierung des Systems
+durchgeführt werden. Sollten dabei Fehler auftreten, schauen Sie in
+<ref id="package"> und insbesondere <ref id="apt-trouble">.
+
+<sect1>Beste Upgrade Vorgehensweise mittels <prgn>dselect</prgn>
+<p>
+Wenn ein System zahlreiche Pakete enthält, die <tt>-dev</tt>-Pakete, etc.
+nutzen, wird die im folgenden beschriebene Vorgehensweise mittels
+<prgn>dselect</prgn> empfohlen, da hier eine feinere Kontrolle der Pakete
+möglich ist.
 <example>
-verfolgen von stable:            ändern der Pin-Priority von testing auf 80
-verfolgen von testing:           beibehalten (installieren durch /unstable)
-verfolgen von testing(unstable): ändern der Pin-Priority von unstable auf 600
-verfolgen von unstable(testing): ändern der Pin-Priority von unstable auf 800
+# dselect update # muss vor jeder Aktualisierung ausgeführt werden
+# dselect select # Auswahl zusätzlicher vorgeschlagener und
+                 # empfohlener Pakete
 </example>
-
-Es wird empfohlen, sich für die Auswahl der Pin-Priorität in der 
-obenstehenden Tabelle von oben nach unten zu bewegen, entsprechend 
-demZeitpunkt unmittelbar nach der Veröfentlichung einer Distribution bin zum 
-Zeitpunkt des Einfrierens für die kommende Veröffentlichung.
-
-<p>Beispiele für die <file>/etc/apt/preferences</file>, in denen bestimmte 
-wichtige Pakete in stabileren Versionen beibehalten und weniger wichtige 
-Pakete auf die aktuellsten Versionen aktualisiert werden im Verzeichnis <url 
-id="&examples;" name="examples subdirectory"> 
-als <file>preferences.testing</file> und <file>preferences.unstable</file> zu 
-finden. Die exemplarische Konfigurationsdatei <file>preferences.stable</file> 
-erzwingt ein Downgrade aller Pakete auf die Distribution "stable".
-
-<p>Stellen Sie sicher, dass APT ggf. einen Prox nutzt, indem Sie die 
-Umgebungsvariable <tt>http_proxy</tt> oder den http- Wert in der Datei  
-<file>/etc/apt/apt.conf</file> setzen.
-
-<p>Die hier beschriebene Vorgehensweise aktualisiert nur APT und eine 
-geringe Anzahl an Paketen, um Probleme durch ungelöste 
-Abhängigkeiten zu vermeiden.</sect>]]>
-
-<sect>Aktualisieren auf "testing"
-
-<p>Nachdem die Vorbereitungen aus dem obigen Abschnitt durchgeführt 
-wurden, kann eine Aktualisierung des Systems durchgeführt werden.
-
-<sect1>Empfohlene Vorgehensweise mittels <prgn>dselect</prgn>
-
-<p>Wenn ein System zahlreiche <tt>-dev</tt>-Pakete enthält, wird die im 
-folgenden beschriebene Vorgehensweise mittls <prgn>dselect</prgn> empfohlen, 
-da hier eine feinere Kontrolle der Pakete möglich ist.
-
+All Ihre aktuellen Pakete werden ausgewählt, wenn dselect startet. Möchten
+Sie keine Pakete hinzufügen, drücken Sie einfach <tt>Q</tt> um dselect erneut
+zu beenden.
 <example>
-# dselect update  # Muss vor jeder Aktualisierung ausgeführt werden.
-# dselect select  # Auswählen der vorgeschlagenen und empfohlenen Pakete.
-# dselect install # Ausführen des Installationsvorgangs.
+# dselect install
 </example>
-
-<prgn>dselect</prgn> funktioniert immer :)
+Sie werden einige Paket Konfigurationsfragen während dieses Teils des
+Prozesses beantworten müssen, halten Sie also Ihre Notizen bereit und planen
+Sie genug Zeit dafür ein. Vergleiche <ref id="dselect">.
+<p>
+Nutzen Sie <prgn>dselect</prgn>. <strong>Dies funktioniert immer :)</strong>
 
 <![%f-ref;[
 <sect1>Unerwünschte Vorgehensweise mittels <prgn>apt-get</prgn>
+<p>
+<strong>Von der unten beschriebenen Verwendung von <prgn>apt-get</prgn> für
+die Aktualisierung des Systems wird abgeraten, auch wenn dies weit verbreitet
+ist.</strong>
+]]>
 
-<p><strong>von der Verwendung von <prgn>apt-get</prgn> für für 
-Aktualisierung des Systems wird abgeraten, auch wenn dies weit verbreitet 
-ist.</strong>]]> Wenn ein System ab Woody oder höher ohne 
-<prgn>dselect</prgn> aktualisiert werden muss, sollte <prgn>aptitude</prgn> 
-und andere Alternativen in Erwägung gezogen werden.
+Wenn ein System ab Woody oder höher ohne <prgn>dselect</prgn> aktualisiert
+werden muss, sollte <prgn>aptitude</prgn> und andere Alternativen in Erwägung
+gezogen werden.
 
 <![%f-ref;[
-<p>Wenn auf einem System nur wenige Pakete installiert sind oder im 
-&debian;-Archiv keine grösseren Änderungen vorhanden sind, kann die 
-im folgenden beschriebene Vorgehensweise ausreichen.
-
+<p>
+Wenn auf einem System nur wenige Pakete installiert sind oder im 
+&debian;-Archiv keine größeren Änderungen vorhanden sind, kann die 
+im folgenden beschriebene Vorgehensweise (manchmal) ausreichen.
 <example>
-# apt-get update  # Muss vor jeder Aktualisierung ausgeführt werden.
-
-... Aktualisieren eines Systems einschliesslich der Abhängigkeiten:
-# apt-get upgrade # Muss vor jeder Aktualisierung ausgeführt werden. 
-
-... Aktualisieren des gesamten Systems einschliesslich der Abhängigkeiten:
+# apt-get update  # muss vor jedem Upgrade ausgeführt werden
+ ... aktualisieren des Systems einschließlich der Abhängigkeiten:
+# apt-get upgrade # muss vor jedem Upgrade ausgeführt werden
+ ... aktualisieren des gesamten Systems einschließlich der
+     Abhängigkeiten:
 # apt-get -u dist-upgrade
-
-... Aktualisieren und Beibehalten der aktuellen Einstellungen von dselect
-    (neu, besser):
-# apt-get -u dselect-upgrade   # Verwenden des Ergebnisses von dselect setup.
+ ... aktualisieren und Beibehalten der aktuellen Einstellungen von
+     dselect (neu, besser):
+# apt-get -u dselect-upgrade   # verwenden des dselect Auswahl
 </example>
-
-<p>Da diese Vorgehensweise der Aktualisierung <prgn>apt-get</prgn> verwendet, 
-ist die Verwendung der <em>Empfehlungen</em> ("recommends") und 
-<em>Vorschläge</em> ("suggests") nur eingeschänkt möglich. Siehe <ref 
-id="depends">.]]>
+<p>
+Da diese Upgrade Methode <prgn>apt-get</prgn> nutzt, ist die Verwendung der
+<em>Empfehlungen</em> ("recommends") und <em>Vorschläge</em> ("suggests") nur
+eingeschränkt möglich. Siehe <ref id="depends">.
+]]>
 </sect>
 
-<sect>Konfiguration von Woody ("Stable")
-
-<p>Auf einem frisch installierten Woody-System sollten folgende 
-Konfigurationsdateien nachbearbeitet werden: 
-<file>/etc/apt/sources.list</file>,<file>/etc/apt/apt.conf</file> und 
-<file>/etc/apt/preferences</file>; dadurch wird dieselbe Struktur erzielt, die 
-in den obigen Abschnitten beschrieben wurde.
-
-<p>In der letzten stabilen Debian-Version, Potato, verfügte APT allerdings 
-noch nicht über die im Abschnitt <manref name="apt_preferences" section="5"> 
-beschriebenen Leistungsmerkmale.</sect><![%f-ref;[<sect id="spy">Optimieren 
-der <file>sources.list</file>
-
-<p>Automatisches Erstellen der <file>sources.list</file> auf der Basis von 
-Netzwerk-Latenz und -Bandbreite:
-
-<example>
-# apt-get install apt-spy
-# cd /etc/apt ; mv sources.list sources.list.org
-# apt-spy -d testing -l sources.apt
-</example>
-
-<prgn>netselect-apt</prgn> ähnelt <prgn>apt-spy</prgn>.
-Es erstellt eine vollständigere <file>sources.list</file>, verwendet 
-jedoch eine einfachere Methode um den besten Spiegel-Server auszuwählen 
-(Vergleich der Ping-Zeiten).<prgn>apt-setup</prgn> ist die manuelle 
-Methode, um Spiegel-Server in die <file>sources.list</file> einzutragen, es 
-wird derzeit jedoch als die beste Möglichkeit zur Auswahl von Spiegel-Servern 
-betrachtet, bis <prgn>apt-spy</prgn> verbessert wurde.
-
-<p>Anmerkung: Diese Versuche zur Optimierung brachten für mich keine 
-nennenswerten Verbesserungen. Die Auswahl nahegelegener Sites mittels  
-<prgn>apt-setup</prgn> war ausreichend.</sect>]]>
 </chapt>

@@ -33,14 +33,23 @@ alias l='ls $LS_OPTIONS -AbF'
 
 # does not do ctrl-Z
 # mc() { cd $(/usr/bin/mc -P "$@"); }
-# use secured temp-file
-mc ()
-{
-    mkdir -p ~/.mc/tmp 2> /dev/null
-    chmod 700 ~/.mc/tmp
-    MC=~/.mc/tmp/mc-$$
-    /usr/bin/mc -P "$@" > "$MC"
-    cd "$(cat $MC)"
-    rm -f "$MC"
-    unset MC;
-}
+# use secured temp-file (This is for Potato)
+#mc ()
+#{
+#    mkdir -p ~/.mc/tmp 2> /dev/null
+#    chmod 700 ~/.mc/tmp
+#    MC=~/.mc/tmp/mc-$$
+#    /usr/bin/mc -P "$@" > "$MC"
+#    cd "$(cat $MC)"
+#    rm -f "$MC"
+#    unset MC;
+#}
+# Sid
+if [ -f /usr/share/mc/bin/mc.sh ] ; then
+        . /usr/share/mc/bin/mc.sh
+fi
+
+# Woody
+if [ -f /usr/lib/mc/bin/mc.sh ] ; then
+        . /usr/lib/mc/bin/mc.sh
+fi

@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.6 $"  -->
-<!-- CVS revision of original english document "1.57"  -->
+<!-- CVS revision of this document "$Revision: 1.7 $"  -->
+<!-- CVS revision of original english document "1.62"  -->
 
 <chapt id="install">Debian System-Installationshinweise
 
@@ -55,7 +55,7 @@ finden. Eine Möglichkeit ist:
 <enumlist compact>
   <item>Öffnen des PC Gehäuses.
   <item>Bestimmen der Aufdrucke auf den großen Chips auf der Graphik- und
-        Netzwerkkarte, der Chips nahe der seriellen und IDE Anschlüsse.
+        Netzwerkkarte, sowie den Chips nahe der seriellen und IDE Anschlüsse.
   <item>Bestimmen der Kartennamen, die auf der Rückseite der PCI und ISA
         Karten aufgedruckt sind.
 </enumlist>
@@ -70,9 +70,26 @@ $ lspci -v | pager
 $ pager /proc/pci
 $ pager /proc/interrupts
 $ pager /proc/ioports
+$ pager /proc/bus/usb/devices
 </example>
 Diese Kommandos können während der Installation in der Konsole nach Drücken
 von ALT-F2 gestartet werden.
+<p>
+Für USB Geräte werden die Geräteklassen in <file>/proc/bus/usb/devices</file>
+mit <tt>Cls=<var>nn</var></tt> aufgeführt:
+<list compact>
+<item>Cls=00 : nicht benutzt
+<item>Cls=01 : Audio (Lautsprecher, etc.)
+<item>Cls=02 : Kommunikation (Modem, Netzwerkkarte, ...)
+<item>Cls=03 : HID (Human Interface Device (Schnittstellen): Tastatur,
+               Maus, Joy Stick)
+<item>Cls=07 : Drucker
+<item>Cls=08 : Massenspeicher (Diskettenlaufwerk, CD/DVD Laufwerk,
+               Festplatte, Flash Speicher, ...)
+<item>Cls=09 : Hub (USB Hub)
+<item>Cls=255 : Hersteller spezifisch
+</list>
+Ist die Geräteklasse eines Gerätes nicht 255, so wird es von Linux unterstützt.
 </sect1>
 
 <sect1>Bestimmen der PC Hardware mit anderen Betriebssystemen
@@ -320,11 +337,12 @@ proc          /proc           proc  defaults                0 0
 /dev/cdrom    /cdrom       iso9660  defaults,ro,user,noauto 0 0
 #
 # einige separate Partitionen
-/dev/hda7     /home           ext2  rw                      0 2
-/dev/hda8     /var            ext2  rw                      0 2
-/dev/hda6     /var/lib/cvs    ext2  rw                      0 2
-/dev/hda9     /usr            ext2  rw                      0 2
-/dev/hda10    /var/cache/apt/archives ext2 rw               0 2
+/dev/hda7     /home           ext2  defaults                0 2
+/dev/hda8     /var            ext2  defaults                0 2
+/dev/hda6     /var/lib/cvs    ext2  defaults                0 2
+# noatime beschleunigt den Dateizugriff beim Lesen
+/dev/hda9     /usr            ext2  defaults,noatime        0 2
+/dev/hda10    /var/cache/apt/archives ext2 defaults         0 2
 
 # sehr große Partition für Proxy Cache
 /dev/hda11    /var/spool/squid ext2 rw                      0 2
@@ -429,7 +447,8 @@ Ich verwende die folgenden Richtlinien für Swap:
       mit den Optionen <tt>sw,pri=1</tt> in <file>/etc/fstab</file> zu
       mounten. Dies stellt sicher, dass der Kernel ein "striping RAID" der
       Swap-Partitionen nutzt und einen maximalen Durchsatz erreicht.
-<item>Use a central portion of the hard disk when possible.<!-- FIXME -->
+<item>Nach Möglichkeit sollte der mittlere Bereich der Festplatte verwendet
+      werden.
 </list>
 <p>
 Selbst wenn er niemals benötigt wird, ist etwas Swap Speicher (128MB)
@@ -483,7 +502,7 @@ geändert werden, nachdem <prgn>gpm</prgn> entfernt wurde.)
 <p>
 Dieser Signalfluss erlaubt, die Tastatur und die Maus zu entfernen und beim
 Anstecken mit <prgn>gpm</prgn> neu zu initialisieren. X wird davon nicht
-negativ beeinflußt!
+negativ beeinflusst!
 <p>
 Das Protokoll des Signalflusses zwischen <prgn>gpm</prgn> Ausgabe und X
 Eingabe kann auf zwei Arten implementiert werden, als spezielles Protokoll wie
@@ -554,7 +573,7 @@ man:
 <item><tt>PS/2</tt>: PS/2 Anschluss Maus (dies immer zuerst ausprobieren)
 <item><tt>IMPS/2</tt>: beliebige PS/2 Anschluss Mäuse (2, 3 oder Scroll
       Mäuse, besser)
-<item><tt>MouseManPlusPS/2</tt>: Logitech PS/2 Anshluss Maus
+<item><tt>MouseManPlusPS/2</tt>: Logitech PS/2 Anschluss Maus
 <item><tt>...</tt>
 </list>
 Ausführlicheres ist unter <url id="&mousexf86;"
@@ -587,6 +606,9 @@ Stellen Sie sicher Sie haben:
       aktiviert oder als Modul.
 <item>"Support for USB", "Preliminary USB device filesystem", "UHCI or OHCI"
       und "USB HID Support" im Kernel aktiviert oder als Modul.
+<item><package>hotplug</package> installiert und mit
+      <tt>X11_USBMICE_HACK=true</tt> in <file>/etc/default/hotplug.usb</file>
+      aktiviert.
 </list>
 <p>
 Wird devfs nicht genutzt, so ist eine Gerätedatei <file>/dev/input/mice</file> 
@@ -615,6 +637,24 @@ sample_rate=             |  Option     "Protocol" "IMPS/2"
 <p>
 Man vergleiche <url id="&linuxusb;" name="das Linux USB Projekt"> für weitere
 Informationen.
+
+<sect1>Touchpad
+<p>
+Obwohl das Touchpad eines Laptops standardmäßig eine 2-Tasten PS/2 Maus
+emuliert, ermöglicht das <package>tpconfig</package> Paket die volle
+Kontrolle über das Gerät. Die Einstellung <tt>OPTIONS="--tapmode=0"</tt> in
+<file>/etc/default/tpconfig</file> deaktiviert z.B. das ärgerliche "klicken
+beim Antippen" Verhalten. Folgende <file>/etc/gpm.conf</file> ermöglicht
+das Nutzen des Touchpads und einer externen USB Maus in der Konsole:
+<example>
+device=/dev/psaux
+responsiveness=
+repeat_type=ms3
+type=autops2
+append="-M -m /dev/input/mice -t autops2"
+sample_rate=
+</example>
+
 </sect>
 
 <sect>NFS Konfiguration
@@ -730,7 +770,7 @@ vergleiche man <ref id="ss-xsu"> um root Rechte zu erhalten. Mit
 <prgn>printtool</prgn> erzeugte Druckerwarteschlangen nutzen <prgn>gs</prgn>
 und agieren wie PostScript Drucker. Beim Zugriff darauf, müssen deshalb
 PostScript Druckertreiber verwendet werden. Auf der Windows Seite ist
-"Apple LaserWriter" der Standart.
+"Apple LaserWriter" der Standard.
 </sect1>
 
 <sect1 id="cups">CUPS&trade;
@@ -820,7 +860,7 @@ ca:12345:ctrlaltdel:/sbin/shutdown -t1 -a -h now
 
 <sect1>Module
 <p>
-Module für Gerätetreiber werden wärend der Basisinstallation konfiguriert.
+Module für Gerätetreiber werden während der Basisinstallation konfiguriert.
 <prgn>modconf</prgn> bietet danach eine menübasierte Modulkonfiguration.
 Dieses Programm ist sehr nützlich, wenn einige Module während der
 Basisinstallation ausgelassen wurden oder ein neuer Kernel seitdem
