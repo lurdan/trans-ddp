@@ -7,6 +7,9 @@
 # temporary workaround until www-master updates debiandoc-sgml
 export PATH:=../quick-reference/bin/:${PATH}
 
+# Woodys default LaTeX settings need more memory for Korean PDF
+export TEXMFCNF=../quick-reference/texmf:
+
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
