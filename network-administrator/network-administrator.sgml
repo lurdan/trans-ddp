@@ -383,8 +383,142 @@ the next section.</p>
 </sect>
 
 <sect>Basic IP Routing
-<p>
+<p>Once an IP interface has been set up, it is necessary that the Linux
+kernel be told where to send IP information for various machines on the
+IP network.  The kernel holds a table, called a <em>routing table</em>,
+which lists a number of host or network addresses, along with
+information on how to send IP packets to these destinations.</p>
 
+<p>The <prgn>route</prgn> command is use to examine or update this table.
+If only your loopback interface has been configured, this command used
+on its own will typically give output which looks something like the
+following:
+<example>
+# /sbin/route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       *               255.0.0.0       U     0      0        2 lo
+</example>
+<p>This says that any traffic for the network identified as `127' should be
+routed through the loopback interface (<tt>lo</tt>).  The `genmask' column
+specifies, in a similar way to a netmask, that this particular routing
+table entry should be used to match any IP address beginning with the
+number 127, no matter what the remainder is.</p>
+
+<p>If our machine is connected to an Ethernet network, then typically we
+will want to make sure that the kernel routing table knows how to send
+information to this.  Assuming we have set up our machine to be
+192.168.50.23, with a default class C netmask, the following command
+will add a routing table entry for our local network:
+<example>
+# /sbin/route add -net 192.168.50.0
+# /sbin/route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       *               255.0.0.0       U     0      0        2 lo
+192.168.50.0    *               255.255.255.0   U     0      0      137 eth0
+</example>
+<p>This tells the kernel that any IP addresses which start with 192.168.50 are
+on our local Ethernet network, and that they should be routed through the
+`eth0' interface.  If you are using a non-standard netmask, this can be
+specified as a command line option to the <prgn>route</prgn> command:
+<example>
+/sbin/route add -net 192.158.50.0 netmask 255.255.255.192
+</example>
+<p>A command like one of the above would be sufficient if our TCP/IP network
+consisted of just a single network, not connected to anywhere else.
+However, the strengths of TCP/IP are its <em>internetworking</em>
+abilities, and normally a IP-based network consists of more than one
+network.  In order to route IP packets from your machines to these other
+networks, you require to specify <em>gateway</em> hosts (often called
+<em>routers</em>) which deal with sending information to these other
+networks.  There are in general two possibilities.</p>
+
+<p>The first possibility is that we want to route IP packets to a specific
+network, and we know the address of a gateway host or router which deals
+with information for that network.  Suppose, for example, that there is
+a machine 192.168.50.1 on our network, which is a router for the network
+172.20.0.0 (a class B network).  The following options to the
+<prgn>route</prgn> command specify this:
+<example>
+# route add -net 172.20.0.0 gw 192.168.50.1
+</example>
+<p>Since our routing table already contains an entry telling us how to
+send information to 192.168.50.1 (it's on our local network), any traffic
+for the remote network 172.20.0.0 is now sent to that machine, which deals
+with it appropriately.</p>
+
+<p>The other possibility is that we use a certain gateway as a
+<em>default route</em> - a route used for all IP packets which don't
+match other rules in our routing table.  If, for example, the machine
+with IP address 192.168.50.254 is our router to the rest of the world
+(the Internet, for example), we use the <prgn>route</prgn> command as
+follows:
+<example>
+# /sbin/route add default gw 192.168.23.254
+</example>
+<p>At this stage, let's have another look at our routing table:
+<example>
+# /sbin/route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+127.0.0.0       *               255.0.0.0       U     0      0        2 lo
+192.168.50.0    *               255.255.255.0   U     0      0      137 eth0
+172.20.0.0      192.168.50.1    255.255.0.0     UG    1      0        7 eth0
+default         192.168.50.254  0.0.0.0         UG    1      0       36 eth0
+</example>
+	<p>Going through the above table one line at a time:
+<enumlist>
+<item>We first specify a loopback address for all 127.*.*.* addresses</item>
+<item>Next, we specify how to reach all machines on our local network,
+    identified as 192.168.50.*</item>
+<item>Next, we give a route to all machines on the network (172.20.*.*)
+    connected to the machine 192.168.50.1, which is a router (or gateway)
+    for that network</item>
+<item>Finally, we specify that the machine 192.168.50.254 will deal with
+    all other IP traffic</item>
+	  </enumlist>
+</p>
+<p>For now, we won't look at what the the various `flags', `metric' and
+`ref' entries mean.</p>
+
+<p>Let's have another look at a typical <prgn>/etc/init.d/network</prgn>
+file, setup by Debian's installation procedure on a typical
+Ethernet-connected machine:
+<example>
+#! /bin/sh
+ifconfig lo 127.0.0.1
+route add -net 127.0.0.0
+IPADDR=192.168.50.23
+NETMASK=255.255.255.0
+NETWORK=192.168.50.0
+BROADCAST=192.168.50.255
+GATEWAY=192.168.50.254
+ifconfig eth0 ${IPADDR} netmask ${NETMASK} broadcast ${BROADCAST}
+route add -net ${NETWORK}
+[ "${GATEWAY}" ] && route add default gw ${GATEWAY} metric 1
+</example>
+<p>The first two lines of this shell script set up the loopback interface,
+and add an entry to the routing table for it.  The variables which follow
+set up the IP address of our machine, the netmask, the address of our
+local network, the broadcast address, and the IP address of our default
+router.  Finally, our local Ethernet interface is set up with
+<prgn>ifconfig</prgn>, and two invocations of the <prgn>route</prgn>
+command add routing table entries for firstly the local network and
+secondly our default gateway.</p>
+
+<p>You may well find that the addresses (of networks and of machines)
+in the output from the <prgn>route</prgn> command do not appear as
+IP addresses, but are named.  The names of networks can be set up in
+the <prgn>/etc/networks</prgn> file (which is normally set up by a
+Debian's network setup routines at installation times), and the names
+of hosts can come from a variety of machines, including the
+<prgn>/etc/hosts</prgn> file and the Domain Name Service (DNS).
+Let's now have a look at what DNS is and what it does.</p>
+
+</sect>
+
+<sect>Domain Name Service (DNS)
 
 </sect>
     </chapt>
