@@ -20,7 +20,7 @@ validate:
 	nsgmls -ges -wall maint-guide.sgml
 
 clean distclean:
-	rm -f maint-guide*.{txt,ps,dvi,pdf,info*,log,tex} *~
+	rm -f maint-guide*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
 	rm -rf maint-guide*.html
 
 html maint-guide.html/index.html: $(SRCS)
