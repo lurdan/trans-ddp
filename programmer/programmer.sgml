@@ -1,0 +1,368 @@
+<!doctype debiandoc system '/usr/lib/sgml/dtd/debiandoc.dtd' >
+<book>
+<title> Debian Programmers Manual
+<author> Igor Grobman <email>igor@debian.org
+<version> <date>
+<abstract>
+
+This manual describes how to construct a debian package from the original 
+upstream source distribution.  It is oriented towards a programmer new to 
+Debian.  For reference information, try Debian Packaging Manual.
+
+<copyright> Copyright &copy; 1997 Igor Grobman
+
+<p>
+
+This manual is free software; you may redistribute it and/or modify it under 
+the terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 2, or (at your option) any later version.  
+This manual includes parts of documents written by Jaldhar Vyas and Ian Jackson
+  
+<p>
+
+This is distributed in the hope that it will be useful, but
+<em>without any warranty</em>; without even the implied warranty of
+merchantability or fitness for a particular purpose.  See the GNU
+General Public License for more details.
+<p>
+
+You should have received a copy of the GNU General Public License with
+your Debian GNU/Linux system, in <tt>/usr/doc/copyright/GPL</tt>, or
+with the <prgn/debiandoc-sgml/ source package as the file
+<tt>COPYING</tt>.  If not, write to the Free Software Foundation,
+Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+<toc sect>
+
+<chapt id="Introduction"> Introduction and what you need
+
+<sect>Introduction
+
+<p>
+This manual documents the process of making a Debian package.  It is assumed 
+that you have at least familiarized yourself with Debian Policy Manual and 
+Debian Packaging Manual.  You also need them at your disposal, as they are 
+often referenced here.
+
+<sect> Packages you need installed to get started
+
+<p>
+The following packages need to be present on your system in order to build a
+debian package.
+<p>
+
+From the devel section:
+<taglist>
+
+<tag><prgn>binutils</prgn>
+<item>
+The programs in this package are used to assemble and link object files--the 
+stuff programs are made of.
+
+<tag><prgn>gcc</prgn>
+<item>
+This is the GNU C compiler.  Most Linux programs are written in the C 
+programming language.
+
+<tag><prgn> cpp </prgn>
+<item>
+This is the C preprocessor.
+
+<tag><prgn> libc5-dev </prgn>
+<item>
+These are the C libraries and header files gcc needs to link with to create 
+object files.
+
+<tag><prgn> make </prgn>
+<item>
+Typically creating a program will take several steps.  Rather than having to 
+type out the same commands over and over again, you can use the make program 
+to automate the process.
+
+<tag><prgn> dpkg-dev </prgn>
+<item>
+This package contains the tools needed to create Debian archives.  It also 
+contains the Debian Programmers and Policy manuals.
+
+<tag><prgn>debmake</prgn> (optional)
+<item>
+This is a higher level set of tools for creating Debian packages.  It makes the
+whole process tremendously easier.
+</taglist>
+
+<p>
+From the admin section:
+<taglist>
+
+<tag><prgn>sudo </prgn> (optional)
+<item>
+Sudo allows a user to become root temporarily. (In a way controlled by the 
+system administrator of course) You need root access during the package 
+building process.  If you do have root access you don't really need this 
+package but you might want it any way because for security reasons you should 
+do only the most essential actvities while logged in as root.
+
+<tag><prgn> cpio </prgn>
+<item>
+This is an archiver like tar or zip.  Dpkg-dev needs it.
+</taglist>
+<p>
+From the misc section: 
+<taglist>
+
+<tag><prgn>file </prgn>
+<item>
+This handy program can determine what type a file is.  Dpkg-dev needs it.
+
+<tag><prgn> patch </prgn>
+<item>
+Patch will take a file containing a difference listing produced by the diff 
+program and apply it to an original fan, producing a patched version.
+<tag><prgn> hello </prgn>
+<item>
+This is an example package for debian developers.  I will often refer to it in
+this document.
+
+</taglist>
+
+<p>
+	Also you need the encryption package pgp to digitally
+"sign" your package.  This is especially important if you want to
+distribute your package to other people.  However due to a rather wacky
+U.S. law, you cannot simply download this from your nearest Debian ftp
+site.  The ftp site will however have a file called README.non-us in its
+root directory which will tell you how to get a copy of pgp.
+
+
+<chapt id="tools"> Discussion of Debian packaging tools
+<p> 
+This chapter provides an overview of the tools available for Debian developers.
+If this is your first time reading this manual,and you want to see how to make
+the debian package first, you may skip this chapter and come back to it later.
+
+<p>
+There are 2 classes of debian packaging tools.  Those that come with dpkg and 
+dpkg-dev are mandatory for building packages.  Debmake provides a set of tools
+which are not mandatory and are there to help you in your development.  They 
+have a number of drawbacks, especially debstd, but they make creating a debian 
+package that much easier at first.  
+<p>
+All dpkg-dev tools are described in section 3.1 of Debian Packaging Manual.  
+Please look it over before proceeding.
+
+<sect> debmake tools
+<p>
+Below you will find a list of debmake tools with simple descriptions.  Every 
+tool has its own manpage.  Please refer to them for more information. 
+
+<taglist>
+<tag><prgn>deb-make</prgn>
+<item> 
+Should be run from the directory where the upstream source is unpacked.  
+Renames that directory to package-version.orig and sets up debian directory 
+structure and files. 
+
+<tag><prgn>debchange, debch</prgn>
+<item>
+Manages debian/changelog file
+
+<tag><prgn>todo, done</prgn>
+<item>
+Manage todo list for a debian package
+
+<tag><prgn>build</prgn>
+<item>
+Invokes dpkg-buildpackage if given no arguments, runs <tt>debian/rules argument</tt> when an argument is given.
+
+<tag<prgn>debstd</prgn>
+<item>
+usually executed from debian/rules. Has numerous functions, including putting 
+the documentation in proper place and compressing it if necessary, running on
+dpkg-shlibdeps on all binaries found, checking for and fixing dangling 
+symlinks and multi-binary packages support.  Some of these features will be 
+discussed further in this manual, others won't be.  Please refer to <manref
+name="debstd" section="1"> for the complete description of debstd.
+
+<tag><prgn>debc</prgn>
+<item>
+lists the contents of debian package
+
+<tag><prgn>debi</prgn>
+<item>
+Installs the package produced from the source tree it was invoked from.
+
+<tag><prgn>deblint</prgn>
+<item>
+unpacks the package and performs various checks on the contents.
+
+<tag><prgn>release</prgn>
+<item>
+uploads the package using dupload, if it is installed or using ssh, if dupload
+isn't installed.  Posts the announcement to appropriate mailing lists.
+
+<tag><prgn>uupdate</prgn>
+<item>
+updates the source package using new upstream source of patch file.
+
+</taglist>
+
+<sect>Execution trees
+<p>
+In order to see how debian packaging process works, the following execution 
+trees might be helpful.  They show which tools should be executed by maintainer
+and which are only called internally by other tools.
+<p>
+Here is how the process looks like without debmake:
+
+<example>
+
+(maintainer creates the debian structure)
+dpkg-buildpackage
+     dpkg-parsechangelog
+     dpkg-source
+     rules clean
+     rules binary
+          dpkg-shlibdeps
+          dpkg-gencontrol
+          dpkg-deb --build
+     dpkg-genchanges
+(maintainer checks and tests the package)
+</example>
+
+<p>
+And here is how it looks like with debmake tools:
+
+<example>
+
+deb-make or uupdate 
+debchange
+dpkg-buildpackage or build
+    dpkg-parsechangelog
+    dpkg-source
+    rules clean
+    rules binary
+         debstd
+              dpkg-shlibdeps
+         dpkg-gencontrol
+         dpkg-deb --build     
+    dpkg-genchanges
+debc
+deblint
+debi
+release
+</example>
+
+<chapt id="preparation"> Getting the Source and creating debian structure.
+
+<sect>Getting the source 
+<p>
+
+You should get the source from a site that is listed as official distribution 
+site in the documentation of the program you are debianizing. This way, you 
+make sure you have the latest version, and that the program has not been 
+modifieed by anyone.  Unfortunately, the hello program did not have the 
+official site mentioned in its documentation, but since it is a GNU program, I
+assumed its home site must be ftp.gnu.ai.mit.edu.  If you don't see such 
+indications, you might want to contact the author of the program, and ask him.
+<p>  
+Usually, you should contact the upstream author anyway to let him know what you
+are doing.  You  should also remember the name of the site you downloaded the 
+program from, because you will need it later, when you will be creating the 
+copyright file, and when checking for a new upstream version.
+
+<sect> Creating debian structure
+<p>
+If you have debmake installed on your system, and would like to use it, then
+all you have to do to create debian dirs and files is do the following:
+
+<enumlist>
+
+<item>
+unpack the source file to a directory whose name is in the
+package-version format, removing any  capital letters, if present.  
+It looks like this: <example>hello-1.3</example>
+
+<item>
+Cd to that directory and type <tt>deb-make</tt>.  You will see your e-mail
+address, date, your name, the name of the package and version on your
+screen.  Make sure all are correct, then you'll see a list of options like
+the following:
+<p>
+<example>Type of Package: (S=Single binary, M=multi-binary, L=Library, X=abort?
+s/m/l/x</example>
+<p>
+You are most likely to be packaging a single binary package, so choose "S". 
+Note that Multi-binary package implies that it will produce more than one .deb
+file, not that it will have more than one binary executable.
+
+<item>
+You will see that debian directory has been created, and that the
+original directory has been renamed to package-version.orig.  Edit the
+necessary files in debian directory.  You will need to edit at least
+control, rules, changelog and copyright files.  See below for more information.
+For discussion on the structure of the rules file, see  
+<ref id="rules">
+
+</enumlist>
+
+<p>
+Without debmake the process is slightly more complicated.
+<p>
+Unpack the original upstream source into package-version.orig,directory 
+and another copy in package-version.  It is best not to touch the sources in 
+the .orig directory, but if the upstream source requires modification in order
+to debianise it, you may do so, but make sure to document your changes in the 
+copyright file.  Create debian directory and the following files inside it:
+<list>
+<item>control      
+<item>rules
+<item>changelog 
+<item>copyright
+</list>
+
+<sect> Debian files
+<p>
+<em>control</em> file consists of a number of required fields:  The information
+from these fields is used in several other control files automatically created 
+by dpkg in the build stage.  The following fields are required in the control 
+file, please refer to Packaging Manual for detailed descriptions.
+<list>
+<item>Source
+<item>Section
+<item>Priority
+<item>Maintainer
+<item>Standards-Version
+<item>Package
+<item>Architecture
+<item>Description
+</list>
+
+<p>
+Pre-depends, Depends, Recommends and Suggests fields describe the 
+interrelationships between packages.  They are not required, but most packages 
+do need them.  These fields should not be hard coded. Instead, the variable 
+<tt>${shlibs:Relationship}</tt> should be used.  For example, 
+<tt>Depends:${shlibs:Depends</tt> and <tt>Suggests: ${shlibs:Suggests}</tt>
+are properly formatted fields.  The variables are filled by dpkg-shlibdeps 
+program which will be covered in <ref id="rules">
+<p>
+<em>rules</em> is covered in <ref id="rules">
+<p>
+<em>changelog</em>  file has a special format described in section 3.2.3 of 
+Debian Packaging Manual.  This format is used by dpkg to obtain the version 
+number of debian package and other information.  If you used <prgn>deb-make
+</prgn> to create your source package, the file is already in the correct 
+format, and the only thing you need to do is record your changes.
+<p>
+<em>copyright</em>  file does not have any special format, but it must contain 
+the following: 
+<list>
+<item> Name of the person who debianised the package,
+<item> the site where the upstream source was downloaded from,  
+<item> the list of modifications made to the original source in the process of
+debianising it.  
+</list>
+
+<chapt id="rules"> Rules File Structure
+
+</book>
