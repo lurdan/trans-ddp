@@ -3,12 +3,29 @@
 # This should solve issues with debiandoc for CJK
 # This should solve issues with debiandoc for Polish quotation if fixed.
 
-# $1 locale (Normal pt_BR style)
-# $2 directory
-case $1 in
+# $1 locale (normal pt_BR style)
+# $2 .tex filename
+
+locale=$1
+file=$2
+
+dir=$(echo $locale | tr [A-Z]_ [a-z]-) # change pt_BR to pt-br
+
+# include $dir/LaTeXmacros.sty file with language specific macros and
+# LaTeXmacros.sty for general use in all translations
+# (these files do not need to exist)
+sed '/\\documentclass/ a\
+\\InputIfFileExists{LaTeXmacros.sty}{}{}\
+\\InputIfFileExists{'$dir'/LaTeXmacros.sty}{}{}' $file > $file.tmp
+mv $file.tmp $file
+
+case $locale in
 ("pl")
-	# real substitution makes this useful
-	: # perl -i -p -e 's/,,/"/g;' -e "s/''/\"/g;" $2 
+	# '' in " ''|          \# usuwa znaki CR" isn't a quote, protect it
+	cat $file | sed "/ ''| *\\\\# usuwa znaki CR/ s/''/'{}'/" | \
+	# use double quotes ,,text'', LaTeX: "`text"'
+	sed -e "s/\`\`/\"\`/g" -e "s/,,/\"\`/g" -e "s/''/\"'/g" > $file.tmp
+	mv $file.tmp $file
 	;;
 
 ("zh_TW")
@@ -22,10 +39,10 @@ case $1 in
 -e 's/([\x80-\xff])\\textasciicircum\{\}/$1\^/g;' \
 -e 's/([\x80-\xff])\\\}/$1\}/g;' \
 -e 's/([\x80-\xff])\\\{/$1\{/g;' \
--e 's/([\x80-\xff])\\\_/$1_/g;' $2
+-e 's/([\x80-\xff])\\\_/$1_/g;' $file
 	;;
 
-("zh-cn")
+("zh_CN")
 	perl -i -p \
 -e 's/(^\\documentclass\[.*\,)chinese(\].*$)/$1english$2/g;' \
 -e 's/(^\\usepackage\[)big5(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
@@ -36,7 +53,7 @@ case $1 in
 -e 's/([\x80-\xff])\\textasciicircum\{\}/$1\^/g;' \
 -e 's/([\x80-\xff])\\\}/$1\}/g;' \
 -e 's/([\x80-\xff])\\\{/$1\{/g;' \
--e 's/([\x80-\xff])\\\_/$1_/g;' $2
+-e 's/([\x80-\xff])\\\_/$1_/g;' $file
 	;;
 (*)
 	: # do nothing

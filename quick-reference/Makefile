@@ -75,14 +75,7 @@ TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile README index.php
 # =================================================================== #
 #                 Build target default part: Routine                  #
 # =================================================================== #
-# If some languages have problems building, filter-out in here.
-
-# Version list
-README: README.org
-	cat README.org > README
-	-bin/doc-check -ha  >README.html
-	-w3m -dump -cols 72 README.html >>README
-	-rm README.html
+all: html txt ps pdf README
 
 ### Full guide
 
@@ -117,7 +110,6 @@ PDFS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).pdf)
 # =================================================================== #
 # If some languages have problems building, filter-out in here.
 
-all: html txt ps pdf
 html1: $(HTMLS1)
 html2: $(HTMLS2)
 html: html1 html2
@@ -158,6 +150,13 @@ $(MANUAL2).%.ent:
 	# if "Debian Quick Reference" (about 20 pages max)
 	echo "<!ENTITY % f-ref   \"IGNORE\">" >> $@ 
 	echo "<!ENTITY % q-ref   \"INCLUDE\">" >> $@
+
+# Version list
+README: README.org
+	cat README.org > README
+	-bin/doc-check -ha  >README.html
+	-w3m -dump -cols 72 README.html >>README
+	-rm README.html
 
 # =================================================================== #
 #                 Build rule part: Routine                            #
@@ -426,28 +425,60 @@ sf-test:
 sf-clean:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn pl" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn pl" distclean 
 
-scp: publish-all scp0
+scp: publish-all scp-all
+
+scp-all:
+	echo SCP all files
+#	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
+	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	make BUILD_TYPE=sf scp0
+	#sleep 1m
+	make BUILD_TYPE=sf scp1
+	#sleep 6m
+	make BUILD_TYPE=sf scp2
 
 scp0:
-	echo SCP strat
-#	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
-	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/
-
 	echo SCP README
-	scp -p README \
+	scp -pC README \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
-
-	echo SCP $(MANUAL1)
-	scp -pr $(PUBLISHDIR)/$(MANUAL1)/ \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
-
-	echo SCP $(MANUAL2)
-	scp -pr $(PUBLISHDIR)/$(MANUAL2)/ \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
-
 	echo SCP $(MANUAL0).tar.gz
 	scp -p $(PUBLISHDIR)/$(MANUAL0).tar.gz \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
+
+scp1:
+	echo SCP $(MANUAL1) html
+	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.html \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+
+	echo SCP $(MANUAL1) txt
+	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.txt \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+
+	echo SCP $(MANUAL1) PS
+	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.ps \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+
+	echo SCP $(MANUAL1) PDF
+	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.pdf \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)
+
+scp2:
+	echo SCP $(MANUAL2) html
+	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.html \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+
+	echo SCP $(MANUAL2) txt
+	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.txt \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+
+	echo SCP $(MANUAL2) PS
+	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.ps \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+
+	echo SCP $(MANUAL2) PDF
+	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.pdf \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
 #====[ validating SGML ]=======================================================
 validate:
