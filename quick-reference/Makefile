@@ -211,8 +211,8 @@ $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 
 # TAR
 
-$(MANUAL1).tar.gz: $(TARSRCS)
-	@tar cvzf $(MANUAL1).tar.gz $(TARSRCS)
+$(MANUAL0).tar.gz: $(TARSRCS)
+	@tar cvzf $(MANUAL0).tar.gz $(TARSRCS)
 
 # =================================================================== #
 #                 Build rule part: Web publish                        #
@@ -308,9 +308,11 @@ publish-examples: $(EXAMPLES)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)
 	@install -p -m 644  --preserve-timestamps \
 	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/
-	test -d $(PUBLISHDIR)/$(MANUAL2) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
-	cd $(PUBLISHDIR)/$(MANUAL2) ; rm -f $(EXAMPLE) ; ln -sf ../$(MANUAL1)/$(EXAMPLE) $(EXAMPLE)
+
+# No more example for short document
+#	test -d $(PUBLISHDIR)/$(MANUAL2) \
+#	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
+#	cd $(PUBLISHDIR)/$(MANUAL2) ; rm -f $(EXAMPLE) ; ln -sf ../$(MANUAL1)/$(EXAMPLE) $(EXAMPLE)
 
 
 publish-txt:  publish-txt1 publish-txt2

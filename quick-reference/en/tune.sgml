@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.28 $"  -->
+<!-- CVS revision of this document "$Revision: 1.29 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
 <p>
@@ -523,6 +523,7 @@ id="&remote-xapps-howto;" name="Remote X Apps mini-HOWTO">.
 <p>
 There are several ways of getting the "X server" (display side) to accept 
 remote connections from an "X client" (application side):  
+
 <list>
 <item><prgn>xhost</prgn>
 <list compact>
@@ -561,6 +562,45 @@ remote connections from an "X client" (application side):
 All remote connection methods, except <prgn>ssh</prgn>, require TCP/IP
 connection enabled on the X server.  See <ref id="xtcp">.
 
+<sect1 id="custom-x">Customizing X start-up process
+<p>
+X session can be started by:
+<list compact>
+<item><prgn>startx</prgn>: wrapper script for <prgn>initx</prgn> to 
+ start X server and client.  
+<item><prgn>xdm</prgn>, <prgn>gdm</prgn>, <prgn>kdm</prgn>, or
+ <prgn>wdm</prgn>: X display manager to start X server and client
+</list>
+<p>
+Either case, <file>/etc/X11/Xsession</file> is sourced as the default.
+<p>
+If <file>~/.xsession</file> or <file>~/.Xsession</file> exist,
+the action of <file>/etc/X11/Xsession</file> is replaced by one of
+these and X can be customized.  (<file>~/.xinitrc</file> and
+<file>~/.xserverrc</file> are called by <file>/etc/X11/Xsession</file>,
+so use of <file>~/.xsession</file> usually overides and disables 
+these settings.)
+<p>
+Although you can write full X start up process in <file>~/.xsession</file>,
+it is redundant and cumbersome.  In order to leverage standard
+<file>/etc/X11/Xsession</file> script, I propose to add 
+<file>/etc/X11/Xsession.d/98xfree86-common_environment</file>, 
+as root owned file containing the following lines:
+<example>
+if [ -f "$HOME/.xenvironment" ]; then
+    . $HOME/.xenvironment
+fi
+</example>
+<p>
+This enables one to run a simple additional user customized configuration 
+script <file>~/.xenvironment</file> right before the real start up script
+<file>/etc/X11/Xsession.d/99xfree86-common_start</file> while keeping
+the rest of the default start up script process in tact.
+<p>
+I use this to set window manager, screen acess and language support
+for each user account.
+
+
 <sect1 id="xsrvr">X server
 <p>
 See <manref name="XFree86" section="1x"> for X server information.
@@ -576,6 +616,15 @@ $ startx -- :&lt;display&gt; vtXX
 e.g.:
 $ startx -- :1 vt8
 ... start on vt8 connected to localhost:1
+</example>
+Its start up can be customized by <file>~/.xserverrc</file>.
+<p>
+Note, when using a <file>~/.xserverrc</file> script, be sure to  
+<tt>exec</tt>  the  real  X server.   Failing  to  do  this can make 
+the X server slow to start and exit. For example:
+<example>
+#!/bin/sh
+exec /usr/bin/X11/X -dpi 100 -nolisten tcp
 </example>
 </sect1>
 
@@ -624,6 +673,17 @@ $ export DISPLAY=:0
 $ export DISPLAY=<var>hostname.fulldomain.name</var>:0.2
 $ export DISPLAY=localhost:0
 </example>
+Its start up can be customized by <file>~/.xinitrc</file>.  For example:
+<example>
+xrdb -load $HOME/.Xresources
+xsetroot -solid gray &amp;
+xclock -g 50x50-0+0 -bw 0 &amp;
+xload -g 50x50-50+0 -bw 0 &amp;
+xterm -g 80x24+0+0 &amp;
+xterm -g 80x24+0-0 &amp;
+twm
+</example>
+
 </sect1>
 
 <sect1 id="xtcp">TCP/IP connection to X
@@ -694,6 +754,7 @@ were locally connected through a local UNIX domain socket.
 Learn everything about <prgn>xterm</prgn> at <url id="&xtermfaq;">.
 </sect1>
 
+
 <sect1 id="ss-xsu">Gain root in X
 <p>
 If a GUI program needs to be run with root privilege, use the following
@@ -714,15 +775,13 @@ Password:*****
 When using this trick to <prgn>su</prgn> to a non-root user, make
 sure <file>$HOME/.Xauthority</file> is group readable by this non-root user.
 <p>
-This command sequence can be automated by adding a few files.  From the root
-account, create the file
-<file>/etc/X11/Xsession.d/00xfree86-common_environment</file>, containing
-the following lines:
-<example>
-if [ -f "$HOME/.xenvironment" ]; then
-    . $HOME/.xenvironment
-fi
-</example>
+This command sequence can be automated by adding a few files.  
+Fist set up <file>/etc/X11/Xsession.d/98xfree86-common_environment</file> 
+as described in <ref id="custom-x">.
+
+<!-- this section moved up -->
+
+<p>
 From the user account, create the file <file>$HOME/.xenvironment</file> in
 the user's home directory, containing following lines:
 <example>
@@ -788,7 +847,7 @@ some convienience packages have been created:
 <list compact>
 <item><package>ttf-commercial</package>
 <item><package>msttcorefonts (>1.1.0)</package> (Package in Woody does 
- not work as of 8/2002 due to the change in Microsoft's website)
+ not work as of 8/2002 due to the change in Microsoft's website.)
 </list>
 You'll have a really good selection of TT fonts at the expense of
 contaminating your <strong>Free</strong> system with non-Free fonts.
@@ -801,6 +860,7 @@ as of the Woody release:
 <item><package>mozilla</package> The Mozilla browser (new)
 <item><package>galeon</package> Mozilla-based browser with a Gnome UI (new)
 <item><package>konqueror</package> KDE browser
+<item><package>dillo</package> GTK browser
 <item><package>amaya-gtk</package> W3C reference browser
 <item><package>amaya-lesstif</package> W3C reference browser
 <item><package>netscape-...</package> (many, old)
@@ -825,51 +885,8 @@ Plug-in resources:
 </list>
 </sect1>
 
-<sect1 id="x-cjk">CJK and X
-<p>
-Reference: 
-<list compact>
-<item><ref id="l10n">
-<item><url id="&suse-cjk;" name="SuSE pages for CJK">
-</list>
-<p>
-Here, let us try for Japanese:
-<list>
-<item>install Japanese packages:
- <list compact>
- <item><package>kinput2-canna-wnn</package> &mdash; An input server 
-   for X11 applications.
- <item><package>kterm</package>, <package>mlterm</package>, and 
-  <package>jfbterm</package>: Japanese-compatible terminals.
- <item><package>egg</package> &mdash; Input Method Architecture for Emacsen.
- <item><package>canna</package> &mdash; A Japanese input system (server and dictionary).
- <item><package>freewnn-jserver</package> &mdash; Network-extensible Kana-to-Kanji conversion system.
- <item>... and all the Japanese font packages.
- </list>
- <p>
- In reality, use <prgn>tasksel</prgn> or <prgn>aptitude</prgn> to select
- "Japanese environment" and avoid installing software that conflicts
- with the normal system.
-<item>add a locale that supports Japanese characters 
- (e.g., ja_JP.UTF-8; see <ref id="l10n">).
-<item>add the following environment values in <file>~/.xenvironment</file>
-  using the same trick used in <ref id="ss-xsu">.
-<example>
-XMODIFIERS="@im=kinput2"
-LC_CTYPE=ja_JP.UTF-8 # some Japanese locale
-</example>
-(Or manually do so in <prgn>xterm</prgn> before starting an application.)
-<item>activate XIM <prgn>kinput2</prgn> by adding
- <tt>*inputMethod: kinput2</tt> to your X resources file 
- (looks like Debian takes care of this).
-<item>Some applications (such as <prgn>mlterm</prgn>) also allow 
-  you to set up <tt>*inputMethod:</tt> information dynamically 
-  at runtime (press Ctrl-MouseButton-3 in mlterm).
-<p>
-</list>
-Once you have started the application, press 
-"<strong>Shift+Space</strong>" and a
-window should pop up stating that you now may input Japanese characters.
+<!-- CJK and X moved to bottom with different name to locale section -->
+
 </sect>
 
 <sect id="ssh">SSH
@@ -1201,25 +1218,30 @@ your working environment to allow current input and output of your chosen
 language(s) and conventions for dates, numeric and monetary formats, and other
 aspects of a system that differ according to your region.
 
-<sect1 id="languages">Language support
+<sect1 id="languages">Customizing basics
 <p>
-<taglist>
-  <tag>Keyboard
-   <item>&debian; is distributed with keymaps for nearly two dozen
-    keyboards, and with utilities (in the <package>kbd</package> 
-    package, or in the <package>console-tools</package> package plus the
-    <package>kbd-compat</package> package) to install, view, 
-    and modify the tables. 
-    <p>
-    Should you need to install a different keyboard, simply run
-<example>
-# dpkg-reconfigure console-data
-</example>
-    and debconf will prompt you for the keymap to use.
- <tag>Data
-  <item>The vast majority of Debian software packages support handling
-    non-US-ASCII characters through <tt>locale</tt> technology offered by glibc
+There are few aspects to the customization for the localization and national 
+language support.
+
+<sect2 id="keyboard">Keyboard
+<p>
+&debian; is distributed with keymaps for nearly two dozen
+keyboards.  In Woody, re-configure keyboard by:
+
+<list compact>
+<item><tt>dpkg-reconfigure console-data      # for console</tt>
+<item><tt>dpkg-reconfigure xserver-xfree86   # for XFree86 v4</tt>
+<item><tt>dpkg-reconfigure xserver-common-v3 # for XFree86 v3</tt>
+</list>
+</sect2>
+
+<sect2 id="data-stream">Data
+<p>
+The vast majority of Debian software packages support data 
+    handling of non-US-ASCII characters through the LC_CTYPE environment 
+    variable offered by the <strong>locale</strong> technology in glibc 
     (see <ref id="locales">).
+   
     <list compact>
     <item>8-bit clean: practically all programs
     <item>other Latin character sets (e.g. ISO-8859-1 or ISO-8859-2): the
@@ -1227,19 +1249,32 @@ aspects of a system that differ according to your region.
     <item>multi-byte languages such as Chinese, Japanese or Korean:
 		  many new applications
     </list>
-    <p>
- <tag>Display
-  <item>X can support all fonts.  The list includes not only all the 
-    8-bit fonts but also 16-bit fonts such as Chinese, Japanese or Korean.
-    See <ref id="x-cjk">.
-  <tag>Translation
-  <item>Translations exist for many of the text messages and documents that
+</sect2>
+
+<sect2 id="display">Display
+<p>
+X can dsplay any coding including UTF-8 and support all fonts.
+The list includes not only all the 8-bit fonts but also 16-bit fonts 
+such as Chinese, Japanese or Korean.  Multi-bite character input
+method is supported by XIM mechanism.   See <ref id="x-cjk">.
+<p>
+Japanese EUC code display is also available in (S)VGA graphics console 
+through <package>kon2</package> package.  This <package>kon2</package> 
+environment requires the use of <package>egg</package> package in the 
+Emacs environment for the Japanese character input.
+</sect2>
+
+<sect2 id="translatiion">Translation
+<p>
+Translations exist for many of the text messages and documents that
     are displayed in the &debian; system, such as error messages, standard
     program output, menus, and manual pages.
     Currently, support for manual pages in German, Spanish, Finnish, French,
     Hungarian, Italian, Japanese, Korean and Polish
     is provided through the <tt>manpages-<var>LANG</var></tt> packages (where
-    <var>LANG</var> is the two-letter ISO country code). 
+    <var>LANG</var> is a comma separated list of the two-letter ISO 
+    country code.  Use <tt>apt-cache search manpages-|less</tt> to get a 
+    list of available unix manual pages.)
     <p>
     To access an NLS manual page, the user must set the environment variable
     LC_MESSAGES to the appropriate string. For example, in the case of the 
@@ -1247,7 +1282,8 @@ aspects of a system that differ according to your region.
     LC_MESSAGES needs to be set to <tt>it</tt>.  The <prgn/man/ program will
     then search for Italian manual pages under <file>/usr/share/man/it/</file>.
     See <ref id="locales"> for more information on setting locale variables.
-</taglist>
+</sect2>
+</sect1>
 
 <sect1 id="locales">Locales
 <p>
@@ -1326,26 +1362,174 @@ available locales; see <manref name="locale" section="1">. (NOTE: <tt>locale
 <em>not</em> mean that all of them are compiled! See
 <ref id="activate-locales">.)
 
-<sect1 id="beyond-locale">Beyond <tt>locale</tt>
+<sect1 id="ISO-locale">ISO 8601 date format locale
+<p>
+The locale support for the international date standard of <tt>yyyy-mm-dd</tt>
+(ISO 8601 date format) is provided by a locale called <tt>en_DK</tt>, 
+&mdash; <strong>English in Denmark</strong> which is a bit of joke :-)
+This seem to only work in console screen.
+
+<!-- beyond locale moved to below -->
+
+<sect1 id="iso-8859-1">Example for the US (ISO-8859-1)
+<p>
+Add following lines into <file>~/.bash_profile</file>:
+<example>
+LC_CTYPE=en_US.ISO-8859-1
+export LC_CTYPE
+</example>
+
+<sect1 id="france">Example for France with euro sign (ISO-8859-15)
+<p>
+Add following lines into <file>~/.bash_profile</file>:
+<example>
+LANG=fr_FR@euro
+export LANG
+LC_CTYPE=fr_FR@euro
+export LC_CTYPE
+</example>
+<p>
+Configure keyboard for French "AZERTY" as described in <ref id="keyboard">.
+and add French manual page by installing <package>manpages-fr</package>.
+<p>
+Most western European languages can be configured similary.
+<p>
+See <url id="&debian-euro-support;" name="Debian Euro HOWTO"> for 
+adding support for the new euro currency and 
+<url id="&debian-fr-howto;" name="Utiliser et configurer Debian pour le franc,ais"> 
+for more details in French.
+
+<sect1 id="x-cjk">Example for the bilingual system (Japanese EUC and ISO-8859-1)
+<p>
+Let us set up bilingual system: ja_JP.eucJP (Japanese EUC, traditional 
+Unix Japanese environment) in X with English message and ISO type date, 
+and  en_US.ISO-8859-1 (almost ASCII with accented character support) 
+in Linux console.
+<list>
+
+ <item>add a locale support for Japanese ja_JP.eucJP locale 
+  using method described at <ref id="l10n">.
+
+ <item>install Kana-to-Kanji conversion system and dictionary:
+  <list compact>
+  <item><package>canna</package> &mdash; Local server (free bear license), or
+  <item><package>freewnn-jserver</package> &mdash; Network-extensible server 
+   (Public Domain)
+  </list>
+
+ <item>install Japanese input method system:
+  <list compact>
+  <item><package>kinput2-canna</package> &mdash; for X, or
+  <item><package>kinput2-canna-wnn</package> &mdash; for X, and
+  <item><package>egg</package> &mdash; directly works with Emacsen even 
+    in console (optional)
+  </list>
+
+ <item>Japanese-compatible terminal:
+  <list compact>
+  <item><package>kterm</package> &mdash; X (classic),
+  <item><package>mlterm</package> &mdash; X (very neat, variable font size), and 
+  </list>
+
+ <item>add all the Japanese font packages.
+ 
+ <item>create <file>/etc/X11/Xsession.d/98xfree86-common_environment</file>
+  as described in <ref id="custom-x"> which allow user specific X environment 
+  independent of starting methods (<prgn>startx</prgn>, <prgn>xdm</prgn>, ...)
+  
+ <item>create <file>~/.xenvironment</file> which sets user specific X 
+  environment:
+
+<example>
+#!/bin/sh
+# POSIX compliant script
+
+# This makes X work when I su to root.
+if [ -z "$XAUTHORITY" ]; then
+	XAUTHORITY=$HOME/.Xauthority
+	export XAUTHORITY
+fi
+
+# Japanese locale as default, C locale as backup
+LANG=ja_JP.eucJP:C     
+export LANG
+# make sure to over write en_US.ISO-8859-1 usaed in console
+LC_CTYPE=ja_JP.eucJP
+export LC_CTYPE
+# I want menu message to be English in ASCII :-)
+LC_MESSAGES=C
+export LC_MESSAGES
+# activate input method
+kinput2 &        
+XMODIFIERS=@im=kinput2
+export XMODIFIERS
+</example>
+
+ <item>add following lines into <file>~/.bash_profile</file>:
+<example>
+LC_CTYPE=en_US.ISO-8859-1
+export LC_CTYPE
+# For ISO yyyy-mm-dd date display, more natural for Japanese :-)
+LC_TIME=en_DK.ISO-8859-1
+export LC_TIME
+</example>
+
+ <item>add following lines into <file>~/.muttrc</file>:
+<example>
+# set encoding: default order = us-ascii --&gt; iso-8859-1 --&gt; utf-8
+# (UTF-8 support is not popular in popular EMACS environment)
+#set send_charset="us-ascii:iso-8859-1:utf-8"
+# set encoding: order = us-ascii --&gt; iso-8859-1 --&gt; iso-2022-jp
+set send_charset="us-ascii:iso-8859-1:iso-2022-jp"
+set allow_8bit=no
+</example>
+<!-- I need to add non-mime as preffered -->
+ <item>activate XIM <prgn>kinput2</prgn> for application
+  <list compact>
+  <item>add <tt>*inputMethod: kinput2</tt> to your X resources file
+  (looks like Debian takes care of this by files in ).
+  <item>Some applications (such as <prgn>mlterm</prgn>) also allow 
+  you to set up <tt>*inputMethod:</tt> and other information dynamically 
+  at runtime (press <strong>Ctrl-MouseButton-3</strong> in <prgn>mlterm</prgn>).
+  </list>
+ <item>start X by typing <tt>startx</tt> or from one of display
+  manager (xdm, gdm, kdm, wdm, ...)
+ <item>start the Japanese compatible application: 
+  VIM6, (x)emacs21, mc-4.5, mutt-1.4, ...
+  (Emacs seems most popular platform, thought I do not use it.)
+ <item>press "<strong>Shift+Space</strong>" to toggle Japanese 
+  character input mode on and off.
+</list>
+See also <url id="&suse-cjk;" name="SuSE pages for CJK">.
+
+<sect1 id="x-utf-8">Example for UTF-8 in X
+<p>
+We need this for everyone in the future.  
+See <url id="&unicode-howto;" name="The Unicode HOWTO">.
+
+<sect1 id="fb-utf-8">Example for UTF-8 in FB console
+<p>
+UTF-8 support on FB console is provided by <package>jfbterm</package>.
+
+<sect1 id="beyond-locale">Beyond locale
+<p>
+If you are setting system up only for a <strong>national language 
+environment</strong>, use <prgn>tasksel</prgn> or 
+<prgn>aptitude</prgn> to select a language environment such as 
+"Japanese environment" task which should ease this initial baseline setup.
+If you encounter any dependency conflicts, avoid installing software 
+that conflicts with the normal system. 
 <p>
 Programs may need to be configured beyond <tt>locale</tt> configuration
 to enable a comfortable working environment.
-<p>
 The <package>language-env</package> package and its command 
 <prgn>set-language-env</prgn> greatly eases the configuration of the national
 language environment on a &debian; system.
 <p>
-Also, language-specific entries in the "task" system accessed through 
-<prgn>tasksel</prgn> or <prgn>aptitude</prgn> are another useful
-resource.
-<P>
-For X examples, see <ref id="x-cjk">.
-<p>
-For more information, see <url id="&suse-cjk;" name="SuSE pages for CJK">.
 Also see the internationalization document, <url id="&intro-i18n;" 
 name="Introduction to i18n">. It is aimed at developers but is also 
 useful for system administrators.
-
 </sect1>
+
 </sect>
 </chapt>
