@@ -25,7 +25,7 @@ publish: all
 	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
 # possible non-POSIX syntax below. fuck POSIX.
 	cd $(PUBLISHDIR)/$(manual) && for file in *.en.html; do \
-          ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
+          ln -sf $$file $${file%$${file#$${file%.en.html}}}.html; \
         done
 	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
 	ln -sf $(manual).en.txt $(PUBLISHDIR)/$(manual)/$(manual).txt
@@ -50,6 +50,7 @@ html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 	$(MAKE) -C pt_BR $@
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
+	rm -rf $(manual).html $(manual).$(currentlang).html
 	debiandoc2html -c -l $(currentlang) $<
 	mv $(manual).html $(manual).$(currentlang).html
 
@@ -74,7 +75,7 @@ ps dvi pdf info: %: $(manual).$(currentlang).%
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
-	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
+	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,out,sasp*}
 	rm -f faqdynamic.ent *~ .*~ core tsa*
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
