@@ -1,8 +1,39 @@
-<!-- CVS revision of this document "$Revision: 1.12 $"  -->
+<!-- CVS revision of this document "$Revision: 1.13 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
+<p>
+This chapter only describe basics of system configuration.  Prerequisite
+of this chapter is reading of <ref id="install">.  
+<p>
+Also for the security concious, 
+it is highly recommended to read <url id="&securing-debian-howto;" 
+name="Securing Debian Manual"> which can also be found as 
+<package>&p-securing-debian-howto;</package> package.
 
-<sect id="hdtune">Hardware access optimization
+<sect id="init-hints">System initialization hints
+<p>
+See <ref id="init"> for the basics of &debian; init script.
+
+<sect1 id="init-defaults">Customizing init script
+<p>
+&debian; uses sys-V init sctript system.  Although all these init scripts 
+in <file>/etc/init.d/*</file> are marked as conffiles and sysadmins 
+are free to modify them, customizing these init scripts through
+editting files in <file>/etc/defaults/*</file> are preffered approach.
+<p>
+For example <file>/etc/init.d/rcS</file> can customize
+boot time defaults for <prgn>motd</prgn>, <prgn>sulogin</prgn>, ....
+
+<sect1 id="syslogd">Customizing system logging
+<p>
+System log mode can be configured <file>/etc/syslog.conf</file>.
+Check the <package>colorize</package> package for a program to 
+colorize system log files.
+See <manref name="syslogd" section="8"> and 
+<manref name="syslog.conf" section="5">.
+</sect1>
+
+<sect1 id="hdtune">Hardware access optimization
 <p>
 There are few hardware optimization configurations which &debian; leaves 
 them to the sysadmin to take care.
@@ -11,8 +42,8 @@ them to the sysadmin to take care.
  <list compact>
 <item>Hard disk access optimization. Very effective.
 <item>Dangerous. You must read <manref name="hdparm" section="8"> first.
-<item>"<tt>hdparm -tT /dev/hda</tt>" to test disk access spead.
-<item>"<tt>hdparm -c1 -d1 -u1 -m16 -A /dev/hda</tt>" to spead up modern
+<item><tt>hdparm -tT <var>/dev/hda</var></tt> to test disk access spead.
+<item><tt>hdparm -c1 -d1 -u1 -m16 -A <var>/dev/hda</var></tt> to spead up modern
  IDE system. (It may be dangerous.)
  </list>
 
@@ -34,6 +65,16 @@ them to the sysadmin to take care.
 <item><package>hwtools</package>
  <list compact>
 <item>Collection of tools for low-level hardware management.
+  <list compact>
+   <item>irqtune: changes the IRQ priority of devices to allow devices that
+   require high priority and fast service (e.g. serial ports, modems) to
+   have it.
+   <item>scanport: scans i/o space from 0x100 to 0x3ff looking for 
+   installed ISA devices.
+   <item>inb: a quick little hack that reads an i/o port and dumps the value
+   in hex and binary.
+  </list>
+
  </list>
 
 <item><package>schedutils</package>
@@ -47,7 +88,58 @@ them to the sysadmin to take care.
 
 </list>
 
-<sect id="sudo"><prgn>sudo</prgn> - safer work environment
+<sect>Access control
+
+<sect1 id="loginctrl">Access control through PAM and login
+<p>
+PAM provide login control.  
+<example>
+/etc/pam.d/*             # PAM control files
+/etc/pam.d/login         # PAM control file for login
+/etc/security/*          # PAM module parameters
+/etc/securetty           # this controls root login by console (login)
+/etc/login.defs          # this controls login behaviors (login)
+</example>
+<p>
+Change the content of <file>/etc/pam.d/login</file> as follows, if you want
+insecure but passwordless console terminals at your own risk.
+<example>
+#auth       required   pam_unix.so nullok
+auth       required   pam_permit.so
+</example>
+Similar tricks can be applied for <prgn>xdm</prgn>, <prgn>gdm</prgn>, ...
+for passwordless console X.
+<p>
+The maximum number of processes can be set with 
+<tt>ulimit -u 1000</tt> in a Bash shell or with settings in 
+<file>/etc/security/limits.conf</file> from PAM.  Other parameters such as
+<tt>core</tt> can be set similarly. Initial value of <prgn>PATH</prgn> 
+can be set by <file>/etc/login.defs</file> before the shell start up 
+script.
+<p>
+The documentation for PAM is packaged in the
+<package>libpam-doc</package> package. The <em>Linux-PAM System
+Administrator's Guide</em> covers configuring PAM, what modules are
+available etc. The documentation also includes <em>The Linux-PAM
+Application Developers' Guide</em> and <em>The Linux-PAM Module Writers'
+Guide</em>.
+</sect1>
+
+<sect1 id="wheel">Why GNU <prgn>su</prgn> does not support the <tt>wheel</tt> group
+<p>
+This is the famous phrase at the bottom of <tt>info su</tt> page by
+Richard M. Stallman.  This section is there for historical reason only
+and we should not be fooled.  Current <prgn>su</prgn>in &debian; uses
+PAM thus can restrict ability to use <prgn>su</prgn> to any group using
+<prgn>pam_wheel.so</prgn> in <file>/etc/pam.d/su</file>.  Equivalent for
+BSD <tt>wheel</tt> group in &debian; system is <tt>staff</tt> group.
+
+<example>
+# anti-RMS configuration in /etc/pam.d/su
+auth       required   pam_wheel.so group=staff
+</example>
+
+<sect1 id="sudo"><prgn>sudo</prgn> - safer work environment
 <p>
 My usage of <prgn>sudo</prgn> is mostly a protection from my own stupidity.  I consider
 using <prgn>sudo</prgn> a better alternative to always using the system as root.
@@ -64,7 +156,7 @@ The advantage of <prgn>sudo</prgn> is that it only requires an ordinary user's p
 log in, and activity is monitored.  This is nice way to give some authority to
 a junior administrator.  For example:
 <example>
-$ sudo chown -R myself:mygrp .
+$ sudo chown -R <var>myself</var>:<var>mygrp</var> .
 </example>
 <p>
 Of course if you know the root password (as most home users do),
@@ -78,15 +170,53 @@ But since this is my home server, I have not bothered yet.)
 <p>
 For a different program that allows ordinary users to run commands with root
 privileges, see the <package>super</package> package.
+</sect1>
+    
+<sect1 id="tcpd">Access control to daemon programs
+<p>
+Internet <em>super-server</em>, <prgn>inetd</prgn> is started at boot 
+time by <file>/etc/rc2.d/S20inetd</file> (for RUNLEVEL=2) which is
+symlink to <file>/etc/init.d/inetd</file>.
+Essentially, <prgn>inetd</prgn> allows running one daemon to invoke 
+several others, reducing load on the system.
+<p>
+Whenever a request for service arrives, its protocol and service is 
+identified by looking up database in <file>/etc/protocols</file> and 
+<file>/etc/services</file>.
+For the normal internet service, <prgn>inetd</prgn> looks up database in
+<file>/etc/inetd.conf</file>.  For Sun-RPC based service,
+<prgn>inetd</prgn> looks up database in <file>/etc/rpc.conf</file>.
+<p>
+For the system security, make sure to disable unused services in 
+<file>/etc/inetd.conf</file>.
+Sun-RPC services need to be active for NFS and other RPC-based programs.
+<p>
+Sometimes, <prgn>inetd</prgn> does not start the intended server 
+directry but starts <prgn>tcpd</prgn> tcp/ip daemon wrapper program
+with the intended server name as its argument in <file>/etc/inetd.conf</file>.  
+In this case, <prgn>tcpd</prgn> runs the appropriate server program 
+after <prgn>tcpd</prgn> logs the request and does some additional checks
+using <file>/etc/hosts.deny</file> and <file>/etc/hosts.allow</file>.
+<p>
+If you have problem with remote access in recent &debian; systen, 
+comment out "ALL: PARANOID" in <file>/etc/hosts.deny</file> if it exists.
+<p>
+For details, see
+<manref name="inetd" section="8">,  
+<manref name="inetd.conf" section="5">, 
+<manref name="protocols" section="5">,  
+<manref name="services" section="5">,  
+<manref name="tcpd" section="8">,  
+<manref name="hosts_access" section="5">, and
+<manref name="hosts_options" section="5">. 
+<p>
+For more information on Sun-RPC, see
+<manref name="rpcinfo" section="8"> , 
+<manref name="portmap" section="8">, and
+<file>&f-portmap;</file>.
+
 </sect>
 
-<sect id="backup">Backup of configuration files
-<p>
-<example>
-# apt-get install changetrack
-# vi changetrack.conf
-</example>
-</sect>
 
 <sect id="cdrw">CD-writer
 <p>
@@ -138,6 +268,8 @@ configuration:
 <p>
 Debian uses <prgn>make-kpkg</prgn> to create a kernel.  Use the new
 <tt>--append_to_version</tt> with make-kpkg to build multiple kernel images.
+See <ref id="kernel">.
+<p>
 Use the following setup through <tt>make menuconfig</tt>:
 <list>
 <item>bzImage
@@ -175,19 +307,19 @@ To create a CD-ROM of files under <file>target-directory/</file> as
 (bootable, Joliet TRANS.TBL-enabled format; if not bootable, take out
 <tt>-b</tt> and <tt>-c</tt> options), insert a boot floppy in the first floppy drive and
 <example>
-# dd if=/dev/fd0 target-directory/boot.img 
-# mkisofs -r -V volume_id -b boot.img -c bootcatalog -J -T \
-        -o cd-image.raw target_directory/
+# dd if=<var>/dev/fd0</var> <var>target-directory/boot.img</var> 
+# mkisofs -r -V <var>volume_id</var> -b <var>boot.img</var> -c <var>bootcatalog</var> -J -T \
+        -o <var>cd-image.raw</var> <var>target_directory/</var>
 </example>
 <p>
 One funny hack is to make a bootable DOS CD-ROM.  If an ordinary DOS boot
-floppy disk image is in the above <file>boot.img</file>, the CD-ROM will boot
+floppy disk image is in the above <file><var>boot.img</var></file>, the CD-ROM will boot
 as if a DOS floppy were in the first floppy drive (A:).  Doing this with
 freeDOS may be more interesting.
 <p>
 This CD-image file can be inspected by mounting it on the loop device.
 <example>
-# mount -t iso9660 -o ro,loop cd-image.raw /cdrom
+# mount -t iso9660 -o ro,loop <var>cd-image.raw</var> /cdrom
 # cd /cdrom
 # mc
 # umount /cdrom
@@ -198,15 +330,15 @@ This CD-image file can be inspected by mounting it on the loop device.
 <p>
 First test with (assuming double speed)
 <example>
-# nice --10 cdrecord -dummy speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -dummy speed=2 dev=0,0 <var>disk.img</var>
 </example>
 Then if OK, write to CD-R with
 <example>
-# nice --10 cdrecord -v -eject speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -v -eject speed=2 dev=0,0 <var>disk.img</var>
 </example>
 Or write to a CD-RW disk with
 <example>
-# nice --10 cdrecord -v -eject blank=fast speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -v -eject blank=fast speed=2 dev=0,0 <var>disk.img</var>
 </example>
 Some CD-RW drives work better with
 <example>
@@ -214,7 +346,7 @@ Some CD-RW drives work better with
 </example>
 followed by
 <example>
-# nice --10 cdrecord -v -eject speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -v -eject speed=2 dev=0,0 <var>disk.img</var>
 </example>
 Two steps are needed to prevent SCSI timeouts during blanking from
 interfering with the burning step.  The argument value to the 
@@ -231,7 +363,7 @@ any CD contents to an image file.  If it is a data disk, mount it and run
 bytes) by 2 to get the number of actual CD sectors (2048 bytes).  Run
 <prgn>readcd</prgn> with options and use this disk image to burn the CD-R/RW.
 <example>
-# readcd [target] [lun] [scsibusno] # select function 11
+# readcd <var>target</var> <var>lun</var> <var>scsibusno</var> # select function 11
 </example> 
 Here, set all 3 command line parameters to 0 for most cases.  Sometimes the
 number of sectors given by <prgn>readcd</prgn> is excessive!  Use the above
@@ -348,7 +480,7 @@ connection enabled on the X server.  See <ref id="xtcp">.
 <p>
 See <manref name="XFree86" section="1x"> for X server information.
 <p>
-To (re)configure X4 in Woody, run:
+To (re)configure X4 in woody, run:
 <example>
 # dpkg-reconfigure --p=low xserver-xfree86
 </example>
@@ -478,8 +610,9 @@ Learn everything about <prgn>xterm</prgn> at <url id="&xtermfaq;">
 
 <sect1 id="ss-xsu">Gain root in X
 <p>
-If a GUI program needs to be run with root privileges, use the following
-procedures to do so on a user's X server. Never attempt to start an X
+If a GUI program needs to be run with root privilege, use the following
+procedures to display program output on a user's X server. 
+Never attempt to start an X
 server directly from the root account in order to prevent possible
 security risks.
 <p>
@@ -490,22 +623,22 @@ $ XAUTHORITY=$HOME/.Xauthority
 $ export XAUTHORITY
 $ su root
 Password:*****
-$ printtool &
+# printtool &
 </example>
 When using this trick to <prgn>su</prgn> to a non-root user, make
 sure <file>$HOME/.Xauthority</file> is group readable by this non-root user.
 <p>
-This can be automated by adding few files.  First create
-the file <file>/etc/X11/Xsession.d/00xfree86-common_environment</file>
-from the root account, containing these lines:
+This command sequence can be automated by adding few files.  From the root
+account, create the file
+<file>/etc/X11/Xsession.d/00xfree86-common_environment</file>, containing
+following lines:
 <example>
 if [ -f "$HOME/.xenvironment" ]; then
     . $HOME/.xenvironment
 fi
 </example>
-Then login to the user account from which you will run GUI programs with root
-privileges under X.  In his home directory, create the following 
-<file>$HOME/.xenvironment</file> file.
+From the user account, create the file <file>$HOME/.xenvironment</file> in his
+home directory, containing following lines:
 <example>
 # This makes X work when I su to the root account.
 if [ -z "$XAUTHORITY" ]; then
@@ -513,15 +646,15 @@ if [ -z "$XAUTHORITY" ]; then
         export XAUTHORITY
 fi
 </example>
-Then run <prgn>su</prgn> (not `<tt>su -</tt>') in an <prgn>xterm</prgn> 
-window of the user.  Now GUI programs displays output on the users X window 
-while running with root privileges.  This trick works as long as default 
-Xsession is executed.  If user set up customization using 
-<file>$HOME/.xinit</file> or <file>$HOME/.xsession</file>, above mentioned 
-environment <tt>XAUTHORITY</tt> variable needs to be set similary in 
-those scripts.
-<p>
-Alternatively, <package>sudo</package> can be used:
+Then run <prgn>su</prgn> (not <tt>su -</tt>) in an
+<prgn>xterm</prgn> window of the user.  Now GUI programs started from this
+<prgn>xterm</prgn> can display output on this user's X window while running
+with root privilege.  This trick works as long as default Xsession is
+executed.  If a user set up his customization using <file>$HOME/.xinit</file>
+or <file>$HOME/.xsession</file>, above mentioned environment
+<tt>XAUTHORITY</tt> variable needs to be set similary in those scripts.
+
+<p>Alternatively, <package>sudo</package> can be used to automate the command sequence:
 <example>
 $ sudo xterm
 ... or
@@ -538,11 +671,11 @@ mount, because root does not read the <file>.Xauthority</file> file.
 <p>
 There are also several specialized packages for this purpose:
 <package>kdesu</package>, <package>gksu</package>, <package>gksudo</package>,
-<package>gnome-sudo</package>, and <package>xsu</package>.  Finally, three
+<package>gnome-sudo</package>, and <package>xsu</package>.  Some
 other methods can be used to achieve similar results: creating a symlink from
 <file>/root/.Xauthority</file> to the user's corresponding one; use of the
 script <url id="&suxhome;" name="sux">; or putting "<tt>xauth merge
-~&lt;USER_RUNNING_X&gt;/.Xauthority</tt>" in the root initialization script.
+~<var>USER_RUNNING_X</var>/.Xauthority</tt>" in the root initialization script.
 <p>
 See more on the <url id="&deb-dev-su;" name="debian-devel mailing list">.
 </sect1>
@@ -741,7 +874,7 @@ the client machine.
 <![%FIXME[<p>=== Add info on "ssh-agent" ===]]>
 </sect1>
 
-<sect1 id="ssh-client">SSH client
+<sect1 id="ssh-client">Foreign SSH client
 <p>
 There are few free SSH client available on non-Unix like environment.
 <taglist>
@@ -754,6 +887,21 @@ There are few free SSH client available on non-Unix like environment.
 </taglist>
 See <url id="&sfdochome;" name="SorceForge.net, site documentation">, 
 "6. CVS Instructions".
+
+<sect1 id="ss-sshagent">SSH agent
+<p>
+Just put your public key into <file>~/.ssh/authorized_keys</file>, and
+you're all set:
+<example>
+$ ssh-agent
+$ # paste the output to your shell
+$ ssh-add .ssh/identity
+$ # or ssh-add .ssh/id_dsa or whatever your private key is named
+$ scp remote.host.with.public.key
+</example>
+For more, read <manref name="ssh-agent" section="1">and
+<manref name="ssh-add" section="1">.
+</sect1>
 
 <sect1 id="ssh-trouble">Troubles
 <p>
@@ -772,4 +920,120 @@ can regain connection by removing the <prgn>host_key</prgn> entry from
 </sect1>
 
 </sect>
+
+<sect id="mail">Mail programs
+<p>
+Mail configuration divides into three categories:
+<list>
+<item>MTA: <prgn>exim</prgn>
+<item>MUA: <prgn>mutt</prgn>
+<item>Utilities: <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
+<prgn>mail</prgn>, ...
+</list>
+
+<sect1>Mail transport agent (Exim)
+<p>
+Use <prgn>exim</prgn> as the mail transfer agent (MTA). Configure:
+<example>
+/etc/exim/exim.conf     "eximconfig" to create and edit
+/etc/inetd.conf         comment out smtp to run exim as daemon
+/etc/email-addresses    Add spoofed source address lists
+check filters using exim -brw, -bf, -bF, -bV, ... etc.
+</example>
+</sect1>
+
+<sect1>A catchall for nonexistent email addresses (Exim)
+<p>
+In <file>/etc/exim/exim.conf</file> (Woody or later),
+in the DIRECTORS part, at the end (after the localuser: director)
+add a catch-all director that matches all addresses that the
+previous directors couldn't resolve (per Miquel van Smoorenburg):
+<example>
+catchall:
+  driver = smartuser
+    new_address = webmaster@mydomain.com
+</example>
+<p>
+If one wants to have more a detailed recipe for each virtual domain, etc., 
+add the following at the end of <file>/etc/exim/exim.conf</file> 
+(per me, not well tested):
+<example>
+*@yourdomain.com ${lookup{$1}lsearch*{/etc/email-addresses} \
+        {$value}fail} T
+</example>
+Then have an "*" entry in <file>/etc/email-addresses</file>
+</sect1>
+
+<sect1>Mail utility (Fetchmail)
+<p>
+<prgn>fetchmail</prgn> is run in daemon mode to fetch mail from a POP3 account
+with an ISP into the local mail system.  Configure:
+<example>
+/etc/init.d/fetchmail   
+/etc/rc?.d/???fetchmail run update-rc.d fetchmail default priority 30
+/etc/fetchmailrc        configuration file (chown 600, owned by fetchmail)
+</example>
+<p>
+Information on how to start fetchmail as a daemon from the <prgn>init.d</prgn> 
+script for potato is confusing (woody fixed this).
+<url id="&examples;" name="/etc/init.d/fetchmail and /etc/fetchmailrc">
+<p>
+If your email headers are contaminated by ^M due to your ISP's mailer, add
+"stripcr" to your options in <file>$HOME/.fetchmailrc</file>:
+<example>
+options fetchall no keep stripcr
+</example>
+</sect1>
+
+<sect1>Mail utility (Procmail)
+<p>
+<prgn>procmail</prgn> is a local mail delivery and filter program. One needs to create 
+<file>$HOME/.procmailrc</file> for each account that uses it. Example:
+<url id="&examples;" name="_procmailrc">
+</sect1>
+
+<sect1>Mail user agent (Mutt)
+<p>
+Use <prgn>mutt</prgn> as the mail user agent (MUA) in combination with
+<prgn>vim</prgn>.  (This is not a gateway machine topic per se but since
+many "Mail" issues are discussed here, I included it.)
+Customize with <file>~/.muttrc</file>; for example:
+
+<![%FIXME[=== I think some of the contents of this muttrc is
+                 off-topic.  Mutt has relatively sane defaults for
+                 header display, etc.  I think it should only contain
+                 customizations that are necessary depending on the
+                 local configuration (set from, set realname, set
+                 editor, set folder...) -bignachos 
+		 
+		 Yes: I should have mail topics separated from this doc. 
+		 But unignore is GOOD (OA)
+		 ===]]>
+<example>
+# use visual mode and "gq" to reformat quotes
+set editor="vim -c 'set tw=72 et ft=mail'"
+#
+# header weeding taken from the manual (Sven's Draconian header weeding)
+#
+ignore *
+unignore from: date subject to cc
+unignore user-agent x-mailer
+hdr_order from subject to cc date user-agent x-mailer
+auto_view application/msword
+....
+</example>
+Add the following to <file>/etc/mailcap</file> or
+<file>$HOME/.mailcap</file> to display HTML mail and MS Word attachments
+inline:
+<example>
+text/html; lynx -force_html %s; needsterminal;
+application/msword; /usr/bin/antiword '%s'; copiousoutput;
+description="Microsoft Word Text"; nametemplate=%s.doc
+</example>
+
+</sect1>
+
+</sect>
+
+
 </chapt>
