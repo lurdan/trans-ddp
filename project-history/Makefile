@@ -68,6 +68,14 @@ $(MANUAL).ko.ps: FORCE
 	@echo " ###### Content of $(MANUAL).ko.log: ##########"
 	cat $(MANUAL).ko.log
 	@echo " ###### End of content of $(MANUAL).ko.log ##########"
+	@echo " ###### mfput.log: ##########"
+	test -e mfput.log && cat mfput.log
+	@echo " ###### missfont.log: ##########"
+	test -e missfont.log && cat missfont.log
+	@echo " ###### Generate a few font files ##########"
+	gsftopk umj10 1493
+	gsftopk umj11 1493
+	gsftopk umj12 1493
 	rm -f $(MANUAL).ko.{dvi,info*,log,tex,aux,toc,out,sasp*,tpt} 
 
 # generating Portable Document Format
