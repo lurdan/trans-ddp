@@ -4,12 +4,15 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for doc-debian package build.
 
-SRCS = debian-faq.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
-
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
 
-all: html txt ps
+sources := debian-faq.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
+
+export LANG=C
+# stupid debiandoc stuff uses strings in another language otherwise
+
+all: html text ps
 
 publish: debian-faq.html/index.html
 	test -d $(PUBLISHDIR)/debian-faq || install -d -m 755 $(PUBLISHDIR)/debian-faq
@@ -27,23 +30,21 @@ faqdynamic.ent:
 validate:
 	nsgmls -ges -wall debian-faq.sgml
 
-html debian-faq.html/index.html: $(SRCS)
+html: debian-faq.html/index.html
+debian-faq.html/index.html: $(sources)
 	debiandoc2html $<
 
-txt debian-faq.txt: $(SRCS)
+text: debian-faq.txt
+debian-faq.txt: $(sources)
 	debiandoc2text $<
 
-ps debian-faq.ps: $(SRCS)
-	debiandoc2latexps $<
-
-dvi debian-faq.dvi: $(SRCS)
-	debiandoc2latexdvi $<
-
-pdf debian-faq.pdf: $(SRCS)
-	debiandoc2latexpdf $<
-
-info debian-faq.info: $(SRCS)
+debian-faq.info: $(sources)
 	debiandoc2info $<
+
+debian-faq.ps debian-faq.dvi debian-faq.pdf: debian-faq.%: $(sources)
+	debiandoc2latex$* $<
+
+ps dvi pdf info: %: debian-faq.%
 
 clean distclean:
 	rm -rf debian-faq.html
