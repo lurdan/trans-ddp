@@ -178,8 +178,8 @@ validate:
 
 #====[ cleaning up ]===========================================================
 clean distclean:
-	rm -f maint-guide*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
-	rm -rf maint-guide*.html
+	rm -f securing-debian-howto*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
+	rm -rf securing-debian-howto*.html
 
 .PHONY: all html txt ps\
 	publish publish-html publish-txt publish-ps\
