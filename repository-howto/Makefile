@@ -38,6 +38,8 @@ $(manual).fo: $(sources)
 
 dvi: $(manual).dvi
 $(manual).dvi: $(manual).fo
+	# needs being run twice to generate toc
+	xmltex --interaction=batchmode $<
 	xmltex --interaction=batchmode $<
 
 ps: $(manual).ps
@@ -46,6 +48,9 @@ $(manual).ps: $(manual).dvi
 
 pdf: $(manual).pdf
 $(manual).pdf: $(manual).fo
+	# needs being run twice to generate toc
+	# yes, this is suboptimal but it's the easiest way
+	pdfxmltex --interaction=batchmode $<
 	pdfxmltex --interaction=batchmode $<
 
 clean distclean:
