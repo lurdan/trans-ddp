@@ -23,8 +23,9 @@
 <name>Javier Fernández-Sanguino Peña</name>
 <email>jfs@computer.org</email>
 </author>
-<version>2.98
-<date>Tue,  9 Dec 2003 09:35:26 +0100
+<version>2.99
+<date>Wed,  3 Mar 2004 09:18:54 +0100
+
 
 <abstract>
 This document describes security in the Debian project. 
@@ -331,8 +332,10 @@ flash is not).
 and <package>chrootuid</package> are waiting in incoming. Some others
 (makejail, jailer) could also be introduced.
 
+<!-- No longer available in that URL
 <item>Add information provided by Karl Hegbloom regarding chrooting 
 Bind 9, see <url id="http://people.pdxlinux.org/~karlheg/Secure_Bind9_uHOWTO/Secure_Bind_9_uHOWTO.xhtml">.
+-->
 
 <item>Add information provided by Pedro Zornenon to chrooting Bind 8 only for 
 potato though :(, see 
@@ -391,12 +394,31 @@ system (check bug reports sent to snort)
 
 <sect id="changelog">Changelog/History
 
+<sect1>Version 2.99 (march 2004)
+
+<p>Changes by Javier Fernández-Sanguino Peña
+<list>
+<item>Added information on refernences in DSAs and CVE-Compatibility.
+<item>Added information on apt 0.6 (apt-secure merge in experimental)
+<item>Fixed location of Chroot daemons HOWTO as suggested by Shuying Wang.
+<item>Changed APACHECTL line in the Apache chroot example (even if its
+not used at all) as suggested by Leonard Norrgard.
+<item>Added a footnote regarding hardlink attacks if partitions are
+not setup properly.
+<item>Added some missing steps in order to run bind as named as
+provided by Jeffrey Prosa.
+<item>Added notes about Nessus and Snort out-of-dateness in woody
+ and availability of backported packages.
+<item>Added a chapter regarding periodic integrity test checks.
+<item>Clarified the status of testing regarding security updated.
+</list>
+</sect1>
+
 <sect1>Version 2.98 (december 2003)
 <p>Changes by Javier Fernández-Sanguino Peña
 <list>
 <item>Fixed URL as suggested by Frank Lichtenheld.
 <item>Fixed PermitRootLogin typo as suggested by  Stefan Lindenau.
-
 </list>
 
 </sect1>
@@ -1402,11 +1424,29 @@ partitions and to pay attention to the following factors:
 
 <list>
 <item>Any directory tree which a user has write permissions to, such
-as e.g. <file>/home</file> and <file>/tmp</file>, should be on
-a separate partition.  This reduces the risk of a user DoS by 
-filling up your "/" mount point and
-rendering the system unusable. (Note: this is not strictly true, since
-there is always some space reserved for root which a normal user cannot fill.)
+as e.g. <file>/home</file>, <file>/tmp</file> and
+<file>/var/tmp/</file>, should be on a separate partition.  This
+reduces the risk of a user DoS by filling up your "/" mount point and
+rendering the system unusable (Note: this is not strictly true, since
+there is always some space reserved for root which a normal user
+cannot fill) as well as avoiding hardlink attacks
+<footnote>
+A very good example of this kind of attacks using /tmp is detailed in
+<url id="http://www.hackinglinuxexposed.com/articles/20031111.html"
+name="The mysteriously persistently exploitable program (contest)">
+and
+<url id="http://www.hackinglinuxexposed.com/articles/20031214.html"
+name="The mysteriously persistently exploitable program explained">
+(Notice that the incident is Debian-related) It is basicly an attack
+in which a local user <em>stashes</em> away a vulnerable setuid
+application by making a hard link to it, effectively avoiding any
+updates (or removal) of the binary itself made by the system
+administrator. Dpkg was recently fixed to prevent this (see <url
+id="http://bugs.debian.org/225692" name="225692">) but other setuid
+binaries (not controlled by the package manager) are at risk if
+partitions are not setup correctly. 
+</footnote>
+</item>
 
 <item>Any partition which can fluctuate, e.g. <file>/var</file>
 (especially <file>/var/log</file>) should also be on a separate
@@ -5034,10 +5074,32 @@ line beginning with
 start-stop-daemon --start
 </example>
 
-to
+to<footnote>Note that depending on your bind version you might not have the
+<tt>-g</tt> option, most notably if you are using woody and installing
+bind9 (9.2.1-2.woody).</footnote>
 
 <example>
 start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g named -u named
+</example>
+
+<P>Change the permissions of files that are used by Bind, including <file>
+/etc/bind/rndc.key</file>:
+
+<example>
+-rw-r-----    1 root     named          77 Jan  4 01:02 rndc.key
+</example>
+
+and where bind creates its pidfile, using, for example, <file>/var/run/named</file> instead of <file>/var/run</file>:
+
+<example>
+$ mkdir /var/run/named
+$ chown named.named /var/run/named
+$ vi /etc/named.conf
+[ ... update the configuration file to use this new location ...]
+options { ...
+        pid-file "/var/run/named/named.pid";
+};
+[ ... ]
 </example>
 
 <p>Also, in order to avoid running anything as root, change the
@@ -5921,11 +5983,30 @@ at <url id="http://www.debian.org/security/dsa.rdf">.
 
 <p>DSAs published on the website might be updated after being sent to
 the public-mailing lists. A common update is adding cross references
-to security vulnerability databases such as <url
-id="http://cve.mitre.org" name="CVE">, <url id="http://www.cert.org"
-name="CERT/CC vulnerability notes"> or <url
-id="http://www.securityfocus.com/bid/" name="Bugtraq">. This feature was added 
-to the website on June 2002.
+to security vulnerability databases. Also, translations
+<footnote>Translations are available in up to ten different
+languages</footnote> of DSAs are not sent to the security mailing
+lists but are directly included in the website.
+
+<sect1 id="crossreference">Vulnerability cross references
+
+<p>Debian provides a fully <url
+id="http://www.debian.org/security/crossreferences"
+name="crossreferenced table"> including all the references available
+for all the advisories published since 1998. This table is provided to
+complement the <url
+id="http://cve.mitre.org/cve/refs/refmap/source-DEBIAN.html"
+name="reference map available at CVE">. 
+
+<P>You will notice that this table provide references to
+security databases such as <url id="http://www.securityfocus.com/bid"
+name="Bugtraq">,
+<url id="http://www.cert.org/advisories/" name="CERT/CC Advisories">
+and <url id="http://www.kb.cert.org/vuls" name="US-CERT Vulnerability
+Notes Database"> as well as CVE names (see below). These references
+are provided for convenience use, but only CVE references are
+periodically reviewed and included.  This feature was added to the
+website on June 2002.
 
 <p>One of the advantages of adding cross references to these
 vulnerability databases is that:
@@ -5942,6 +6023,76 @@ vulnerability scanners that include references to CVE to remove false
 positives (see <ref id="vulnasses-false-positive">).
 
 </list>
+</sect1>
+
+<sect1 id="cve-compatible">CVE compatibility
+
+<P>Debian Security Advisories were <url
+id="http://www.debian.org/security/CVE-certificate.jpg" name="declared
+CVE-Compatible"><footnote>The full <url
+id="http://cve.mitre.org/compatible/phase2/SPI_Debian.html"
+name="capability questionnaire"> is available at CVE</footnote> in
+February 24, 2004.
+
+<p>Debian developers understand the need to provide accurate and up to
+date information of the security status of the Debian distribution,
+allowing users to manage the risk associated with new security
+vulnerabilities. CVE enables us to provide standarised references that
+allow users to develop a <url
+id="http://www.cve.mitre.org/compatible/enterprise.html"
+name="CVE-enabled security management process">.
+
+<p>The <url id="http://cve.mitre.org" name="Common Vulnerabilities and
+Exposures (CVE)"> project is maintained by the MITRE Corporation and
+provides a list of standardized names for vulnerabilities and security
+exposures.
+
+<P>Debian believes that providing users with additional information
+related to security issues that affect the Debian distribution is
+extremely important. The inclusion of CVE names in advisories help
+users associate generic vulnerabilities with specific Debian updates,
+which reduces the time spent handling vulnerabilities that affect our
+users. Also, it eases the management of security in an environment
+where CVE-enabled security tools -such as network or host intrusion
+detection systems, or vulnerability assessment tools- are already
+deployed regardless of whether or not they are based on the Debian
+distribution.
+
+<p>Debian started adding CVE names to DSAs since june 2002, and now
+provides CVE names for all DSAs released since september 1998 after a
+review process started on august 2002. All of the advisories can be
+retrieved on the Debian web site, and announcements related to new
+vulnerabilities include CVE names if available at the time of their
+release. Advisories associated with a given CVE name can be searched
+directly through the <url id="http://search.debian.org/" name="search engine">.
+
+<p>Users who want to search for a particular CVE name can use the web
+search engine available in debian.org to retrieve advisories available
+(in English and translated to other languages) associated with CVE
+names. A search can be made for a specific name (like advisory <url
+id="http://search.debian.org/?q=advisory+%22CAN-2002-0001%22&amp;ps=50&amp;o=1&amp;m=all"
+name="CAN-2002-0001">) or for partial names (like all the 2002
+candidates included in advisories search for <url
+id="http://search.debian.org/?q=advisory+%22CAN-2002%22&amp;ps=50&amp;o=1&amp;m=all"
+name="CAN-2002">). Notice that you need to enter the word advisory
+together with the CVE name in order to retrieve only security
+advisories.
+
+<p>In some cases yu might not find a given CVE name in published
+advisories either because:
+
+<list>
+   <item> No Debian products are not affected by that vulnerability.
+   <item> There is not yet an advisory covering that vulnerability
+   (the security issue might have been reported as a <url
+   id="http://bugs.debian.org/cgi-bin/pkgreport.cgi?tag=security"
+   name="security bug"> but a fix has not been tested and uploaded)
+   <item> An advisory was published before a CVE name was assigned to a
+   given vulnerability (look for an update at the web site)
+</list>
+</sect1>
+
+</sect>
 
 <sect>Debian Security Build Infrastructure
 
@@ -6196,7 +6347,7 @@ certificate chains has an impact on security updates on Microsoft Windows.
 </footnote>
 
 
-<p>As of today (february 2003) Debian does not provide signed packages for
+<p>As of today (february 2004) Debian does not provide signed packages for
 the distribution and the <em>woody</em> release (3.0) does not integrate that
 feature. There is a solution for signed packages which will
 be, hopefully, provided in the next release (<em>sarge</em>).
@@ -6239,11 +6390,35 @@ that a package originates from a a specific release. This is less
 flexible than signing each package one by one, but can be combined with
 that scheme too (see below).
 
-<p>Currently, this scheme is not fully implemented, but there is a patch
-for <prgn>apt</prgn> (available in <url id="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=203741" name="Bug #203741">) which provides this implementation.
-Please check it out and provide information to the BTS in order to 
-help get this included in the main release since it still needs extensive
-testing.
+<p>Currently, this scheme is <url
+id="http://lists.debian.org/debian-devel/2003/debian-devel-200312/msg01986.html
+" name="fully implemented"> in apt 0.6, which is available in the
+<em>experimental</em> distribution. This changes are based on the
+patch for <prgn>apt</prgn> (available in <url
+id="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=203741" name="Bug
+#203741">) which provides this implementation.  Please check it out
+and provide information to the BTS in order to help get this included
+in the main release since it still needs extensive testing.
+
+<P>Notice that, when using this experimental apt version no extra
+effort should be required on your part unless you use non-Debian
+sources, in which case an extra confirmation step will be required by
+apt-get. This is avoided by providing Release and Release.gpg files in
+the non-Debian sources. The Release file can be generated with
+<prgn>apt-ftparchive</prgn> (available in apt 0.5.17 and later, and
+apt 0.6.1 and later), the Release.gpg is just a dettached
+signature. To generate both follow this simple procedure:
+
+<example>
+$ rm -f dists/unstable/Release
+$ apt-ftparchive release dists/unstable > dists/unstable/Release
+$ gpg --sign -ba -o dists/unstable/Release.gpg dists/unstable/Release
+</example>
+
+<p><prgn>apt-key</prgn> is available for adding new keys to apt's
+keyring, which by default includes only the current Debian archive
+signing key.
+
 
 <p>Package signing has been discussed in Debian for quite some time, for
 more information you can read:
@@ -6252,15 +6427,16 @@ more information you can read:
 
 <sect1 id="check-releases">Checking distribution releases
 
-<p>In case you want to add now the additional security checks you can
-use the script below, provided by Anthony Towns. This script can
-automatically do some new security checks to allow the user to be sure
-that the software s/he's downloading matches the software Debian's
-distributing.  This stops Debian developers from hacking into
-someone's system without the accountability provided by uploading to
-the main archive, or mirrors mirroring something almost, but not quite
-like Debian, or mirrors providing out of date copies of unstable with
-known security problems.
+<p>In case you want to add now the additional security checks and
+don't want to run the experimental apt version (although we would
+really appreciate testing of it) you can use the script below,
+provided by Anthony Towns. This script can automatically do some new
+security checks to allow the user to be sure that the software s/he's
+downloading matches the software Debian's distributing.  This stops
+Debian developers from hacking into someone's system without the
+accountability provided by uploading to the main archive, or mirrors
+mirroring something almost, but not quite like Debian, or mirrors
+providing out of date copies of unstable with known security problems.
 
 <p>This sample code, renamed as <prgn>apt-check-sigs</prgn>, should be 
 used in the following way:
@@ -6606,21 +6782,33 @@ when installing the <package>harden-remoteaudit</package> package.
 <item>nikto (whisker's replacement)
 <item>bass (non-free)
 <item>satan (non-free)
-<!-- currently uploaded but not included
+<!-- Will never be available, I uploaded it but their license is not proper
 <item>saint (non-free)
+-->
+<!-- Might be available in the future since it holds the same license as satan
 <item>sara (non-free)
 -->
 </list>
 
-<p>By far, the most complete and up-to-date tools is <package>nessus</package>
-which is composed of a client (<package>nessus</package>) used as a GUI
-and a server (<package>nessusd</package>) which launches the programmed
-attacks. Nessus includes remote vulnerabilities for quite a number of 
-systems including network appliances, ftp servers, www servers, etc. The
-latest releases are able even to parse a web site and try to discover
-which interactive pages are available which could be attacked. There are
-also Java and Win32 clients (not included in Debian) which can be used
-to contact the management server.
+<p>By far, the most complete and up-to-date tools is
+<package>nessus</package> which is composed of a client
+(<package>nessus</package>) used as a GUI and a server
+(<package>nessusd</package>) which launches the programmed
+attacks. Nessus includes remote vulnerabilities for quite a number of
+systems including network appliances, ftp servers, www servers,
+etc. The latest security plugins are able even to parse a web site and
+try to discover which interactive pages are available which could be
+attacked. There are also Java and Win32 clients (not included in
+Debian) which can be used to contact the management server. 
+
+<p>Notice that if you are using woody, the Nessus packages are really
+out of date (see bug <url id="http://bugs.debian.org/183524"
+name="#183524">. It is not difficult to backport the packages available in
+unstable for woody, but if you find it difficult to do so you might
+want to consider using the backported packages provided by one of the
+co-maintainers and available at <url
+id="http://people.debian.org/~jfs/nessus/"> (these versions might not
+be as up-to-date as the versions available at <em>unstable</em>).
 
 <p><package>Whisker</package> is a web-only vulnerability assessment scanner
 including anti-IDS tactics (most of which are not <em>anti-IDS</em> anymore).
@@ -6656,7 +6844,7 @@ determine remote services available. Currently Debian provides:
 </list>
 
 <!--
-Etter cap is not included since its a sniffing tool not a remote probe 
+Ettercap is not included since its a sniffing tool not a remote probe 
 -->
 
 <p>Whileas <package>queso</package> and <package>xprobe</package> provide
@@ -7226,22 +7414,35 @@ updates:
 
 <list>
 
-<item>When a security fix is prepared, packages are prepared for
-<em>unstable</em> and the patch is back ported to <em>stable</em>
-(since stable is usually some minor or major versions
-behind). Packages for the <em>stable</em> distribution are more
-thoroughly tested than <em>unstable</em>, since the latter might just
-provide the latest upstream release.
+<item>When a security fix is prepared, the Security Team backports the
+patch to <em>stable</em> (since stable is usually some minor or major
+versions behind). Package maintainers are responsible for preparing
+packages for the <em>unstable</em> branch, usually based on a new
+upstream release.  Sometimes the changes happen at nearly the same
+time and sometimes one of the releases gets the security fix before.
+Packages for the <em>stable</em> distribution are more thoroughly
+tested than <em>unstable</em>, since the latter will in most cases
+provide the latest upstream release (which might include new, unknown
+bugs)
 
-<item>Security updates are available immediately for both branches
-(but not yet for the testing branch).
+<item>Security updates are available for the <em>unstable</em> branch
+usually when the package maintainer makes a new package and for the
+<em>stable</em> branch when the Security Team make a new upload and publish a
+DSA. Notice that neither of these change the <em>testing</em> branch.
 
 <item>If no (new) bugs are detected in the <em>unstable</em> version
-of the package, it moves to <em>testing</em> after several days
-(usually over a week). However, this does depend on the release state
-of the distribution.
+of the package, it moves to <em>testing</em> after several days. The
+time this takes is usually ten days, although that depends on the
+upload priority of the change and wether the package is blocked from
+entering testing by its dependency relationships. Note that if the
+package is blocked from entering testing the upload priority will not
+change the time it takes to enter.
 
 </list>
+
+This behaviour might change based on the release state of the
+distribution. When a release is almost inminent, the Security Team or
+package maintainers might provide updates directly to testing.
 
 <sect1>Automatic updates in a Debian GNU/Linux system
 
@@ -7327,6 +7528,46 @@ gain the latest functionality. This need arises due to some projects
 evolving faster than the time between Debian's <em>stable</em>
 releases.</footnote>
 
+<sect id="periodic-integrity">Do periodic integrity checks 
+
+<P>Based on the baseline information you generated after installation
+(i.e. the snapshot descrived in <ref id="snapshot">), you should be
+albe to do an integrity check from time to time. An integrity check
+will be able to detect filesystem modifications made by an intruder or
+due to a system administrators mistake.
+
+<P>Integrity checks should be, if possible, done offline
+<footnote>
+An easy way to do this is using a Live CD, such as 
+<url id="http://www.knoppix-std.org/" name="Knoppix Std"> which includes
+both the file integrity tools and the integrity database for your system.
+</footnote>
+. That is,
+without using the operating system of the system to review, in order
+to avoid a false sense of security (i.e. false negatives) produced by,
+for example, installed rootkits. The integrity database that the
+system is checked against should also be used from read-only media.
+
+<P>You can consider doing integrity checks online using any of the
+filesystem integrity tools available (described in <ref
+id="check-integ">) if taking offline the system is not an
+option. However, precaution should be taken to use a read-only
+integrity database and also assure that the integrity checking tool
+(and the operating system kernel) has not been tampered with.
+
+<P>Some of the tools mentioned in the integrity tools section, such as
+<prgn>aide</prgn>, <prgn>integrit</prgn> or <prgn>samhain</prgn> are
+already prepared to do periodic reviews (through the crontab in the
+first two cases and through a standalone daemon in
+<prgn>samhain</prgn>) and can warn the administrator through different
+channels (usually e-mail, but samhain can also send pages, SNMP traps
+or syslog alerts) when the filesystem changes.
+
+<P>Of course, if you execute a security update of the system, the
+snapshot taken for the system should be re-taken to accomodate the
+changes done by the security update.
+
+</sect>
 <sect id="intrusion-detect">Set up Intrusion Detection
 
 <p>Debian GNU/Linux includes tools for intrusion detection, which is
@@ -7376,6 +7617,13 @@ snort</tt>, follow the questions, and watch it log.
 enabled by default. However, you should customize the setup to take
 into account the particular services you run on your system. You may
 also want to seek additional checks specific to these services.
+
+<P><em>Note</em>: The snort packages available in woody are rather out
+of date, and might even be <url
+id="http://lists.debian.org/debian-devel/2003/debian-devel-200308/msg02105.html"
+name="buggy">, you can retrieve backported (and signed) Snort packages
+provided by the maintainer at
+<url id="http://people.debian.org/~ssmeenk/snort-stable-i386/">
 
 <p>There are other, simpler tools that can be used to detect network
 attacks. <package>portsentry</package> is an interesting package that
@@ -10898,7 +11146,7 @@ test -f $DAEMON || exit 0
 test -f $APACHECTL || exit 0
 
 # ensure we don't leak environment vars into apachectl
-APACHECTL="env -i LANG=${LANG} PATH=${PATH} $APACHECTL"
+APACHECTL="env -i LANG=${LANG} PATH=${PATH} chroot $CHRDIR $APACHECTL"
 
 if egrep -q -i "^[[:space:]]*ServerType[[:space:]]+inet" $CONF
 then
@@ -11038,8 +11286,8 @@ homepage"> , this program was written by Alain Tesio)</item>
     avec <prgn>makejail</prgn></a>, Pascal Brugier, easter-eggs.org, 21/03/2002</item>
 -->
 
-  <item><url id="http://www.networkdweebs.com/chroot.html"
-name="Chrooting daemons and system processes"> by Jonathan, Network
+  <item><url id="http://www.nuclearelephant.com/papers/chroot.html"
+name="Chrooting daemons and system processes HOWTO"> by Jonathan, Network
 Dweebs, 21/10/2002</item>
 
   <item><url
