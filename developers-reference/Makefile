@@ -41,7 +41,7 @@ publish:	all
 	   $(PUBLISHDIR)/$(MANUAL)
 
 developers-reference.html:	developers-reference.sgml
-	$(DEBIANDOC2HTML) -l C $<
+	$(DEBIANDOC2HTML) -l en $<
 
 developers-reference.html/*:	developers-reference.html
 
@@ -49,25 +49,25 @@ developers-reference.%.html:	developers-reference.%.sgml
 	$(DEBIANDOC2HTML) -l $* $<
 
 developers-reference.txt:	developers-reference.sgml
-	$(DEBIANDOC2TEXT) -l C -O $< > $@
+	$(DEBIANDOC2TEXT) -l en -O $< > $@
 
 developers-reference.%.txt:	developers-reference.%.sgml
 	$(DEBIANDOC2TEXT) -l $* -O $< > $@
 
 developers-reference.tex:	developers-reference.sgml
-	$(DEBIANDOC2LATEX) -l C -O $< > $@
+	$(DEBIANDOC2LATEX) -l en -O $< > $@
 
 developers-reference.%.tex:	developers-reference.%.sgml
 	$(DEBIANDOC2LATEX) -l $* -O $< > $@
 
 developers-reference.ps:        developers-reference.sgml
-	$(DEBIANDOC2PS) -l C $<
+	$(DEBIANDOC2PS) -l en $<
 
 developers-reference.%.ps:      developers-reference.%.sgml
 	$(DEBIANDOC2PS) -l $* $<
 
 developers-reference.pdf:       developers-reference.sgml
-	$(DEBIANDOC2PDF) -l C $<
+	$(DEBIANDOC2PDF) -l en $<
 
 developers-reference.%.pdf:     developers-reference.%.sgml
 	$(DEBIANDOC2PDF) -l $* $<
