@@ -24,7 +24,7 @@
 <email>jfs@computer.org</email>
 </author>
 <version>2.97
-<date>Thu, 25 Sep 2003 19:38:27 +0200
+<date>Fri,  3 Oct 2003 22:23:28 +0200
 
 <abstract>
 This document describes security in the Debian project. 
@@ -410,6 +410,13 @@ Mitchell.
 
 <item>Removed loops (echo to 'all') in the kernel's network security
 script as suggested by Elliott Mitchell.
+
+<item>Added more (up-to-date) information in the antivirus section.
+
+<item>Rewrote the buffer overflow protection section and added more
+information on patches to the compiler to enable this kind of
+protection.
+
 </list>
 
 
@@ -777,7 +784,7 @@ this out).
 <item>Added section about restricted SSH. Information based on that
 posted by  Mark Janssen, Christian G. Warden and Emmanuel Lacour on
 the debian-security mailing list.
-<item>Added information on anti-virus software.
+<item>Added information on antivirus software.
 <item>Added a FAQ: su logs due to the cron running as root.
 </list>
 <sect1>Version 2.1
@@ -2676,7 +2683,9 @@ for <file>.profile</file> too if you do it this way.
 <p>If you are completely paranoid and want to audit every user's command, you 
 could take <prgn>bash</prgn> source code, edit it and have it send all that 
 the user typed into another file. Or have <package>ttysnoop</package> 
-constantly monitor any new ttys and dump the output into a file. Other useful 
+constantly monitor any new ttys
+<footnote>Ttys are spawned for local logins and remote logins through ssh and telnte</footnote>
+and dump the output into a file. Other useful 
 program is <package>snoopy</package> which is a user-transparent program that 
 hooks in as a library providing a wrapper around <var>execve()</var> 
 calls, any command executed is logged to <prgn>syslogd</prgn> using the 
@@ -3399,9 +3408,13 @@ Homepage: <url id="http://ramses.smeyers.be/useripacct">.
 <sect>Protecting against buffer overflows
 
 <p><em>Buffer overflow</em> is the name of a common attack to software
-which makes use of insufficient boundary checking (a common
+<footnote>So common, in fact, that they have been the basis of 20% of the
+reported security vulnerabilities every year, as determined by 
+<url id="http://icat.nist.gov/icat.cfm?function=statistics"
+name="statistics from ICAT's vulnerability database"></footnote>
+which makes use of insufficient boundary checking (a 
 programming error) in order to execute machine code through a
-program's inputs. These attacks, against server software which listens
+program's inputs. These attacks, against server software which listen
 to connections remotely and against local software which grant higher
 privileges to users (<tt>setuid</tt> or <tt>setgid</tt>) can result in the 
 compromise of any given system.
@@ -3410,47 +3423,89 @@ compromise of any given system.
 
 <list>
 
-<item>patch the kernel to prevent stack execution.
+<item>patch the kernel to prevent stack execution (you can use the
+OpenWall or Grsecurity patches)
 
 <!-- FIXME: add a link to libsafe to the main place -->
 
-<item>using a library, such as libsafe, to overwrite vulnerable
-functions and introduce proper checking (for information 
-on how to install libsafe read 
-<url id="http://www.Linux-Sec.net/harden/libsafe.uhow2.txt" name="this">).
+<item>using a library, such as <url
+id="http://www.research.avayalabs.com/project/libsafe/"
+name="libsafe">, to overwrite vulnerable functions and introduce
+proper checking (for information on how to install libsafe read <url
+id="http://www.Linux-Sec.net/harden/libsafe.uhow2.txt" name="this">).
 
-<item>recompile code to introduce proper checks that prevent
-overflows, using, for example, stackguard.
+<item>fix the source code by using tools to find fragments of it that
+might introduce this vulnerability.
 
-<item>use tools to find and fix code that might introduce this
-vulnerability.
+<item>recompile the source code to introduce proper checks that
+prevent overflows, using, for example, <url
+id="http://www.immunix.org/stackguard.html" name="StackGuard"> (which
+is used by <url id="http://www.immunix.org" name="Immunix">) or the <url
+id="http://www.research.ibm.com/trl/projects/security/ssp/" name="Stack
+Smashing Protector (SSP)"> patch for GCC (which is used by <url
+id="http://www.adamantix.org" name="Adamantix">)
 
 </list>
 
-<p>Debian GNU/Linux, as of the 3.0 release, only provides software to
-implement the first and last of these methods (kernel patches and
-tools to detect possible buffer overflows). The use of tools to detect
-buffer overflows requires, in any case, of programming experience in
-order to fix (and recompile) the code. Debian provides, for example:
-<package>bfbtester</package> (a buffer overflow tester that
-brute-forces binaries through command line and environment overflows)
-and <package>njamd</package>.
+<p>Debian GNU/Linux, as of the 3.0 release, provides software to
+introduce all of these methods expect for the protection on source
+code compilation (but this has been requested in <url
+id="http://bugs.debian.org/213994" name="Bug #213994">)
 
-<p>As for kernel patches (described in the section <ref
-id="kernel-patches">), the Openwall patch provides protection against
-buffer overflows in 2.2 linux kernels. For 2.4 kernels, you
-need to use the Grsecurity patch (in the <package>
-kernel-patch-2.4-grsecurity</package>) which includes the Openwall
-patch and many more <url id="http://www.grsecurity.net/features.php"
-name="features"> (including ACLs and network randomness to make it
-more difficult to remote OS fingerprinting), or the Linux Security
-Modules (in the <package>kernel-patch-2.4-lsm</package> and
-<package>kernel-patch-2.5-lsm</package> packages).
+<p>Notice that even if Debian provided a compiler which featured
+stack/buffer overflow protection all packages would need to be
+recompiled in order to introduce this feature. This is, in fact, what
+Adamantix does (among other features). The effect of this new feature
+on the stability of software is yet to be determined (some programs or
+some processor architecures might break due to it).
 
 <p>In any case, be aware, that even these workarounds might not
 prevent buffer overflows since there are ways to circumvent these, as
 described in phrack's magazine <url name="issue 58"
-id="http://packetstorm.linuxsecurity.com/mag/phrack/phrack58.tar.gz">.
+id="http://packetstorm.linuxsecurity.com/mag/phrack/phrack58.tar.gz">
+or in CORE's Advisory
+<url id="http://online.securityfocus.com/archive/1/269246"
+name="Multiple vulnerabilities in stack smashing protection technologies">.
+
+<sect1>Kernel patch protection for buffer overflows
+
+<p>Kernel patches related to buffer overflows include the Openwall
+patch provides protection against buffer overflows in 2.2 linux
+kernels. For 2.4 kernels, you need to use the Grsecurity patch (in the
+<package> kernel-patch-2.4-grsecurity</package>) which includes the
+Openwall patch and many more <url
+id="http://www.grsecurity.net/features.php" name="features">
+(including ACLs and network randomness to make it more difficult to
+remote OS fingerprinting), or the Linux Security Modules (in the
+<package>kernel-patch-2.4-lsm</package> and
+<package>kernel-patch-2.5-lsm</package> packages).
+For more information on using these patches read the the section <ref
+id="kernel-patches">.
+
+<sect1>Libsafe protection
+
+<p>Protecting a Debian GNU/Linux system with
+<package>libsafe</package> is rather easy. Just install the package
+and say <em>Yes</em> to have the library preloaded globally. Be
+careful, however, since this might break software (notably, programs
+linked with the old <prgn>libc5</prgn>, so make sure to read the <url
+id="http://bugs.debian.org/libsafe" name="reported bug reports"> first
+and test the most critical programs in your system first with the
+<prgn>libsafe</prgn> wrapper program.
+
+<p><em>Important Note</em>: Libsafe protection might not be effective
+currently as describe in <url id="http://bugs.debian.org/173227"
+name="173227">. Consider testing it thoroughly before using it in a
+production environment and don't depend exclusively on it to protect
+your system.
+
+<sect1>Testing programs for overflows
+
+<p>The use of tools to detect buffer overflows requires, in any case,
+of programming experience in order to fix (and recompile) the
+code. Debian provides, for example: <package>bfbtester</package> (a
+buffer overflow tester that brute-forces binaries through command line
+and environment overflows) and <package>njamd</package>.
 
 
 <sect>Secure file transfers 
@@ -6760,7 +6815,7 @@ any OpenSSL applications which verify SSL connections.
 
 <p>FIXME: read debian-devel to see if there was something added to this.
 
-<sect>Anti-virus tools
+<sect>Antivirus tools
 
 <p>There are not many anti-virus tools included with Debian GNU/Linux,
 probably because GNU/Linux users are not plagued by viruses. The UN*X
@@ -6775,9 +6830,46 @@ against viruses arising on other, more vulnerable systems in their
 network.
 
 <p>Debian GNU/Linux currently provides the following tools for
-building anti-virus environments:
+building antivirus environments:
 
 <list>
+
+<item><url id="http://clamav.elektrapro.com/" name="Clam Antivirus">,
+provided in Debian <em>sarge</em> (future 3.1 release). Packages are
+provided both for the virus scanner (<package>clamav</package>) for
+the scanner daemon (<package>clamav-daemon</package>) and for the data
+files needed for the scanner. Since keeping an antivirus up-to-date is
+critical for it to work properly there are two different ways to get
+this data: <package>clamav-freshclam</package> provides a way to
+update the database through the Internet automatically and
+<package>clamav-data</package> which provides the data files directly
+<footnote>If you use this last package and are running an official
+Debian, the database will not be updated with security updates. You
+should either use <package>clamav-freshclam</package>,
+<prgn>clamav-getfiles</prgn> to generate new
+<package>clamav-data</package> packages or uptadate from the
+maintainers location:
+<example>
+  deb http://people.debian.org/~zugschlus/clamav-data/ /
+  deb-src http://people.debian.org/~zugschlus/clamav-data/ /
+</example>
+</footnote>
+
+<item><package>mailscanner</package> an e-mail gateway virus scanner
+and spam detector. Using <package>sendmail</package> or
+<package>Exim</package> as its basis, it can use more than 17
+different virus scanning engines (including <package>clamav</package>)
+
+<item><package>libfile-scan-perl</package> which provides File::Scan,
+ a Perl extension for scanning files for viruses. This modules can be
+ used to make plataform independent virus scanners.
+
+<item><url id="http://www.sourceforge.net/projects/amavis"
+name="Amavis Next Generation">, provided in the package
+<package>amavis-ng</package> and available in <em>sarge</em>, which is
+a mail virus scanner which integrates with different MTA (Exim,
+Sendmail, Postfix, or Qmail) and supports over fiveteen virus scanning
+engines (including clamav, File::Scan and openantivirus).
 
 <item><url id="http://packages.debian.org/sanitizer"
 name="sanitizer">, a tool that uses the <package>procmail</package>
@@ -6789,15 +6881,31 @@ name="amavis-postfix">, a script that provides an interface from a
 mail transport agent to one or more commercial virus scanners (this
 package is built with support for the <prgn>postfix</prgn> MTA only).
 
-<item><package>scannerdaemon</package>, a daemon written in Java that
-accepts incoming requests to scan files for viruses.
+<item><package>exiscan</package>, an e-mail virus scanner written in
+Perl that works with Exim.
+
+<item><package>sanitizer</package>, a scanner for mail that can remove potentially dangerous attachments.
+
+<item><package>blackhole-qmail</package> a spam filter for Qmail with
+built-in support for Clamav.
 
 </list>
 
-<p>As you can see, Debian does not currently provide any anti-virus
-software in the main distribution. There are, however, free software
-anti-virus projects which might be included in future Debian GNU/Linux
-releases:
+<p>Some gateway daemons support already tools extensions to build
+antivirus environments including <package>exim4-daemon-heavy</package>
+(the <em>heavy</em> version of the Exim MTA), <package>frox</package>
+(a transparent caching ftp proxy server),
+<package>messagewall</package> (an SMTP proxy daemon) and
+<package>pop3vscan</package> (a transparent POP3 proxy).
+
+<p>As you can see, Debian does not currently provide antivirus
+scanning software in the main official distribution (3.0 at the time
+of this writting) but it does provide multiple interfaces to build
+gateway antivirus. The <package>Clamav</package> scanner 
+will be provided in the next official release.
+
+<p>Some other free software antivirus projects which might be included
+in future Debian GNU/Linux releases:
 
 <list>
 
@@ -6808,16 +6916,8 @@ id="http://bugs.debian.org/150698" name="Bug #150698 (ITP oav-scannerdaemon">
 and <url id="http://bugs.debian.org/150695" name="Bug #150695 (ITP oav-update">
 ).
 
-<item><url id="http://clamav.elektrapro.com/" name="Clam
-Antivirus">
-
 <item><url id="http://sourceforge.net/projects/jvirus/"
 name="jvirus">.
-
-<item><url id="http://www.sourceforge.net/projects/amavis"
-name="Amavis Next Generation">, a mail virus scanner which integrates
-with your MTA and supports multiple virus scanning engines (see <url
-id="http://bugs.debian.org/154294" name="Bug #154294">).
 
 </list>
 
@@ -6832,7 +6932,7 @@ antivirus. Is clamav available? (there seem to be Debian packages for it).
 <p>FIXME: check if scannerdaemon is the same as the open antivirus scanner 
 daemon (read ITPs).
 
-<p>However, Debian will <em>never</em> provide commercial anti-virus
+<p>However, Debian will <em>never</em> provide commercial antivirus
 software such as: <url
 id="http://www.pandasoftware.com/com/linux/linux.asp" name="Panda
 Antivirus">, <url
@@ -6842,7 +6942,7 @@ name="Sophos Sweep">, <url id="http://www.antivirus.com/products/"
 name="TrendMicro Interscan">, or <url id="http://www.ravantivirus.com"
 name="RAV">. For more pointers see the <url
 id="http://www.computer-networking.de/~link/security/av-linux_e.txt"
-name="Linux anti-virus software mini-FAQ">. This does not mean that
+name="Linux antivirus software mini-FAQ">. This does not mean that
 this software can be installed properly in a Debian system.
 
 <p>For more information on how to set up an a virus detection system
