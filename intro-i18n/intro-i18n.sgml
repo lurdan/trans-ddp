@@ -1399,6 +1399,8 @@ CID fonts, though they are not DFSG-free.
 
 <P>
 This chapter describes a specific information for each language.
+If you are developing a serious DTP software or planning to support
+detailed I18N, this chapter may help you.
 Contributions from people speaking each language are welcome.
 If you are to write a section on your language, please include
 these points:
@@ -1700,6 +1702,12 @@ There are additional functions for <tt>wchar_t</tt>.
 <p>
 You cannot assume anything on the concrete value of <tt>wchar_t</tt>,
 besides <tt>0x21</tt> - <tt>0x7e</tt> are identical to ASCII.
+You may feel this limitation is too strong.  If you cannot do
+under this limitation, you can use UCS-4 as the internal character
+code.  In such a case, you can write your software emulating
+the locale-sensible behavior using <tt>setlocale()</tt>,
+<tt>nl_langinfo(CODESET)</tt>, and <tt>iconv()</tt>.  Consult
+the section of <ref id="iconv">.
 </p>
 
 <p>
@@ -1742,17 +1750,6 @@ these functions have became newly available since GNU libc 2.2.
 here.)
 </p>
 
-
-<p>
-<strong>****** I HAVE REWRITTEN THIS DOCUMENT UNTIL HERE ******</strong>
-</p>
-
-
-
-<sect id="iconv">nl_langinfo() and iconv()</heading>
-
-<p>
-</p>
 
 <sect id="locale_unicode">Unicode and LOCALE technology</heading>
 
@@ -1810,7 +1807,7 @@ checks <tt>LC_*</tt> and <tt>LANG</tt> environmental variables
 to emulate the behavior of <tt>setlocale(LC_ALL, "");</tt>.  
 You can also rewrite the software to call <tt>setlocale()</tt>,
 <tt>nl_langinfo()</tt>, and <tt>iconv()</tt> so that the software
-supports all character codes which the OS supports.
+supports all character codes which the OS supports, as discussed later.
 Consult
 <url id="http://ffii.org/archive/mails/groff/2000/Oct/0056.html"
 name="the discussion in the Groff mailing list on the support of
@@ -1821,9 +1818,125 @@ the author of this document.
 
 
 
+<sect id="iconv">nl_langinfo() and iconv()</heading>
+
+<p>
+Though ISO C defines extensive LOCALE-related functions,
+you may want more extensive support.  You may also want
+conversion between different character codes.
+There are C functions which can be used for such purposes.
+</p>
+
+<p>
+char *<tt>nl_langinfo(</tt>nl_item <em>item</em><tt>)</tt> is 
+an XPG5 function to get LOCALE-related informations.  You can 
+get the following informations using the following macros 
+for <em>item</em> defined in <tt>langinfo.h</tt> header file:
+<list>
+  <item>names for days in week
+	(<tt>DAY_1</tt> (Sunday), <tt>DAY_2</tt>, <tt>DAY_3</tt>,
+	<tt>DAY_4</tt>, <tt>DAY_5</tt>, <tt>DAY_6</tt>, and <tt>DAY_7</tt>)
+  <item>abbreviated names for days in week
+	(<tt>ABDAY_1</tt> (Sun), <tt>ABDAY_2</tt>, <tt>ABDAY_3</tt>,
+	<tt>ABDAY_4</tt>, <tt>ABDAY_5</tt>, <tt>ABDAY_6</tt>, and
+	<tt>ABDAY_7</tt>)
+  <item>names for months in year
+	(<tt>MON_1</tt> (January), <tt>MON_2</tt>, <tt>MON_3</tt>,
+	<tt>MON_4</tt>, <tt>MON_5</tt>, <tt>MON_6</tt>, <tt>MON_7</tt>,
+	<tt>MON_8</tt>, <tt>MON_9</tt>, <tt>MON_10</tt>, <tt>MON_11</tt>,
+	and <tt>MON_12</tt>)
+  <item>abbreviated names for months in year
+	(<tt>ABMON_1</tt> (January), <tt>ABMON_2</tt>, <tt>ABMON_3</tt>,
+	<tt>ABMON_4</tt>, <tt>ABMON_5</tt>, <tt>ABMON_6</tt>, 
+	<tt>ABMON_7</tt>, <tt>ABMON_8</tt>, <tt>ABMON_9</tt>, 
+	<tt>ABMON_10</tt>, <tt>ABMON_11</tt>, and <tt>ABMON_12</tt>)
+  <item>name for AM (<tt>AM_STR</tt>)
+  <item>name for PM (<tt>PM_STR</tt>)
+  <item>name of era (<tt>ERA</tt>)
+  <item>format of date and time (<tt>D_T_FMT</tt>)
+  <item>format of date and time (era-based) (<tt>ERA_D_T_FMT</tt>)
+  <item>format of date (<tt>D_FMT</tt>)
+  <item>format of date (era-based) (<tt>ERA_D_FMT</tt>)
+  <item>format of time (24-hour format) (<tt>T_FMT</tt>)
+  <item>format of time (am/pm format) (<tt>T_FMT_AMPM</tt>)
+  <item>format of time (era-based) (<tt>ERA_T_FMT</tt>)
+  <item>radix (<tt>RADIXCHAR</tt>)
+  <item>thousands separater (<tt>THOUSEP</tt>)
+  <item>alternative characters for numerics (<tt>ALT_DIGITS</tt>)
+  <item>affirmative word (<tt>YESSTR</tt>)
+  <item>affirmative response (<tt>YESEXPR</tt>)
+  <item>negative word (<tt>NOSTR</tt>)
+  <item>negative response (<tt>NOEXPR</tt>)
+  <item>character code (<tt>CODESET</tt>)
+</list>
+For example, you can get names for months and use them for
+your original output algorithm.  <tt>YESEXPR</tt> and
+<tt>NOEXPR</tt> are convenient for softwares expecting Y/N
+answer from users.
+</p>
+
+<p>
+<tt>iconv_open()</tt>, <tt>iconv</tt>, and <tt>iconv_close()</tt>
+are functions to perform conversion between character codes.
+Please consult manpages for them.
+</p>
+
+<p>
+Combining <tt>nl_langinfo()</tt> and <tt>iconv()</tt>,
+you can easily modify Unicode-enabled software into locale-sensible
+truely internationalized software.
+</p>
+
+<p>
+At first, add a line of <tt>setlocale(LC_ALL, "");</tt> at the
+first of the software.  If it returns non-NULL, enable UTF-8 mode
+of the software.
+<example>
+int conversion = FALSE;
+char *locale = setlocale(LC_ALL, "");
+   :
+   :
+(original code to determine UTF-8 mode or not)
+   :
+   :
+if (locale != NULL &amp;&amp; utf_mode == FALSE) {
+    utf8_mode = TRUE;
+    conversion = TRUE;
+}
+</example>
+Then modify input routine as following:
+<example>
+#define INTERNALCODE "UTF-8"
+if (conversion == TRUE) {
+    char *fromcode = nl_langinfo(CODESET);
+    iconv_t conv = iconv_open(INTERNALCODE, fromcode);
+    (reading and conversion...)
+    iconv_close(conv);
+} else {
+    (original reading routine)
+}
+</example>
+Finally modify the output routine as following:
+<example>
+if (conversion == TRUE) {
+    char *tocode = nl_langinfo(CODESET);
+    iconv_t conv = iconv_open(tocode, INTERNALCODE);
+    (conversion and writing...)
+    iconv_close(conv);
+} else {
+    (original writing routine)
+}
+</example>
+Note that whole reading should be done at once since
+otherwise you may divide multibyte character.
+You can consult the <tt>iconv_prog.c</tt> file
+in the distribution of GNU libc for usage of <tt>iconv()</tt>.
+</p>
 
 
-
+<p>
+<strong>****** I HAVE REWRITTEN THIS DOCUMENT UNTIL HERE ******</strong>
+</p>
 
 
 
