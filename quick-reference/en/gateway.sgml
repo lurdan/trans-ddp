@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.35 $"  -->
+<!-- CVS revision of this document "$Revision: 1.36 $"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -57,14 +57,10 @@ any IP-based network) is identified by a unique 32 bit IP address.
 <footnote>
 This is true if IP version 4 is being used.
 In IPv6 addresses are 128 bits.
+See <url id="&ipv6home;">.
 </footnote>
 The IP address can be divided into the part
 that addresses the network and the part that addresses the host.
-<footnote>
-The new upcoming Internet Protocol Version 6 uses 128 bit
-address space instead.
-See <url id="&ipv6home;">.
-</footnote>
 If you take an IP address, set to 1 the bits that are part of
 the network address and set to 0 the bits that are part of the host
 address then you get the net mask of the network.
@@ -264,8 +260,6 @@ Usage: ip link set DEVICE { up | down | arp { on | off } |
        ip link show [ DEVICE ]
 </example>
 See also <manref name="ip" section="8">.
-
-<!--- XXX FIXME XXX -->
 
 <sect1 id="low-wifi">Configuring a Wi-Fi interface
 <p>
@@ -714,7 +708,8 @@ package available.
 This contains version 2 of the ISC DHCP Client which has been
 superseded by version 3 which comes in <package>dhcp3-client</package>.
 The maintainers plan to rename <package>dhcp3-client</package> to
-<package>dhcp-client</package> someday.
+<package>dhcp-client</package> some day but it does not appear
+that this will happen in time for the release of Sarge.
 </footnote>
 
 <sect id="net-high">High level network configuration in &debian;
@@ -895,12 +890,27 @@ The easiest way to do this is to install the
 Then edit <file>/etc/network/interfaces</file> so that it includes
 a stanza like this:
 <example>
+iface eth0 inet ppp
+        provider <var>myisp</var>
+</example>
+<!--
+The better one is following but need verification
+<example>
 mapping eth0
-	script echo 'ppp0' #
+	script /root/bin/echo-ppp0
 
 iface ppp0 inet ppp
         provider <var>myisp</var>
 </example>
+where,
+<example>
+# cat &gt; /root/bin/echo-ppp0 &lt;&lt;EOF
+# /bin/sh
+echo ppp0
+EOF
+# chmod 755 /root/bin/echo-ppp0
+</example>
+-->
 <p>
 There are sometimes Maximum Transmit Unit (MTU) issues with
 PPPoE over Digital Subscriber Line (DSL).
@@ -999,37 +1009,80 @@ iface work inet static
         netmask 255.255.0.0
         gateway 81.201.1.1
 </example>
-Then the physical interface <tt>eth0</tt> can be brought up
-with the appropriate configuration by specifying it on the command
-line:
+Then the physical interface <tt>eth0</tt> can be brought up for the home
+network with the appropriate configuration by specifying it on the
+command line:
 <example>
 # ifup eth0=home
 </example>
+<p>
+This physical interface <tt>eth0</tt> can be
+<strong>re</strong>configured for the work network by the command lines:
+<example>
+# ifdown eth0
+# ifup eth0=work
+</example>
+<!-- 
+ Osamu: we do not need =home for ifdown since it does not use it.
+        correct me if wrong.
+-->
 <p>
 Note that with the <file>interfaces</file> file written as above
 it will no longer be possible to bring up <tt>eth0</tt> by doing
 a simple <tt>ifup eth0</tt>.
 The reason is that <prgn>ifup</prgn> uses the physical interface
 name as the default logical interface name and now in our example
-no <tt>eth0</tt> logical interface is defined.
+no <tt>eth0</tt> logical interface is defined.  The <prgn>ifup</prgn>
+does not have this complication and always uses the physical interface
+name as its argument.
 
 <sect id="net-magic-reconf">Magic network reconfiguration
 <p>
+The full feature of the network reconfiguration and the logical
+interface are slightly more complicated than the one described in <ref
+id="net-reconf">.
+<p>
+The <prgn>ifup</prgn> command determins the actual logical interface (or
+interface profile) which initializes the phisical interface using
+<file>interfaces</file> file as follows:
+<list compact>
+<item>If the logical interface name is provided in the <prgn>ifup</prgn>
+command line after the phisical interface name and <tt>=</tt>, use it as
+the initial logical interface name.
+<item>Otherwise, default it to the phisical interface name.
+</list>
+Then:
+<list compact>
+<item>If the logical interface name is defined as the <tt>iface</tt>
+stanza, use it as the definition of the logical interface.
+<item>Otherwise, use mapping mechanism offerd by <tt>mapping</tt> stanza
+to dermine the actual logical interface recursively until finding the
+existing logical interface name defined as the <tt>iface</tt> stanza.
+</list>
+<!--
 The logical interface as which a physical interface is brought
 up by <prgn>ifup</prgn> is determined by <tt>mapping</tt>
-stanzas in the <file>interfaces</file> file.  The syntax is:
+stanzas in the <file>interfaces</file> file.  
+-->
+The syntax of <tt>mapping</tt> stanza is:
 <example>
 mapping <var>glob-pattern</var>
         script <var>script-name</var>
         [map <var>script input</var>]
 </example>
-The named script is run with the physical interface name as its
+The mapping mechanism uses <tt>mapping</tt> stanza with
+<tt><var>glob-pattern</var></tt> matching the logical interface
+name.  The named script <tt><var>script-name</var></tt> 
+<!-- is run with the physical interface name as its -->
+<!-- is this so??? it could be logical interface name -->
+is run with the logical interface name as its
 argument and with the contents of all following <tt>map</tt> lines
 in the stanza provided to it on its standard input.
-The script must print a string on its standard output before exiting.
-This string can be either a logical interface name or a string that
+The script must print a string of the mapped logical interface name 
+on its standard output before exiting.
+This string can be either an existing logical interface name or a string that
 matches another <tt>mapping</tt> glob pattern, in which case that
-mapping will be applied, and so on.
+mapping will be applied recursively.
 <p>
 The following <tt>mapping</tt> stanza will cause <prgn>ifup</prgn> to
 bring up interface <tt>eth0</tt> as the <tt>home</tt> logical
@@ -1071,10 +1124,16 @@ mapping eth0
         map 00:A3:03:63:26:93 work
 </example>
 <p>
-The sophisticated mapping programs
+The more sophisticated mapping programs
+<!--
 <manref name="guessnet" section="8">
-and <prgn>ifscout</prgn>  <!-- may be better using ref id=" " -->
+and <prgn>ifscout</prgn>  
 are described in the following sections.
+-->
+are described in 
+<ref id="high-guessnet">,
+<ref id="high-ifupdown-roam">, and
+<ref id="high-laptop-net">.
 
 <sect1 id="high-guessnet">guessnet
 <p>
@@ -1128,11 +1187,51 @@ For more information consult the well written documentation in
 <sect id="net-trigger">Triggering network configuration
 <p>
 We have seen how interfaces can be reconfigured.  
-Reconfiguration needs to be triggered at appropriate times.  
-Also, if the auto network reconfiguration system described below is
-used, some of the network services which depend strongly on the auto
-configured interfaces may need to be controlled through
-<package>ifupdown</package> as described in <ref id="trigger-service">.
+Reconfiguration needs to be done at appropriate times.  
+<p>
+Traditionally the network was configured during the boot sequence
+via the <file>/etc/rcS.d/S40networking</file> initscript
+and was rarely reconfigured.
+Services that depended on networking were started later in
+the boot sequence.
+On shutdown or reboot the initscripts were run in the opposite order.
+<p>
+Currently, however, there is a trend in GNU and Linux toward
+supporting hardware and circumstances that change dynamically.
+First support was added for hot swappable PCMCIA cards;
+more recently the <tt>hotplug</tt> mechanism has been added
+so that many more peripherals can be swapped in and out
+while the computer is running.
+This includes networking hardware.
+Note that services that depend on hardware that is hot swapped
+must only be started after the hardware is inserted and
+must be stopped when the hardware is removed.
+This means that such services must be removed from the control
+of the System V init system and put under the control of
+<package>ifupdown</package> instead.
+<p>
+For example, suppose service <tt>foo</tt> controlled by initscript 
+<file>/etc/init.d/foo</file> depends on dynamically reconfigured
+network interface <tt>eth0</tt>.
+<list>
+<item>First remove <tt>foo</tt> from the control of the init system:
+<example>
+# update-rc.d -f foo remove
+</example>
+<item>Then put <tt>foo</tt> under the control of
+<package>ifupdown</package> by adding <tt>up</tt> and <tt>down</tt>
+options to the <tt>eth0</tt> stanza in
+<file>/etc/network/interfaces</file> which contain calls to the
+<tt>foo</tt> initscript:
+<example>
+iface eth0 inet static
+        address 192.168.0.123
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        up /etc/init.d/foo start
+        down /etc/init.d/foo stop
+</example>
+</list>
 
 <sect1 id="trigger-auto">Triggering network configuration at boot time
 <p>
@@ -1141,11 +1240,16 @@ the command <prgn>ifup -a</prgn>.
 This brings up all physical interfaces listed in <tt>auto</tt>
 stanzas in <file>/etc/network/interfaces</file>.
 <p>
-These days it is often better to use the hot plug mechanism to bring
-up interfaces.
+These days it is often better to handle network configuration using
+dynamic methods.
+Once mechanisms for supporting dynamically changing hardware are in
+place it becomes simplest to treat static hardware as if it were
+dynamic too.
+Booting can then be treated as just another hotplug event.
 (See <ref id="trigger-hotplug">.)
-However, in almost all cases you want at least the
-loopback interface <tt>lo</tt> to be brought up on boot.
+<p>
+However, in almost all cases one wants at least the loopback interface
+<tt>lo</tt> to be brought up on boot.
 Therefore, make sure that <file>/etc/network/interfaces</file>
 includes the following stanzas.
 <example>
@@ -1159,30 +1263,24 @@ distinct stanzas
 -->
 You can list additional physical interface names in <tt>auto</tt>
 stanzas if you want them to be brought up on boot too.
-Do <strong>not</strong> list any PCMCIA interfaces in <tt>auto</tt>
-stanzas.
+<strong>Never</strong> list PCMCIA interfaces in <tt>auto</tt> stanzas.
 The PCMCIA <prgn>cardmgr</prgn> is started later in the boot sequence
 than when <prgn>/etc/rcS.d/S40networking</prgn> runs.
 
 <sect1 id="trigger-hotplug">Triggering network configuration &ndash; <package>hotplug</package>
 <p>
-For hot plug support install the <package>hotplug</package>
-package.
-<p>
-The addition of the hot plug mechanism is part of a general trend
-in GNU and Linux toward supporting hardware that changes dynamically.
-Power management and modularization of the kernel are other pieces
-of this puzzle.
-Once mechanisms for supporting dynamically changing hardware are
-in place it becomes simplest to treat static hardware as if it
-were dynamic too.
-Booting up can then be treated as if it were just another
-hot plug event.
+For hot plug support install the <package>hotplug</package> package.
 <p>
 Networking hardware can be hot plugged either at boot time or
 after a card (e.g., a PCMCIA card) is inserted into the machine
 or after a utility such as <prgn>discover</prgn> runs and loads
 necessary driver modules.
+<footnote>
+If your system starts <prgn>discover</prgn> at 
+<file>/etc/rcS.d/S36discover</file>, you must move it to 
+<file>/etc/rcS.d/S40discover</file>.
+See bug <url id="&bug-rcs-discover;" name="#208155">.
+</footnote>
 <p>
 When the kernel detects new hardware it initializes the driver
 for the hardware and then runs the <prgn>hotplug</prgn> program
@@ -1358,36 +1456,6 @@ definitions are removed, disabled or commented out.
 <p>
 Note that there is nothing wrong with running <prgn>cardmgr</prgn>.
 We just don't want it to call network configuration programs.
-
-<sect1 id="trigger-service">Triggering network service
-<p>
-Network services are traditionally started by the init script after
-<prgn>/etc/rcS.d/S40networking</prgn> on boot assuming the existence of
-all network interfaces. 
-<p>
-If the auto network reconfiguration system described above is used, some
-of the network services which depend strongly on the auto configured
-interfaces may need to be controlled through <package>ifupdown</package>
-instead in order to ensure the interface being brought up prior to the
-use by the service and to prevent the interface being brought down while
-it is in use by the service.  Suppose init script <prgn>foo</prgn> is
-hit by this issue:
-<list>
-<item>Remove those services from control of the init script system:
-<example>
-# update-rc.d -f foo remove
-</example>
-<item>Create hooks to initiate <prgn>foo</prgn> script by one of the
-following methods:
-<list>
-<item>Put <tt>up</tt> and <tt>down</tt> options which call
-<prgn>foo</prgn> script to the each pertinent
-interface in <file>/etc/network/interfaces</file> .
-<item>Put appropriate scripts to
-<file>/etc/network/if-up.d/</file> and
-<file>/etc/network/if-down.d/</file> .
-</list>
-</list>
 
 <sect id="net-service-conf">Network service configuration
 <p>
