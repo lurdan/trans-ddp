@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.32 $"  -->
+<!-- CVS revision of this document "$Revision: 1.33 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
 <p>
@@ -565,6 +565,77 @@ than <prgn>ssh -X</prgn>.
 All remote connection methods, except <prgn>ssh</prgn>, require TCP/IP
 connection enabled on the X server.  See <ref id="xtcp">.
 
+<sect1 id="configuring-x">Configure XFree86 4.x
+<!-- Is this stuff valid for v3 too? If not, add a separate section for -->
+<!-- v3. -->
+<p>
+There are two meta-packages that can be used to install all of the necessary
+dependencies for XFree86: <package>x-window-system</package> and
+<package>x-window-system-core</package>.  For most cases,
+<package>x-window-system</package> is the package to install.
+<p>
+To enable hardware detection in the XFree86 package configuration stage,
+install the packages <package>discover</package>, <package>mdetect</package>,
+and <package>read-edid</package> prior to installing XFree86.
+<!-- I'm not sure what exactly these packages do since I configured X without -->
+<!-- the help of these packages.  All I know is that dexconf will try to use -->
+<!-- them if available.  Anyone else have anything to add? -->
+<p>
+With the assistance of hardware detection, XFree86's configuration script,
+<prgn>dexconf</prgn>, should create a useable
+<file>/etc/X11/XF86Config-4</file> file.  To add user customizations, do not
+edit the file between the text:
+<example>
+### BEGIN DEBCONF SECTION
+[snip]
+### END DEBCONF SECTION
+</example>
+<p>
+Instead, add the customizations before the text.  For example, to use a custom
+video device, add something resembling the following text to the <em>top</em>
+of the file:
+<example>
+  Section "Device"
+      Identifier        "Custom Device"
+      Driver            "ati"
+      Option            "NoAccel"
+  EndSection
+
+  Section "Screen"
+      Identifier  "Custom Screen"
+      Device      "Custom Device"
+      Monitor     "Generic Monitor"
+      DefaultDepth 24
+      Subsection "Display"
+          Depth       8
+          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+      EndSubsection
+      Subsection "Display"
+          Depth       16
+          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+      EndSubsection
+      Subsection "Display"
+          Depth       24
+          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+      EndSubsection
+  EndSection
+
+  Section "ServerLayout"
+      Identifier        "Custom"
+      Screen            "Custom Screen"
+      InputDevice       "Generic Keyboard" "CoreKeyboard"
+      InputDevice       "Configured Mouse" "CorePointer"
+  EndSection
+</example>
+
+<sect1 id="reconf-x">Reconfigure XFree86
+<p>
+In Woody, re-configure X by:
+<list compact>
+<item><tt>dpkg-reconfigure --priority=low xserver-xfree86   # X4</tt>
+<item><tt>dpkg-reconfigure --priority=low xserver-common-v3 # X3</tt>
+</list>
+
 <sect1 id="custom-x">Customize X session
 <p>
 X session can be started by:
@@ -587,8 +658,7 @@ effectively a combination of
 At the end of this sequence, a program first found in the following 
 order will be executed with the <prgn>exec</prgn> command:
 <enumlist compact>
-<!-- Program specified by shell variable $REALSTARTUP, 
- if it is defined.-->
+<item><file>~/.xsession</file> or <file>~/.Xsession</file>, if it is defined.
 <item><file>/usr/bin/x-session-manager</file>, if it is defined.
 <item><file>/usr/bin/x-window-manager</file>, if it is defined.
 <item><file>/usr/bin/x-terminal-emulator</file>, if it is defined.
@@ -602,32 +672,39 @@ For example:
 # update-alternatives --config x-window-manager
 </example>
 In order to make any X window manager to be a default while keeping GNOME
-and KDE session manager installed, create
-<file>/etc/X11/Xsession.d/60xfree86-common_force-window-manager</file>
-as:
+and KDE session manager installed, replace
+<file>/etc/X11/Xsession.d/50xfree86-common_determine-startup</file>
+with the one attached in the second bug report at 
+<url id="&bug-xfree;"> (I hope this to be included soon.)
+and edit <file>/etc/X11/Xsession.options</file> as followings to disallow 
+X session manager:
 <example>
-# Force X window manager
-if [ -x /usr/bin/x-window-manager ]; then
-    REALSTARTUP=x-window-manager
-elif [ -x /usr/bin/x-terminal-emulator ]; then
-    REALSTARTUP=x-terminal-emulator
-fi
+# /etc/X11/Xsession.options
+#
+# configuration options for /etc/X11/Xsession
+# See Xsession.options(5) for an explanation of the available options.
+# Default enabled
+allow-failsafe
+allow-user-resources
+allow-user-xsession
+use-ssh-agent
+# Default disabled (enable them by uncommenting)
+do-not-use-x-session-manager
+#do-not-use-x-window-manager
 </example>
-(Yack, any better idea?)
 <p>
 <package>gnome-session</package> and <package>kdebase</package> are 
 the package containing these X session manager.  Removing them allows
 X window manager to be a default. (Yack, any better idea?)
 <p>
 If <file>~/.xsession</file> or <file>~/.Xsession</file> exist, the
-action of <file>/etc/X11/Xsession</file> can be customized for the user
-and above
-mentioned scheme of the X window/session manager selection will be lost.
-Because of this, the last command in the <file>~/.xsession</file> file
-should have <tt>exec <var>some-window/session-manager</var></tt>.  Here
+action of <file>/etc/X11/Xsession</file> can be customized for each 
+user.  Because of this, the last command in the 
+<file>~/.xsession</file> file should use form of 
+<tt>exec <var>some-window/session-manager</var></tt>.  Here
 you may use one of the above mentioned generic name of the X 
-window/session manager or any specific name of specific X window/session 
-manager programs.  
+window/session manager or any specific name of specific X 
+window/session manager programs.  
 <p>
 An good example of the <file>~/.xsession</file> script is given at
 <file>&f-xsession;</file>.
@@ -1336,9 +1413,9 @@ language support.
 keyboards.  In Woody, re-configure keyboard by:
 
 <list compact>
-<item><tt>dpkg-reconfigure console-data      # for console</tt>
-<item><tt>dpkg-reconfigure xserver-xfree86   # for XFree86 v4</tt>
-<item><tt>dpkg-reconfigure xserver-common-v3 # for XFree86 v3</tt>
+<item><tt>dpkg-reconfigure --priority=low console-data # console</tt>
+<item><tt>dpkg-reconfigure --priority=low xserver-xfree86   # X4</tt>
+<item><tt>dpkg-reconfigure --priority=low xserver-common-v3 # X3</tt>
 </list>
 </sect2>
 
