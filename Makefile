@@ -18,9 +18,9 @@ SUBDIRS	:=	\
 		intro-i18n		\
 		java-faq		\
 		euro-support		\
+		quick-reference		\
 		faq			\
-		fr			\
-		quick-reference
+		fr
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
