@@ -14,6 +14,8 @@
 
 export TEXMFCNF=texmf:
 
+export PATH:=bin/:${PATH}
+
 # do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
 .SUFFIXES:
 
@@ -228,16 +230,35 @@ $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 
 latex.fmt: texmf/language.dat
 	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n tex -p tex) \
-	fmtutil --byfmt latex --fmtdir .
+	tex -ini latex.ini > /dev/null
+#	fmtutil --byfmt latex --fmtdir .
 
 pdflatex.fmt: texmf/language.dat
 	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
-	fmtutil --byfmt pdflatex --fmtdir .
+	pdftex -ini pdflatex.ini > /dev/null
+#	fmtutil --byfmt pdflatex --fmtdir .
 
 # required by thumbpdf (called from debiandoc2latexpdf)
 pdftex.fmt: texmf/language.dat
 	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
-	fmtutil --byfmt pdftex --fmtdir .
+	pdftex -ini pdftex.ini > /dev/null
+#	fmtutil --byfmt pdftex --fmtdir .
+
+latex.efmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n tex -p tex) \
+	etex -ini latex.ini > /dev/null
+#	fmtutil --byfmt latex --fmtdir .
+
+pdflatex.efmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/; \
+	pdfetex -ini pdflatex.ini > /dev/null
+#	fmtutil --byfmt pdflatex --fmtdir .
+
+# required by thumbpdf (called from debiandoc2latexpdf)
+pdftex.efmt: texmf/language.dat
+	TEXINPUTS=$$(pwd)/texmf/; \
+	pdfetex -ini pdftex.ini > /dev/null
+#	fmtutil --byfmt pdftex --fmtdir .
 
 # DVI
 
@@ -251,24 +272,24 @@ $(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
 
 # PS
 
-$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
+$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt latex.efmt
 	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
-$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
+$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt latex.efmt
 	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
 $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt %/hyperref-full.cfg
+                  pdflatex.fmt pdftex.fmt pdflatex.efmt pdftex.efmt %/hyperref-full.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-full.cfg hyperref.cfg
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt %/hyperref-quick.cfg
+                  pdflatex.fmt pdftex.fmt pdflatex.efmt pdftex.efmt %/hyperref-quick.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-quick.cfg hyperref.cfg
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
@@ -556,7 +577,7 @@ manual.txt: manual.sgml
 manual.html.stamp: manual.sgml
 	debiandoc2html manual.sgml
 	touch manual.html.stamp
-	
+
 #====[ cleaning up ]===========================================================
 distclean: clean
 	make "PUBLISHDIR=~/public_html/" publish-clean
@@ -574,7 +595,7 @@ clean:
 	rm -f $(addprefix $(MANUAL1).*.,$(clean_SUFFIXES))
 	rm -f $(addprefix $(MANUAL2).*.,$(clean_SUFFIXES))
 	rm -f *~ prior.aux pprior.aux *.log typescript README README.html
-	rm -f latex.fmt pdflatex.fmt pdftex.fmt
+	rm -f latex.fmt pdflatex.fmt pdftex.fmt latex.efmt pdflatex.efmt pdftex.efmt
 	rm -f latex.log pdflatex.log pdftex.log
 	rm -f *.tex[01]pdf *.tex[01]ps
 	rm -f $(MANUAL0).tar.gz fix.ent hyperref.cfg
