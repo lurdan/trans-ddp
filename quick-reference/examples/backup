@@ -2,24 +2,40 @@
 # This is just a simple home user script.
 # I think back up really depends on what you want.
 # You need to assess benefits (ease, assurance)  vs. risks (cost, time)
-echo ====== Back-up system ===== /, /home, /var/cvs
+#
+# /etc/*
+# /home/*
+# /var/lib/dpkg/* /var/backups/* 
+# /var/cvs
+#
+# will be backed up
+#
+echo "====== Osamu's Simple System Back-up Script =====" 
 # set volume label
 date=$(date --utc +"%Y%m%d%H%M")
-cdtemp=/home/ftp/cdimage
-echo "Clean up $cdtemp"
-rm -vrf $cdtemp/*
-echo "Start backup >>>"
-echo $date >$cdtemp/date
-echo "dpkg --get-selection # use --set-selection later to recover"
-# I do not do dpkg --get-selections \* here, because of size
-dpkg --get-selections  | gzip >$cdtemp/dpkg-list.gz
-#echo "ls-lR"
-#ls -lR  / | gzip >$cdtemp/ls-lR.gz
-
-echo -n 'Backup to image file (i), CD-R (r) or CD-RW (w).  Enter i/r/w: '
+cdtemp=${1:-/mnt/backup/data}
+install -d $cdtemp
+shift
+echo    ">>> Directory contents"
+ls $cdtemp
+echo    '-----------------------------------------------'
+echo -n "Do you want to clean up all $cdtemp contents? (y/n)"
+read CNF
+if [ "$CNF" = "y" ]; then
+	echo "Clean up $cdtemp"
+	rm -vrf $cdtemp/*
+fi
+install -d $cdtemp/$date
+cdimage=${1:-/mnt/backup/cd$date.img}
+shift
+echo    '-----------------------------------------------'
+echo    "Backup to directory  (d) at $cdtemp/$date"
+echo    "          image file (i) at $cdimage"
+echo    '          CD-R       (r) or'
+echo -n '          CD-RW      (w)     Enter d/i/r/w: '
 read YN
-echo
-if [ "$YN" = "r" -o "$YN" = "w" -o "$YN" = "i" ];  then
+echo    '-----------------------------------------------'
+if [ "$YN" = "d" -o "$YN" = "i" -o "$YN" = "w" -o "$YN" = "w" ];  then
     echo "  Entered $YN"
 else
     echo ... Oops! Stop here ; exit 1
@@ -29,33 +45,44 @@ read CNF
 if [ ! "$CNF" = "y" ]; then
     exit 1
 fi
+echo ">>> Start backup:"
+echo ">>> Save package selection:"
+#dpkg --get-selections  | gzip >$cdtemp/dpkg-list.gz
+dpkg --get-selections \*  | gzip >$cdtemp/$date/dpkg-list.gz
+echo ">>> Save directories:"
+# create tar file for directory limited within each file system (-l)
+tar -cvzl -f ${cdtemp}/$date/ETC.tar.gz /etc
+tar -cvzl -f ${cdtemp}/$date/ROOT.tar.gz \
+	--exclude='.netscape' \
+	--exclude='.mozilla' \
+	--exclude='.galeon' \
+	--exclude='.w3m' \
+	--exclude='.links' \
+	--exclude='Mail' \
+	--exclude='public_html' \
+	/root
+tar -cvzl -f ${cdtemp}/$date/HOME.tar.gz \
+	--exclude='.netscape' \
+	--exclude='.mozilla' \
+	--exclude='.galeon' \
+	--exclude='.w3m' \
+	--exclude='.links' \
+	--exclude='Mail' \
+	--exclude='public_html' \
+	/home
+tar -cvzl -f ${cdtemp}/$date/VL_DPKG.tar.gz /var/lib/dpkg
+#tar -cvzl -f ${cdtemp}/$date/VAR_BACKUPS.tar.gz /var/backups
+tar -cvzl -f ${cdtemp}/$date/VL_CVS.tar.gz /var/lib/cvs
+
+[ $YN = "d" ] && exit 1
 
 echo 
-echo Start making CD image ...
+echo "Start making CD image $cdimage from $cdtemp"
 echo
 
-# create tar file for directory limited within each file system (-l)
-tar -cvzl \
-    --exclude='boot' \
-    --exclude='bin' \
-    --exclude='dev' \
-    --exclude='proc' \
-    --exclude='sbin' \
-    --exclude='lib' \
-    --exclude='var' \
-    --exclude='tmp' \
-    --exclude='usr' \
-    -f ${cdtemp}/ROOT$date.tar.gz /
-tar -cvzl \
-    --exclude='ftp' \
-    --exclude='Mail' \
-    --exclude='.netscape' \
-    -f ${cdtemp}/HOME$date.tar.gz /home/
-tar -cvzl -f ${cdtemp}/CVS$date.tar.gz /var/cvs/
 # create cd image no more -J
-mkisofs -v -R -V "BU$date" \
-    -o $cdtemp/../cd.img \
-    $cdtemp
+
+mkisofs -v -R -V "BU$date" -o $cdimage  $cdtemp
 
 [ $YN = "i" ] && exit 1
 
@@ -69,4 +96,4 @@ else
     OPTN=""; echo Recordable!   
 fi
 echo
-exec nice --20 cdrecord -v -eject $OPTN speed=2 dev=0,0  /home/ftp/cd.img
+exec nice --10 cdrecord -v -eject $OPTN speed=2 dev=0,0  $cdimage
