@@ -24,7 +24,7 @@
 <email>jfs@computer.org</email>
 </author>
 <version>2.5 (beta)
-<date>Tue, 30 Jul 2002 17:31:25 +0200
+<date>Wed,  7 Aug 2002 12:55:32 +0200
 
 <abstract>
 This document describes the process of securing and hardening the
@@ -288,6 +288,20 @@ and logcolorise).
 things waiting on my inbox to be included, so I'm going to tag
 this the <em>back from honeymoon</em> release :)
 <list>
+
+<item>Added a pointer to another item regarding Bind chrooting (needs to be merged)
+
+<item>Added a one liner contributed by Cristian Ionescu-Idbohrn to
+retrieve packages with tcpwrappers support.
+
+<item>Added a little bit more info on Debian's default PAM setup.
+
+<item>Included a FAQ question about using PAM to give services w/o
+shell accounts.
+
+<item>Moved two FAQ items to another section and added a new FAQ
+regarding attack detection (and compromised systems).
+
 <item>Included information on how to setup a bridge firewall
 (including a sample Appendix). Thanks go to Francois Bayar who sent
 me this on march.
@@ -311,6 +325,11 @@ bind for chrooting (untested).
 
 <item>Added a FAQ item (could be expanded with some of the
 recomendations from the debian-security list regarding some specific servers/services).
+
+<item>Added some information on RPC services (and when it's necessary).
+
+<item>Added some more information on capabilities (and what lcap does). Is there any
+good documentation on this? I haven't found any on my 2.4 kernel.
 
 <item>Fixed some typos.
 
@@ -1489,21 +1508,36 @@ can be done automatically through a cron job (big warning: DNS spoofing).
 
 <sect>Customising user's access
 
-<sect1>User authentication: PAM
+<sect1 id="auth-pam">User authentication: PAM
 
 <p>PAM (Pluggable Authentication Modules) allows system administrators
 to choose how applications authenticate users. Note that PAM can do
 nothing unless an application is compiled with support for PAM. Most
 of the applications that are shipped with Debian 2.2 have this support
-built in. Furthermore, Debian did not have PAM support before
-2.2. Each application with PAM support provides a configuration file
-in <file>/etc/pam.d/</file> which can be used to modify its behavior.
+built in. Furthermore, Debian did not have PAM support before 2.2. The
+current default configuration for any PAM-enabled service is to
+emulate UNIX authentication (read
+<file>/usr/share/doc/libpam0g/Debian-PAM-MiniPolicy.gz</file> for more
+information on how PAM services <em>should</em> work in Debian).
+
+
+<p>Each application with PAM support provides a configuration file
+in <file>/etc/pam.d/</file> which can be used to modify its behavior:
+
+<list>
+<item>what backend is used for authentication.
+<item>what backend is used for sessions.
+<item>how do password checks behave.
+</list>
+
+<p>
 The following description is far for complete, for more information
-you might want to read the 
-<url id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html" 
-name="The Linux-PAM System Administrator's Guide"> (at the
-<url id="http://www.kernel.org/pub/linux/libs/pam/"
-name="primary PAM distribution site">)
+you might want to read the <url
+id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html"
+name="The Linux-PAM System Administrator's Guide"> (at the <url
+id="http://www.kernel.org/pub/linux/libs/pam/" name="primary PAM
+distribution site">), this document is also provided in the
+<package>libpam-doc</package>.
 
 <p>PAM offers you the possibility to go through several authentication steps at
 once, without the user's knowledge. You could authenticate against a Berkeley
@@ -1949,7 +1983,15 @@ service is not launched by the <prgn>inetd</prgn> superdaemon
 can, in any case, subjected to the tcp wrappers rules by compiling its
 support in it. Services compiled with tcp wrappers in Debian include
 ssh, portmap, in.talk, rpc.statd, rpc.mountd, gdm, oaf (the GNOME
-activator daemon), nessus and many others.
+activator daemon), nessus and many others. 
+
+<p>To see which packages use tcpwrappers try:
+
+<example>
+$ apt-cache showpkg libwrap0 | egrep '^[[:space:]]' | sort -u | \
+        sed 's/,libwrap0$//;s/^[[:space:]]\+//'
+</example>
+
 
 <p>Take this into account when running <prgn>tcpchk</prgn>.
 You can add services that are linked to the wrapper library into
@@ -3368,6 +3410,7 @@ them to add <tt>--chroot /location_of_chroot</tt> in the calls to
 
 
 <p>FIXME, merge info from
+<url id="http://people.debian.org/~pzn/howto/chroot-bind.sh.txt">,
 <url id="http://www.cryptio.net/~ferlatte/config/"> (Debian-specific)
 and 
 <url id="http://www.psionic.com/papers/whitep01.html">.
@@ -3479,11 +3522,15 @@ name="NIS-HOWTO" id="http://www.linuxdoc.org/HOWTO/NIS-HOWTO.html">
 
 <sect id="rpc">Disabling RPC services
 
-<p>You should disable RPC wherever possible.  <!-- FIXME:
-explain when RPC is necessary. --> Many security holes for this
-service are known and can be easily exploited.  On the other hand NFS
+<p>You should disable RPC wherever possible, that is, when you do not need it.
+<footnote>
+You only probably need it if using NFS (Network FileSystem), NIS
+(Network Information System) or some other RPC-based service.
+</footnote>
+Many security holes for both the portmapper service and RPC-based
+services are known and could be easily exploited.  On the other hand NFS
 services are quite important in some networks, so find a balance of
-security and usability in your network. Most of the DDoS (distributed
+security and usability in your network. Some of the DDoS (distributed
 denial of service) attacks use rpc exploits to get into the system and
 act as a so called agent/handler. Read more on NFS security in
 <url
@@ -4367,7 +4414,7 @@ name="CERT's Intrusion Detection Checklist">
 
 <sect1>Network based intrusion detection
 
-<p><package>snort</package> is a flexible packet sniffer or logger
+<p><package>Snort</package> is a flexible packet sniffer or logger
 that detects attacks using an attack signature dictionary. It detects
 a variety of attacks and probes, such as buffer overflows, stealth
 port scans, CGI attacks, SMB probes, and much more. Snort has a
@@ -4511,16 +4558,16 @@ proccesses information.
 
 <sect1>Detecting rootkits
 
-<p>The detection work can be simple and painless, or difficult
-and tiring, depending the measure that you choose. There are
-two measure of defenses regarding LKM security, the proactive
-and reactive.
+<p>The detection work can be simple and painless, or difficult and
+tiring, depending the measure that you choose. There are two measure
+of defenses regarding LKM (Linux Kernel Modules) security, the
+proactive and reactive.
 
 <sect2>Proactive defense
 
 <p>The advantage of this defense is that its prevents that some
 lkm rootkit damages the system. The most used proactive defense is
-"getting there first", that is loading a designed LKM to protect
+<em>getting there first</em>, that is loading a designed LKM to protect
 the system to be damaged by a malicious designed LKM. Another measure
 is to remove capabilities in the kernel, making the system more secure.
 For example, you can remove the capability to stop the loading and
@@ -4531,8 +4578,49 @@ unloading of kernel modules.
 <item> <package>kernel-patch-2.4-lsm</package> - LSM is the Linux Security
 Modules framework.
 
-<item> <package>lcap</package> - Removes 'capabilities' in the kernel, making
-the system more secure
+<item> <package>lcap</package> - A user friendly interface to remove
+<em>capabilities</em> (kernel-based access control) in the kernel,
+making the system more secure. Running <tt>lcap CAP_SYS_MODULE</tt>
+<footnote>
+There are over 28 capabilities including:
+<tt>CAP_BSET</tt>,
+<tt>CAP_CHOWN</tt>,
+<tt>CAP_FOWNER</tt>,
+<tt>CAP_FSETID</tt>,
+<tt>CAP_FS_MASK</tt>,
+<tt>CAP_FULL_SET</tt>,
+<tt>CAP_INIT_EFF_SET</tt>,
+<tt>CAP_INIT_INH_SET</tt>,
+<tt>CAP_IPC_LOCK</tt>,
+<tt>CAP_IPC_OWNER</tt>,
+<tt>CAP_KILL</tt>,
+<tt>CAP_LEASE</tt>,
+<tt>CAP_LINUX_IMMUTABLE</tt>,
+<tt>CAP_MKNOD</tt>,
+<tt>CAP_NET_ADMIN</tt>,
+<tt>CAP_NET_BIND_SERVICE</tt>,
+<tt>CAP_NET_RAW</tt>,
+<tt>CAP_SETGID</tt>, 
+<tt>CAP_SETPCAP</tt>,
+<tt>CAP_SETUID</tt>,
+<tt>CAP_SYS_ADMIN</tt>,
+<tt>CAP_SYS_BOOT</tt>,
+<tt>CAP_SYS_CHROOT</tt>,
+<tt>CAP_SYS_MODULE</tt>,
+<tt>CAP_SYS_NICE</tt>,
+<tt>CAP_SYS_PACCT</tt>,
+<tt>CAP_SYS_PTRACE</tt>,
+<tt>CAP_SYS_RAWIO</tt>,
+<tt>CAP_SYS_RESOURCE</tt>,
+<tt>CAP_SYS_TIME</tt>, and
+<tt>CAP_SYS_TTY_CONFIG</tt>. All of them can be activated or de-activated
+in or to harden your kernel.
+</footnote>
+will remove module loading capabilities (even for the root user).
+<footnote>
+You do not need to install <package>lcap</package> to do this but it's
+easier than setting <file>/proc/sys/kernel/cap-bound</file> by hand.
+</footnote>
 </list>
 
 <p>If you don't really need these many kernel features on your GNU/Linux
@@ -4552,16 +4640,17 @@ with known clean copy in a disk file (System.map). The most
 obvius desavantage is that its tell to administrator only when
 the system have already be compromised.
 
-<p>Detection of rootkits in Debian can be accomplished with 
-<package>chkrootkit</package>. This program checks for signs of rootkits
-on the local system and tells whether the target computer is
-infected with a rootkit.
+<p>Detection of rootkits in Debian can be accomplished with
+<package>chkrootkit</package>. The <url name="Chkrootkit"
+id="http://www.chkrootkit.org"> program checks for signs of rootkits
+on the local system and tells whether the target computer is infected
+with a rootkit.
 
-<p>You can also use 
-<url name="SKAT" id="http://s0ftpj.org/en/site.html">. 
-SKAT checks the kernel memory area (<file>/dev/kmem</file>) for
-information about the target host, this information includes the 
-installation of Loadable Kernel Modules.
+<p>You can also use <url name="KSTAT"
+id="http://www.s0ftpj.org/en/site.html"> (Kernel Security Therapy Anti
+Trolls) by the S0ftproject group.  KSTAT checks the kernel memory area
+(<file>/dev/kmem</file>) for information about the target host, this
+information includes the installation of Loadable Kernel Modules.
 
 <P>FIXME: Add info on how to compile the kernel w/o lkm support?
 
@@ -4577,11 +4666,11 @@ or secure &mdash; to increase your security rapidly but you will not
 come unscathed out of it.
 
 <list>
-<item>Playing around with PAM.
-As said in the phrack 56 PAM article, the nice thing with PAM is that "You are
-limited only by what you can think of." It is true. Imagine root login only
-possible with fingerprint or eyescan or cryptocard (why did I do an OR
-conjunction and not AND here).
+<item>Playing around with PAM.  As said in the phrack 56 PAM article,
+the nice thing with PAM is that "You are limited only by what you can
+think of." It is true. Imagine root login only possible with
+fingerprint or eyescan or cryptocard (why did I do an OR conjunction
+and not AND here?).
 
 <item>Fascist Logging.  I would say everything we talked about logging
 above is "soft logging". If you want to perform real logging, get a
@@ -4709,7 +4798,7 @@ is dedicated to building honeypots and auditing attacks made to them,
 there is valuable information there on howto setup a honeypot and howto
 audit the results of an attack (check out the contest).
 
-<chapt>After the compromise
+<chapt id="compromise">After the compromise
 
 
 <sect>General behavior
@@ -5258,6 +5347,69 @@ you are superuser it will not ask for the previous password).
 
 </list>
 
+<sect1>I want to setup a service for my users bot not give shell accounts.  
+
+<p>If you want to give a POP service, for example, you do not need to
+setup a user account for each user accessing it. It's best to setup a
+directory-based authentication through an external service (like
+Radius, LDAP or an SQL database). Just install the appropiate PAM
+library (<package>libpam-radius-auth</package>,
+<package>libpam-ldap</package>, <package>libpam-pgsql</package> or
+<package>libpam-mysql</package>), read the documentation (for
+starters, see <ref id="auth-pam"> and configure the PAM-enabled
+service to use the backend you have chosen. This is done by editing
+the files under <file>/etc/pam.d/</file> for your service and modify
+the
+<example>
+auth    required        pam_unix_auth.so shadow nullok use_first_pass
+</example>
+to, for example, ldap: 
+<example>
+auth    required        pam_ldap.so
+</example>
+
+<!-- FIXME: check if this i right (jfs) -->
+
+<p>In the case of LDAP directories, some services provide LDAP schemas
+to be included in your directory that need to be included in order to
+use LDAP autentication for it. If you are using a relational database,
+a useful trick is to use the <em>where</em> clause when configuring
+the PAM modules. For example if you have a database with the following
+table:
+
+<example>
+(user_id,user_name,realname,shell,password,uid,gid,homedir,sys,pop,imap,ftp)
+</example>
+
+<p>You can use the last (boolean) values to enable or disable access
+to the different services just by inserting the appropiate lines in the following files:
+
+<list>
+<item><file>/etc/pam.d/imap</file>:<tt>where=imap=1</tt>.
+
+<item><file>/etc/pam.d/qpopper</file>:<tt>where=pop=1</tt>.
+
+<item><file>/etc/nss-mysql*.conf</file>:<tt>users.where_clause = user.sys = 1;</tt>.
+
+<item><file>/etc/proftpd.conf</file>:<tt> SQLWhereClause "ftp=1"
+</tt>.
+
+</list>
+
+
+
+
+<sect>My system is vulnerable! (are you sure?)
+
+<sect1>I've seen an attack on my system logs: am I compromised?
+
+<p>A trace of an attack does not always mean that you've been cracked
+into, you should take the usual steps to determine if the system is
+compromised (see <ref id="compromise">). Also notice that sometimes,
+the fact that you see the attacks in the log might mean you system is
+already vulnerable to it (a determined attacker might have used some
+other besides the ones you have seen, however).
+
 <sect1>I have found strange 'MARKs' in my logs: Am I compromised?
 
 <p>You might find the following in your system logs. If your system
@@ -5300,12 +5452,8 @@ $ grep nobody /etc/cron.daily/*
 find:cd / && updatedb --localuser=nobody 2>/dev/null
 </example>
 
-
-
-<sect>My system is vulnerable!
-
 <sect1>I have suffered a break-in what do I do?
-<p>Read this document and take the appropiate measures outlined here.
+<p>Read this document and take the appropiate measures outlined here. 
 If you need assistance you might use the debian-security@lists.debian.org
 to ask for advice on how to recover/patch your system.
 
