@@ -16,7 +16,7 @@ maint-guide.html/index.html: maint-guide.sgml
 	debiandoc2html $<
 
 maint-guide.%.html/index.html: maint-guide.%.sgml
-	debiandoc2html -l $* $<
+	debiandoc2html -c -l $* $<
 
 # generating plain text
 txt text: $(patsubst %.sgml,%.txt,$(wildcard *.sgml))
@@ -34,10 +34,10 @@ maint-guide.ps: maint-guide.sgml
 	debiandoc2latexps $<
 
 # publishing to the DDP web pages
-publish: maint-guide.html/index.html
+publish: html
 	test -d $(PUBLISHDIR)/maint-guide || install -d -m 755 $(PUBLISHDIR)/maint-guide
 	rm -f $(PUBLISHDIR)/maint-guide/*.html
-	install -p -m 644 maint-guide.html/*.html $(PUBLISHDIR)/maint-guide/
+	install -p -m 644 maint-guide*.html/*.html $(PUBLISHDIR)/maint-guide/
 
 # validating SGML
 validate:
