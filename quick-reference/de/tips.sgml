@@ -1,0 +1,849 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+
+<chapt id="tips"> &debian; tips
+
+
+<sect>Booting the system
+<p>
+See the LDP <url id="&bootprompt-howto;" name="BootPrompt-HOWTO">
+for detailed information on the boot prompt.
+
+<sect1 id="crackroot">"I forgot the root password!" (1)
+<p>
+It is possible to boot a system and log on to the root account without knowing
+the root password as long as one has access to the console keyboard.  (This
+assumes there are no password requests from the BIOS or from a boot-loader
+such as <prgn>lilo</prgn> that would prevent one from booting the system.)
+<p>
+This is a procedure which requires no external boot disks and
+no change in BIOS boot settings. Here, "Linux" is the label for
+booting the Linux kernel in the default Debian install.
+<p>
+At the <prgn>lilo</prgn> boot screen, as soon as <tt>boot:</tt> appears
+(you must press a shift key at this point on some systems to prevent
+automatic booting), enter:
+<example>
+boot: Linux init=/bin/sh
+</example>
+This causes the system to boot the kernel and run <file>/bin/sh</file> instead
+of its standard <prgn>init</prgn>.  Now you have gained root privileges and a
+root shell.  Since <file>/</file> is currently mounted read-only and many disk
+partitions have not been mounted yet, you must do the following to have a
+reasonably functioning system.
+<example>
+init-2.03# mount -n -o remount,rw /
+init-2.03# mount -avt nonfs,noproc,nosmbfs
+init-2.03# cd /etc
+init-2.03# vi passwd
+init-2.03# vi shadow
+</example>
+(If the second data field in <file>/etc/passwd</file> is "x" for every
+username, your system uses shadow passwords, and you must edit
+<file>/etc/shadow</file>.) To disable the root password, edit the second data
+field in the password file so that it is empty.  Now the system can be
+rebooted and you can log on as root without a password.  
+When booting into runlevel 1, Debian (at least after Potato) 
+requires a password, which some older distributions did not.
+<p>
+It is a good idea to have a minimum editor in <file>/bin</file> 
+in case <file>/usr</file> is not accessible (see <ref id="bin-editor">).
+<p>
+Also consider installing the <package>sash</package> package.  
+When the system becomes unbootable, execute:
+<example>
+boot: Linux init=/bin/sash
+</example>
+<prgn>sash</prgn> serves as an interactive substitute for 
+<prgn>sh</prgn> even when <file>/bin/sh</file> is unusable.  
+It's statically linked, and includes many standard
+utilities as built-ins (type "help" at the prompt for a reference list).
+</sect1>
+
+<sect1>"I forgot the root password!" (2)
+<p>
+Boot from any emergency boot/root disk set.  If <file><var>/dev/hda3</var></file> is the
+original root partition, the following will let one edit the password file
+just as easily as the above.
+<example>
+# mkdir <var>fixit</var>
+# mount <var>/dev/hda3</var> <var>fixit</var>
+# cd <var>fixit</var>/etc
+# vi shadow
+# vi passwd
+</example>
+<p>
+The advantage of this approach over the previous method is one does not need
+to know the <prgn>lilo</prgn> password (if any).  But to use it one must be
+able to access the BIOS setup to allow the system to boot from floppy disk or
+CD, if that is not already set.
+</sect1>
+
+<sect1>Cannot boot the system
+<p>
+No problem, even if you didn't bother to make a boot disk during install.
+If <prgn>lilo</prgn> is broken, grab the boot disk from the Debian installation set and
+boot your system from it.  At the boot prompt, assuming the root partition of
+your Linux installation is on <file><var>/dev/hda12</var></file> and you want runlevel 3, enter:
+<example>
+boot: rescue root=<var>/dev/hda12</var> 3
+</example>
+Then you are booted into an almost fully functional system using the kernel on
+the floppy. (There may be minor glitches due to lack of kernel features or
+modules.) 
+<p>
+If you need a custom boot floppy, follow <prgn>readme.txt</prgn> on the rescue disk.
+</sect1>
+
+<sect1 id="bootprompt">Other boot tricks with the boot prompt
+<p>
+The system can be booted into a particular runlevel and configuration
+using the <prgn>lilo</prgn> boot prompt. Details are given in the
+<url id="&bootprompt-howto;" name="BootPrompt-HOWTO"> (LDP).
+<p>
+If you want to boot the system into runlevel 4, use the following 
+input at the <prgn>lilo</prgn> boot prompt.
+<example>
+boot: Linux 4
+</example>
+<p>
+If you want to boot the system into normally functioning single-user mode
+and you know the root password, one of the following examples at the
+<prgn>lilo</prgn> boot prompt will work.
+<example>
+boot: Linux S
+boot: Linux 1
+boot: Linux -s
+</example>
+<p>
+If you want to boot the system with less memory than system actually has
+(say 48MB for a system with 64MB), use this input at the <prgn>lilo</prgn>
+boot prompt:
+<example>
+boot: Linux mem=48M
+</example>
+Make sure not to specify more than the actual memory size here, otherwise the
+kernel will crash.  If one has more than 64MB of memory, e.g. 128MB, unless
+one executes <tt>mem=128M</tt> at the boot prompt or includes a similar append
+line in <file>/etc/lilo.conf</file>, old kernels and/or a motherboard with an
+old BIOS will not use memory beyond 64MB.
+</sect1>
+</sect>
+
+<sect>Recording activities
+
+<sect1 id="script">Recording shell activities
+<p>
+System administration involves much more elaborate tasks in a Unix environment
+than in an ordinary personal computer environment.  Make sure to know the most
+basic means of configuration in case you need to recover from system trouble.
+X-window-based GUI configuration tools look nice and convenient but are often
+unsuitable in these emergency situations.
+<p>
+In this context, recording shell activities is a good practice,
+especially as root.
+<p>
+Emacs: Use <tt>M-x shell</tt> to start recording into a buffer, and
+use <tt>C-x C-w</tt> to write the buffer to a file.
+<p>
+Shell: Use the <prgn>script</prgn> command.
+<example>
+$ script
+Script started, file is typescript
+ ... do whatever ...
+ Control-D
+$ col -bx &lt;typescript &gt;savefile
+$ vi savefile
+</example>
+The following can be used instead of <prgn>script</prgn>:
+<example>
+$ bash -i 2&gt;&amp;1 | tee typescript
+</example>
+</sect1>
+
+<sect1>Recording X activities
+<p>
+If you need to record the graphic image of an X application, including an
+xterm display, use <prgn>gimp</prgn> (GUI).  It can capture each window or the whole
+screen. Alternatives are <prgn>xwd</prgn>
+(<package>xbase-clients</package>), <prgn>import</prgn>
+(<package>imagemagick</package>), or <prgn>scrot</prgn>
+(<package>scrot</package>). 
+</sect1>
+
+<sect1 id="backup">Recording changes to the configuration files
+<p>
+<package>Changetrack</package> will record changes to the configuration
+files in RCS archives.  See <manref name="changetrack" section="1">.
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect1>
+
+</sect>
+
+<sect>Copy and archive a whole subdirectory
+<sect1>Basic commands for copying a whole subdirectory
+<p>
+If you need to rearrange file structure, move content including file links by:
+<example>
+Standard method:
+# cp -a /source/directory /dest/directory # requires GNU cp
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        (cd /dest/directory &amp;&amp; tar xvfp - )
+If a hard link is involved, a pedantic method is needed:
+# cd /path/to/old/directory
+# find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+If remote:
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+If there are no linked files:
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
+</example>
+Here, <prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn> and <prgn>ssh</prgn>
+&lt;==&gt; <prgn>rsh</prgn>.
+<p>
+The following comparative information on copying a whole subdirectory
+was presented by Manoj Srivastava &lt;srivasta@debian.org&gt; to
+debian-user@lists.debian.org.
+</sect1>
+
+<sect1><prgn>cp</prgn>
+<p>
+Traditionally, <prgn>cp</prgn> was not really a candidate for this task since it did not
+dereference symbolic links, or preserve hard links
+either. Another thing to consider was sparse files (files with
+holes).
+<p>
+GNU <prgn>cp</prgn> has overcome these limitations; however, on a non-GNU
+system, <prgn>cp</prgn> could still have problems. Also, you can't generate
+small, portable archives using <prgn>cp</prgn>.
+<example>
+&percnt; cp -a . newdir
+</example>
+
+<sect1><prgn>tar</prgn>
+<p>
+Tar overcame some of the problems that <prgn>cp</prgn> had with symbolic
+links. However, although <prgn>cpio</prgn> handles special files, traditional
+<prgn>tar</prgn> doesn't.
+<p>								
+<prgn>tar</prgn>'s way of handling multiple hard links to a file places
+only one copy of the link on the tape, but the name attached
+to that copy is the <em>only</em> one you can use to retrieve the
+file; <prgn>cpio</prgn>'s way puts one copy for every link, but you can
+retrieve it using any of the names.
+<p>
+The <prgn>tar</prgn> command changed its option for <file>.bz2</file> 
+files between Potato and Woody, so use <tt>--bzip2</tt> in scripts
+instead of its short form <tt>-I</tt> (Potato) or <tt>-j</tt> (Woody).  
+</sect1>
+
+<sect1><prgn>pax</prgn>
+<p>
+The new, POSIX (IEEE Std 1003.2-1992, pages 380&ndash;388 (section 4.48) and pages
+936&ndash;940 (section E.4.48)), all-singing, all-dancing, Portable Archive
+Interchange utility.  <prgn>pax</prgn> will read, write, and list the members
+of an archive file, and will copy directory hierarchies.  <prgn>pax</prgn>
+operation is independent of the specific archive format, and supports a wide
+variety of different archive formats.
+<p>
+<prgn>pax</prgn> implementations are still new and wet behind the ears.
+<example>
+# apt-get install pax
+$ pax -rw -p e . newdir
+ or
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1><prgn>cpio</prgn>
+<p>
+copies files into or out of a <prgn>cpio</prgn> or <prgn>tar</prgn> archive.
+The archive can be another file on the disk, a magnetic tape, or a pipe.
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1><prgn>afio</prgn>
+<p>
+<prgn>afio</prgn> is a better way of dealing with <prgn>cpio</prgn>-format
+archives. It is generally faster than cpio, provides more diverse magnetic
+tape options and deals somewhat gracefully with input data corruption.  It
+supports multi-volume archives during interactive operation.
+<prgn>afio</prgn> can make compressed archives that are much safer than
+compressed <prgn>tar</prgn> or <prgn>cpio</prgn> archives.  <prgn>afio</prgn>
+is best used as an "archive engine" in a backup script.
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+All my backups onto tape use <prgn>afio</prgn>. 
+</sect1>
+
+</sect>
+
+
+<sect>System freeze recovery
+<sect1>Kill a process
+<p>
+Run <prgn>top</prgn> to see what process is acting funny. Press `P' to sort by cpu 
+usage, `M' to sort by memory, and `k' to kill a process.
+<p>
+Use <prgn>kill</prgn> to kill (or send a signal to) a process by process ID,
+<prgn>killall</prgn> to do the same by process command name. Frequently used
+signals:
+<example>
+ 1: HUP,  restart daemon
+15: TERM, normal kill
+ 9: KILL, kill hard
+</example>
+
+</sect1>
+
+<sect1>ALT-SysRq
+<p>
+Insurance against system malfunction is provided by the kernel compile option
+"Magic SysRq key".
+Pressing <tt>ALT-SysRq</tt> on an i386, followed by one of the keys <tt>r 0 k
+e i s u b</tt>,
+does the magic.
+<p>
+Un`r'aw restores the keyboard after things like X crashes.  Changing
+the console loglevel to `0' reduces error messages.  sa`k'
+(system attention key) kills all processes on the current virtual console.
+t`e'rminate kills all processes on the current terminal except init.
+k`i'll kills all processes except init.
+<p>
+`S'ync, `u'mount, and re`b'oot are for getting out of
+really bad situations.
+<p>
+Debian default installation kernels are not compiled with this option at the
+time this document is written.  Recompile the kernel to activate this
+function.  Detailed information is in
+<file>/usr/share/doc/kernel-doc-version/Documentation/sysrq.txt.gz</file>
+or <file>/usr/src/<var>kernel-version</var>/Documentation/sysrq.txt.gz</file>.
+
+</sect1>
+</sect>
+
+
+<sect>Nifty little commands to remember
+
+<sect1>Pager
+<p>
+<prgn>less</prgn> is the pager (file content browser).  Hit `h' for
+help. It can do much more than <prgn>more</prgn>.  <prgn>less</prgn> 
+can be supercharged by executing <tt>eval $(lesspipe)</tt> or 
+<tt>eval $(lessfile)</tt> in the shell start-up script.  See more 
+in <file>&f-lessopen;</file>. The <tt>-R</tt> option allows raw character
+output and enables ANSI color escape sequences.  See 
+<manref name="less" section="1">.
+<p>
+<prgn>w3m</prgn> may be a useful alternative pager for some code 
+systems (EUC).
+
+<sect1>Free memory
+<p>
+<prgn>free</prgn> and <prgn>top</prgn> give good information on memory
+resources.  Do not worry about the size of "used" in the "Mem:" line, but read
+the one under it (38792 in the example below). 
+<example>
+$ free -k # for 256MB machine
+             total       used       free     shared    buffers cached
+Mem:        257136     230456      26680      45736     116136 75528
+-/+ buffers/cache:      38792     218344
+Swap:       264996          0     264996
+</example>
+The exact amount of physical memory can be confirmed by <tt>grep '^Memory'
+/var/log/dmesg</tt>,
+which in this case gives "Memory: 256984k/262144k available (1652k kernel
+code, 412k reserved, 2944k data, 152k init)".
+<example>
+Total         = 262144k = 256M (1k=1024, 1M=1024k)
+Free to dmesg = 256984k = Total - kernel - reserved - data - init
+Free to shell = 257136k = Total - kernel - reserved - data
+</example>
+About 5MB is not usable by the system because the kernel uses it.
+</sect1>
+
+<sect1>Set time (BIOS)
+<p>
+<example>
+# date MMDDhhmmCCYY
+# hwclock --utc
+# hwclock --systohc
+# hwclock --show
+</example>
+This will set system and hardware time to MM/DD hh:mm, CCYY.
+Times are displayed in local time but hardware time uses UTC.
+
+<sect1>Set time (NTP)
+<p>
+Reference: <url id="&time-howto;" name="Managing Accurate Date and Time HOWTO">.
+<p>
+<sect2>Set time with permanent Internet connection
+<p>
+Set system clock to the correct time automatically via a remote server:
+<!-- [XXX FIXME XXX] some what broken ntpdate -->
+<example>
+# ntpdate <var>server</var>
+</example>
+This is good to have in <file>/etc/cron.daily</file> if your system has a
+permanent Internet connection.
+
+<sect2>Set time with sporadic Internet connection
+<p>
+Use the <package>chrony</package> package.
+</sect1>
+
+<sect1>How to disable the screensaver
+<p>
+In the Linux console:
+<example>
+# setterm -powersave off
+</example>
+<p>
+Start the kon2(kanji) console with:
+<example>
+# kon -SaveTime 0
+</example>
+<p>
+While running X:
+<example>
+# xset s off
+ or
+# xset -dpms
+ or
+# xscreensaver-command -prefs
+</example>
+Read the corresponding manpages.
+</sect1>
+
+<sect1 id="getent">Search administrative database
+<p>
+Glibc offers <manref name="getent" section="1"> for searching
+entries from administrative databases, i.e.,
+passwd, group, hosts, services, protocols, or networks.
+<example compact>
+getent database [key ...]
+</example>
+
+<sect1>Disable sound (beep)
+<p>
+One can always unplug the PC speaker ;-)  For the Bash shell:
+<example>
+echo "set bell-style none"&gt;&gt; ~/.inputrc
+</example>
+</sect1>
+
+<sect1>Error messages on the console screen
+<p>
+In order to quiet on-screen error messages, the first place to check is 
+<file>/etc/init.d/klogd</file>.  Set <tt>KLOGD="-c <var>3</var>"</tt> in this script and 
+run <tt>/etc/init.d/klogd restart</tt>. An alternative method is to run 
+<tt>dmesg -n<var>3</var></tt>.  
+<p>
+Here error levels mean:
+<list compact>
+<item>0: KERN_EMERG,   system is unusable
+<item>1: KERN_ALERT,   action must be taken immediately
+<item>2: KERN_CRIT,    critical conditions
+<item>3: KERN_ERR,     error conditions
+<item>4: KERN_WARNING, warning conditions
+<item>5: KERN_NOTICE,  normal but significant condition
+<item>6: KERN_INFO,    informational
+<item>7: KERN_DEBUG,   debug-level messages
+</list>
+<p>
+If one particular useless error message bothers you a lot, consider making a 
+trivial kernel patch like <file>shutup-abit-bp6</file> (available 
+in the <url id="&examples;" name="examples subdirectory">).
+<p>
+Another place to look may be <file>/etc/syslog.conf</file>; check to see
+whether any messages are logged to a console device.
+</sect1>
+
+<sect1>Set console to the correct type
+<p>
+Console screens in Unix-like systems are usually accessed using 
+(n)curses library routines.  These give the user a terminal-independent
+method of updating character screens with reasonable optimization.
+See <manref name="ncurses" section="3X"> and
+<manref name="terminfo" section="5">.
+<p>
+On a &debian; system, there are quite a lot of predefined entries:
+<example>
+$ toe | less                  # all entries
+$ toe /etc/terminfo/ | less   # user reconfigurable entries
+</example>
+Export your selection as environment variable <tt>TERM</tt>.
+<p>
+If the terminfo entry for xterm doesn't work with a non-Debian xterm,
+change your terminal type from "xterm" to one of the feature-limited 
+versions such as "xterm-r6" when you log in to a Debian system remotely.  
+See <file>&f-libncurse;</file> for more.  
+"dumb" is the lowest common denominator for terminfo.
+</sect1>
+
+<sect1>Get the console back to a sane state
+<p>
+When the screen goes berserk after <tt>$ cat <var>some-binary-file</var></tt> 
+(you may not be able to see the command echoed as you type):
+<example>
+$ reset
+</example>
+</sect1>
+
+<sect1>Convert a text file from DOS to Unix style
+<p>
+Convert a DOS text file (end-of-line = <tt>^M^J</tt>) to a Unix text file 
+(end-of-line = <tt>^J</tt>).
+<example>
+# apt-get install sysutils
+$ dos2unix <var>dosfile</var>
+</example>
+</sect1>
+
+<sect1>Regular-expression substitution
+<p>
+Replace all instances of <var>FROM_REGEX</var> with <var>TO_REGEX</var> in
+all of the files <var>FILES</var> ...:
+<example>
+# perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_REGEX</var>/g;' <var>FILES</var> ...
+</example>
+<tt>-i</tt> is for "in-place editing", <tt>-p</tt> is for "implicit loop over
+<var>FILES</var> ...".  If the substitution is complex, you can make recovery from errors
+easier by using the parameter <tt>-i.bak</tt> instead of <tt>-i</tt>; this
+will keep each original file, adding <tt>.bak</tt> as a file extension.
+</sect1>
+
+<sect1>Convert a large file into small files
+<p>
+<example>
+$ split -b 650m <var>file</var>   # split file into 650 MB chunks
+$ cat x* ><var>largefile</var>    # merge files into 1 large file
+</example>
+</sect1>
+
+<sect1>Script snippets for piping commands
+<p>
+The following scripts will do nice things as a part of a pipe.
+<example>
+find /usr | egrep -v "/usr/var|/usr/tmp|/usr/local"
+                     # find all files in /usr excluding some files
+xargs -n 1 <var>command</var>   # run command for all items from stdin
+xargs -n 1 echo|     # split white-space-separated items into lines
+grep -e <var>pattern</var>|     # extract lines containing <var>pattern</var>
+cut -d: -f3 -|       # extract third field separated by :  
+                     # (passwd file etc.)
+col -bx |            # remove backspace and expand tabs to spaces
+expand -|            # expand tabs
+sort -u|             # sort and remove duplicates
+tr '\n' ' '|         # concatenate lines into one line
+tr '\r' ''|          # remove CR
+tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+sed 's/^/# /'|       # make each line a comment
+sed 's/\<var>.ext</var>//g'|    # remove <var>.ext</var>
+sed  -n -e 2p|       # print the second line 
+head -n 2 -|         # print the first 2 lines
+tail -n 2 -|         # print the last 2 lines
+</example>
+</sect1>
+
+<sect1>Get text or a mailing list archive from a Web page
+<p>
+The following will read a Web page into a text file.
+Very useful when copying configurations off the Web.
+<example>
+$ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
+</example>
+<prgn>links</prgn> and <prgn>w3m</prgn> can be used here, too, with slight
+differences in rendering.
+<p>
+If this is a mailing list archive, use <prgn>munpack</prgn> to obtain mime contents from text.
+</sect1>
+
+<sect1>Pretty print a Web page
+<p>
+The following will read a Web page into a PostScript file/printer.  
+<example>
+$ apt-get install html2ps
+$ html2ps <var>URL</var> | lpr
+</example>
+See <ref id="lprlpd">.  Also check <prgn>a2ps</prgn> and 
+<prgn>mpage</prgn> packages for creating PostScript files.
+</sect1>
+
+<sect1>Time a command
+<p>
+Display time used by a process.
+<example>
+# time <var>some-command</var> &gt;/dev/null
+real    0m0.035s       # time on wall clock (elapsed real time)
+user    0m0.000s       # time in user mode
+sys     0m0.020s       # time in kernel mode
+</example>
+</sect1>
+
+<sect1><prgn>nice</prgn> command
+<p>
+Use <prgn>nice</prgn> (from the GNU <package>shellutils</package> package) to
+set a command's nice value when starting. <prgn>renice</prgn>
+(<package>bsdutils</package>) or <prgn>top</prgn> can renice a process. A nice
+value of 19 represents the slowest (lowest priority) process; negative values
+are "not-nice", with -20 being a very fast (high priority) process. Only the
+superuser can set negative nice values.
+<example>
+# nice  -19 <var>top</var>                                         # very nice
+# nice --20 <var>cdrecord -v -eject speed=2 dev=0,0 disk.img</var> # very fast
+</example>
+Sometimes an extreme nice value does more harm than good to the system.
+Use this command carefully.
+</sect1>
+
+<sect1>Schedule activity (<prgn>cron</prgn>, <prgn>at</prgn>)
+<p>
+Use <prgn>cron</prgn> and <prgn>at</prgn> to schedule tasks under Linux.
+See <manref name="at" section="1">, <manref name="crontab" section="5">,
+<manref name="crontab" section="8">. 
+<p> 
+Run the command <tt>crontab -e</tt> to create or edit a crontab file to set up
+regularly scheduled events. Example of a crontab file:
+<example>
+# use /bin/sh to run commands, no matter what /etc/passwd says
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+# Min Hour DayOfMonth Month DayOfWeek command (Day... are OR'ed)
+# run at 00:05, every day
+5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+# run at 14:15 on the first of every month -- output mailed to paul
+15 14 1  * *   $HOME/bin/monthly
+# run at 22:00 on weekdays(1-5), annoy Joe. &percnt; for newline, last &percnt; for cc:
+0 22 *   * 1-5 mail -s "It's 10pm" joe&percnt;Joe,&percnt;&percnt;Where are your kids?&percnt;.&percnt;&percnt;
+23 */2 1 2 *   echo "run 23 minutes after 0am, 2am, 4am ..., on Feb 1"
+5  4 *   * sun echo "run at 04:05 every sunday"
+# run at 03:40 on the first Monday of each month
+40 3 1-7 * *   [ "$(date +&percnt;a)" == "Mon" ] && command -args
+</example>
+Run the <prgn>at</prgn> command to schedule a one-time job:
+<example>
+$ echo '<var>command -args</var>'| at 3:40 monday
+</example>
+</sect1>
+
+<sect1>Console switching with <prgn>screen</prgn>
+<p>
+The <prgn>screen</prgn> program allows you to run <strong>multiple</strong> virtual terminals, each with
+its own interactive shell, on a <strong>single</strong> physical terminal or terminal emulation
+window. Even if you use Linux virtual consoles or multiple xterm windows, it
+is worth exploring <prgn>screen</prgn> for its rich <strong>feature set</strong>, which
+includes
+<list compact>
+<item>scrollback history, 
+<item>copy-and-paste, 
+<item>output logging, 
+<item>digraph entry, and 
+<item>the ability to <strong>detach</strong> an entire <prgn>screen</prgn> session from your
+terminal and reattach it later. 
+</list>
+
+<sect2>Remote access scenario
+<p>
+If you frequently log on to a Linux machine
+from a remote terminal or using a VT100 terminal program, <prgn>screen</prgn>
+will make your life much easier with the <strong>detach</strong> feature.
+<p>
+<enumlist compact>
+<item>You are
+logged in via a dialup connection, and are running a complex
+<prgn>screen</prgn> session with editors and other programs open in several
+windows. 
+<item>Suddenly you need to leave your terminal, but you don't want to lose
+your work by hanging up. 
+<item>Simply type <tt>^A d</tt> to <strong>detach</strong> the session, then
+log out. (Or, even quicker, type <tt>^A DD</tt> to have <prgn>screen</prgn>
+detach and log you out itself.) 
+<item>When you log on again later, enter the command
+<tt>screen -r</tt>, and <prgn>screen</prgn> will magically <strong>reattach</strong> all the windows
+you had open. 
+</enumlist>
+
+<sect2>Typical <prgn>screen</prgn> commands 
+<p>
+Once you start <prgn>screen</prgn>, all keyboard input is sent to your current
+window except for the command keystroke, by default <tt>^A</tt>. All
+<prgn>screen</prgn> commands are entered by typing <tt>^A</tt> plus a single
+key [plus any parameters]. 
+Useful commands:
+<example>
+^A ?     show a help screen (display key bindings)
+^A c     create a new window and switch to it
+^A n     go to next window
+^A p     go to previous window
+^A <var>0</var>     go to window number <var>0</var>
+^A w     show a list of windows
+^A a     send a Ctrl-A to current window as keyboard input
+^A h     write a hardcopy of current window to file 
+^A H     begin/end logging current window to file
+^A ^X    lock the terminal (password protected)
+^A d     detach screen session from the terminal
+^A DD    detach screen session and log out
+</example>
+This is only a small subset of <prgn>screen</prgn>'s commands and features. If
+there's something you want <prgn>screen</prgn> to be able to do, chances are
+it can! See <manref name="screen" section="1"> for details.
+
+<sect2>Backspace and/or Ctrl-H in <prgn>screen</prgn> session
+<p>
+If you find that backspace and/or Ctrl-H do not work properly
+when you are running <prgn>screen</prgn>, edit <file>/etc/screenrc</file>,
+find the line reading
+<example compact>
+bindkey -k kb stuff "\177"
+</example>
+and comment it out (i.e., add "#" as the first character). 
+
+<sect2>Equivalent program to <prgn>screen</prgn> for X
+<p>
+Check out <prgn>xmove</prgn>.  See <manref name="xmove" section="1">.
+
+</sect1>
+
+<sect1>Network testing basics
+<p>
+Install  
+<package>netkit-ping</package>, 
+<package>traceroute</package>,
+<package>dnsutils</package>,
+<package>ipchains</package> (for 2.2 Kernel),
+<package>iptables</package> (for 2.4 Kernel), and
+<package>net-tools</package> packages and:
+<example>
+$ ping <var>yahoo.com</var>            # check Internet connection
+$ traceroute <var>yahoo.com</var>      # trace IP packets
+$ ifconfig                  # check host config
+$ route -n                  # check routing config
+$ dig <var>[@dns-server.com] host.dom [{a|mx|any}]</var> |less
+      # check <var>host.dom</var> DNS records  by <var>dns-server.com</var> 
+      # for a <var>{mx|any}</var> record
+$ ipchains  -L -n |less     # check packet filter (2.2 kernel)
+$ iptables -L -n |less      # check packet filter (2.4 kernel)
+$ netstat -a                # find all open ports
+$ netstat -l --inet         # find listening ports
+$ netstat -ln --tcp         # find listening TCP ports (numeric)
+</example>
+</sect1>
+
+<sect1>Flush mail from local spool
+<p>
+To flush mail from the local spool:
+<example>
+# exim -q    # flush waiting mail
+# exim -qf   # flush all mail
+# exim -qff  # flush even frozen mail
+</example>
+<tt>-qff</tt> may be better as an option in the
+<file>/etc/ppp/ip-up.d/exim</file> script.
+</sect1>
+
+<sect1>Remove frozen mail from local spool
+<p>
+To remove frozen mail from the local spool with a delivery error message:
+<example>
+# exim -Mg `mailq | grep frozen | awk '{ print $3 }'`
+</example>
+</sect1>
+
+<sect1>Clear file contents
+<p>
+In order to clear the contents of a file such as a logfile, do not use
+<tt>rm</tt> to delete the file and then create a new empty file, because the
+file may still be accessed in the interval between commands. The following is
+the safe way to clear the contents of the file.
+<example>
+$ :&gt;<var>file-to-be-cleared</var>
+</example>
+</sect1>
+
+<sect1>Dummy files
+<p>
+The following commands will create dummy or empty files:
+<example>
+$ dd if=/dev/zero    of=<var>filename</var> bs=1k count=5 # 5KB of zero content
+$ dd if=/dev/urandom of=<var>filename</var> bs=1m count=7 # 7MB of random content
+$ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
+</example>
+</sect1>
+
+<sect1><prgn>chroot</prgn>
+<p>
+Suppose you have installed a whole Linux distribution (this can be another
+release of &debian; or even a Red Hat distribution)
+into <file><var>/dev/hda1</var></file> and you are running another Linux
+system installed in <file><var>/dev/hda2</var></file>. You can execute the
+system in <file><var>/dev/hda1</var></file> without rebooting the running
+system in <file><var>/dev/hda2</var></file> by sharing the same kernel.
+<example>
+# mount <var>/dev/hda1 /mnt/target</var>
+ ... supposing <var>/dev/hda1</var> contains one whole system
+# chroot /mnt/target
+ ... Now the contents of <var>/dev/hda1</var> are seen as the root directory.
+# mount proc /proc              # just in case
+ ... run commands within <var>/dev/hda1</var>
+</example>
+This enables stable/testing/unstable to be loaded on one machine.  Also, one
+may run a memory-hungry program such as <prgn>dselect</prgn> by running it on
+a host machine while NFS-mounting a satellite machine to the host as r/w and
+pointing <prgn>chroot</prgn> to the satellite machine.
+<p>
+A <prgn>chroot</prgn> system can easily be created by the
+<prgn>debootstrap</prgn> command in Woody.
+<example>
+# mkdir <var>potatochroot</var>
+# debootstrap potato <var>potatochroot</var>
+# chroot <var>potatochroot</var>
+# apt-setup # set-up /etc/apt/sources.list
+</example>
+<p>
+There is a more specialized chroot package, <package>pbuilder</package>,
+which constructs a chroot system and builds a package inside the
+chroot. It is an ideal system to use to check that a package's
+build-dependencies are correct, and to be sure that unnecessary and
+wrong build dependencies will not exist in the resulting package.
+</sect1>
+
+<sect1><prgn>mount</prgn> hard disk image file
+<p>
+If <file><var>file.img</var></file> contains an image of hard disk contents and the original hard disk had 
+a disk configuration which gives <var>xxxx</var> = (bytes/sector) * (sectors/cylinder),
+then the following will mount it to <file>/mnt</file>:
+<example>
+# mount -o loop,offset=<var>xxxx</var> <var>file.img</var> /mnt
+</example>
+Note that most hard disks have 512 bytes/sector.
+
+<sect1>Samba
+<p>
+Basics of getting files from Windoze:
+<example>
+# mount -t smbfs -o <var>username=myname,uid=my_uid,gid=my_gid</var> \
+        <var>//server/share /mnt/smb</var>  # mount Windows files to Linux
+# smbmount <var>//server/share /mnt/smb</var> \
+        -o "<var>username=myname,uid=my_uid,gid=my_gid</var>"
+# smbclient -L <var>192.168.1.2</var> # list the shares on a computer
+</example>
+<p>
+Samba neighbors can be checked from Linux using:
+<example>
+# smbclient -N -L <var>ip_address_of_your_PC</var> | less
+# nmblookup -T "*"
+</example>
+</sect1>
+
+</sect>
+
+</chapt>
+
