@@ -1,0 +1,103 @@
+#!/usr/bin/make -f
+# Derived from the rules file for developers-reference (Adam Di Carlo)
+# and debhelper rules.multi2 example (Joey Hess).
+
+#export DH_VERBOSE=1
+export DH_COMPAT=2
+export DH_OPTIONS
+export LANG=C
+# stupid kludge around a stupid debiandoc-sgml bug
+
+name		:= maint-guide
+languagesfoo	:= fr ja es ru de it pl
+languagesbar	:= pt_BR zh_CN
+docdir		:= usr/share/doc/$(name)
+install_file	:= install -m 0644
+
+build: stamp-build
+stamp-build: $(name).sgml
+	dh_testdir
+	$(MAKE) validate all
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	$(MAKE) clean
+	dh_clean stamp-build debian/$(name)-*.p*
+
+install: DH_OPTIONS=
+install: stamp-build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs -Ai $(docdir)
+	dh_installdirs -p$(name) $(docdir)
+	install -m644 Credits debian/$(name)/$(docdir)
+# English version:
+	cp -a $(name).en.html debian/$(name)/$(docdir)
+	$(install_file) $(name).en.txt $(name).sgml \
+                        $(name).en.ps $(name).en.pdf \
+                        debian/$(name)/$(docdir)
+	ln -s index.en.html \
+              debian/$(name)/$(docdir)/$(name).en.html/index.html
+# most of the translations just use the language code
+	@set -ex; for lang in $(languagesfoo); do \
+          cp -a $(name).$$lang.html debian/$(name)-$$lang/$(docdir); \
+          ln -s index.$$lang.html \
+                debian/$(name)-$$lang/$(docdir)/$(name).$$lang.html/index.html; \
+          $(install_file) $(name).$$lang.txt $(name).$$lang.sgml \
+            debian/$(name)-$$lang/$(docdir); \
+          if [ $$lang != ja ]; then \
+            $(install_file) $(name).$$lang.ps $(name).$$lang.pdf \
+              debian/$(name)-$$lang/$(docdir); \
+          fi; \
+        done
+# special case for translations using language_country code
+	@set -ex; for i in $(languagesbar); do \
+	  l=`echo $${i} | cut -d_ -f1`; \
+	  s=`echo $${i} | cut -d_ -f2 | tr A-Z a-z`; \
+	  cp -a $(name).$${i}.html debian/$(name)-$$l/$(docdir); \
+	  $(install_file) $(name).$${i}.txt $(name).$${i}.sgml \
+            debian/$(name)-$${l}/$(docdir); \
+          if [ $$lang != ja ]; then \
+	    $(install_file) $(name).$${i}.ps $(name).$${i}.pdf \
+              debian/$(name)-$${l}/$(docdir); \
+	  fi; \
+	  ln -s index.$${l}-$${s}.html \
+                debian/$(name)-$${l}/$(docdir)/$(name).$${i}.html/index.html; \
+	done
+
+binary-indep: DH_OPTIONS=-i
+binary-indep: build install
+	dh_installdocs
+	dh_installchangelogs
+	@set -ex; for lang in $(languagesfoo) $(languagesbar); do \
+	  l=`echo $$lang | cut -d_ -f1`; \
+          ln -s ../$(name) debian/$(name)-$${l}/$(docdir)-$${l}; \
+        done
+	dh_strip
+	dh_fixperms
+	dh_compress
+	dh_installdeb
+#	dh_gencontrol
+# up to date versions, using the default value of 1.2* in debian/changelog:
+	DH_OPTIONS="-p$(name)" dh_gencontrol
+	DH_OPTIONS="-p$(name)-fr" dh_gencontrol
+	DH_OPTIONS="-p$(name)-ja" dh_gencontrol
+	DH_OPTIONS="-p$(name)-pl" dh_gencontrol
+	DH_OPTIONS="-p$(name)-it" dh_gencontrol
+	DH_OPTIONS="-p$(name)-zh" dh_gencontrol
+# out of date versions:
+	DH_OPTIONS="-p$(name)-de -u"-v1.0.2-4"" dh_gencontrol
+	DH_OPTIONS="-p$(name)-es -u"-v1.0.2-4"" dh_gencontrol
+	DH_OPTIONS="-p$(name)-pt -u"-v1.0.2-4"" dh_gencontrol
+	DH_OPTIONS="-p$(name)-ru -u"-v1.0.2-4"" dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary-arch:
+# There are no architecture-dependent packages here.
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary binary-arch binary-indep install
