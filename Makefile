@@ -1,5 +1,8 @@
 # Top-level makefile for the Debian Documentation Project manuals
 
+# where we should publish to
+PUBLISHDIR :=	$(shell pwd)/../../public_html/manuals.html
+
 # live documentation
 SUBDIRS	:=	\
 		book-suggestions 	\
@@ -11,22 +14,32 @@ SUBDIRS	:=	\
 		project-history 	\
 		system-administrator 	\
 		user			\
-		debiandoc-startup 	\
-		sgmltools-startup 	\
 		programmer
 
 # dead (unmaintained) documentation, suitable for reaping
 DEADDIRS :=	\
+		debiandoc-startup 	\
+		sgmltools-startup 	\
 		menu 			\
 		markup 			\
 		users_manual 
 
+.PHONY: all
 all:
-	for dir in $(SUBDIRS); do	\
-	  make -C $$dir			;\
+	[ -d $(PUBLISHDIR) ] || exit 1
+	for dir in $(SUBDIRS); do				\
+	  $(MAKE) -C $$dir PUBLISHDIR=$(PUBLISHDIR) publish	;\
 	done
 
+.PHONY: clean
 clean:
-	for dir in $(SUBDIRS); do	\
-	  make -C $$dir clean		;\
+	for dir in $(SUBDIRS); do				\
+	  $(MAKE) -C $$dir clean				;\
 	done
+
+# easy way to make a single subdirectory
+.PHONY: $(SUBDIRS) $(DEADDIRS)
+$(SUBDIRS) $(DEADDIRS):
+	[ -d $(PUBLISHDIR) ] || exit 1
+	$(MAKE) -C $@ PUBLISHDIR=$(PUBLISHDIR) publish
+
