@@ -1,0 +1,487 @@
+<sect><heading>A Quasi-Wrapper to Internationalize Text Output of X Clients</heading>
+
+<P>
+The author of this section is Tomohiro KUBOTA
+(<email>kubota@debian.or.jp</email>).
+</P>
+
+
+<sect1><heading>Introduction</heading>
+
+<P>
+X11 supplies <tt>XFontSet</tt>-related internationalized 
+functions for text output.  However, many X clients use 
+conventional <tt>XFontStruct</tt>-related 
+non-internationalized functions and cannot output 
+languages which need multiple fonts (Chinese, Japanese,
+and Korean).
+</P>
+
+<P>
+Now I introduce a wrapper which easily modify non-internationalized
+X clients to use internationalized X11 functions.
+</P>
+
+
+<sect1><heading>Strategy</heading>
+
+<P>
+Almost <tt>XFontStruct</tt>-related functions can be replaced
+easily by <tt>XFontSet</tt>-related functions.
+<list>
+  <item>XFontStruct -&gt; XFontSet
+  <item>XLoadQueryFont() -&gt; XCreateFontSet()
+  <item>XFreeFont() -&gt; XFreeFontSet()
+  <item>XDrawString() -&gt; XmbDrawString()
+  <item>XDrawImageString() -&gt; XmbImageString()
+  <item>XTextExtents() -&gt; XmbTextExtents()
+  <item>XTextWidth() -&gt; XmbTextEscapement()
+</list>
+</P>
+
+<P>
+However, there were several problems.
+<enumlist>
+  <item><tt>GC</tt> is used to specify font for <tt>XDrawString</tt>,
+        while <tt>XFontSet</tt> is used for <tt>XmbDrawString</tt>.
+  <item><tt>XFontSet</tt> does not have structure members of
+        <tt>ascent</tt> and <tt>descent</tt>.
+  <item>Many software specify font name with iso8859-1-specific way.
+        This avoids 'fontset'-related functions work fully and
+        disables non-iso8859-1 languages be displayed. 
+</enumlist>
+</P>
+
+<P>
+To solve the first problem is possible however make the wrapper
+very complex.  Thus, I decided to modify the original source.
+However, if <tt>XGCValues.font</tt> is set and <tt>XCreateGC()</tt>
+is called, it is needed to avoid <tt>XCreateGC</tt> to fail because
+of null font specification.  Thus I wrote a wrapper of <tt>XCreateGC</tt>.
+</P>
+
+<P>
+To solve the second problem, I wrote a wrapper of <tt>XFontSet</tt>
+which has structure members of <tt>ascent</tt> and <tt>descent</tt>.
+Thus all wrapper functions are related to this wrapper structure.
+</P>
+
+<P>
+To solve the third problem, I wrote a wrapper of
+<tt>XCreateFontSet()</tt>.  This part can be used for
+many X clients which are already internationalized using
+fontset-related functions, because these softwares have the
+same problem.  Explanation on this problem and solution will
+be supplied in other section.
+</P>
+
+
+
+<sect1><heading>Usage of the wrapper</heading>
+
+<P>
+Replace the following structure and functions.  You can use 
+replacement faculty of your text editor.
+<list>
+  <item>XFontStruct -&gt; QuasiXFontStruct
+  <item>XLoadQueryFont() -&gt; QuasiXLoadQueryFont()
+  <item>XFreeFont() -&gt; QuasiXFreeFont()
+  <item>XTextExtents() -&gt; QuasiXTextExtents()
+  <item>XTextWidth() -&gt; QuasiXTextWidth()
+  <item>XGetWMIconName() -&gt; QuasiXGetWMIconName()
+  <item>XGetWMName() -&gt; QuasiXGetWMName()
+  <item>XFetchName() -&gt; QuasiXFetchName()
+  <item>XGetIconName() -&gt; QuasiXGetIconName()
+  <item>XChangeGC() -&gt; QuasiXChangeGC()
+  <item>XCreateGC() -&gt; QuasiXCreateGC()
+</list>
+The following two wrapper functions need an additional parameter.
+<list>
+  <item>XDrawString(Display *d, Window w, GC gc, int x, int y, const
+  char *string, int len) -&gt; QuasiXDrawString(Display *d, Window w,
+  <em>QuasiXFontStruct *q</em>, GC gc, int x, int y, char *string, int len)
+  <item>XDrawImageString(Display *d, Window w, GC gc, int x, int y, const
+  char *string, int len) -&gt; QuasiXDrawImageString(Display *d, Window w,
+  <em>QuasiXFontStruct *q</em>, GC gc, int x, int y, char *string, int len)
+</list>
+</P>
+
+
+<sect1><heading>The Header File of the Wrapper</heading>
+
+<P>
+This is the header file of the wrapper.
+<example>
+/* fontset.h */
+
+#ifndef __fontset__h__
+#define __fontset__h__
+
+#include &lt;X11/Xlocale.h&gt;
+#include &lt;X11/Xlib.h&gt;
+#include &lt;X11/Xatom.h&gt;
+
+typedef struct {
+  Font     fid;  /* dummy */
+  XFontSet fs;
+  int      ascent, descent;
+} QuasiXFontStruct;
+
+#define FONT_ELEMENT_SIZE 50
+
+QuasiXFontStruct *QuasiXLoadQueryFont(Display *d, const char *fontset_name);
+void QuasiXFreeFont(Display *d, QuasiXFontStruct *qxfs);
+void QuasiXDrawString(Display *d, Window w,
+		      QuasiXFontStruct *qxfs, GC gc,
+		      int x, int y, const char* s, int l);
+void QuasiXDrawImageString(Display *d, Window w,
+			   QuasiXFontStruct *qxfs, GC gc,
+			   int x, int y, char* s, int l);
+void QuasiXTextExtents(QuasiXFontStruct *qxfs, char *string, int nchars,
+		       int *direction_return, int *font_ascent_return,
+		       int *font_descent_return, XCharStruct *overall_return);
+int QuasiXTextWidth(QuasiXFontStruct *qxfs, const char *s, int cnt);
+
+Status QuasiXGetWMIconName(Display *d, Window w,
+			   XTextProperty *text_prop_return);
+Status QuasiXGetWMName(Display *d, Window w,
+		       XTextProperty *text_prop_return);
+Status QuasiXFetchName(Display *d, Window w, char **winname);
+Status QuasiXGetIconName(Display *d, Window w,char **iconname);
+GC QuasiXCreateGC(Display *d, Drawable dr, unsigned long mask, XGCValues *xgc);
+int QuasiXChangeGC(Display *d, GC gc, unsigned long mask, XGCValues * xgc);
+
+#else /* !FONTSET */
+
+#define QuasiXFontStruct    XFontStruct
+#define QuasiXLoadQueryFont XLoadQueryFont
+#define QuasiXFreeFont      XFreeFont
+#define QuasiXTextExtents   XTextExtents
+#define QuasiXTextWidth     XTextWidth
+#define QuasiXGetWMIconName XGetWMIconName
+#define QuasiXGetWMName     XGetWMName
+#define QuasiXFetchName     XFetchName
+#define QuasiXGetIconName   XGetIconName
+#define QuasiXChangeGC      XChangeGC
+#define QuasiXCreateGC      XCreateGC
+#define QuasiXDrawString(d, w, qxfs, gc, x, y, s, l) \
+        XDrawString(d, w, gc, x, y, s, l)
+#define QuasiXDrawImageString(d, w, qxfs, gc, x, y, s, l) \
+        XDrawImageString(d, w, gc, x, y, s, l)
+
+#endif /* __fontset__h__ */
+</example>
+</P>
+
+
+<sect1><heading>The Source File of the Wrapper</heading>
+
+<P>
+This is the source file of the wrapper.
+<example>
+/* fontset.c */
+
+#include &lt;X11/Xlib.h&gt;
+#include &lt;X11/Xutil.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;ctype.h&gt;
+#include "fontset.h"
+
+
+static const char * i_strstr(const char *str, const char *ptn)
+{
+  const char *s2, *p2;
+  for( ; *str; str++) {
+    for(s2=str,p2=ptn; ; s2++,p2++) {
+      if (!*p2) return str;
+      if (toupper(*s2) != toupper(*p2)) break;
+    }
+  }
+  return NULL;
+}
+
+static const char * Font_GetElement(const char *pattern, char *buf, int bufsiz, ...)
+{
+  const char *p, *v;
+  char *p2;
+  va_list va;
+
+  va_start(va, bufsiz);
+  buf[bufsiz-1] = 0;
+  buf[bufsiz-2] = '*';
+  while((v = va_arg(va, char *)) != NULL) {
+    p = i_strstr(pattern, v);
+    if (p) {
+      strncpy(buf, p+1, bufsiz-2);
+      p2 = strchr(buf, '-');
+      if (p2) *p2=0;
+      va_end(va);
+      return p;
+    }
+  }
+  va_end(va);
+  strncpy(buf, "*", bufsiz);
+  return NULL;
+}
+
+static const char * Font_GetSize(const char *pattern, int *size)
+{
+  const char *p;
+  const char *p2=NULL;
+  int n=0;
+
+  for (p=pattern; 1; p++) {
+    if (!*p) {
+      if (p2!=NULL &amp;&amp; n&gt;1 &amp;&amp; n&lt;72) {
+	*size = n; return p2+1;
+      } else {
+	*size = 16; return NULL;
+      }
+    } else if (*p=='-') {
+      if (n&gt;1 &amp;&amp; n&lt;72 &amp;&amp; p2!=NULL) {
+	*size = n;
+	return p2+1;
+      }
+      p2=p; n=0;
+    } else if (*p&gt;='0' &amp;&amp; *p&lt;='9' &amp;&amp; p2!=NULL) {
+      n *= 10;
+      n += *p-'0';
+    } else {
+      p2=NULL; n=0;
+    }
+  }
+}
+
+static XFontSet XCreateFontSetWithGuess(Display *d, const char *pattern, char ***miss, int *n_miss, char **def)
+{
+  XFontSet fs;
+  char *pattern2;
+  int pixel_size, bufsiz;
+  char weight[FONT_ELEMENT_SIZE], slant[FONT_ELEMENT_SIZE];
+
+  /* No problem?  or 'fs' for pattern analysis */
+  fs = XCreateFontSet(d, pattern, miss, n_miss, def);
+  if (fs &amp;&amp; !*n_miss) return fs; /* no need for font guessing */
+
+  /* for non-iso8859-1 language and iso8859-1 specification */
+  /* This 'fs' is only for pattern analysis. */
+  if (!fs) {
+    if (*n_miss) XFreeStringList(*miss);
+    setlocale(LC_CTYPE, "C");
+    fs = XCreateFontSet(d, pattern, miss, n_miss, def);
+    setlocale(LC_CTYPE, "");
+  }
+
+  /* make XLFD font name for pattern analysis */
+  if (fs) {
+    XFontStruct **fontstructs;
+    char **fontnames;
+    XFontsOfFontSet(fs, &amp;fontstructs, &amp;fontnames);
+    pattern = fontnames[0];
+  }
+
+  /* read elements of font name */
+  Font_GetElement(pattern, weight, FONT_ELEMENT_SIZE, 
+		  "-medium-", "-bold-", "-demibold-", "-regular-", NULL);
+  Font_GetElement(pattern, slant, FONT_ELEMENT_SIZE, 
+		  "-r-", "-i-", "-o-", "-ri-", "-ro-", NULL);
+  Font_GetSize(pattern, &amp;pixel_size);
+
+  /* modify elements of font name to fit usual font names */
+  if (!strcmp(weight, "*")) strncpy(weight, "medium", FONT_ELEMENT_SIZE);
+  if (!strcmp(slant,  "*")) strncpy(slant,  "r",      FONT_ELEMENT_SIZE);
+  if (pixel_size&lt;3) pixel_size=3; else if (pixel_size&gt;97) pixel_size=97;
+
+  /* build font pattern for better matching for various charsets */
+  bufsiz = strlen(pattern) + FONT_ELEMENT_SIZE*2 + 2*2 + 58;
+  pattern2 = (char *)malloc(bufsiz);
+  if (pattern2) {
+    snprintf(pattern2, bufsiz-1, "%s,"
+	     "-*-*-%s-%s-*-*-%d-*-*-*-*-*-*-*,"
+	     "-*-*-*-*-*-*-%d-*-*-*-*-*-*-*,*",
+	     pattern,
+	     weight, slant, pixel_size,
+	     pixel_size);
+    pattern = pattern2;
+  }
+  if (*n_miss) XFreeStringList(*miss);
+  if (fs) XFreeFontSet(d, fs);
+
+  /* create fontset */
+  fs = XCreateFontSet(d, pattern, miss, n_miss, def);
+  if (pattern2) free(pattern2);
+  return fs;
+}
+
+QuasiXFontStruct *QuasiXLoadQueryFont(Display *d, const char *fontset_name)
+{
+  char **miss, *def, *pattern;
+  int n_miss;
+  XFontSet fontset;
+  QuasiXFontStruct *wxfs;
+  int pixel_size=16, bufsiz;
+  char family[FONT_ELEMENT_SIZE], weight[FONT_ELEMENT_SIZE], 
+       slant[FONT_ELEMENT_SIZE];
+
+  wxfs = (QuasiXFontStruct *)malloc(sizeof(QuasiXFontStruct));
+  if (!wxfs) return NULL;
+
+  /* create fontset */
+  fontset = XCreateFontSetWithGuess(d, fontset_name, &amp;miss, &amp;n_miss, &amp;def);
+  if (!fontset) {free(wxfs); return NULL;}
+
+  if (n_miss) {
+    int j;
+    fprintf(stderr, 
+     "QuasiXLoadQueryFont: lacks the font(s) for the following charset(s)\n");
+    for (j=0; j&lt;n_miss; j++) {
+      fprintf(stderr, "  %s\n", miss[j]);
+    }
+    XFreeStringList(miss);
+  }
+  /* emulating XFontStruct */
+  wxfs-&gt;fs      = fontset;
+  wxfs-&gt;ascent  =-XExtentsOfFontSet(fontset)-&gt;max_logical_extent.y;
+  wxfs-&gt;descent = XExtentsOfFontSet(fontset)-&gt;max_logical_extent.height
+                 +XExtentsOfFontSet(fontset)-&gt;max_logical_extent.y;
+  return wxfs;
+}
+
+void QuasiXFreeFont(Display *d, QuasiXFontStruct *wxfs)
+{
+  if (!wxfs) return;
+  XFreeFontSet(d, wxfs-&gt;fs);
+  free(wxfs);
+}
+
+void QuasiXDrawString(Display *d, Window w, QuasiXFontStruct *qxfs, GC gc, 
+		     int x, int y, const char* s, int l)
+{
+  XmbDrawString(d, w, qxfs-&gt;fs, gc, x, y, s, l);
+}
+
+void QuasiXDrawImageString(Display *d, Window w, QuasiXFontStruct *qxfs, GC gc,
+			   int x, int y, char* s, int l)
+{
+  XmbDrawImageString(d, w, qxfs-&gt;fs, gc, x, y, s, l);
+}
+
+void QuasiXTextExtents(QuasiXFontStruct *qxfs, char *string, int nchars,
+		       int *direction_return, int *font_ascent_return,
+		       int *font_descent_return, XCharStruct *overall_return)
+{
+  XRectangle overall_ink_return;
+  XRectangle overall_logical_return;
+  
+  XmbTextExtents(qxfs-&gt;fs, string, nchars,
+		 &amp;overall_ink_return, &amp;overall_logical_return );
+  
+  *font_ascent_return  = -overall_logical_return.y;
+  *font_descent_return =  overall_logical_return.height
+                         +overall_logical_return.y;
+  *direction_return    = FontLeftToRight; /* unsupported */
+  *overall_return; /* unsupported */
+}
+
+int QuasiXTextWidth(QuasiXFontStruct *wxfs, const char *s, int cnt)
+{
+  return XmbTextEscapement(wxfs-&gt;fs, s, cnt);
+}
+
+Status QuasiXGetWMName(Display *d, Window w, XTextProperty *text_prop_return)
+{
+  int status;
+  char **list;
+  int num;
+
+  status = XGetWMName(d, w, text_prop_return);
+
+  if (!status || !text_prop_return-&gt;value || text_prop_return-&gt;nitems &lt;= 0) {
+    return 0; /* failure */
+  }
+  if (text_prop_return-&gt;encoding == XA_STRING) return 1;
+  text_prop_return-&gt;nitems = strlen((char *)text_prop_return-&gt;value);
+  status = XmbTextPropertyToTextList(d, text_prop_return,
+				     &amp;list, &amp;num);
+  if (status &gt;= Success &amp;&amp; num &gt; 0 &amp;&amp; *list) {
+    XFree(text_prop_return-&gt;value);
+    text_prop_return-&gt;value  = (unsigned char*)strdup(*list);
+    text_prop_return-&gt;nitems = strlen(*list);
+    XFreeStringList(list);
+    return 1; /* success */
+  }
+  return 0;
+}
+
+Status QuasiXGetWMIconName(Display *d, Window w, 
+			   XTextProperty *text_prop_return)
+{
+  int status;
+  char **list;
+  int num;
+
+  status = XGetWMIconName(d, w, text_prop_return);
+
+  if (!status || !text_prop_return-&gt;value || text_prop_return-&gt;nitems &lt;= 0) {
+    return 0;
+  }
+  if (text_prop_return-&gt;encoding == XA_STRING) return 1;
+  text_prop_return-&gt;nitems = strlen((char *)text_prop_return-&gt;value);
+  status = XmbTextPropertyToTextList(d, text_prop_return,
+				     &amp;list, &amp;num);
+  if (status &gt;= Success &amp;&amp; num &gt; 0 &amp;&amp; *list) {
+    XFree(text_prop_return-&gt;value);
+    text_prop_return-&gt;value  = (unsigned char*)strdup(*list);
+    text_prop_return-&gt;nitems = strlen(*list);
+    XFreeStringList(list);
+    return 1;
+  }
+  return 0;
+}
+
+Status QuasiXGetIconName(Display *d, Window w, char **iconname)
+{
+  XTextProperty text_prop;
+  char **list;
+  int num;
+  
+  if (QuasiXGetWMIconName(d, w, &amp;text_prop) != 0) {
+    if (text_prop.value &amp;&amp; text_prop.nitems) {
+      *iconname = (char *)text_prop.value;
+      return 1;
+    }
+  }
+  *iconname = NULL;
+  return 0;
+}
+
+Status QuasiXFetchName(Display *d, Window w, char ** winname)
+{
+  XTextProperty text_prop;
+  char **list;
+  int num;
+  
+  if (QuasiXGetWMName(d, w, &amp;text_prop) != 0) {
+    if (text_prop.value &amp;&amp; text_prop.nitems &gt; 0) {
+      *winname = (char *)text_prop.value;
+      return 1;
+    }
+  }
+  *winname = NULL;
+  return 0;  
+}
+
+GC QuasiXCreateGC(Display *d, Drawable dr, unsigned long mask, XGCValues *xgc)
+{
+  return XCreateGC(d, dr, mask &amp; ~GCFont, xgc);
+}
+
+int QuasiXChangeGC(Display *d, GC gc, unsigned long mask, XGCValues * xgc)
+{
+  return XChangeGC(d, gc, mask &amp; ~GCFont, xgc);
+}
+</example>
+</P>
