@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.2" -->
+<!-- CVS revision of original english document "1.6" -->
 
 <chapt>Infrastructure de sécurité Debian
 
@@ -120,7 +120,7 @@ toutes les architectures en même temps.
 <p>Alors que précédemment la tâche de construction des mises à jour de sécurié
 était faite à la main, ce n'est plus actuellement le cas (comme le décrit
 Anthony Towns dans <url
-id="http://lists.debian.org/debian-devel-announce/2002/debian-devel-announce-20+0206/msg00002.html"
+id="http://lists.debian.org/debian-devel-announce/2002/debian-devel-announce-200206/msg00002.html"
 name="un courriel">
 envoyé à la liste de diffusion debian-devel-announce daté du 8 juin 2002).
 
@@ -523,13 +523,14 @@ Ce code est actuellement en bêta, pour plus d'informations, lisez
 
 <example>
 #!/bin/bash
-# This script is copyright (c) 2001, Anthony Towns
+
+# Copyright (c) 2001 Anthony Towns &lt;ajt@debian.org&gt;
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -552,8 +553,10 @@ am_root () {
 
 get_md5sumsize () {
         cat "$1" | awk '/^MD5Sum:/,/^SHA1:/' | 
-          MYARG="$2" perl -ne '@f = split /\s+/; if ($f[3] eq $ENV{"MYARG"}) { print "$f[1] $f[2]\n"; exit(0); }'
+          MYARG="$2" perl -ne '@f = split /\s+/; if ($f[3] eq $ENV{"MYARG"}) { 
+print "$f[1] $f[2]\n"; exit(0); }'
 }
+
 checkit () {
         local FILE="$1"
         local LOOKUP="$2"
@@ -576,7 +579,8 @@ checkit () {
                 echo "NOCHECK"
                 return
         fi
-        X="`md5sum < /var/lib/apt/lists/$FILE` `wc -c < /var/lib/apt/lists/$FILE`"
+        X="`md5sum < /var/lib/apt/lists/$FILE | cut -d\  -f1` `wc -c < /var/lib
+/apt/lists/$FILE`"
         X="`echo "$X" | sed 's/^ *//;s/  */ /g'`"
         if [ "$X" != "$Y" ]; then
                 echo "$FILE" >>BAD
@@ -591,7 +595,8 @@ echo
 echo "Checking sources in /etc/apt/sources.list:"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo
-(echo "You should take care to ensure that the distributions you're downloading"
+(echo "You should take care to ensure that the distributions you're downloading
+"
 echo "are the ones you think you are downloading, and that they are as up to"
 echo "date as you would expect (testing and unstable should be no more than"
 echo "two or three days out of date, stable-updates no more than a few weeks"
@@ -607,13 +612,16 @@ cat /etc/apt/sources.list |
         else
                 continue
         fi
+
         echo "Source: ${ty} ${url} ${dist} ${comps}"
-        
+
         rm -f Release Release.gpg
+        lynx -reload -dump "${url}/dists/${dist}/Release" >/dev/null 2>&1
         wget -q -O Release "${url}/dists/${dist}/Release"
 
         if ! grep -q '^' Release; then
                 echo "  * NO TOP-LEVEL Release FILE"
+                >Release
         else
                 origline=`sed -n 's/^Origin: *//p' Release | head -1`
                 lablline=`sed -n 's/^Label: *//p' Release | head -1`
@@ -626,36 +634,66 @@ cat /etc/apt/sources.list |
                 echo "  o $dateline"
                 echo "  o $dscrline"
 
-                if [ "${dist%%/*}" != "$suitline" -a "${dist%%/*}" != "$codeline" ]; then
-                        echo "  * WARNING: asked for $dist, got $suitline/$codeline"
+                if [ "${dist%%/*}" != "$suitline" -a "${dist%%/*}" != "$codelin
+e" ]; then
+                        echo "  * WARNING: asked for $dist, got $suitline/$code
+line"
                 fi
 
+                lynx -reload -dump "${url}/dists/${dist}/Release.gpg" >/dev/nul
+l 2>&1
                 wget -q -O Release.gpg "${url}/dists/${dist}/Release.gpg"
-                sigline="`gpgv --status-fd 3 Release.gpg Release 3>&1 >/dev/null 2>&1 | sed -n "s/^\[GNUPG:\] GOODSIG [0-9A-Fa-f]* //p"`"
-                if [ "$sigline" ]; then
-                        echo "  o Signed by: $sigline"
-                else
+
+                gpgv --status-fd 3 Release.gpg Release 3>&1 >/dev/null 2>&1 | s
+ed -n "s/^\[GNUPG:\] //p" | (okay=0; err=""; while read gpgcode rest; do
+                        if [ "$gpgcode" = "GOODSIG" ]; then
+                            if [ "$err" != "" ]; then
+                                echo "  * Signed by ${err# } key: ${rest#* }"
+                            else
+                                echo "  o Signed by: ${rest#* }"
+                                okay=1
+                            fi
+                            err=""
+                        elif [ "$gpgcode" = "BADSIG" ]; then
+                            echo "  * BAD SIGNATURE BY: ${rest#* }"
+                            err=""
+                        elif [ "$gpgcode" = "ERRSIG" ]; then
+                            echo "  * COULDN'T CHECK SIGNATURE BY KEYID: ${rest
+%% *}"
+                            err=""
+                        elif [ "$gpgcode" = "SIGREVOKED" ]; then
+                            err="$err REVOKED"
+                        elif [ "$gpgcode" = "SIGEXPIRED" ]; then
+                            err="$err EXPIRED"
+                        fi
+                    done
+                    if [ "$okay" != 1 ]; then
                         echo "  * NO VALID SIGNATURE"
                         >Release
-                fi
+                    fi)
         fi
         okaycomps=""
         for comp in $comps; do
                 if [ "$ty" = "deb" ]; then
-                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/binary-${arch}/Release" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Release")
-                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/binary-${arch}/Packages" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Packages")
+                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/bi
+nary-${arch}/Release" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Release")
+                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/bi
+nary-${arch}/Packages" | sed 's,//*,_,g'`" "${comp}/binary-${arch}/Packages")
                         if [ "$X $Y" = "OK OK" ]; then
                                 okaycomps="$okaycomps $comp"
                         else
                                 echo "  * PROBLEMS WITH $comp ($X, $Y)"
                         fi
                 elif [ "$ty" = "deb-src" ]; then
-                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/source/Release" | sed 's,//*,_,g'`" "${comp}/source/Release")
-                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/source/Sources" | sed 's,//*,_,g'`" "${comp}/source/Sources")
+                        X=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/so
+urce/Release" | sed 's,//*,_,g'`" "${comp}/source/Release")
+                        Y=$(checkit "`echo "${baseurl}/dists/${dist}/${comp}/so
+urce/Sources" | sed 's,//*,_,g'`" "${comp}/source/Sources")
                         if [ "$X $Y" = "OK OK" ]; then
                                 okaycomps="$okaycomps $comp"
                         else
-                                echo "  * PROBLEMS WITH component $comp ($X, $Y)"
+                                echo "  * PROBLEMS WITH component $comp ($X, $Y
+)"
                         fi
                 fi
         done
@@ -670,7 +708,9 @@ echo
 allokay=true
 
 cd /tmp/apt-release-check
-diff <(cat BAD MISSING NOCHECK OK | sort) <(cd /var/lib/apt/lists && find . -type f -maxdepth 1 | sed 's,^\./,,g' | grep '_' | sort) | sed -n 's/^> //p' >UNVALIDATED
+diff <(cat BAD MISSING NOCHECK OK | sort) <(cd /var/lib/apt/lists && find . -ty
+pe f -maxdepth 1 | sed 's,^\./,,g' | grep '_' | sort) | sed -n 's/^> //p' >UNVA
+LIDATED
 
 cd /tmp/apt-release-check
 if grep -q ^ UNVALIDATED; then
@@ -688,7 +728,8 @@ fi
 if grep -q ^ BAD; then
     allokay=false
     (echo "The contents of the following files in /var/lib/apt/lists does not"
-    echo "match what was expected. This may mean these sources are out of date,"
+    echo "match what was expected. This may mean these sources are out of date,
+"
     echo "that the archive is having problems, or that someone is actively"
     echo "using your mirror to distribute trojans."
     if am_root; then 
@@ -764,3 +805,32 @@ car <prgn>md5sum</prgn> ajoute un '-' après la somme quand l'entrée est stdin&nb
                 echo "$FILE" >>BAD
                 echo "BAD"
 </example>
+
+<sect1>Schéma alternatif de signature par paquet
+
+<p>Le schéma supplémentaire de signature de chacun des paquets permet aux
+paquets d'être vérifiés quand ils ne sont plus référencés par un fichier
+Packages existant, et également pour les paquets de tierce partie quand aucun
+paquet n'a jamais existé pour ceux-ci qui puisse être utilisé dans Debian, mais
+ce ne sera pas le schéma par défaut.
+
+<p>Ce schéma de signature des paquets peut être implémenté en utilisant
+<package>debsig-verify</package> et <package>debsigs</package>.
+Ces deux paquets peuvent signer et vérifier des signatures embarquées dans le
+.deb lui-même. Debian a déjà la capacité de faire cela actuellement, mais
+l'implémentation de cette règle et des outils ne commencera pas avant la sortie
+de <em>Woody</em>.
+
+<p>Les dernières versions de dpkg (à partir de la version&nbsp;1.9.21) incorpore
+un
+<url
+id="http://lists.debian.org/debian-dpkg/2001/debian-dpkg-200103/msg00024.html"
+name="correctif"> qui fournit cette fonctionnalité dès que
+<package>debsig-verify</package> est installé.
+
+<p>NOTE&nbsp;: actuellement, <file>/etc/dpkg/dpkg.cfg</file> est livré avec
+«&nbsp;no-debsig&nbsp;» par défaut.
+
+<p>NOTE2&nbsp;: les signatures des développeurs sont actuellement enlevées
+lorsque de l'entrée du paquet dans l'archive car la méthode actuellement
+préférée est des vérifications de version comme décrit précédemment.
