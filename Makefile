@@ -16,7 +16,8 @@ SUBDIRS	:=	\
 		system-administrator 	\
 		user			\
 		programmer		\
-		intro-i18n
+		intro-i18n		\
+		faq
 
 # dead (unmaintained) documentation, suitable for reaping
 DEADDIRS :=	\
