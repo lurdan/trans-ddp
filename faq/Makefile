@@ -33,6 +33,7 @@ publish: all
 	ln -sf $(manual).en.pdf $(PUBLISHDIR)/$(manual)/$(manual).pdf
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
+	@[ ! -d it ] || $(MAKE) -C it $@
 
 faqdynamic.ent:
 	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
@@ -48,6 +49,7 @@ validate:
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
+	@[ ! -d it ] || $(MAKE) -C it $@
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
@@ -57,6 +59,7 @@ $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 text: $(manual).$(currentlang).txt
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
+	@[ ! -d it ] || $(MAKE) -C it $@
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
@@ -74,6 +77,7 @@ $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang
 ps dvi pdf info: %: $(manual).$(currentlang).%
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
+	@[ ! -d it ] || $(MAKE) -C it $@
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
@@ -81,5 +85,6 @@ clean distclean:
 	rm -f faqdynamic.ent *~ .*~ core tsa*
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
+	@[ ! -d it ] || $(MAKE) -C it $@
 
 .PHONY: all publish clean distclean validate
