@@ -9,7 +9,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).xml
 
-all: html # pdf
+all: html dvi ps pdf
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
@@ -23,6 +23,14 @@ html: $(manual).html
 $(manual).html: $(sources)
 	xmlto html-nochunks $<
 	tidy -mq $@
+
+dvi: $(manual).dvi
+$(manual).dvi: $(sources)
+	xmlto dvi $<
+
+dvi: $(manual).ps
+$(manual).ps: $(sources)
+	xmlto ps $<
 
 pdf: $(manual).pdf
 $(manual).pdf: $(sources)
