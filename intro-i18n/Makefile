@@ -193,7 +193,7 @@ publish-html: $(HTMLDIRS)
 	@$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;\
 	)
-	ln -sf $(PUBLISHDIR)/$(MANUAL)/index.$(ORIG_LANG).html\
+	ln -sf index.$(ORIG_LANG).html\
 	        $(PUBLISHDIR)/$(MANUAL)/index.html
 
 #----[ publish all files except html ]-----------------------------------------
@@ -220,7 +220,7 @@ publish-files: $(ALLFILES)
 	)
 	# make the symlinks for $(FILEEXTS)
 	@$(foreach ext,$(FILEEXTS),\
-	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
+	 ln -sf $(MANUAL).$(ORIG_LANG).$(ext)\
 	        $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
 
@@ -236,7 +236,7 @@ publish-ps: $(PSFILES)
 	                   $(PUBLISHDIR)/$(MANUAL)/ ;
 	)
 	# make the symlinks for ps
-	ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
+	ln -sf $(MANUAL).$(ORIG_LANG).ps\
 	       $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
 
 #====[ validating SGML ]=======================================================
