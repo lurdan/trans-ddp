@@ -10,6 +10,12 @@
 -->
 
 <p>
+Vous trouverez ci-dessous une procédure post-installation pour durcir un système
+Debian 2.2 GNU/Linux. Il s'agit d'une approche possible pour une telle procédure
+et celle-ci est orientée sur le renforcement des services réseaux. Elle est
+incluse pour présenter le processus entier que vous pouvez utiliser pendant la
+configuration. Veuillez également voir <ref id="checklist">.
+<!--
 Une procédure est toujours utile étant donné qu'elle permet de voir 
 les étapes du durcissement du système et permet une prise de décisions.
 Une approche possible d'une telle procédure pour Debian 2.2 GNU/Linux est 
@@ -17,27 +23,29 @@ présentée ci-dessous. Ceci est une procédure post-installation, avec une
 liste de mesures à prendre en compte, étape par étape, lors de la 
 configuration voir <ref id="checklist">. De même que, cette procédure est 
 (pour le moment) plus orientée sur le renforcement des services réseaux.
+-->
 
 <list>
 
+	  <!-- décider du temps à utiliser : impératif ou infinitif -->
+
 <item>
 Faire une installation du système (tenez compte des informations dans ce 
-manuel concernant le partitionnement). Après l'installation de base passez 
-dans l'installation traditionnelle, ne sélectionnez pas les paquets "task" 
-mais sélectionnez les mots de passe "ombrés".
+manuel concernant le partitionnement). Après l'installation du système de base,
+allez dans l'installation personnalisée, ne sélectionnez pas de paquets de
+tâches (<em>task</em>). Sélectionnez les mots de passe ombrés (<em>shadow</em>).
 
-<item>Passer en revue avec <prgn>dselect</prgn> et retirer les paquets 
-non nécessaire mais sélectionnés avant de faire [I]nstall. Laisser le strict 
-minimum de logiciels sur le serveur.
+<item>Passer les paquets en revue avec <prgn>dselect</prgn> et retirer les paquets 
+non nécessaire mais sélectionnés auparavant avant de faire [I]nstall. Laisser le strict 
+minimum de logiciels sur le système.
 
-<item>Actualiser tous les logiciels à partir des paquets disponibles 
+<item>Actualiser tous les logiciels à partir des paquets les plus récents disponibles 
 sur security.debian.org comme décrit précédemment dans <ref id="security-update">.
 
-<item>Exécuter les différents problèmes présentés dans ce manuel concernant 
-les quotas utilisateur, les logins et lilo.
+<item>Appliquer les suggestions présentées dans ce manuel concernant 
+les quotas utilisateur, les définitions des connexion et <prgn>lilo</prgn>.
 
-<item>De façon à renforcer un service, faire une liste de services actifs 
-sur votre système.
+<item>Faire une liste de services actifs sur votre système. Exécuter ceci&nbsp;:
 
 <example>
 $ ps -aux
@@ -47,18 +55,18 @@ $ netstat -pn -l -A inet
 
 Vous devrez installer <package>lsof-2.2</package> pour que la troisième 
 commande fonctionne (à lancer en root). Vous devriez faire attention car
-lsof peut traduire le mot LISTEN  dans vos paramètres.
+<prgn>lsof</prgn> peut traduire le mot LISTEN pour votre langue.
 
-<item>Afin de retirer les services non nécessaires, avant tout déterminer 
-comment ils sont démarrés et de quels paquets proviennent-ils. Cette 
-tâche peut être facilement réalisé en vérifiant le programme qui écoute 
+<item>Afin de retirer les services non nécessaires, déterminer avant tout
+quels paquets fournissent le service et comment ils sont lancés. Cette 
+tâche peut être facilement réalisée en vérifiant le programme qui écoute 
 la «&nbsp;socket&nbsp;», l'exemple suivant nous le montre en utilisant ces
-outils et <prgn>dpkg</prgn>.
+outils et <prgn>dpkg</prgn>&nbsp;:
  <!-- traduction de socket nécessaire-->
 
 <example>
 #!/bin/sh
-# FIXME: this is quick and dirty; replace with a more robust script snippet
+# FIXME: ceci est vite fait, mal fait ; à remplacer par un bout de script plus robuste
 for i in `sudo lsof -i | grep LISTEN | cut -d " " -f 1 |sort -u` ; do
         pack=`dpkg -S $i |grep bin |cut -f 1 -d : | uniq`
         echo "Service $i is installed by $pack";
@@ -73,71 +81,79 @@ done
 <prgn>dpkg --purge</prgn>) ou utiliser <prgn>update-rc.d</prgn> (voir
  <ref id="disableserv">) de façon à le retirer du système de démarrage.
 
-<item>Pour les services inetd (lancés par le super démon) vous pouvez juste
-vérifier les services activés, par exemple avec&nbsp;:
+<item>Pour les services inetd (lancés par le super-démon), vérifier quels
+services sont activés dans <file>/etc/inetd.conf</file> avec&nbsp;:
 
 <example>
-$ grep -v "^#" /etc/inetd.conf | sort -u
+  $ grep -v "^#" /etc/inetd.conf | sort -u
 </example>
 
-et désactiver ceux qui ne sont pas nécessaire en commentant les lignes, supprimant 
-le paquet ou en utilisant <prgn>update-inetd</prgn>
+et désactiver ceux qui ne sont pas nécessaire en commentant la ligne qui les
+inclut dans <file>/etc/inetd.conf</file>, en supprimant le paquet ou en
+utilisant <prgn>update-inetd</prgn>.
 
-<item>Si vous avez des services "wrappés" (ceux utilisant <prgn>/usr/sbin/tcpd</prgn>), 
-vérifier que <file>/etc/hosts.allow</file> et <file>/etc/hosts.deny</file> sont 
-configurés d'après votre politique pour les services.
+<item>Si vous avez des services «&nbsp;wrappés&nbsp;» (ceux utilisant <prgn>/usr/sbin/tcpd</prgn>), 
+vérifier que les fichiers <file>/etc/hosts.allow</file> et <file>/etc/hosts.deny</file> sont 
+configurés d'après vos règles de services.
 
-<item>Si possible, et s'appuyant sur chaque service, vous pouvez avoir 
-envie de limiter les services lors d'une utilisation de plusieurs interfaces 
-externes afin d'écouter que sur une seule d'entre elles. Par exemple, si vous 
-voulez un accès FTP interne, paramétrez le démon FTP afin qu'il écoute 
-uniquement l'interface désiré et non toutes les interfaces (c'est-à-dire 
+<item>Si le serveur utilise plus d'une interface externe, vous pouvez avoir 
+envie de limiter les services pour qu'ils n'écoutent que sur une seule d'entre elles. Par exemple, si vous 
+voulez un accès FTP interne, paramétrez le démon FTP afin qu'il n'écoute 
+que sur l'interface désirée et non toutes les interfaces (c'est-à-dire 
 0.0.0.0:21).
 
-<item>Redémarrez la machine ou passer en mode utilisateur seul puis repasser en mode multi-utilisateur avec&nbsp;:
+<item>Redémarrez la machine ou passer en mode utilisateur seul puis revenez en mode multi-utilisateur avec&nbsp;:
 <example>
 $ init 1
 (....)
 $ init 2
 </example>
-<item>Vérifiez que les services sont maintenant disponibles et, si nécessaire, réitérez les étapes ci-dessus.
-<item>Installez maintenant les services nécessaires si vous ne l'avez pas encore fait et configurer les
-proprement.
-<item>Vérifiez ce que les utilisateurs sont habitués pour lancer les services 
-disponibles avec par exemple&nbsp;:
+
+<item>Vérifiez que les services sont maintenant disponibles et, si nécessaire, répétez les étapes ci-dessus.
+
+<item>Installez maintenant les services nécessaires si vous ne l'avez pas encore fait et configurez les
+correctement.
+
+<item>Utilisez la commande shell suivante pour déterminer quel utilisateur est
+utilisé pour lancer chaque service disponible&nbsp;:
+
 <example>
-$ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`; do user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; echo "Le service $i a été lancé en tant qu'utilisateur $user"; done
+  $ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`; \
+  > do user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; \
+  > echo "Le service $i a été lancé en tant qu'utilisateur $user"; done
 </example>
 
-pensez à changer ces services pour un utilisateur/groupe donné et 
-peut-être les "chrooté" pour augmenter le niveau de sécurité. Vous pouvez 
+Pensez à changer les utilisateur et groupe lançant ces services pour un utilisateur/groupe donné et 
+peut-être utiliser <prgn>chroot</prgn> pour augmenter le niveau de sécurité. Vous pouvez 
 procéder en changeant les scripts de démarrage de services de <file>/etc/init.d</file>.
-La plupart des services dans la Debian utilisent <prgn>start-stop-daemon</prgn> ainsi 
-vous pouvez utiliser les options --change-uid et --chroot pour installer ces 
-services. "Chrooter" des services ne rentre pas dans le cadre de ce document mais 
-un petit avertissement est nécessaire&nbsp;: vous aurez peut-être besoin de mettre tous les 
-fichiers installés par le paquet service en utilisant dpkg -L ainsi que les paquets
-dont il dépend dans l'environnement chroot.
+La plupart des services dans la Debian utilisent <prgn>start-stop-daemon</prgn>
+qui propose des options (<tt>--change-uid</tt> et <tt>--chroot</tt>) pour faire
+cela. Un petit avertissement concernant l'utilisation de <prgn>chroot</prgn>
+pour des services est nécessaire&nbsp;: vous aurez peut-être besoin de mettre tous les 
+fichiers installés par le paquet (utilisez dpkg -L) fournissant le service ainsi que les paquets
+dont il dépend dans l'environnement <prgn>chroot</prgn>. Des informations sur la
+mise en place d'un environnement <prgn>chroot</prgn> pour le programme
+<prgn>ssh</prgn> peut être trouvée dans <ref id="chroot-ssh-env">.
 
 <item>Répéter les étapes ci-dessus afin de vérifier que seuls les services
-désirés sont lancés avec une combinaison utilisateur/groupe prédéfinie.
+désirés sont lancés et qu'ils fonctionnent avec une combinaison utilisateur/groupe désirée.
 
 <item>Tester les services installés afin de voir si leur fonctionnement est 
 bien celui souhaité.
 
-<item>Vérifier le système en utilisant un scanner de vulnérabilités (tel 
+<item>Vérifier le système en utilisant un scanner de vulnérabilités (comme
 <package>nessus</package>) de façon à déterminer les vulnérabilités du système
-(mauvaise configuration, services vieux ou indésirables).
+(mauvaises configurations, services vieux ou non nécessaires).
 
-<item>Mettre en place des mesures contres les intrusions de toute sorte (réseaux et hôtes) 
-(telles que <package>snort</package> et <package>logsentry</package>).
+<item>Mettre en place des mesures contre les intrusions réseaux et hôtes comme
+<package>snort</package> et <package>logsentry</package>.
 
 <item>Répéter l'étape du scanner de réseaux et vérifier que le système de détection
 d'intrusion fonctionne correctement.
 
 </list>
 
-Pour le vrai paranoïaque, il faut prendre en considération ce qui suit&nbsp;:
+Pour les personnes vraiment paranoïaques, vous pouvez également prendre en considération ce qui suit&nbsp;:
 
 <list>
 
@@ -154,20 +170,23 @@ sortie.
 </list>
 
 
-<p>FIXME: cette procédure considère le service harden mais pas le
-sytème harden au niveau utilisateur, incluant des informations
+<p>FIXME: cette procédure considère le durcissement de service, mais pas le
+renforcement du système au niveau utilisateur, incluant des informations
 à propos de la vérification des permissions utilisateurs,  les fichiers
 setuid et le gel des changements dans le système en utilisant
 le système de fichier ext2.
 
 
-<appendix id="checklist">Liste de contrôles des configuration.
+<appendix id="checklist">Liste des contrôles de configuration.
 
 <p>Cet appendice récapitule brièvement les points des autres sections de ce manuel sous 
 une forme condensée de liste de contrôles. Ceci est un petit résumé pour une personne qui
-a déjà lu le manuel.
-
-<!-- FIXME: Add pointer to Unix Security Checklist (CERT) -->
+a déjà lu le manuel. Il existe d'autres listes de contrôles disponibles, y
+compris la <url
+id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.html"
+name="sécurisation de Linux pas à pas"> de Kurt Seifried et la <url
+id="http://www.cert.org/tech_tips/usc20_full.html" name="liste de contrôles de
+	  sécurité Unix du CERT">.
 
 <!-- Order is slightly different from body text. Consider changing text? -->
 <!-- (FIXME) -->
@@ -176,14 +195,14 @@ a déjà lu le manuel.
 
 
 <list>
-<item>Limiter les accès physiques et les possibilités de démarrage.
+	  <item>Limiter les accès physiques et les possibilités de démarrage.
 	      <list>
-<item>Activer un mot de passe pour le BIOS.
+		<item>Activer un mot de passe pour le BIOS.
 		<item>Désactiver le démarrage sur disquette/cdrom/...
 		    
 		<item>Mettre un mot de passe à LILO ou GRUB (respectivement <file>/etc/lilo.conf</file>
-ou <file>/boot/grub/menu.lst</file>);
-			vérifier que le fichier de configuration de LILO ou de GRUB soit en lecture
+ou <file>/boot/grub/menu.lst</file>)&nbsp;;
+			vérifier que le fichier de configuration de LILO ou de GRUB est en lecture
 			seule.
 
 		<item>Interdire le démarrage par disquette sur le MBR en récrivant par dessus le MBR 
@@ -191,189 +210,197 @@ ou <file>/boot/grub/menu.lst</file>);
 
 	      </list>
 
-<item>Partitionnement
+          <item>Partitionnement
 	      <list>
-<item>Séparer les données où les utilisateurs peuvent écrire, données non-système, et
-		    rapidement changer les données runtime pour leurs propres partitions
-		
-
+		<item>Séparer les données où les utilisateurs peuvent écrire,
+		    les données non-système, et les données d'exécution qui
+		    changent rapidement dans leurs propres partitions
 
 		<item>Mettre les options de montage <tt>nosuid,noexec,nodev</tt> dans
-		    <file>/etc/fstab</file> sur les partitions ext2 tel que /tmp.
+		    <file>/etc/fstab</file> sur les partitions ext2 tel que <file>/tmp</file>.
 	      </list>
 
 
 
-<item>Hygiène pour les mots de passes et la sécurité des connexions.
+          <item>Hygiène pour les mots de passes et la sécurité des connexions.
 	  	      
 	      <list>
-<item>Établir un bon mot de passe root.
-		<item>Activer les mots de passes ombrés et MD5.
+		<item>Choisir un bon mot de passe root.
+		<item>Activer les mots de passes ombré et MD5.
 		<item>Installer et utiliser PAM.
 		    
 		    <list>
-<item>Ajouter le support du MD5 à PAM et être sûr que 
+		      <item>Ajouter le support du MD5 à PAM et s'assurer que 
 			  (de manière générale) les entrées dans les fichiers
-			<file>/etc/pam.d/</file> qui ouvrent les droits d'accès
-			  à la machine ont un second champs dans
-			  le fichier pam.d <!-- ou est ce le troisième? (FIXME:
-			  vérifier) --> mettre à "requisite" ou "required".
+			<file>/etc/pam.d/</file> qui autorisent l'accès
+			  à la machine ont un second champ dans
+			  le fichier pam.d positionné à <tt>requisite</tt> ou
+			  <tt>required</tt>.
+                          <!-- ou est-ce le troisième ? (FIXME: à vérifier) -->
 			  
-		      <item>Modifiez <file>/etc/pam.d/login</file> pour que
-			  seul le root puisse se loguer localement.
+		      <item>Modifier <file>/etc/pam.d/login</file> pour que
+			  seul le root puisse se connecter localement.
 
-		      <item>Indiquer également les tty:s autorisés dans 
+		      <item>Indiquer également les consoles (<em>ttys</em>) autorisées dans 
 			  <file>/etc/security/access.conf</file> et généralement 
-			  limiter le plus possible l'accès à ce fichier par l'utilisateur
-			  root.
+			  configurer ce fichier pour limiter le plus possible
+			  les connexions de root.
 			  
 		      <item>Ajouter pam_limits.so si vous voulez fixer des limites par
 			  utilisateur.
 			  
-		      <item>Modifiez <file>/etc/pam.d/passwd</file>: augmenter la taille minimum
-		      	  du mot de passe (6 caractères peut-être).
+		      <item>Modifier <file>/etc/pam.d/passwd</file>&nbsp;: augmenter la taille minimum
+		      	  du mot de passe (6 caractères peut-être) et activer MD5.
 
-		      <item>Ajouter le groupe wheel à <file>/etc/group</file> si vous voulez;
+		      <item>Ajouter le groupe wheel à <file>/etc/group</file> si vous voulez&nbsp;;
 			  ajouter l'entrée pam_wheel.so group=wheel au fichier 
 			  <file>/etc/pam.d/su</file>.
 			  
 		      <item>Pour les contrôles d'usage par utilisateur, utiliser les entrées 
-		      appropriées dans parm_listfile.so.
+		      appropriées dans pam_listfile.so.
 		      
 		      <item>Avoir un fichier <file>/etc/pam.d/other</file> et mettre en 
-		      place une sécurité serrée.
+		      place une sécurité reserrée.
 
 		    </list>
-<item>Fixer des limites dans <file>/etc/security/limits.conf</file>
-(notez que <file>/etc/limits</file> n'est pas utilisé is vous utiliser
-		    PAM)
 
-		<item>Resserrer <file>/etc/login.defs</file>; de même que, si vous 
-		activé MD5 et/ou PAM, soyez sûr de faire également les changements ici.
+                <item>Fixer des limites dans <file>/etc/security/limits.conf</file>
+                (notez que <file>/etc/limits</file> n'est pas utilisé si vous utilisez PAM)
+
+		<item>Resserrer <file>/etc/login.defs</file>&nbsp;; de même que, si vous 
+		activez MD5 et/ou PAM, assurez-vous de faire également les changements ici.
 		    
 		<item>Désactiver l'accès par ftp à l'utilisateur root dans le fichier
 		<file>/etc/ftpusers</file>.
 		    
-		<item>Désactiver la connexion par réseau de root; use <manref
+		<item>Désactiver la connexion par réseau de root&nbsp;; utiliser <manref
 		    name="su" section="1"> ou <manref name="sudo"
-		    section="1">.  (prendre en compte que le paquet
-		    <package>sudo</package> soit installé)
+		    section="1">.  (considérer l'installtion du paquet <package>sudo</package>)
 		    
 		<item>Utiliser PAM pour imposer des contraintes supplémentaires sur 
 		les connexions&nbsp;?
 
 	      </list>
 
-<item>Autres problèmes de sécurité locaux 
+          <item>Autres problèmes de sécurité locaux 
 	      <list>
-<item>Modification du noyau
+		<item>Modifications du noyau
 <!-- Traduction nécessaire.Fait. jpg -->
-(see <ref id="kernel-conf">)
+                    (voir <ref id="kernel-conf">)
 		    
 		<item>Rustines pour noyaux
 		    (voir <ref id="kernel-patches">)
 		    
-		<item>Resserrer les permissions sur les fichiers de logs.
-		    (<file>/var/log/{last,fail}log</file>, logs d'Apache)
+		<item>Resserrer les permissions sur les fichiers journaux.
+		    (<file>/var/log/{last,fail}log</file>, journaux d'Apache)
 		    
-		<item>Verifier que la vérification de setuid soit active dans 
+		<item>Vérifier que la vérification de setuid est activée dans 
 		    <file>/etc/checksecurity.conf</file>
-<item>Penser à créer des fichiers de logs en avec uniquement le droit d'ajout
-et des fichiers de configuration invariable en utilisant chattr (système de fichier ext2 uniquement)
+
+                <item>Penser à créer des fichiers journaux en avec uniquement le droit d'ajout
+                 et des fichiers de configuration invariants en utilisant chattr (système de fichier ext2 uniquement)
 <!-- Traduction de append-only nécessaire. Fait. jpg -->
 
 		<item>Mettre en place une vérification d'intégrité des fichiers (voir  <ref
 		id="check-integ">).  Installer <package>debsums</package>
-<item>Penser à remplacer locate par slocate
+
+                <item>Penser à remplacer locate par slocate
 		    
-		<item>Impression de tous les logs sur une imprimante locale&nbsp;?
+		<item>Impression de tous les fichiers journaux sur une imprimante locale&nbsp;?
 		    
-		<item>Graver votre configuration sur un CD démarrable et 
+		<item>Graver votre configuration sur un CD amorçable et 
 		démarrer dessus? <!-- traduction nécessaire. Fait.jpg-->
-<item>Désactiver les modules pour le noyau&nbsp;?
+
+                <item>Désactiver les modules pour le noyau&nbsp;?
 
 	      </list>
 
-<item>Restreindre les accès réseaux
+          <item>Restreindre les accès réseaux
 	      <list>
 
-<item>Installer et configurer <prgn>ssh</prgn>
-(proposer PermitRootLogin No dans <file>/etc/ssh</file>,
+		<item>Installer et configurer <prgn>ssh</prgn>
+                    (suggérer PermitRootLogin No dans <file>/etc/ssh</file>,
 		    PermitEmptyPasswords No;
-		    noter d'autre suggestion de texte)
+		    noter également d'autres suggestions dans le texte)
 		    
-		<item>Envisager la désactivation ou la suppression de in.telnetd.
+		<item>Envisager la désactivation ou la suppression de <prgn>in.telnetd</prgn>.
 		    
 		<item>Généralement, désactiver les services inutiles dans le fichier 
 		<file>/etc/inetd.conf</file> en utilisant <tt>update-inetd
 		      --disable</tt> (ou désactiver inetd complètement, ou utiliser une 
-		      solution de rechange tel xinetd ou rlinetd).
+		      solution de rechange tel <prgn>xinetd</prgn> ou <prgn>rlinetd</prgn>).
 		    
-		<item>Désactiver les autres services inutiles; 
-		mail, ftp, DNS, www, etc ne devraient pas être lancés si vous 
-		n'en avez pas besoin et veillez à les vérifier régulièrement.
+		<item>Désactiver les autres services inutiles&nbsp;; 
+		courriel, ftp, DNS, www, etc. ne devraient pas être lancés si vous 
+		n'en avez pas besoin et veillez à les surveiller régulièrement.
 		
 		<item>Pour les services dont vous avez besoin, n'utilisez pas 
-		uniquement les programmes communs, rechercher des versions plus 
-		sécurisées disponibles avec la Debian (ou depuis tout autre source).
-		Peu importe celle que vous utiliserez, soyez sûr que vous compreniez
+		simplement les programmes communs, rechercher des versions plus 
+		sécurisées disponibles dans Debian (ou depuis tout autre source).
+		Peu importe celle que vous utiliserez, assurez-vous que vous compreniez
 		bien les risques induits.
 		
-		<item>Mettre en place des prisons chroot pour les utilisateurs et démons extérieurs.
+		<item>Mettre en place des prisons <prgn>chroot</prgn> pour les utilisateurs et démons extérieurs.
 
-		<item>Configurer pare-feux et tcpwrappers
-		    (voir <manref name="hosts_access" section="5">);
-		    notez l'astuce pour /etc/hosts.deny 
+		<item>Configurer un pare-feux et les tcpwrappers
+		    (voir <manref name="hosts_access" section="5">)&nbsp;;
+		    notez l'astuce pour <file>/etc/hosts.deny</file> dans le texte.
 		    		    
-		<item>Si vous utiliser ftp, mettre en place un serveur ftpd qui sera toujours lancé dans 
-		un environnement chrooté au répertoire home de l'utilisateur.
+		<item>Si vous utilisez ftp, mettre en place un serveur ftpd qui sera toujours lancé dans 
+		un environnement de <prgn>chroot</prgn> au répertoire personnel de l'utilisateur.
 		    
-		<item>Si vous utiliser X, désactiver l'authentification xhost et utiliser plutôt ssh;
-		de façon encore plus sécurisé, désactiver X à distance si vous pouvez (ajouter -nolisten tcp 
-		à la ligne se référant à la commande X et mettre hors service XDMCP dans le fichier 
+		<item>Si vous utilisez X, désactiver l'authentification xhost et utiliser plutôt <prgn>ssh</prgn>&nbsp;;
+		    de façon encore plus sécurisée, désactiver X à distance si vous le pouvez (ajouter -nolisten tcp 
+		    à la ligne de commande de X et désactiver XDMCP dans le fichier 
 		    <file>/etc/X11/xdm/xdm-config</file> en plaçant la valeur 0 à requestPort).
 		    
-		<item>Désactivez l'accès aux imprimantes de l'extérieur.
+		<item>Désactiver l'accès aux imprimantes de l'extérieur.
 		    
-		<item>Encryptez toute session IMAP ou POP via SSL ou SSH;
-		installez stunnel si vous voulez fournir ce service pour des utilisateurs distant.
+		<item>Encrypter toute session IMAP ou POP via SSL ou <prgn>ssh</prgn>&nbsp;;
+		installez stunnel si vous voulez fournir ce service pour des
+		utilisateurs de courriels à distance.
 		    
-		<item>Mettre en place un hôte de logs et configurer les autres machines afin qu'elles envoient
-		les logs à cet hôte (<file>/etc/syslog.conf</file>).
+		<item>Mettre en place un hôte de journaux et configurer les autres machines pour qu'elles envoient
+		les journaux à cet hôte (<file>/etc/syslog.conf</file>).
 		    
 		<item>Sécuriser BIND, Sendmail et tout autre démon complexe 
-		    (Lancer dans une prison chroot; lancer en tant qu'utilisateur non root)
+		    (Lancer dans une prison <prgn>chroot</prgn>&nbsp;; lancer en tant qu'utilisateur non-root)
 
-		<item>Installer snort ou un outil similaire.
+		<item>Installer snort ou un outil similaire. <!-- "logging" dans ce contexte ? -->
 		    
-		<item>Faire sans NIS et RPC si vous pouvez (désactiver portmap).
+		<item>Faire sans NIS et RPC si vous le pouvez (désactiver portmap).
 		    
 	      </list>
-<item>Problèmes de politique
+
+          <item>Problèmes de règlement
 	      <list>
-<item>Éduquer les utilisateurs sur le comment et le pourquoi de vos règles.
-		Lorsque que vous avez interdit quelque chose qui est généralement 
-		disponible sur d'autres systèmes, fournissez leur une documentation qui 
+		<item>Éduquer les utilisateurs sur le pourquoi et le comment de vos règles.
+		Lorsque que vous interdisez quelque chose qui est généralement 
+		disponible sur d'autres systèmes, fournissez-leur une documentation qui 
 		explique comment arriver aux mêmes résultats d'une manière plus sécurisée.
 
 		<item>Interdire l'utilisation de protocoles qui utilisent des mots 
-		de passes en clair (telnet, rsh and friends; ftp, imap, http, ...).
+		de passe en clair (<prgn>telnet</prgn>, <prgn>rsh</prgn> et similaire&nbsp;; ftp, imap, http, ...).
 		    
 		<item>Interdire les programmes qui utilisent la SVGAlib.
 		    
 		<item>Utiliser les quotas disques.
 
 	      </list>
-<item>Rester informé à propos des problèmes de sécurité
+
+          <item>Rester informé à propos des problèmes de sécurité
 	      <list>
-<item>S'abonner aux listes de discussions liées à la sécurité.
+		<item>S'abonner aux listes de discussions liées à la sécurité.
 		    
-		<item>S'abonner aux mises à jour de sécurité -- ajouter une ou des entrées 
-		http://security.debian.org/debian-security au fichier 
-		<file>/etc/apt/sources.list</file> <item>Se rappeler périodiquement de lancer 
+		<item>Configurer <package>apt</package> pour les mises à jour de
+		sécurité &mdash; ajouter une entrée (ou plusieurs entrées) à
+		<file>/etc/apt/sources.list</file> pour
+		http://security.debian.org/debian-security
+
+	        <item>Se rappeler périodiquement de lancer 
 		<prgn>apt-get update ; apt-get upgrade</prgn>
-(mettre en place peut-être un job avec cron&nbsp;?) tel décrit dans <ref
-		id="security-update">.
+                (mettre en place peut-être une tâche <prgn>cron</prgn>&nbsp;?)
+		comme expliqué dans <ref id="security-update">.
 
 	      </list>
 
@@ -383,49 +410,52 @@ et des fichiers de configuration invariable en utilisant chattr (système de fich
 <!-- Voir la traduction de standalone ! ici je l'ai traduit par dédié mais cela ne me convient pas. J'ai corrigé par autonome. jpg -->
 
 <p>
-Vous pouvez facilement mettre en place une bécane Debian autonome pour 
-un Système de Détection d'Intrusion en utilisant <package>snort</package>.
+Vous pouvez facilement mettre en place un système Debian autonome comme
+Système de Détection d'Intrusion en utilisant <package>snort</package>.
 
-<p>Quelques directives&nbsp;:
+<p>Quelques lignes de conduite&nbsp;:
 
 <list>
 <item>Installer un système de base Debian et ne pas sélectionner 
-de paquets additionnels.
+de paquets supplémentaires.
 
 <item>Télécharger et installer manuellement (avec dpkg) les 
 paquets nécessaire (voir la liste de paquets installée ci-dessous).
 
-<item>Télécharger et installer ACID (Analysis Console for
-Intrusion Databases).
+<item>Télécharger et installer ACID (<em>Analysis Console for
+Intrusion Databases</em>).
 
 </list>
 
 <p>
-ACID est actuellement empaqueté pour Debian avec <package>acidlab</package>,
-qui fournit une interface web graphique à la sortie de snort.
-Il peut être téléchargé depuis 
+ACID est actuellement empaqueté pour Debian sous le nom
+d'<package>acidlab</package>. Le paquet fournit une interface web graphique à la
+sortie de snort. Il peut également être téléchargé depuis 
 <url id="http://www.cert.org/kb/acid/">, <url
 id="http://acidlab.sourceforge.net"> ou <url
 id="http://www.andrew.cmu.edu/~rdanyliw/snort/">. 
-Vous pourriez avoir envie de lire le 
-<url id="http://www.linuxdoc.org/HOWTO/Snort-Statistics-HOWTO/index.html" name="Snort Statistics HOWTO">.
+Vous pouvez également vouloir lire le 
+<url id="http://www.linuxdoc.org/HOWTO/Snort-Statistics-HOWTO/index.html"
+	  name="guide des statistiques de Snort">.
 
 <p>
-Vous pouvez paramétrer ce système avec, au moins, deux interfaces&nbsp;:
-une interface connecté à un réseau de gestion (pour accéder aux résultats 
-et maintenir le système), l'autre interface sans adresse ip lié au segment 
+Le système devrait être mis en place avec au moins deux interfaces&nbsp;:
+l'une connectée à un réseau de gestion (pour accéder aux résultats 
+et maintenir le système), l'autre sans adresse IP liée au segment 
 du réseau à analyser.
 
 <p>
-De façon à configurer les cartes réseaux sans adresses ip vous ne pouvez pas 
-utilisez le fichier standard Debian <file>/etc/network/interfaces</file> étant donné que le programme <prgn>ifup</prgn> et <prgn>ifdown</prgn> attendent plus d'informations que nécessaire. Vous devez faire, simplement,
-<tt>ifconfig eth0 up</tt>.
+Le fichier standard Debian <file>/etc/network/interfaces</file> normalement
+utilisé pour configurer les cartes réseau ne peut pas être utilisé étant donné
+que les programmes <prgn>ifup</prgn> et <prgn>ifdown</prgn> attendent une
+adresse IP. Vous devez faire, simplement, <tt>ifconfig eth0 up</tt>.
 
 <p>
-Vous avez besoin, en outre de l'installation standard Debian, d'Apache, 
-MySQL et PHP4 pour faire fonctionner ACID. Paquets téléchargés (Note: 
-les versions peuvent différer en fonction de quelle distribution Debian 
-vous utilisez, ceux-ci sont de la debian <em>woody</em> de septembre 2001)&nbsp;:
+En plus de l'installation standard Debian, <package>acidlab</package> dépend
+également des paquets <package>php4</package> et <package>apache</package> entre
+autres. Téléchargez les paquets suivants (note&nbsp;: 
+les versions peuvent différer en fonction de la distribution Debian que
+vous utilisez, cette liste est pour Debian <em>Woody</em> de septembre&nbsp;2001)&nbsp;:
 
 <example>
 ACID-0.9.5b9.tar.gz
@@ -466,7 +496,7 @@ sysklogd_1.4.1-2_i386.deb
 zlib1g_1.1.3-15_i386.deb
 </example>
 
-<p>Paquets installés (dpkg -l):
+<p>Paquets installés (dpkg -l)&nbsp;:
 <example>
 ii  adduser        3.39
 ii  ae             962-26
@@ -571,18 +601,19 @@ ii  util-linux     2.10f-5.1
 ii  zlib1g         1.1.3-15
 </example>
 
-<appendix id="bridge-fw">Setting up a bridge firewall 
+<appendix id="bridge-fw">Configuration d'un pare-feu pont 
+<!-- bridge ? passerelle (bof : traduction de gateway), pont -->
 
-<p>This information was contributed by Francois Bayart in order to
-help users set up a Linux bridge/firewall with the 2.4.x kernel and
-<package>iptables</package>. The only features needed are the bridge
-firewall patch, available at <url name="sourceforge download page"
-id="http://bridge.sourceforge.net/download.html">.
+<p>Ces informations sont fournies par Francois Bayart pour aider les
+utilisateurs à mettre en place un pare-feu/pont avec le noyau 2.4.x et
+<package>iptables</package>. Les seules fonctionnalités nécessaires sont la
+rustine de pare-feu pont, disponible sur la <url name="page de
+téléchargement de Sourceforge" id="http://bridge.sourceforge.net/download.html">.
 
-<p>For example, if you are using a 2.4.18 kernel, first install the
-kernel source package, then download the <url name="patch"
+<p>Par exemple, si vous utilisez le noyau 2.4.18, installez tout d'abord le
+paquet source du noyau, puis téléchargez la <url name="rustine"
 id="http://bridge.sourceforge.net/devel/bridge-nf/bridge-nf-0.0.6-against-2.4.18.diff">
-and apply it, as shown in this example:
+et appliquez-la, comme présenté dans cet exemple&nbsp;:
 
 <example>
 Zipowz:/usr/src# apt-get install kernel-source-2.4.18
@@ -605,9 +636,9 @@ patching file net/ipv4/netfilter/ip_tables.c
 patching file net/ipv4/netfilter/ipt_LOG.c
 </example>
 
-<p>Now, configure the kernel (i.e., <tt>make menuconfig</tt>, 
-<tt>make xconfig</tt>). In the section <em>Networking options</em>, enable the 
-following options:
+<p>Maintenant, configurez le noyau (i.e., <tt>make menuconfig</tt>, 
+<tt>make xconfig</tt>). Dans la section <em>Networking options</em>, activez les
+options suivantes&nbsp;:
 
 <example>
 [*] Network packet filtering (replaces ipchains)
@@ -616,117 +647,120 @@ following options:
 [*]   netfilter (firewalling) support (NEW)
 </example>
 
-<p>Caution: you must disable this if you want to apply some
-firewalling rules or else <prgn>iptables</prgn> will not work.
+<p>Avertissement&nbsp;: vous devez désactiver ceci si vous voulez appliquer des
+règles de pare-feu ou sinon <prgn>iptables</prgn> ne fonctionnera pas.
 
 <example>
 [ ]   Network packet filtering debugging (NEW)
 </example>
 
-<p>Next, add the correct options in the section <em>IP: Netfilter
-Configuration</em>. Then, compile and install the kernel. If you want
-to do it the <em>Debian way</em>, install
-<package>kernel-package</package> and run <prgn>make-kpkg</prgn> to
-create a custom Debian kernel package you can install on your server
-using dpkg. Once the new kernel is compiled and installed, install the
-<package>bridge-utils</package> package.
+<p>Ensuite, ajoutez les options correctes dans la section <em>IP: Netfilter
+Configuration</em>. Puis, compilez et installez le noyau. Si vous désirez le
+faire à la <em>sauce Debian</em>, installez
+<package>kernel-package</package> et exécutez <prgn>make-kpkg</prgn> pour créer
+un paquet noyau personnalisé Debian que vous pouvez installer sur votre serveur
+en utilisant dpkg. Une fois que le nouveau noyau est compilé et installé,
+installez le paquet <package>bridge-utils</package>.
 
-<p>Once these steps are complete, you can complete the configuration
-of your bridge. The next section presents two different possible
-configurations for the bridge, each with a hypothetical network map
-and the necessary commands.
+<p>Une fois que ces étapes sont complétées, vous pouvez terminer la configuration
+de votre pont. La section suivante présente deux configurations différentes
+possibles pour le pont, chacune avec une carte réseau hypothétique ainsi que les
+commandes nécessaires.
 
-<sect>A bridge providing NAT and firewall capabilities
+<sect>Un pont fournissant des fonctionnalités de translations d'adresse (NAT) et
+de pare-feu
 
-<p>The first configuration uses the bridge as a firewall with network
-address translation (NAT) that protects a server and internal LAN
-clients. A diagram of the network configuration is shown below:
+<p>La première configuration utilise le pont comme un pare-feu avec de la
+translation d'adresse réseau (NAT) qui protège un serveur et des clients du
+réseau interne. Voici ci-dessous un diagramme de la configuration réseau&nbsp;:
 
 <example>
-Internet ---- router ( 62.3.3.25 ) ---- bridge (62.3.3.26 gw 62.3.3.25 / 192.168.0.1)
+Internet ---- routeur ( 62.3.3.25 ) ---- pont (62.3.3.26 gw 62.3.3.25 / 192.168.0.1)
                                           |
                                           |
-                                          |---- WWW Server (62.3.3.27 gw 62.3.3.25)
+                                          |---- serveur WWW (62.3.3.27 gw 62.3.3.25)
                                           |
                                           |
-                                         LAN --- Zipowz (192.168.0.2 gw 192.168.0.1)
+                                         réseau --- Zipowz (192.168.0.2 gw 192.168.0.1)
 </example>
 
-<p>The following commands show how this bridge can be configured.
+<p>Les commandes suivantes présentent comment ce pont peut être configuré.
 
 <example>
-# Create the interface br0
+# Crée l'interface br0
 /usr/sbin/brctl addbr br0
 
-# Add the Ethernet interface to use with the bridge
+# Ajoute l'interface Ethernet à utiliser avec le pont
 /usr/sbin/brctl addif br0 eth0
 /usr/sbin/brctl addif br0 eth1
 
-# Start up the Ethernet interface
+# Active l'interface Ethernet
 /sbin/ifconfig eth0 0.0.0.0
 /sbin/ifconfig eth1 0.0.0.0
 
-# Configure the bridge ethernet
-# The bridge will be correct and invisible ( transparent firewall ).
-# It's hidden in a traceroute and you keep your real gateway on the 
-# other computers. Now if you want you can config a gateway on your 
-# bridge and choose it as your new gateway for the other computers.
+# Configure le pont ethernet
+# Le pont sera correct et invisible (pare-feu transparent).
+# Il est invisible au traceroute et vous conservez la passerelle réelle sur les
+# autres machines. Maintenant, si vous le désirez, vous pouvez configurer une
+# passerelle sur votre pont et la choisir comme votre nouvelle passerelle pour
+# les autres machines.
 
 /sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
 
-# I have added this internal IP to create my NAT 
+# J'ai ajouté cette IP interne pour créer ma translation d'adresse
 ip addr add 192.168.0.1/24 dev br0
 /sbin/route add default gw 62.3.3.25
 </example>
 
-<sect>A bridge providing firewall capabilities
+<sect>Un pont fournissant des fonctionnalités de pare-feu
 
-<p>A second possible configuration is a system that is set up as a
-transparent firewall for a LAN with a public IP address space.
+<p>Une seconde possibilité est un système qui est mis en place comme un pare-feu
+transparent pour un réseau avec un espace d'adresse IP public.
 
 <example>
-Internet ---- router (62.3.3.25) ---- bridge (62.3.3.26)
+Internet ---- routeur (62.3.3.25) ---- pont (62.3.3.26)
                                         |
                                         |
-                                        |---- WWW Server (62.3.3.28 gw 62.3.3.25)
+                                        |---- serveur WWW (62.3.3.28 gw 62.3.3.25)
                                         |
                                         |
-                                        |---- Mail Server (62.3.3.27 gw 62.3.3.25)
+                                        |---- serveur de courriel (62.3.3.27 gw 62.3.3.25)
 </example>
 
-<p>The following commands show how this bridge can be configured.
+<p>Les commandes suivantes montrent comment ce pont peut être configuré.
 
 <example>
-# Create the interface br0
+# Crée l'interface br0
 /usr/sbin/brctl addbr br0
 
-# Add the Ethernet interface to use with the bridge
+# Ajouter l'interface Ethernet à utiliser avec le pont
 /usr/sbin/brctl addif br0 eth0
 /usr/sbin/brctl addif br0 eth1
 
-# Start up the Ethernet interface
+# Active l'interface Ethernet
 /sbin/ifconfig eth0 0.0.0.0
 /sbin/ifconfig eth1 0.0.0.0
 
-# Configure the bridge Ethernet
-# The bridge will be correct and invisible ( transparent firewall ).
-# It's hidden in a traceroute and you keep your real gateway on the 
-# other computers. Now if you want you can config a gateway on your
-# bridge and choose it as your new gateway for the other computers.
+# Configure le pont Ethernet
+# Le pont sera correct et invisible (pare-feu transparent).
+# Il est invisible au traceroute et vous conservez la passerelle réelle sur les
+# autres machines. Maintenant, si vous le désirez, vous pouvez configurer une
+# passerelle sur votre pont et la choisir comme votre nouvelle passerelle pour
+# les autres machines.
 
 /sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
 </example>
 
-<p>If you traceroute the Linux Mail Server, you won't see the bridge.
-If you want access to the bridge with <prgn>ssh</prgn>, you must have
-a gateway or you must first connect to another server, such as the
-"Mail Server", and then connect to the bridge through the internal
-network card.</p>
+<p>Si vous lancez un traceroute vers le serveur de courriel Linux, vous ne
+verrez pas le pont. Si vous voulez accéder au pont avec <prgn>ssh</prgn>, vous
+devez avoir une passerelle ou vous devez tout d'abord vous connecter sur un
+autre serveur comme le «&nbsp;serveur de courriel&nbsp;», puis ensuite vous
+connecter sur le pont oar la carte réseau interne.</p>
 
-<sect>Basic IPtables rules
+<sect>Règles de base d'IPtables
 
-<p>This is an example of the basic rules that could be used for either of these
-setups.
+<p>Voici un exemple des règles de base qui pourraient être utilisées pour l'une
+ou l'autre des configuration.
 
 <example>
   iptables -F FORWARD
@@ -734,56 +768,55 @@ setups.
   iptables -A FORWARD -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 -m state --state INVALID -j DROP
   iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-  # Some funny rules but not in a classic Iptables sorry ...
-  # Limit ICMP 
+  # Quelques règles amusantes, mais pas pour un iptables classique, désolé...
+  # Limite ICMP 
   # iptables -A FORWARD -p icmp -m limit --limit 4/s -j ACCEPT
-  # Match string, a good simple method to block some VIRUS very quickly
+  # Correspond à une chaîne de caractères, une bonne méthode simple pour bloquer
+  # certaines VIRUS très rapidement
   # iptables -I FORWARD -j DROP -p tcp -s 0.0.0.0/0 -m string --string "cmd.exe"
 
-  # Block all MySQL connection just to be sure
+  # Bloque toutes les connexions MySQL simplement pour être sûr
   iptables -A FORWARD -p tcp -s 0/0 -d 62.3.3.0/24 --dport 3306 -j DROP
 
-  # Linux Mail Server Rules
+  # Règles du serveur de courriel Linux
 
-  # Allow FTP-DATA ( 20 ) , FTP ( 21 ) , SSH ( 22 ) 
+  # Autorise FTP-DATA ( 20 ) , FTP ( 21 ) , SSH ( 22 ) 
   iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.27/32 --dport 20:22 -j ACCEPT
 
-  # Allow the Mail Server to connect to the outside
-  # Note: This is *not* needed for the previous connections 
-  # (remember: stateful filtering) and could be removed.
+  # Autorise le serveur de courriel à e connecter à l'extérieur
+  # Note : Ceci n'est *pas* nécessaire pour les connexions précédentes
+  # (rappelez-vous : filtrage à état) et peut être supprimé.
   iptables -A FORWARD -p tcp -s 62.3.3.27/32 -d 0/0 -j ACCEPT
 
-  # WWW Server Rules
+  # Règles pour le serveur WWW
 
-  # Allow HTTP ( 80 ) connections with the WWW server
+  # Autorise les connexions HTTP ( 80 ) avec le serveur WWW
   iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 80 -j ACCEPT
 
-  # Allow HTTPS ( 443 ) connections with the WWW server
+  # Autorise les connexions HTTPS ( 443 ) avec le serveur WWW
   iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 443 -j ACCEPT
 
-  # Allow the WWW server to go out
-  # Note: This is *not* needed for the previous connections 
-  # (remember: stateful filtering) and could be removed.
+  # Autorise les connexions sortantes du serveur WWW
+  # Note : Ceci n'est *pas* nécessaire pour les connexions précédentes
+  # (rappelez-vous : filtrage à état) et peut être supprimé.
   iptables -A FORWARD -p tcp -s 62.3.3.28/32 -d 0/0 -j ACCEPT
 </example>
 
-<!-- A DÉPLACER -->
+<appendix id="bind-chuser">Exemple de script pour changer l'installation par
+défaut de Bind.
 
-<appendix id="bind-chuser">Sample script to change the default Bind installation.
-
-<p>This script automates the procedure for changing the
-<prgn>bind</prgn> name server's default installation so that it does
-<em>not</em> run as the superuser. It will create the user and groups
-to be used for the name server. Use with extreme care since it has not
-been tested thoroughly.
+<p>Ce script automatise la procédure de changement de l'installation par défaut
+du serveur de noms <prgn>bind</prgn> pour qu'il ne fonctionne <em>pas</em> en
+tant que super-utilisateur. Utilisez-le avec la plus extrême attention car il
+n'a pas été testé rigoureusement.
 
 <example>
   #!/bin/sh
-  # Change the default Debian bind configuration to have it run
-  # with a non-root user and group.
+  # Change la configuration par défaut du bind de Debian pour qu'il s'exécute
+  # en tant qu'un utilisateur et un groupe non-root.
   #
-  # WARN: This script has not been tested throughly, please
-  # verify the changes made to the INITD script
+  # ATT : Ce script n'a pas été testé rigoureusement, veuillez vérifier les
+  #changements effectués sur les scripts d'initialisation
 
   # (c) 2002 Javier Fernandez-Sanguino Peña
   #
@@ -801,7 +834,7 @@ been tested thoroughly.
   #
 
   restore() {
-  # Just in case, restore the system if the changes fail
+  # Au cas où, restaure le système si le changement échoue
 	  echo "WARN: Restoring to the previous setup since I'm unable to properly change it."
 	  echo "WARN: Please check the $INITDERR script."
 	  mv $INITD $INITDERR
@@ -840,7 +873,7 @@ been tested thoroughly.
 	  exit 1
   fi
 
-  # Check if named group exists
+  # Vérifie si le groupe named existe
   if [ -z "`grep $GROUP /etc/group`" ] 
   then
 	  echo "Creating group $GROUP:"
@@ -848,7 +881,7 @@ been tested thoroughly.
   else
 	  echo "WARN: Group $GROUP already exists. Will not create it"
   fi
-  # Same for the user
+  # Pareil pour l'utilisateur
   if [ -z "`grep $USER /etc/passwd`" ] 
   then
 	  echo "Creating user $USER:"
@@ -859,16 +892,16 @@ been tested thoroughly.
 	  echo "WARN: The user $USER already exists. Will not create it"
   fi
 
-  # Change the init.d script
+  # Change le script d'init.d
 
-  # First make a backup (check that there is not already
-  # one there first)
+  # Tout d'abord, on fait une sauvegarde (vérifie en premier qu'il n'y en a pas
+  # déjà une)
   if [ ! -f $INITDBAK ] 
   then
 	  cp $INITD $INITDBAK
   fi
 
-  # Then use it to change it
+  # Puis, utilise-la pour la changer
   cat $INITDBAK |
   eval $AWKS > $INITD
 
@@ -891,7 +924,7 @@ been tested thoroughly.
 	  exit 1
   fi
 
-  # Check if it's running as expected
+  # Vérifie que named fonctionne comme attendu
   RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
 
   if [ "$RUNUSER" = "$USER" ] 
@@ -907,9 +940,9 @@ been tested thoroughly.
   exit 0
 </example>
 
-<p>The previous script, run on Woody's (Debian 3.0) custom
-<prgn>bind</prgn>, will produce the following initd file after
-creating the 'named' user and group:
+<p>Le script précédent, exécuté sur le <prgn>bind</prgn> personnalisé de Woody
+(Debian 3.0) produira le fichier initd suivant après création de l'utilisateur
+et du groupe «&nbsp;named&nbsp;»&nbsp;:
 
 <example>
   #!/bin/sh
@@ -963,36 +996,36 @@ creating the 'named' user and group:
   exit 0
 </example>
 
-<appendix id="fw-security-update">Security update protected by a firewall
+<appendix id="fw-security-update">Mise à jour de sécurité protégée par un pare-feu
 
-<p>After a standard installation, a system may still have some
-security vulnerabilities. Unless you can download updates for the
-vulnerable packages on another system (or you have mirrored
-security.debian.org for local use), the system will have to be
-connected to the Internet for the downloads.
+<p>Après une installation standard, un système peut toujours avec des failles de
+sécurité. À moins de pouvoir télécharger les mises à jour pour les paquets
+vulnérables depuis un autre sysème (ou si vous avez fait un miroir de
+security.debian.org pour utilisation en local), le système devra être connecté à
+l'Internet pour les téléchargements.
 
-<p>However, as soon as you connect to the Internet you are exposing
-this system. If one of your local services is vulnerable, you might be
-compromised even before the update is finished! This may seem paranoid
-but, in fact, analysis from the <url id="http://www.honeynet.org"
-name="Honeynet Project"> has shown that systems can be compromised in
-less than three days, even if the system is not publicly known (i.e.,
-not published in DNS records).
+<p>Cependant, dès que vous vous connecter à l'Internet, vous exposez le système.
+Si l'un de vos services locaux est vulnérable, votre système peut même être
+compromis avant que la mise à jour ne soit terminée&nbsp;! Cela peut sembler
+paranoïaque, mais en fait une analyse du <url id="http://www.honeynet.org"
+name="Projet Honeynet"> a démontré que les systèmes peuvent être compromis en
+moins de trois jours, même si le système n'est pas connu publiquement (i.e.,
+non publié dans les enregistrements DNS).
 
-<p>When doing an update on a system not protected by an external
-system like a firewall, it is possible to properly configure your
-local firewall to restrict connections involving only the security
-update itself. The example below shows how to set up such local
-firewall capabilities, which allow connections from
-security.debian.org only, logging all others.
+<p>Lorsque vous faites une mise à jour sur un système non protégé par un système
+externe comme un pare-feu, il est possible de configurer correctement votre
+pare-feu pour restreindre les connexions n'impliquant que la mise à jour de
+sécurité elle-même. L'exemple ci-dessous montre comment mettre en place des
+telles fonctionnalités de pare-feu, permettant les connexions depuis
+security.debian.org seulement et en historisant toutes les autres.
 
-<p>FIXME: add IP address for security.debian.org (since otherwise you
-need DNS up to work) on /etc/hosts.
+<p>FIXME: ajouter l'adresse IP pour security.debian.org dans /etc/hosts (car
+sinon vous avez besoin que le DNS fonctionne).
 
-<p>FIXME: test this setup to see if it works properly
+<p>FIXME: tester cette configuration pour voir si cela fonctionne correctement
 
-<p>FIXME: this will only work with HTTP URLs since ftp might need 
-the ip_conntrack_ftp module, or use passive mode.
+<p>FIXME: cela ne fonctionnera qu'avec les URL HTTO car ftp peut avoir besoin du
+module ip_conntrack_ftp ou d'utiliser le mode passif.
 
 <!-- FIXME: this is probably not needed, after all it is a packet inspection 
      fw: -->
@@ -1033,9 +1066,11 @@ the ip_conntrack_ftp module, or use passive mode.
   LOG        all  --  anywhere             anywhere           LOG level warning
 </example>
 
-<appendix>Utilisation de chroot
-<!-- sect id="chroot" -->
+<!-- CONTINUER ICI -->
 
+<!-- <appendix>Utilisation de chroot -->
+<!-- sect id="chroot" -->
+<!-- 
 <p><prgn>chroot</prgn> est une des possibilités les plus puissantes pour
 restreindre un démon ou un utilisateur ou un autre service. Imaginez juste
 une prison autour de votre cible, dont votre cible ne peut s'échapper
@@ -1070,69 +1105,70 @@ Même des failles minuscules comme des références de fichier ouverts peuvent être
 utilisées par un attaquant talentueux pour s'introduire dans le système. Après
 tout <prgn>chroot</prgn> n'a pas été conçu comme un outil de sécurité mais comme
 un outil de test.
-
+ -->
 <!-- FIXME: Cette information devra être vérifiée quand woody sortira -->
 <!-- AA : Service de nom Internet ? serveur de résolution de nom) -->
-
+ -->
 <p>Note additionnelle, le BIND par défaut de la Debian (le service de nom 
 Internet) n'est pas livré chrooté par défaut; en fait, aucun démon n'est
 chrooté. Cela pourrait changer dans la version woody (3.0).
-
+ -->
 <!-- Il faudrait peut etre signifier ici que BIND est un outil très vulnérable.
 il est impératif de mettre les dernières mises à jour? jpg -->
-
+<!-- 
 <p>Il y a aussi des logiciels (pas dans la Debian actuellement mais qui pourraient
 fournis dans le futur) qui peuvent aider à configurer des environnements chroot.
 <prgn>makejail</prgn> par exemple, peut créer et mettre à jour une prison chroot
-avec de petits fichiers de configuration. il essaie aussi de deviner et 
+avec de petits fichiers de configuration. il essaie aussi de deviner et  -->
 <!-- AA ou peu de fichiers ? -->
-d'installer dans la prison tous les fichiers requis par le démon.
+<!-- d'installer dans la prison tous les fichiers requis par le démon.
 Plus d'information à <url id="http://www.floc.net/makejail/">. <prgn>Jailer</prgn> est un outil similaire qui peut être récupéré sur 
 <url id="http://www.balabit.hu/downloads/jailer/">
+ -->
 
+<appendix id="chroot-ssh-env">Environnement de <prgn>chroot</prgn> pour <prgn>SSH</prgn>
 
-<appendix id="chroot-ssh-env"><Prgn>Chroot</Prgn> environment for <PRGN>SSH</PRGN>
-
-<p>Creating a restricted environment for <PRGN>SSH</PRGN> is a tough job due 
-to its dependencies and the fact that, unlike other servers, <PRGN>SSH</PRGN> 
-provides a remote shell to users. Thus, you will also have to consider the
-applications users will be allowed to use in the environment. If you create 
-this file structure in, for example <file>/var/chroot/ssh</file>, you could 
-start the <prgn>ssh</prgn> server <prgn>chroot</prgn>'ed with this command:
+<p>Créer un environnement restreint pour <prgn>SSH</prgn> est un travail
+difficile à cause de ses dépendances et du fait que, à la différence d'autres
+serveurs, <prgn>SSH</prgn> fournit un shell distant pour les utilisateurs. C'est
+pourquoi vous devrez également considérer les applications que les
+utilisateurs auront le droit d'utiliser dans l'environnement. Si vous créer
+cette structure de fichiers sous, par exemple <file>/var/chroot/ssh</file>, vous
+pouvez lancer le serveur <prgn>ssh</prgn> <prgn>chroot</prgn>é avec cette commande&nbsp;:
 
 <example>
   # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
 </example>
 
-<sect>Automatically making the environment (the easy way)
+<sect>Créer l'environnement automatiquement (la manière simple)
 
-<p>You can easily create a restricted environment with the
-<package>makejail</package> package, since it automatically takes care
-of tracing the server daemon (with <prgn>strace</prgn>), and makes it
-run under the restricted environment.
+<p>Vous pouvez facilement créer un environnement restraine avec le paquet
+<package>makejail</package> puisqu'il prend automatiquement soin de tracer le
+démon serveur (avec <prgn>strace</prgn>), et l'exécute sous l'environnement
+restreint.
 
-<p>The advantage of programs that automatically generate <prgn>chroot</prgn>
-environments is that they are capable of copying any package to the
-<prgn>chroot</prgn> environment (even following the package's dependencies and
-making sure it's complete). Thus, providing user applications is easier.
+<p>L'avantage de programmes qui génèrent automatiquement l'environnement de <prgn>chroot</prgn>
+est qu'ils sont capables de copier tout paquet vers l'environnement de
+<prgn>chroot</prgn> (en suivant même les dépendances de paquet et en s'assurant
+qu'il est complet). Fournir les applications aux utilisateurs est donc plus facile.
 
-<p>To set up the environment using <prgn>makejail</prgn>'s provided
-examples, just use the command:
+<p>Pour mettre en place l'environnement en utilisant les exemples fournis par
+<prgn>makejail</prgn>, exécutez simplement la commande suivante&nbsp;:
 
 <example>
   # makejail /usr/share/doc/makejail/examples/sshd.py
 </example>
 
-<p>Read the sample file to see what other changes need to be made to
-the environment. Some of these changes, such as copying user's home
-directories, cannot be done automatically. Also, limit the exposure of
-sensitive information by only copying the data from a given number of
-users from the files <file>/etc/shadow</file> or
+<p>Lisez le fichier d'exemple pour voir quels autres changements doivent être
+réalisés dans l'environnement. Certains de ces changements, comme la copie des
+répertoires personnels des utilisateurs, ne peuvent être réalisés
+automatiquement. Limitez également l'exposition des informations sensibles en ne copiant
+que les données d'un nombre donné d'utilisateurs des fichiers <file>/etc/shadow</file> ou
 <file>/etc/group</file>.
 
-<p>The following sample environment has been (slightly) tested and is
-built with the configuration file provided in the package and includes
-the <package>fileutils</package> package:
+<p>L'environnement d'exemple suivant a été (légèrement) testé et est construit
+avec le fichier de configuration fourni par le paquet et inclut le paquet
+<package>fileutils</package>&nbsp;:
 
 <example>
 .
@@ -1324,40 +1360,43 @@ the <package>fileutils</package> package:
 27 directories, 733 files
 </example>
 
-<appendix>Restriction de ssh pour les utilisateurs
+<sect>Modifier <prgn>SSH</prgn> pour activer la fonctionnalité de <prgn>chroot</prgn>
 
 <p>
-Le serveur sshd de Debian ne vous autorisera pas à restreindre les mouvements 
+Le serveur <prgn>sshd</prgn> de Debian ne vous autorisera pas à restreindre les mouvements 
 des utilisateurs via le serveur étant donné que celui-ci est dépourvu de la 
-fonction Chroot que la version commerciale (sshd2) possède (utilisation de 
-"ChrootGroups" ou "ChrootUsers", voir <manref name="sshd2_config" section="5">). 
+fonction <prgn>chroot</prgn> que le programme commerciale <prgn>sshd2</prgn> possède (utilisation de 
+«&nbsp;ChrootGroups&nbsp;» ou «&nbsp;ChrootUsers&nbsp;», voir <manref name="sshd2_config" section="5">). 
 Toutefois, une rustine est disponible afin de vous permettre de le faire, elle 
-peut être trouvée depuis 
-<url id="http://bugs.debian.org/139047" name="Bug report 139047"> ou
-<url id="http://www.cag.lcs.mit.edu/~raoul/"> (et sera peut-être appliquée 
-au paquet OpenSSH dans le futur). Emmanuel <!-- Il ne manque pas un m a emmanuel
-la? jpg --> Lacour dispose d'un paquet avec 
-cette fonctionnalité sur <url id="http://debian.home-dn.net/woody/ssh/">, 
-quoique la compilation est recommandée. Une description de toutes les étapes 
-nécessaires peut-être aperçue sur 
+peut être trouvée depuis le
+<url id="http://bugs.debian.org/139047" name="rapport de bogue 139047">. Elle sera peut-être appliquée 
+au paquet OpenSSH dans le futur. Emmanuel <!-- Il ne manque pas un m a emmanuel
+la? jpg --> Lacour dispose de paquets Debian <prgn>ssh</prgn> avec 
+cette fonctionnalité sur <url id="http://debian.home-dn.net/woody/ssh/">.
+Cependant, l'étape de compilation est recommandée.
+
+<p>
+Une description de toutes les étapes nécessaires peut-être trouvée sur 
 <url id="http://mail.incredimail.com/howto/openssh/"> (pratiquement tout est 
 applicable à Debian même s'il est question de la RedHat 7.2).
-Après l'application de la rustine, vous devez juste modifier le 
+Après l'application de la rustine, vous devez simplement modifier le 
 <file>/etc/passwd</file> en changeant le chemin personnel des utilisateurs 
-(avec le jeton spécial <tt>/./</tt>):
+(avec le jeton spécial <tt>/./</tt>)&nbsp;:
+
+<!--  ou <url id="http://www.cag.lcs.mit.edu/~raoul/"> -->
 
 <example>
 joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
 </example>
 
 <p>
-<em>Tous deux</em>, aussi bien les accès distants au shell que la copie via 
-le tunnel ssh, seront restreints.
+Ceci restreindra <em>à la fois</em> les accès distants au shell, ainsi que la copie via 
+le tunnel <prgn>ssh</prgn>.
 
 <p>
-Il faut être sûr que tous les binaires et librairies soient présents dans le 
-chemin chrooté pour les utilisateurs. Ces fichiers devraient appartenir à 
-root pour éviter les fraudes de l'utilisateur (tel la sortie d'une prison chrooté).
+Assurez-vous que tous les programmes et bibliothèques sont bien présents dans le 
+chemin <prgn>chroot</prgn>é pour les utilisateurs. Ces fichiers devraient appartenir à 
+root pour éviter les fraudes de l'utilisateur (tel la sortie d'une prison <prgn>chroot</prgn>é).
 Un échantillon pourrait inclure ceci&nbsp;:
 
 <example>
@@ -1428,20 +1467,20 @@ libcrypto.so.0.9.6
 -rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
 </example>
 
-<sect>Handmade environment (the hard way)
+<sect>Environnement créé manuellement (la manière difficile)
 
-<p>It is possible to create an environment, using a trial-and-error
-method, by monitoring the <prgn>sshd</prgn> server traces and log
-files in order to determine the necessary files. The following
-environment, contributed by José Luis Ledesma, is a sample listing of
-files in a <prgn>chroot</prgn> environment for <prgn>ssh</prgn>:
+<p>Il est possible de créer un environnement, en utillisant une méthode
+d'essai-et-d'erreur, en surveillant les traces du serveur <prgn>sshd</prgn> et
+les fichiers journaux pour déterminer les fichiers nécessaires. L'environnement
+suivant, fourni par José Luis Ledesma, est un listing exemple des fichiers dans
+un environnement de <prgn>chroot</prgn> pour <prgn>ssh</prgn>&nbsp;:
 
 <footnote>
-Notice that there are no SETUID files. This makes it more difficult
-for remote users to escape the <prgn>chroot</prgn>
-environment. However, it also prevents users from changing their
-passwords, since the <prgn>passwd</prgn> program cannot modify the
-files <file>/etc/passwd</file> or <file>/etc/shadow</file>.
+Notez qu'ils n'y a pas de fichiers SETUID. Cela rend plus difficile pour les
+utilisateurs distants de s'échapper de l'environnement de <prgn>chroot</prgn>.
+Cependant, il empêche également les utilisateurs de changer leurs mots de passe,
+car le programme <prgn>passwd</prgn> ne peut pas modificer les fichiers
+<file>/etc/passwd</file> ou <file>/etc/shadow</file>.
 </footnote>
 
 <example>
@@ -1689,34 +1728,35 @@ lrwxrwxrwx 1 root root 8 Jun 4 12:13 sbin -> ../sbin//
 
 
 
-<appendix id="chroot-apache-env"><Prgn>Chroot</Prgn> environment for <PRGN>Apache</PRGN>
+<appendix id="chroot-apache-env">Environnement de <prgn>chroot</prgn> pour <prgn>Apache</prgn>
 
 <sect>Introduction
 
-<p>The <prgn>chroot</prgn> utility is often used to jail a daemon in a
-restricted tree. You can use it to insulate services from one another,
-so that security issues in a software package do not jeoparize the
-whole server. When using the <prgn>makejail</prgn> script, setting up
-and updating the chrooted tree is much easier.</p>
+<p>L'utilitaire <prgn>chroot</prgn> est souvent utilisé pour emprisonner un
+démon dans une arborescence restreint. Vous pouvez l'utiliser pour isoler des
+services d'autres services, pour que les problèmes de sécurité d'un paquet
+logiciel ne mettent pas en péril le serveur tout entier. Quand vous utiliser le
+script <prgn>makejail</prgn>, mettre en place et mettre à jour l'arborescence
+chrooté est beaucoup plus facile.</p>
 
-<sect1>Licensing 
+<sect1>Licence 
 
-<p>This document is copyright 2002 Alexandre Ratti. It has been
-released underthe GNU-FDL 1.2 (GNU Free Documentation Licence) and is
-included in this manual with his explicit permission.
+<p>Ce document est copyright 2002 Alexandre Ratti. Il est publié sous la GNU-FDL
+1.2 (GNU Free Documentation Licence) et est inclus dans ce manuel avec sa
+permission explicite.
 
 </sect1>
 </sect>
 
-<sect>Installing the server
+<sect>Installer le serveur
 
-<p>This procedure was tested on Debian GNU/Linux&nbsp;3.0 (Woody) with
-<prgn>makejail</prgn> 0.0.4-1 (in Debian/testing).
+<p>Cette procédure a été testée sur Debian GNU/Linux&nbsp;3.0 (Woody) avec
+<prgn>makejail</prgn> 0.0.4-1 (de Debian/testing).
 
 <list>
 
-<item> <p>Log in as <prgn>root</prgn> and create a new jail
-directory:
+<item> <p>Connectez-vous en tant que <prgn>root</prgn> et créez le nouveau
+répertoire prison&nbsp;:
 
 <example>
 $ mkdir -p /var/chroot/apache
@@ -1724,48 +1764,49 @@ $ mkdir -p /var/chroot/apache
 
  </item>
 
- <item> <p>Create a new user and a new group. The chrooted Apache
-server will run as this user/group, which isn't used for anything else
-on the system. In this example, both user and group are called
-<prgn>chrapach</prgn>.
+ <item> <p>Créez un nouvel utilisateur et un nouveau groupe. Le serveur Apache
+chrooté fonctionnera sous cet utilisateur et groupe, qui n'est utilisé pour rien
+d'autre sur le système. Dans cet exemple, l'utilisateur et le groupe sont
+appelés <prgn>chrapach</prgn>.
 
  <example> 
  $ adduser --home /var/chroot/apache --shell /bin/false \
  --no-create-home --system --group chrapach
  </example>
 
-<p>FIXME: is a new user needed? (Apache already runs as the apache user)</p>
+<p>FIXME: est-ce qu'un nouvel utilisateur est nécessaire&nbsp;? (Apache
+fonctionne déjà sous l'utilisateur apache)</p>
 
   </item>
 
-  <item>Install Apache as usual on Debian: <tt>apt-get install
+  <item>Installez Apache comme d'habitude sous Debian&nbsp;: <tt>apt-get install
 apache</tt></item>
 
-<item>Set up Apache (eg. define your subdomains, etc.). In the
-<file>/etc/apache/httpd.conf</file> configuration file , set the
-<em>Group</em> and <em>User</em> options to <tt>chrapach</tt>. Restart
-Apache and make sure the server is working correctly. Now, stop the
-Apache daemon.</item>
+<item>Configurez Apache (e.g. définissez vos sous-domaines, etc.). Dans le
+fichier de configuration <file>/etc/apache/httpd.conf</file>, positionnez les options
+<em>Group</em> et <em>User</em> à <tt>chrapach</tt>. Redémarrez Apache et
+assurez-vous que le serveur fonctionne correctement. Maintenant, stoppez le
+démon Apache.</item>
 
-<item>Install <prgn>makejail</prgn> (available in Debian/testing for
-now). You should also <prgn>wget</prgn> et <prgn>lynx</prgn> as
-they are will be used by <prgn>makejail</prgn> to test the chrooted
-server: <tt>apt-get install makejail wget lynx</tt></item>
+<item>Installez <prgn>makejail</prgn> (disponible dans Debian/testing
+actuellement). Vous devriez également installer <prgn>wget</prgn> et
+<prgn>lynx</prgn> car ils sont utilisés par <prgn>makejail</prgn> pour tester le
+serveur chrooté&nbsp;: <tt>apt-get install makejail wget lynx</tt></item>
 
-<item>Copy the sample configuration file for Apache to the
-<file>/etc/makejail</file> directory:
+<item>Copiez le fichier de configuration exemple pour Apache dans le répertoire
+ <file>/etc/makejail</file>&nbsp;:
  <example> 
  # cp/usr/share/doc/makejail/examples/apache.py /etc/makejail/ 
  </example>
 
 </item>
  
- <item>Edit <file>/etc/makejail/apache.py</file>. You need to change
-the <em>chroot</em>, <em>users</em> and <em>groups</em> options. To
-run this version of <prgn>makejail</prgn>, you can also added a
-<prgn>packages</prgn> option. See the <url
-id="http://www.floc.net/makejail/current/doc/" name="makejail
-documentation">. A sample is shown here:
+ <item>Éditez <file>/etc/makejail/apache.py</file>. Vous devez changer les options
+<em>chroot</em>, <em>users</em> et <em>groups</em>. Pour exécuter cette version
+de <prgn>makejail</prgn>, vous pouvez également ajouter une option
+<prgn>packages</prgn>. Voir la <url
+id="http://www.floc.net/makejail/current/doc/" name="documentation
+makejail">. Un exemple est fourni ici&nbsp;:
 
 <example>
 chroot=&quot;/var/chroot/apache&quot;
@@ -1787,48 +1828,49 @@ forceCopy=[&quot;/etc/hosts&quot;,
            &quot;/etc/mime.types&quot;]
 </example>
 
-<p><em>FIXME:</em> some options do not seem to work properly. For
-instance, <file>/etc/shadow</file> and<file>/etc/gshadow</file> are
-not copied, whereas <file>/etc/password</file> and
-<file>/etc/group</file> are fully copied instead of being
-filtered.</p>
+<p><em>FIXME:</em> certaines options semblent ne pas fonctionner correctement.
+Par exemple, <file>/etc/shadow</file> et <file>/etc/gshadow</file> ne sont pas
+copiés, alors que <file>/etc/password</file> et
+<file>/etc/group</file> sont intégralement copiés au lieu d'être filtrés.</p>
  </item>
  
-<item>Create the chroot tree: <tt>makejail /etc/makejail/apache.py</tt></item>
+<item>Créez l'arborescence de chroot&nbsp;: <tt>makejail /etc/makejail/apache.py</tt></item>
 
-<item>If <file>/etc/password</file> and <file>/etc/group</file> were
-fully copied, type:
+<item>Si les fichiers <file>/etc/password</file> et <file>/etc/group</file> ont
+été intégralement copiés, entrez&nbsp;:
 
       <example>
       $ grep chrapach /etc/passwd &gt; /var/chroot/apache/etc/passwd
       $ grep chrapach /etc/group &gt; /var/chroot/apache/etc/group
       </example>
-to replace them with filtered copies.</item>
+pour les remplacer avec des copies filtrées.</item>
 
-<item>Copy the Web site pages and the logs into the jail. These files
-are not copied automatically (see the <em>preserve</em> option in
-<prgn>makejail</prgn>'s configuration file).
+<item>Copiez les pages du site web et les journaux dans la prison. Ces fichiers
+ne sont pas copiés automatiquement (voir l'option <em>preserve</em> du fichier
+de configuration de <prgn>makejail</prgn>).
       <example>
       # cp -Rp /var/www /var/chroot/apache/var
       # cp -Rp /var/log/apache/*.log /var/chroot/apache/var/log/apache
       </example>
   </item>
 
-<item>Edit the startup script for the system logging daemon so that it
-also listen to the <file>/var/chroot/apache/dev/log</file> socket. In
-<file>/etc/init.d/sysklogd</file>, replace:
-<tt>SYSLOGD=&quot;&quot;</tt> with <tt>SYSLOGD=&quot; -a
-/var/chroot/apache/dev/log&quot;</tt> and restart the daemon
+<item>Éditez le script de démarrage pour le démon de journaux système pour qu'il
+écoute également sur la socket <file>/var/chroot/apache/dev/log</file>. Dans
+<file>/etc/init.d/sysklogd</file>, remplacez&nbsp;:
+<tt>SYSLOGD=&quot;&quot;</tt> par <tt>SYSLOGD=&quot; -a
+/var/chroot/apache/dev/log&quot;</tt> et redémarrez le démon
 (<tt>/etc/init.d/sysklogd restart</tt>).</item>
 
-  <item> Edit the Apache startup script (<file>/etc/init.d/apache</file>). You might need to make some changes to the default startup script for it to run properly with a chrooted 
-      tree. Such as:
+  <item>Éditez le script de démarrage d'Apache
+      (<file>/etc/init.d/apache</file>). Vous pouvez avoir besoin d'effectuer
+      certaines changements au script de démarrage par défaut pour qu'il
+      fonctionne correctement dans une arborescence chrooté. Comme&nbsp;:
     <list>
-      <item>set a new <em>CHRDIR</em> variable at the top of the file;</item>
-      <item>edit the <em>start</em>, <em>stop</em>, <em>reload</em>, 
-        etc. sections;</item>
-      <item>add a line to mount and unmount the <file>/proc</file>
-filesystem within the jail.  </item>
+      <item>configurer une nouvelle variable <em>CHRDIR</em> au début du fichier&nbsp;;</item>
+      <item>éditer les sections <em>start</em>, <em>stop</em>, <em>reload</em>, 
+        etc.&nbsp;;</item>
+      <item>ajouter une ligne pour monter et démonter le système de fichiers <file>/proc</file>
+dans la prison.  </item>
     </list>
 <example>
 #! /bin/bash
@@ -1914,28 +1956,28 @@ else
 fi
 </example>
 
-      <p><em>FIXME</em>: should the first Apache process be run as
-another user than root (i.e. add --chuid chrapach:chrapach)? Cons:
-chrapach will need write access to the logs, which is awkward.</p>
+      <p><em>FIXME</em>: est-ce que le premier processus Apache devrait être
+lancé avec un autre utilisateur que root (i.e. ajouter add --chuid chrapach:chrapach)&nbsp;? Désavantage&nbsp;:
+chrapach devra avoir un accès en écriture aux journaux, ce qui est étrange.</p>
   </item>
 
-  <item>Replace in <file>/etc/logrotate.d/apache</file>
-<tt>/var/log/apache/*.log</tt> with
+  <item>Remplacez dans <file>/etc/logrotate.d/apache</file>
+<tt>/var/log/apache/*.log</tt> par
 <tt>/var/chroot/apache/var/log/apache/*.log</tt> </item>
 
-  <item>Start Apache (<prgn>/etc/init.d/apache start</prgn>) and check
-what is it reported in the jail log
-(<file>/var/chroot/apache/var/log/apache/error.log</file>).  If your
-setup is more complex, (eg. if you also use PHP and MySQL), files will
-probably be missing. if some files are not copied automatically by
-<prgn>makejail</prgn>, you can list them in the <em>forceCopy</em> (to
-copy files directly) or <em>packages</em> (to copy full packages and
-their dependencies) option the <file>/etc/makejail/apache.py</file>
-configuration file.  </item>
+  <item>Démarrez Apache (<prgn>/etc/init.d/apache start</prgn>) et vérifiez ce
+qui est indiqué dans les journaux de la prison
+(<file>/var/chroot/apache/var/log/apache/error.log</file>). Si votre
+configuration est plus complexe (e.g. si vous utilisez également PHP et MySQL),
+des fichiers seront probablement manquants. Si certains fichiers ne sont pas
+copiés automatiquement par <prgn>makejail</prgn>, vous pouvez les lister dans
+les options <em>forceCopy</em> (pour copier les fichiers directement) ou
+<em>packages</em> (pour copier les paquets en entier et leurs dépendances) du
+fichier de configuration <file>/etc/makejail/apache.py</file>.  </item>
 
   <item> 
-    <p>Type <tt>ps aux | grep apache</tt> to make sure Apache 
-      is running. You should see something like:
+    <p>Entrez <tt>ps aux | grep apache</tt> pour vous assurer qu'Apache
+    fonctionne. Vous devriez voir quelque chose comme&nbsp;:
       <example>
       root 180 0.0 1.1 2936 1436 ? S 04:03 0:00 /usr/sbin/apache
       chrapach 189 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
@@ -1946,11 +1988,11 @@ configuration file.  </item>
       </example>
   </item>
 
-  <item> Make sure the Apache processes are running chrooted by lookin
-in the <file>/proc</file> filesystem: <tt>ls -la
-/proc/<em>process_number</em>/root/.</tt> where <em>process</em> is one
-of the PID numbers listed above (2nd column; 189
-    for instance). The ntries for a restricted tree should be listed:
+  <item>Assurez-vous que les processus Apache fonctionnent bien dans le chroot
+en observant le système de fichiers <file>/proc</file>&nbsp;: <tt>ls -la
+/proc/<em>numero_processus</em>/root/.</tt> où <em>numero_processus</em> est
+l'un des numéros de PID listés ci-dessus (2e colonne&nbsp;; 189 par exemple)).
+Les entrées pour une arborescence restreinte devraient être listées ainsi&nbsp;:
     <example>
     drwxr-sr-x 10 root staff 240 Dec 2 16:06 .
     drwxrwsr-x 4 root staff 72 Dec 2 08:07 ..
@@ -1963,16 +2005,17 @@ of the PID numbers listed above (2nd column; 189
     drwxr-xr-x 6 root root 144 Dec 2 16:04 usr
     drwxr-xr-x 7 root root 168 Dec 2 16:06 var
     </example>
-    <p>To automate this test, you can type:<tt>ls -la /proc/`cat
+    <p>Pour automatiser ce test, vous pouvez entrer&nbsp;:<tt>ls -la /proc/`cat
 /var/chroot/apache/var/run/apache.pid`/root/.</tt></p>
 
-    <p><em>FIXME</em>: Add other tests that can be run to make sure the
-jail is closed?</p>
+    <p><em>FIXME</em>: ajouter d'autres tests qui peuvent être exécuter pour
+s'assurer que la prison est fermées&nbsp;?</p>
 	</item>
 </list>
 
-<p>The reason I like this is because setting up the jail is not very
-difficult and  the server can be updated in just two lines:
+<p>La raison pour laquelle j'aime ceci est que la mise en place d'une prison
+n'est pas très difficile et que le serveur peut être mis à jour avec seulement
+deux lignes&nbsp;:
 
 <example> 
 apt-get update &amp;&amp; apt-get install apache
@@ -1980,14 +2023,14 @@ makejail /etc/makejail/apache.py
 </example>
 
 </sect>
-<sect>See also
+<sect>Voir également
 
-<p>If you are looking for more information you can consider these
-sources of information in which the information presented is based:
+<p>Si vous recherchez plus d'informations, vous pouvez envisager ces sources
+d'informations dans lesquelles l'information présentée est basée&nbsp;:
 <list>
 
-  <item><url id="http://www.floc.net/makejail/" name="makejail
-homepage"> , this program was written by Alain Tesio)</item>
+  <item><url id="http://www.floc.net/makejail/" name="page d'accueil de
+  makejail">, ce programme a été écrit par Alain Tesio)</item>
 
 <!-- Not appropiate for this section 
   <item><a href="http://www.easter-eggs.org/article242.html">Bind9 chroot&eacute; 
@@ -1995,13 +2038,13 @@ homepage"> , this program was written by Alain Tesio)</item>
 -->
 
   <item><url id="http://www.networkdweebs.com/chroot.html"
-name="Chrooting daemons and system processes"> by Jonathan, Network
+name="Chrooting daemons and system processes"> par Jonathan, Network
 Dweebs, 21/10/2002</item>
 
   <item><url
 id="http://www.digitaltoad.net/docs/guide/secure_rh/chap29sec254.html"
-name="Apache in a chroot jail"> in <em>Securing and Optimizing
-Linux</em> written by Gerhard Mourani,
+name="Apache in a chroot jail"> dans <em>Securing and Optimizing
+Linux</em> écrit par Gerhard Mourani,
     2000 </item>
 </list>
 </sect>
