@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.3 $"  -->
-<!-- CVS revision of original english document "1.46"   -->
+<!-- CVS revision of this document "$Revision: 1.4 $"  -->
+<!-- CVS revision of original english document "1.55"   -->
 
 <chapt id="tips"> Dicas &debian;
 
@@ -648,6 +648,23 @@ pode tornar a recuperação de erros mais fácil usando o parâmetro
 original, adicionando <tt>.bak</tt> como uma extensão de arquivo.
 </sect1>
 
+<sect1>Editar arquivo no local por script
+<p>
+O script seguinte removerá as linhas 5-10 e linhas 16-20 no local.
+<example>
+#!/bin/bash
+ed $1 &lt;&lt;EOF
+16,20d
+5,10d
+w
+q
+EOF
+</example>
+Aqui, os comandos do <prgn>ed</prgn> são os mesmos de modo
+comando do <prgn>vi</prgn>. Editar por trás do arquivo facilita a
+criação do script.
+</sect1>
+
 <sect1>Extrair diferenças e juntar atualizações para os arquivos fonte
 <p>
 Seguir um dos procedimentos abaixo irá extrair as diferenças do arquivo
@@ -679,6 +696,20 @@ $ cat x* ><var>arquivogrande</var>   # junta arquivos em 1 grande arquivo
 </example>
 </sect1>
 
+<sect1>Extrair dados de uma tabela em arquivo texto
+<p>
+A seguir extrai as linhas das quais a coluna especificada é encontrada
+por programas de linha de comando (grep, cut, wc, ...).
+
+Por exemplo, há uma matriz de texto separado por tab como o seguinte e
+eu quero extrair de qual o valor da coluna número 2 é "111".
+
+<example>
+awk '{ print $3 }'   # extrai o terceiro campo separado com espaços
+</example>
+</sect1>
+
+
 <sect1>Pequenos scripts para ligar comandos
 <p>
 Os scripts a seguir farão coisas legais como parte de um pipe.
@@ -686,13 +717,20 @@ Os scripts a seguir farão coisas legais como parte de um pipe.
 find /usr | egrep -v "/usr/var|/usr/tmp|/usr/local"
                      # encontra todos os arquivo em /usr excluindo alguns arquivos
 xargs -n 1 <var>comando</var>   # executa o comando para todos os itens de stdin
-xargs -n 1 echo|     # divide itens separados-por-espaços-em-branco em linhas
+xargs -n 1 echo |    # divide itens separados-por-espaços-em-branco em linhas
+xargs echo      |    # mescla todas as linhas em uma linha
 grep -e <var>padrão</var>|      # extrai linhas contendo <var>padrão</var>
-cut -d: -f3 -|       # extrai o terceiro campo separado por :  
-                     # (arquivo passwd, etc.)
+cut -d: -f3 -|       
+        # extrai o terceiro campo separado por : (arquivo passwd etc.) 
+awk '{ print $3 }' | # extrai o terceiro campo separado por espaços
+awk -F'\t' '{ print $3 }' |
+       # extrai linhas com terceiro campo igual a "111" separado por tab
+awk '($2=="1957") { print $3 }' |
+       # extrai teceiro campo onde o segundo campo é "1952"
 col -bx |            # remove backspace e expande tabs para espaços
 expand -|            # expande tabs
 sort -u|             # ordena e remove duplicados
+
 tr '\n' ' '|         # concatena linhas em uma linha
 tr '\r' ''|          # remove CR
 tr 'A-Z' 'a-z'|      # converte maiúsculas em minúsculas
@@ -702,6 +740,31 @@ sed  -n -e 2p|       # imprime a segunda linha
 head -n 2 -|         # imprime as primeiras 2 linhas
 tail -n 2 -|         # imprime as últimas 2 linhas
 </example>
+</sect1>
+
+<sect1>Loucura de script Perl curto
+<p>
+Quaisquer scripts Awk podem ser reescritos com Perl. Por exemplo
+<example>
+awk '($2=="1957") { print $3 }' |
+</example>
+pode ser escrito em qualquer uma das seguintes linhas:
+<example>
+perl -ne '@f=split; if ($f[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne 'if ((@f=split)[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne '@f=split; print $f[2] if ( $f[1]==1957 )' |
+perl -lane 'print $F[2] if $F[1] eq "1957"' |
+</example>
+<p>
+Como todos os espaços nos argumentos para o perl na linha acima podem
+ser removidos e tomando vantagem das conversões automáticas entre
+números e strings no Perl:
+<example>
+perl -lane 'print$F[2]if$F[1]eq+1957' |
+</example>
+Veja <manref name="perlrun" section="1"> para detalhes sobre opções de
+linha de comando. Se quiser mais scripts Perl loucos, <url
+id="&perlgolf;"> pode ser interessante.
 </sect1>
 
 <sect1>Obter texto ou arquivo de lista de discussão de uma página Web
@@ -976,38 +1039,106 @@ $ touch <var>nomedearquivo</var> #  cria arquivo de 0B (caso o arquivo exista, a
 </example>
 </sect1>
 
-<sect1><prgn>chroot</prgn>
+<sect1 id="chroot"><prgn>chroot</prgn>
+<!-- atualizado usando a idéia de Colin Walters walters@debian.org -->
 <p>
-Suponha que você tenha instalado um distribuição Linux inteira (esta pode
-ser outra versão do &debian; ou até mesmo uma distribuição Red Hat) em
-<file><var>/dev/hda1</var></file> e você está executando outro sistema
-Linux instalado em <file><var>/dev/hda2</var></file>. Você pode executar o
-sistema em <file><var>/dev/hda1</var></file> sem reiniciar o sistema em
-execução em <file><var>/dev/hda2</var></file> compartilhando o mesmo
-kernel.
-<example>
-# mount <var>/dev/hda1 /mnt/target</var>
- ... supondo que <var>/dev/hda1</var> contenha um sistema inteiro
-# chroot /mnt/target
- ... Agora o conteúdo de <var>/dev/hda1</var> é visto como o diretório raiz.
-# mount proc /proc              # só para se certificar
- ... execute os comandos dentro de <var>/dev/hda1</var>
-</example>
-Isto permite com que a as versões stable/testing/unstable do &debian;
-sejam executadas na mesma máquina. Adicionalmente, é possível executar um
-programa que consuma muita memória como o <prgn>dselect</prgn>
-executando-o em uma máquina host enquanto montando via NFS uma máquina
-satélite para o host como leitura/gravação e apontando o
-<prgn>chroot</prgn> para o sistema satélite.
+O programa <prgn>chroot</prgn>, <manref name="chroot" section="8">, nos
+possibilita executar diferentes instâncias do ambiente GNU/Linux em um
+único sistema simultaneamente sem reiniciar.
 <p>
-Um sistema <prgn>chroot</prgn> pode ser facilmente criado pelo comando
-<prgn>debootstrap</prgn> no Woody.
+Pode-se também executar um programa que exija muitos recursos como o
+<prgn>apt-get</prgn> e o <prgn>dselect</prgn> sob o chroot de uma
+máquina host rápida enquanto montando por NFS uma máquina satélite lenta
+no host como leitura/escrita e o ponto de chroot sendo o ponto de
+montagem da máquina satélite.
+
+<sect2 id="chroot-debian">Executar um sabor diferente do &debian; com <prgn>chroot</prgn>
+<p>
+Um ambiente &debian; chroot pode ser criado facilmente pelo comando
+<prgn>debootstrap</prgn> no Woody. Por exemplo, para criar um chroot Sid
+em <var>/sid-root</var> tendo acesso rápido à Internet:
 <example>
-# mkdir <var>potatochroot</var>
-# debootstrap potato <var>potatochroot</var>
-# chroot <var>potatochroot</var>
-# apt-setup # configura o /etc/apt/sources.list
+main # cd / ; mkdir <var>/sid-root</var>
+main # debootstrap woody <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+... assista-o baixar o sistema inteiro
+main # echo "proc-sid <var>/sid-root</var>/proc proc none 0 0" >> /etc/fstab
+main # mount proc-sid <var>/sid-root</var>/proc -t proc
+main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+main # chroot <var>/sid-root</var> /bin/bash
+chroot # apt-setup # configure /etc/apt/sources.list
+chroot # vi /etc/apt/sources.list # aponte a fonte para unstable
+chroot # dselect  # você pode usar aptitude, instalar o mc e o vim :-)
 </example>
+<p>
+Nesse ponto você deve ter um sistema &debian; completamente funcional,
+onde pode mexer sem medo de afetar sua instalação &debian; principal.
+<p>
+Esse truque do <prgn>debootstrap</prgn> também pode ser usado para
+instalar o &debian; em um sistema sem usar o disco de instalação do
+&debian;, mas usando um de outra distribuição GNU/Linux. Veja <url
+id="&setup-chroot;">.
+
+<sect2 id="chroot-console">Configurando o login para <prgn>chroot</prgn>
+<p>
+Digitar <tt>chroot <var>/sid-root</var> /bin/bash</tt> é fácil, mas isso
+mantém todos os tipos de variáveis de ambiente atribuídas que você pode
+não desejar, e tem outros problemas. Uma maneira muito melhor é executar
+outro processo de login em um terminal virtual separado onde você pode
+logar no chroot diretamente.
+<p>
+Como em sistemas &debian; padrões, do <tt>tty1</tt> ao <tt>tty6</tt> são
+executados consoles Linux e no <tt>tty7</tt> é executado o Sistema X
+Window, vamos definir o <tt>tty8</tt> para um console chroot'ado como um
+exemplo. Depois de criar o sistema chroot como descrito em <ref
+id="chroot-debian">, digite a partir do shell root do sistema principal:
+<example>
+main # echo "8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> "\
+       "/sbin/getty 38400 tty8"  >> /etc/inittab
+main # init q    # recarrega o init
+</example>
+
+<sect2 id="chroot-x">Configurando o X para o <prgn>chroot</prgn>
+<p>
+Você quer executar o X e o GNOME mais novos seguramente em seu chroot?
+Isso é perfeitamente possível! O exemplo seguinte fará o GDM executar em
+um terminal virtual <tt>vt9</tt>.
+<p>
+Primeiro instale o sistema chroot usando o método descrito em <ref
+id="chroot-debian">. A partir do root do sistema principal, copie os
+arquivos de configuração chaves para o sistema chroot.
+<example>
+main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+main # chroot <var>/sid-root</var> # ou use console chroot
+chroot # apt-get install gdm gnome x-window-system
+chroot # vi /etc/gdm/gdm.conf # faça s/vt7/vt9/ na seção [servers]
+chroot # /etc/init.d/gdm start
+</example>
+Aqui, o arquivo <file>/etc/gdm/gdm.conf</file> foi editado para alterar
+o início de console virtual do <tt>vt7</tt> para o <tt>vt9</tt>.
+<p>
+Agora você pode alternar facilmente entre os ambientes X completos no
+sistema chroot e em seu sistema principal apenas alternando entre
+terminais virtuais Linux; por exemplo usando Ctrl-Alt-F7 e Ctrl-Alt-F9.
+Divirta-se!
+<p>
+[FIXME] Adicionar um comentário e ligar ao script init do ambiente gdm
+chroot'ado.
+
+<sect2 id="chroot-dist">Executar outras distribuições com <prgn>chroot</prgn>
+<p>
+Um ambiente chroot de outra distribuição pode ser criado facilmente.
+Você instala um sistema em partições separadas usando o instalador da
+outra distribuição. Se a partição raiz dela estiver em
+<file><var>/dev/hda9</var></file>.
+<example>
+main # cd / ; mkdir <var>/outra-dist</var>
+main # mount -t ext3 <var>/dev/hda9</var> <var>/outra-dist</var>
+main # chroot <var>/outra-dist</var> /bin/bash
+</example>
+Então os restante é similar a <ref id="chroot-debian">, <ref
+id="chroot-console">, e <ref id="chroot-x">.
+ 
+<sect2 id="chroot-build">Construir pacotes com <prgn>chroot</prgn>
 <p>
 Existe um pacote chroot mais especializado, o
 <package>pbuilder</package>, que constrói um sistema chroot e compila um
@@ -1015,8 +1146,6 @@ pacote dentro do chroot. Esse é um sistema ideal para ser usado para
 checar se as dependências de compliação de um pacote estão corretas e
 para se certificar que dependências de compilação desnecessárias ou
 incorretas não existirão no pacote gerado.
-<p>
-Consulte <url id="&setup-chroot;">
 </sect1>
 
 <sect1>Como checar ligações diretas (hard)
@@ -1054,6 +1183,24 @@ Vizinhos Samba podem ser checados a partir do Linux usando :
 # smbclient -N -L <var>endereço_IP_de_seu_PC</var> | less
 # nmblookup -T "*"
 </example>
+</sect1>
+
+<sect1>Utilitários para sistema de arquivos não nativo
+<p>
+Como muitos sistemas de arquivo não nativos têm suporte no kernel
+Linux, podemos acessá-los simplesmente montando dispositivos que contêm
+o sistema de arquivos. Para alguns sistemas de arquivos, há também algumas
+ferramentas especializadas para acessar o sistema de arquivos sem montar
+dispositivos. Elas são feitas com programas de espaço de usuário, de
+forma que não é necessário suporte para o arquivo no kernel.
+<list compact>
+<item><package>mtools</package>: para sistema de arquivo MSDOS (MS-DOS, Windows)
+<item><package>cpmtools</package>: para sistema de arquivo CP-M 
+<item><package>hfsutils</package>: para sistema de arquivo HFS (Macintosh nativo)
+<item><package>hfsplus</package>: para sistema de arquivo HFS+ (Macintosh moderno)
+</list>
+Para criar e verificar sistema de arquivos MS-DOS FAT, o pacote
+<package>dosfstools</package> é útil.
 </sect1>
 
 </sect>

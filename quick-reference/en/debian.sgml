@@ -1,16 +1,34 @@
-<!-- CVS revision of this document "$Revision: 1.39 $"  -->
+<!-- CVS revision of this document "$Revision: 1.40 $"  -->
 
 <!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
 
 <chapt id="package">Debian package management
 
 <p>
-Make sure to set up a local HTTP proxy using <prgn>squid</prgn> for packages
-downloaded by APT. This greatly improves the performance of network upgrades,
-especially with multiple Debian boxes on the LAN.  This chapter is based on a
-Woody system but most information also applies to a Potato system (except for
-<manref name="apt_preferences" section="5"> and topics related to
-<file>/etc/preferences</file>).
+To reduce the network load on the &debian; repositories, make sure to
+set up a local HTTP proxy using <prgn>squid</prgn> for packages
+downloaded through APT and, if necessary, set the <tt>http_proxy</tt>
+environment variable or set the <tt>http</tt> value in
+<file>/etc/apt/apt.conf</file>.  This greatly improves the performance
+of network upgrades, especially with multiple Debian boxes on the LAN.
+<p>
+Although the pinning feature of <manref name="apt_preferences" section="5"> 
+is powerful, it does not solve all the dependency issues since dependency 
+requirements tends to pull newer version of other fundamental program 
+packages.
+<p>
+<![%f-ref;[
+The use of the method described in <ref id="chroot"> is desirable for
+]]>
+<![%q-ref;[
+The use of chroot method is desirable for
+]]>
+simultaniously securing both the system stability and the access to 
+the latest version of softwares.
+<p>
+This chapter is based on a Woody system but most information also
+applies to a Potato system (except for <manref name="apt_preferences"
+section="5"> and topics related to <file>/etc/preferences</file>).
 
 <sect id="pkg-intro">Introduction
 <p>
@@ -47,7 +65,9 @@ packages with <strong>depends</strong> but leaves packages with
 <strong>recommends</strong> and <strong>suggests</strong>, while
 <prgn>dselect</prgn> offers fine-grained control over choices 
 of these packages and pulls in <strong>depends</strong> and 
-<strong>recommends</strong> by default.
+<strong>recommends</strong> by default.  <prgn>aptitude</prgn> offers 
+option to pull all <strong>depends</strong>, <strong>recommends</strong> 
+and <strong>suggests</strong> automatically.
 <![%f-ref;[
 See <ref id="depends">.
 ]]>
@@ -74,7 +94,8 @@ Also refer to
 <ref id="install">, <ref id="woody"> and <ref id="bin-editor">.
 ]]>
 
-<sect1 id="tasksel">Install <var>task</var> with <prgn>tasksel</prgn>
+<sect1 id="tasksel">Install <var>task</var> with <prgn>tasksel</prgn> 
+ or <prgn>aptitude</prgn>
 <p>
 <prgn>tasksel</prgn> is the <strong>Debian Task Installer</strong>, which 
 is offered as the "<tt>simple</tt>" option during system installation.
@@ -86,19 +107,31 @@ as follows:
 # dselect update
 # tasksel
 </example>
+<p>
+<prgn>aptitude</prgn> also offers access to the task. 
+This not only enables you to select tasks but also
+enables you to deselect packages in the task selectively through menu.
 </sect1>
 
-<sect1 id="apt-install">Install system with APT
+<sect1 id="apt-install">Install and upgrade system with APT
 <p>
-You can selectively install packages from different archives using newer
-versions of <prgn>apt-get</prgn> (&gt;Woody) by adding the sources for 
-<tt>unstable</tt> and <tt>testing</tt> to your 
-<file>/etc/apt/sources.list</file> and edit.  This enables, for example, 
-selective upgrade to <tt>unstable</tt> and selective downgrade to 
-<tt>stable</tt> while tracking <tt>testing</tt> distribution.
+You can selectively install packages or upgrade system from different 
+archives using newer versions of <prgn>apt-get</prgn> (&gt;Woody) using 
+<manref name="apt_preferences" section="5">.
+ feature by adding the sources 
+for <tt>stable</tt>, <tt>testing</tt> and <tt>unstable</tt> to your 
+<file>/etc/apt/sources.list</file> and edit <file>/etc/apt/preferences</file>
+to set the proper Pin-Priority.
+  
+<sect2 id="setup-apt">Set up APT
 <p>
-For selective upgrade while tracking <tt>testing</tt> distribution, 
-set <file>/etc/apt/preferences</file> as follows:
+For selective upgrade while tracking <tt>testing</tt> distribution,
+APT shall be set up ads follows.
+<p>
+First, add the sources for <tt>stable</tt>, <tt>testing</tt> and 
+<tt>unstable</tt> to your <file>/etc/apt/sources.list</file>.
+<p>
+Then, edit <file>/etc/apt/preferences</file> to set the proper Pin-Priority.
 <example>
 Package: *
 Pin: release a=stable
@@ -112,65 +145,53 @@ Package: *
 Pin: release a=unstable
 Pin-Priority: 50
 </example>
-The same effects can be obtained by setting
-<example>
-# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
-</example>
-Under this <tt>testing</tt> tracking condition:
-<list>
-<item><tt>apt-get upgrade</tt>
- <p>just track <tt>testing</tt> distribution and upgrade all the 
- packages on the system.
-<item><tt>apt-get install <var>package</var></tt>
- <p>install <var>package</var> and its dependencies from 
- <tt>testing</tt> distribution.
-<item><tt>apt-get install <var>package</var>/unstable</tt>
- <p>install <var>package</var> from <tt>unstable</tt> distribution while
- installing its dependencies from <tt>testing</tt> distribution.
-<item><tt>apt-get install -t unstable <var>package</var></tt>
- <p>install <var>package</var> from <tt>unstable</tt> distribution while
- installing its dependencies also from <tt>unstable</tt> distribution.
-</list>
-<p>
-If you are to track <tt>stable</tt>, reduce Pin-Priority of 
-<tt>testing</tt> to 60 in <file>/etc/apt/preferences</file> for
-above example or use:
-<example>
-# echo 'APT::Default-Release "stable";' &gt;&gt; /etc/apt/apt.conf
-</example>
-<p>
-Other commends to use are:
-<example>
-# apt-cache policy libc6 libc6-dev locales         # check status
-# apt-get install libc6=2.2.4-1 libc6-dev=2.2.4-1 locales=2.2.4-1
-# apt-get -u install interesting-new-package remove-package-
-# apt-get remove useless-old-package
-# apt-get remove --purge really-useless-old-package
-</example>
-<p>
-To downgrade all packages to <tt>stable</tt>, edit 
-<file>/etc/apt/preferences</file> as follows:
-<example>
-Package: *
-Pin: release a=stable
-Pin-Priority: 1001
-</example>
-and run "<tt>apt-get upgrade</tt>", which forces downgrade due to 
-Pin-priority &gt; 1000.  Be warned, there may be some small glitch
-in dependencies.
-</sect1>
 
-<sect1 id="apt-upgrade">Upgrade system with APT
+<sect2 id="apt-commands">APT commands
 <p>
-Upgrade system with APT:
-<example>
-# apt-get update
-... then do one of the following:
-# apt-get -u upgrade         # pull all depends
-# apt-get -u dist-upgrade    # pull all depends and resolve dependency
-# apt-get -u dselect-upgrade # follow selections set by dselect
-</example>
-The following sets the <tt>-u</tt> option as the default action:
+Under above example of <tt>testing</tt> tracking condition, we can 
+manage system using following commands:
+<list>
+<item><tt>apt-get -u upgrade</tt>
+ <p>This tracks <tt>testing</tt> distribution and upgrade all the 
+ packages on the system while installing their dependencies from 
+ <tt>testing</tt>.
+<item><tt>apt-get -u dist-upgrade</tt>
+ <p>This tracks <tt>testing</tt> distribution and upgrade all the 
+ packages on the system while installing and resolving their 
+ dependencies from <tt>testing</tt>.
+<item><tt>apt-get -u dselect-upgrade</tt>
+ <p>This tracks <tt>testing</tt> distribution and upgrade all the 
+ packages on the system by the selection of <prgn>dselect</prgn>.
+<item><tt>apt-get -u install <var>package</var></tt>
+ <p>This installs <var>package</var> and its dependencies from 
+ <tt>testing</tt> distribution.
+<item><tt>apt-get -u install <var>package</var>/unstable</tt>
+ <p>This installs <var>package</var> from <tt>unstable</tt> distribution
+ while installing its dependencies from <tt>testing</tt> distribution.
+<item><tt>apt-get -u install -t unstable <var>package</var></tt>
+ <p>This installs <var>package</var> from <tt>unstable</tt> distribution while
+ installing its dependencies also from <tt>unstable</tt> distribution
+ by setting Pin-Priority of <tt>unstable</tt> to 990.
+<item><tt>apt-cache policy <var>foo bar ...</var></tt>
+ <p>This checks the status of packages <var>foo bar ...</var>.
+<item><tt>apt-cache show <var>foo bar ...</var> | less</tt>
+ <p>This checks the information of packages <var>foo bar ...</var>.
+<item><tt>apt-get install <var>foo=2.2.4-1</var></tt>
+ <p>This installs the particular version <var>2.2.4-1</var> of <var>foo</var> 
+ package.
+<item><tt>apt-get -u install <var>foo bar-</var></tt>
+ <p>This installs <var>foo</var> package and remove <var>bar</var> package
+<item><tt>apt-get remove <var>bar</var></tt>
+ <p>This removes <var>bar</var> package but keep the customized configuration files
+ in tact.
+<item><tt>apt-get remove --purge <var>bar</var></tt>
+ <p>This removes <var>bar</var> package together with all the customized 
+ configuration files.
+</list>
+Here, use of <tt>-u</tt> option above ensures prompt and print out of a 
+list of all packages that are to be upgraded before the actual 
+upgrade action. The following sets the <tt>-u</tt> option as the 
+default action:
 <example>
 $ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
 // Always show packages to be upgraded (-u)
@@ -183,7 +204,87 @@ Use the <tt>-s</tt> option to simulate upgrade without actual upgrade.
 <prgn>dselect</prgn> offers a menu-driven interface over APT.
 <prgn>deity</prgn> and <prgn>aptitude</prgn>
 will offer alternatives to <prgn>dselect</prgn>.
-</sect1>
+
+<sect2 id="apt-tracking">Tracking flavor of &debian; distribution
+<p>
+Depending on your preference on which flavor of &debian; to track,
+you can change the example of <file>/etc/apt/preferences</file> in
+<ref id="setup-apt"> to fit your needs:
+<example>
+track stable:            change  Pin-Priority of testing  to  80
+track testing:           keep settings as shown above
+track testing(unstable): change  Pin-Priority of unstable to 700
+track unstable(testing): change  Pin-Priority of unstable to 800
+</example>
+A guideline for the choice of Pin-Priority is to move from the top to bottom
+in the above table as the time moves from a time immediately after a
+distribution release to a time of freeze for the next release.
+<p>
+Examples of <file>/etc/apt/preferences</file> which lock some key
+packages to the more mature version while tracking the less mature version
+for other nonessential packages are available in the 
+<url id="&examples;" name="examples subdirectory"> as
+<file>preferences.testing</file> and <file>preferences.unstable</file>.
+On the other hand, <file>preferences.stable</file> forces all packages to be
+downgraded to "stable".
+<p>
+
+<sect2 id="apt-stable">Downgrading all packages to <tt>stable</tt>
+<p>
+To downgrade all packages to <tt>stable</tt>, edit 
+<file>/etc/apt/preferences</file> as follows:
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+and run "<tt>apt-get upgrade</tt>", which forces downgrade due to 
+Pin-priority &gt; 1000.  Be warned, there may be some small glitches
+in dependencies.
+
+<sect2 id="apt-preferences">Overview of <file>/etc/apt/preferences</file>
+<p>
+In the example <file>/etc/apt/preferences</file> presented in
+<ref id="setup-apt">, first line <tt>Package: *</tt> means that this 
+section applies to all packages.  You may use specifiuc package name 
+insted of * to specify Pin-Priority for a specific package.
+<p>
+Next line such as <tt>Pin: release a=stable</tt> means that apt-get gets 
+"Release" file from "stable" archive.
+<p>
+Last line <tt>Pin-Priority: 500</tt> specifies Pin-Priority to be 500.
+<p>
+If there are multiple packages of the same name, normally the one with 
+the highest Pin-Priority value is the one that gets installed.  
+<p>
+Here, the meanings of Pin-Priority are:
+<list>
+<item>1001 and up: Downgradable priorities.
+ <p>Downgrade of the package is allowed for this range of Pin-Priority.
+<item>100 to 1000: Standard  priorities.
+ <p>Downgrade of the package is not allowed. Few key Pin-Priority
+ values:
+<list>
+<item>990: the priority set by the <tt>--target-release</tt> 
+ <manref name="apt-get" section="8"> option.
+<item>500: the priority for all the default package files.
+<item>100: the priority for the currently installed package files.
+</list>
+<item>0 to 99: Non automatic priorities. (These  are  only  used  if  the
+              package  is  not  installed and there is no other version
+              available.)
+<item>less than 0: The version is never selected.
+</list>
+The same effects as <tt>--target-release</tt> can be obtained by setting
+<file>/etc/apt/apt.conf</file> as:
+<example>
+# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
+</example>
+The command line option <tt>--target-release</tt> and setting in the 
+<file>/etc/apt/apt.conf</file> supercede the setting in the 
+<file>/etc/apt/preferences</file>.  Be careful with this interfarence
+when playing with <file>/etc/apt/preferences</file>.
+
 
 <sect1 id="bug-check">Check bugs in Debian and seek help
 <P>
