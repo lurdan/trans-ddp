@@ -37,6 +37,8 @@ publish:	all
 developers-reference.html:	developers-reference.sgml
 	$(DEBIANDOC2HTML) -l C $<
 
+developers-reference.html/*:	developers-reference.html
+
 developers-reference.%.html:	developers-reference.%.sgml
 	$(DEBIANDOC2HTML) -l $* $<
 
