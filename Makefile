@@ -10,6 +10,7 @@ all:
 	-make -C meta
 	-make -C network-administrator
 	-make -C programmer
+	-make -C project-history
 	-make -C sgmltools-startup
 	-make -C system-administrator
 	-make -C user
@@ -25,6 +26,7 @@ clean:
 	-make -C meta clean
 	-make -C network-administrator clean
 	-make -C programmer clean
+	-make -C project-history clean
 	-make -C sgmltools-startup clean
 	-make -C system-administrator clean
 	-make -C user clean

@@ -17,10 +17,10 @@ all:		html
 # This target installs the generated HTML in the published directory.
 html:		htmlmade
 		-rm $(TARGET)/*.html
+		install -d $(TARGET)
 		cp $(THISDIR).html/*.html $(TARGET)
 
 htmlmade:	$(SGMLFILES)
-		-rm htmlmade
 		debiandoc2html $(THISDIR).sgml
 		touch htmlmade
 
