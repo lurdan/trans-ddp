@@ -405,7 +405,7 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr es fi de pt-br" "LANGS2=en fr de pt-br"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr de pt-br"
 
 sf-test:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" txt

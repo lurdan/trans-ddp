@@ -1,68 +1,297 @@
-<!-- CVS revision of this document "$Revision: 1.12 $"  -->
-<!-- CVS revision of original english document "1.14"  -->
-<chapt id="tune"> Perfezionare &debian;
+<!-- CVS revision of this document "$Revision: 1.13 $"  -->
+<!-- CVS revision of original english document "1.82"  -->
+<chapt id="tune"> Messa a punto del sistema &debian;
+<p>
+Questo capitolo descrive solo i principi basilari della configurazione del sistema tramite
+l'interfaccia a carattere. Un prerequisito di questo capitolo è aver letto 
+<ref id="install">.  
+<p>
+Per coloro interessati alla sicurezza, 
+si raccomanda caldamente di leggere il <url id="&securing-debian-howto;" 
+name="Securing Debian Manual">, che si può anche reperire come pacchetto
+<package>&p-securing-debian-howto;</package>.
 
-<sect id="sudo">sudo - un ambiente di lavoro più sicuro
+<sect id="init-hints">Suggerimenti per l'inizializzazione del sistema
 <p>
-L'uso che faccio di sudo è fondamentalmente a protezione dalla mia
-stessa stupidità.Usare sudo è per me sempre meglio che lavorare sotto
-root. (Esiste un programma simile: super)
+Vedere <ref id="init"> per le basi sugli script di inizializzazione &debian;.
+
+<sect1 id="init-defaults">Personalizzare gli script di inizializzazione
 <p>
-Installate "sudo" ed attivatelo impostando
-<url id="examples/" name="/etc/sudoers">
+&debian; utilizza il sistema di script sys-V.  Nonostante tutti gli script 
+contenuti in <file>/etc/init.d/*</file> siano marcati come file di
+configurazione (conffiles) e gli amministratori di sistema siano liberi di
+modificarli, la personalizzazione degli script tramite la modifica dei files
+contenuti in <file>/etc/defaults/*</file> è l'approccio preferito.
 <p>
-Questa configurazione permette ai membri del gruppo staff un accesso
-su qualsiasi comando da eseguire come root sotto sudo, ed ai membri di
-src un accesso a comandi selzionati eseguibili come root, sempre da
-sudo.
+Per esempio, <file>/etc/init.d/rcS</file> può essere utilizzato per
+personalizzare i defaults al boot per <prgn>motd</prgn>, <prgn>sulogin</prgn>, etc.
+
+<sect1 id="syslogd">Personalizzare i file di log
 <p>
-Il vantaggio di sudo è che richiede solo la user password, e che
+La modalità del log del sistema può essere configurata tramite
+<file>/etc/syslog.conf</file>.
+Date un'occhiata al pacchetto <package>colorize</package> per un programma che
+assegna colori differenti ai vari file di log.  Vedere anche <manref
+name="syslogd" section="8"> e <manref name="syslog.conf" section="5">.
+</sect1>
+
+<sect1 id="hdtune">Ottimizzare l'accesso hardware
+<p>
+Esistono alcune configurazioni hardware la cui ottimizzazione e lasciata da
+&debian; alla cura dell'amministratore di sistema.
+<list>
+<item><package>hdparm</package>
+ <list compact>
+<item>Ottimizzazione dell'accesso all'hard disk. Molto efficiente.
+<item>Pericolosa. Dovete leggere prima <manref name="hdparm" section="8">.
+<item><tt>hdparm -tT <var>/dev/hda</var></tt> per provare la velocità di
+accesso al disco.  <item><tt>hdparm -c1 -d1 -u1 -m16 -A
+<var>/dev/hda</var></tt> per accelerare un moderno sistema IDE. (Può essere
+pericoloso.)
+ </list>
+
+<item><package>setserial</package>
+ <list compact>
+<item>Collezione di strumenti per la gestione delle porte seriali.
+ </list>
+
+<item><package>scsitools</package>
+ <list compact>
+<item>Collezione di strumenti per la gestione di hardware SCSI.
+ </list>
+
+<item><package>memtest86</package>
+ <list compact>
+<item>Collezione di strumenti per la gestione dell'hardware di memoria.
+ </list>
+
+<item><package>hwtools</package>
+ <list compact>
+<item>Collezione di strumenti per la gestione dell'hardware a basso livello.
+  <list compact>
+   <item>irqtune: modifica la priorità dell'IRQ delle periferiche per
+   concedere alte priorità e servizi veloci alle periferiche (tipo porte
+   seriali, modem) che ne hanno bisogno. In tal modo è possibile ottenere
+   accelerazioni 3X del throughput delle seriali/modem.
+
+   <item>scanport: effettua la scansione dello spazio I/O da 0x100 a 0x3ff
+   cercando periferiche ISA installate.  <item>inb: un trucchetto piccolo e
+   veloce che legge una porta I/O port e ne mostra il valore in esadecimale e
+   binario.
+  </list>
+
+ </list>
+
+<item><package>schedutils</package>
+ <list compact>
+<item>Utilità del Linux scheduler.
+<item>sono compresi <prgn>taskset</prgn>, <prgn>irqset</prgn>, <prgn>lsrt</prgn>, 
+ e <prgn>rt</prgn>.
+<item>Insieme a  <prgn>nice</prgn> e <prgn>renice</prgn> 
+ (non incluso), permettono un controllo completo dei parametri di scheduling dei processi. 
+ </list>
+
+</list>
+
+<sect>Controllare gli accessi
+
+<sect1 id="loginctrl">Controllo tramite PAM e login
+<p>
+PAM (Pluggable Authentication Modules) forniscono il controllo sul login.  
+<example>
+/etc/pam.d/*             # files di controllo PAM control files
+/etc/pam.d/login         # file di controllo PAM per il login
+/etc/security/*          # parametri dei moduli PAM
+/etc/securetty           # controlla il login di root da console (login)
+/etc/login.defs          # controlla i vari comportamenti del login (login)
+</example>
+<p>
+Se volete dei terminali senza password, ma insicuri, modificate a vostro
+rischio e pericolo il contenuto di <file>/etc/pam.d/login</file> come segue.
+<example>
+#auth required pam_unix.so nullok auth required pam_permit.so
+</example>
+Trucchetti simili possono essere applicati a <prgn>xdm</prgn>,
+<prgn>gdm</prgn>, ... , per un accesso senza password alla console X.
+<p>
+Al contrario, se volete applicare una buona politica di password, installate
+<package>cracklib2</package> e modificate <file>/etc/pam.d/passwd</file> come
+segue.
+<example>
+password required pam_cracklib.so retry=3 minlen=6 difok=3
+</example>
+Le password utilizzabili solo una volta per l'attivazione degli account
+possono anche essere utili.  Per fare ciò, usate il comando passwd con
+l'opzione <tt>-e</tt> <manref name="passwd" section="1">.
+<p>
+Il numero massimo di processi può essere impostato con <tt>ulimit -u 1000</tt>
+nella Bash shell oppure tramite <file>/etc/security/limits.conf</file> da PAM.
+Altri parametri, come <tt>core</tt> possono essere impostati allo stesso
+modo. Il valore iniziale di <prgn>PATH</prgn> può essere impostato tramite
+<file>/etc/login.defs</file> prima che intervenga lo script di
+inizializzazione della shell.
+<p>
+La documentazione per PAM è contenuta nel pacchetto
+<package>libpam-doc</package>. La "Linux-PAM System
+Administrator's Guide" copre gli aspetti della configurazione di, quali moduli sono
+disponibili, ecc. La documentazione comprende, inoltre, la "The Linux-PAM
+Application Developers' Guide" e la "The Linux-PAM Module Writers' Guide".
+</sect1>
+
+<sect1 id="wheel">"Why GNU <prgn>su</prgn> does not support the <tt>wheel</tt>
+group" (Perchè GNU <prgn>su</prgn> non supporta il gruppo <tt>wheel</tt>)
+<p>
+Questa è la famosa frase al termine della vecchia pagina di <tt>info su</tt>, di
+Richard M.  Stallman. Per non preoccuparsi: l'attuale <prgn>su</prgn> in &debian;
+usa PAM, così che potete ridurre la capacità di usare <prgn>su</prgn> a qualsiasi gruppo
+usando <prgn>pam_wheel.so</prgn> in <file>/etc/pam.d/su</file>.  Quanto segue
+imposta il gruppo <tt>adm</tt> group di un sistema &debian; come equivalente
+del gruppo <tt>wheel</tt> di BSD, permettendo <prgn>su</prgn> senza la
+password per i suoi membri.
+<example>
+# configurazione anti-RMS in /etc/pam.d/su
+auth       required   pam_wheel.so group=adm
+
+# I membri del gruppo wheel possono dare su senza la password
+auth       sufficient pam_wheel.so trust group=adm
+</example>
+
+<sect1>Il significato dei vari gruppi
+<p>
+Alcuni gruppi interessanti:
+<list compact>
+<item>il gruppo <tt>root</tt> è il gruppo wheel di default per <prgn>su</prgn> 
+ se <prgn>pam_wheel.so</prgn> è utilizzato senza l'argomento <tt>group=</tt>. 
+<item><tt>adm</tt> può leggere il file di log. 
+<item><tt>cdrom</tt> può essere usato localmente per fornire ad una serie di 
+        utenti l'accesso ad un drive CD-ROM.
+<item><tt>floppy</tt> può essere usato localmente per fornire ad una serie di 
+        utenti l'accesso ad un drive floppy.
+<item><tt>audio</tt> può essere usato localmente per fornire ad una serie di 
+        utenti l'accesso ad un device audio.
+<item><tt>src</tt> è proprietario del codice sorgente, compresi i files in 
+        <file>/usr/src</file>. può essere usato localmente per fornire ad un 
+        utente la possibilità di modificare il codice sorgente del sistema.
+<item><tt>staff</tt>: la sua appartenenza è utile per personale di helpdesk o amministratori
+	di sistema aggiunti, dando loro la possibilità di fare modifiche in
+        <file>/usr/local</file> e di creare delle directory in
+        <file>/home</file>.
+</list>
+<p>
+Per una lista completa, leggete la sezione "FAQ" del
+<url id="&securing-debian-howto;" name="Securing Debian Manual">,
+che può anche essere reperita come pacchetto
+<package>&p-securing-debian-howto;</package>.
+
+<sect1 id="sudo"><prgn>sudo</prgn> &ndash; un ambiente di lavoro più sicuro
+<p>
+L'uso che faccio di <prgn>sudo</prgn> è fondamentalmente a protezione dalla
+mia stessa stupidità. Reputo l'uso di <prgn>sudo</prgn> un'alternativa
+migliore al continuo uso del sistema come root.Per voi le cose possono essere
+diverse.
+<p>
+Installate <prgn>sudo</prgn> ed attivatelo impostando le opzioni in
+/etc/<url id="&examples;" name="sudoers">.  Controllate anche le caratteristiche
+del gruppo <tt>sudo</tt> in <file>&dochome;sudo/OPTIONS</file>.
+<p>
+La configurazione di esempio fornisce ai membri del gruppo "staff" accesso a qualsiasi
+comando come root tramite <prgn>sudo</prgn> nonchè accesso ai membri di "src" a comandi
+selezionati come root, sempre tramite <prgn>sudo</prgn>.
+<p>
+Il vantaggio di <prgn>sudo</prgn> è che richiede solo la user password, e che
 l'attività e monitorizzata. E' un modo carino per dare un minimo di
 autorità ad un amministratore alle prime armi. Per esempio:
 <example>
-$ sudo chown -R myself:mygrp .
+$ sudo chown -R <var>myself</var>:<var>mygrp</var> .
 </example>
 <p>
-Ovviamente se sapete la password di root (come la maggior parte degli
-utenti casalinghi sa) qualunque comando può essere eseguito come root
-dall'account dell'utente:
+Ovviamente se conoscete la password di root (come la maggior parte degli
+utenti casalinghi) qualunque comando può essere eseguito come root
+da un account utente:
 <example>
 $ su -c "shutdown -h now"
 Password:
 </example>
-So che dovrei restringere i privilegi dell'account admin in sudo ma,
-dopo tutto è il mio server casalingo, e non ne ho ancora sentito il
-bisogno.
+(So che dovrei restringere i privilegi dell'account admin in <prgn>sudo</prgn>.
+Dato che è il mio server casalingo, non me ne sono ancora preso la briga.)
 <p>
 Per un programma differente che permetta agli utenti ordinari di eseguire
 comandi con privilegi di root, vedere il pacchetto <package>super</package>.
-</sect>
-
-<sect id="backup">Backup
+</sect1>
+    
+<sect1 id="tcpd">Controllare l'accesso ai demoni
 <p>
-<example>
-# apt-get install changetrack
-# vi changetrack.conf
-</example>
+Il <em>super-server</em> Internet <prgn>inetd</prgn>, viene lanciato al boot
+da <file>/etc/rc2.d/S20inetd</file> (per RUNLEVEL=2), che è un link simbolico
+a <file>/etc/init.d/inetd</file>.  In breve, <prgn>inetd</prgn> permette il
+lancio di un demone per richiamarne altri, riducendo il carico sul sistema.
+<p>
+Ogni volta che arriva la richiesta di un servizio, il suo protocollo ed il
+servizio vengono identificati guardando nel database contenuto in
+<file>/etc/protocols</file> e in <file>/etc/services</file>.
+<prgn>inetd</prgn> cerca, poi, un normale servizio Internet nel database
+<file>/etc/inetd.conf</file>, oppure un servizio basato su Sun-RPC
+in <file>/etc/rpc.conf</file>.
+<p>
+Per la sicurezza del sistema, accertatevi di disabilitare i servizi inutilizzati in 
+<file>/etc/inetd.conf</file>.
+I servizi Sun-RPC devono essere attivi per il NFS ed altri programmi basati su RPC.
+<p>
+Talvolta <prgn>inetd</prgn> non lancia il server interessato direttamente, 
+ma lancia il wrapper del demone TCP/IP <prgn>tcpd</prgn> con il nome del
+server come argomento in <file>/etc/inetd.conf</file>.  
+In questo caso <prgn>tcpd</prgn> lancia il server appropriato dopo aver registrato 
+la richiesta e fatto alcuni controlli addizionali, utilizzando
+<file>/etc/hosts.deny</file> e <file>/etc/hosts.allow</file>.
+<p>
+Se avete problemi con l'accesso remoto in un sistema &debian; recente, 
+commentate "ALL: PARANOID" in <file>/etc/hosts.deny</file>, se esiste.
+<p>
+Per i dettagli, vedere
+<manref name="inetd" section="8">,  
+<manref name="inetd.conf" section="5">, 
+<manref name="protocols" section="5">,  
+<manref name="services" section="5">,  
+<manref name="tcpd" section="8">,  
+<manref name="hosts_access" section="5">, e
+<manref name="hosts_options" section="5">. 
+<p>
+Per maggiori informazioni su Sun-RPC, vedere
+<manref name="rpcinfo" section="8"> , 
+<manref name="portmap" section="8">, e
+<file>&f-portmap;</file>.
+
+<sect1 id="ldap">Lightweight Directory Access Protocol
+<p>
+Riferimenti:
+<list compact>
+<item><url id="&openldaphome;" name="OpenLDAP">
+<item>OpenLDAP Admin Guide nel pacchetto <package>openldap-guide</package>
+<item>LDP: <url id="&ldap-linux-howto;" name="LDAP Linux HOWTO">
+<item>LDP: <url id="&ldap-implementation-howto;" name="LDAP Implementation HOWTO">
+<item><url id="&ldap-use1;" name="OpenLDAP, extensive use reports">
+<item><url id="&ldap-use2;" name="Open LDAP with Courier IMAP and Postfix">
+</list>
 </sect>
 
-<sect id="cdrw">Masterizzatori-writer
+
+<sect id="cdrw">CD-writer
 <p>
 I masterizzatori con interfaccia ATAPI/IDE sono di recente diventati
 un'opzione molto popolare. Rappresentano un supporto valido per il
-backup e l'archivio di un sistema per l'utente casalingo (&lt;$1 / 640
-MB). Le informazioni più autorevoli le trovate a
-<file>/usr/share/doc/HOWTO/en-txt/CD-Writing-HOWTO.txt.gz</file>
-(LDP). Accertatevi che la versione sia successiva all'anno 2000.
+backup e l'archiviazione per l'utente casalingo che ha bisogno di capacità di
+&lt; 640 MB.  Per le informazioni più autorevoli, consultate il
+LDP <url id="&cd-writing-howto;" name="CD-Writing-HOWTO">.
 
 <sect1>Introduzione
 <p>
-Primo, ogni distruzione di dati sul masterizzatore porterà
+Primo, ogni danneggiamento di dati inviati al masterizzatore porterà
 ad un danno irreparabile del CD. Prendete il masterizzatore con il
 buffer più grande possibile. Se i soldi non sono un problema,
 prendetene uno con interfaccia SCSI. Se potete scegliere quale
-interfaccia IDE connettere, prendete quello su PCI-bus (sulla scheda
-madre), piuttosto che su ISA-bus (schede SB16, ecc.).
+interfaccia IDE connettere, prendete quello su bus PCI (sulla scheda
+madre), piuttosto che su bus ISA (schede SB16, ecc.).
+etc.).
 <p>
 Quando il masterizzatore è connesso su IDE, deve essere comandato dal
 driver IDE-SCSI, non dall'IDE-CD. Deve essere attivato anche il driver
@@ -70,24 +299,23 @@ generico SCSI. Esistono due approcci per ottenere ciò, per i kernel
 delle moderne distribuzioni (Marzo 2001).
 </sect1>
 
-<sect1>Approccio 1: (modules+lilo)
+<sect1>Approccio 1: moduli + <prgn>lilo</prgn>
 <p>
-Aggiungete la riga seguente a /etc/lilo.conf se usate qualsiasi kernel
-standard di una delle maggiori distribuzioni (Debian, Redhat,
-Mandrake, ...). Se usate più opzioni, elencatele separate da spazi.
+Aggiungete la riga seguente a <file>/etc/lilo.conf</file> se state usando un
+kernel Debian standard. Se usate opzioni multiple, separatele da spazi:
 <example>
-append="hdx=ide-scsi"
+append="hdx=ide-scsi ignore=hdx"
 </example>
-Qui la collocazione del masterizzatore, a cui si ha accesso tramite il
-driver ide-scsi, è indicata da <tt>hdx</tt>:
+Dove la collocazione del masterizzatore, a cui si accede tramite il driver ide-scsi,
+è indicata da <tt>hdx</tt>, dove <em>x</em> rappresenta uno dei seguenti:
 <example>
-hdb      se slave sulla prima porta IDE.
-hdc      se master sulla seconda porta IDE.
-hdd      se slave sulla seconda porta IDE.
-hde-hdh  se sulla porta IDE esterna.
+hda          se master sulla prima porta IDE
+hdb          se slave sulla prima porta IDE
+hdc          se master sulla seconda porta IDE
+hdd          se slave sulla seconda porta IDE
+hde ... hdh  per un drive su porta IDE esterna, ATA66/100
 </example>
-Finita la configurazione, date il seguente comando per l'attivazione,
-come root:
+Date i comandi seguenti per l'attivazione dopo la configurazione:
 <example>
 # lilo
 # shutdown -h now
@@ -95,114 +323,160 @@ come root:
 </sect1>
 
 
-<sect1>Approccio 2: (ricompilare il kernel):
+<sect1>Approccio 2: ricompilare il kernel
 <p>
-Debian usa make-kpkg per compilare il kernel.
-Usate il nuovo "--append_to_version" con make-kpkg per costruire 
-kernel-images multiple. 
-Usate la seguente configurazione tramite "make menuconfig":
+Debian usa <prgn>make-kpkg</prgn> per creare il kernel.  Usate il nuovo
+<tt>--append_to_version</tt> con make-kpkg per produrre più kernel.
+Vedere <ref id="kernel">.
+<p>
+Usate le seguenti impostazioni attraverso <tt>make menuconfig</tt>:
 <list>
-<item>bzImage.
-<item>Escludete il driver IDE-CD (Non obbligatorio, ma è più semplice fare così)
-<item>Compilate ide-scsi e sg, direttamente nel kernel o come moduli.
+<item>bzImage
+<item>Escludete il driver IDE CD (non è obbligatorio, ma rende le cose più semplici)
+<item>Compilate ide-scsi, sr e sg, direttamente nel kernel o come moduli
 </list>
 </sect1>
 
-<sect1>Fasi post-configurazione
+<sect1>Procedure post-configurazione
 <p>
-Il supporto del kernel per il masterizzatore può essere attivato al boot
-tramite:
+Il supporto del kernel per il CD-writer può essere attivato al boot con
+il seguente:
 <example>
-# echo ide-scsi &gt;&gt;/etc/modules echo sg &gt;&gt;/etc/modules cd /dev; ln
-# -sf scd0 cdrom
+# echo ide-scsi &gt;&gt;/etc/modules
+# echo sg       &gt;&gt;/etc/modules
+# echo sr       &gt;&gt;/etc/modules
+# cd /dev; ln -sf scd0 cdrom
 </example>
-L'attivazione manuale può essere fatta tramite:
+L'attivazione manuale può essere fatta con:
 <example>
-# modprobe ide-scsi modprobe sg
+# modprobe ide-scsi
+# modprobe sg
+# modprobe sr
 </example>
-Dopo il reboot, potete controllare l'avvenuta installazione tramite:
+Dopo il reboot, potete controllarne l'installazione con:
 <example>
-$ dmseg|less # apt-get install cdrecord # cdrecord -scanbus
+$ dmesg|less
+# apt-get install cdrecord
+# cdrecord -scanbus
 </example>
-<p>NdT: se volete montare anche i cd sul masterizzatore (per esempio avete
-solo questo sulla vostra macchina), non dimenticate di aggiungere al momento
-della compilazione del kernel il driver per il cdrom SCSI (sr) (anche se
-connesso su IDE), altrimenti potrete solo masterizzare e non leggere alcunchè.
+<p>
+[Da Warren Dodge] Talvolta sorgono conflitti fra
+<tt>ide-scsi</tt> e <tt>ide-cd</tt> se ci sono sia un lettore che un
+masterizzatore nel sistema.  Provate ad aggiungere la riga seguente al vostro
+<file>/etc/modutils/aliases</file>, lanciando poi <prgn>update-modules</prgn>, e
+facendo il reboot.
+<example>
+pre-install      ide-scsi      modprobe ide-cd
+</example>
+Ciò determina il caricamento del driver IDE prima di <tt>ide-scsi</tt>. Il driver
+IDE <tt>ide-cd</tt> prende il controllo del CD_ROM ATAPI &mdash;
+di qualsiasi altra cosa che non gli si è stato detto di <strong>ignorare</strong>. Ciò
+lascia solo i devices ignorati al controllo di <tt>ide-scsi</tt>. 
 </sect1>
 
 <sect1>Il file CD-image (bootabile)
 <p>
-Per creare un CD-ROM di files contenuti nella target-directory/ sotto
-forma di cd-image.raw (bootabile, con il formato Juliet TRANS.TBL
-attivato. Se non lo volete bootabile, togliete le opzioni -b e -c),
-inserite il boot floppy nel drive e,
+Per creare un CD-ROM con files contenuti nella <file>target-directory/</file> come
+<file>cd-image.raw</file>
+(bootabile, con il formato Joliet TRANS.TBL abilitato; se non lo volete bootabile, togliete
+le opzioni <tt>-b</tt> e <tt>-c</tt>), inserite un boot floppy nel drive e,
 <example>
-# dd if=/dev/fd0 target-directory/boot.img 
-# mkisofs -r -V volume_id -b boot.img -c bootcatalog -J -T \
-        -o cd-image.raw target_directory/
+# dd if=<var>/dev/fd0</var> <var>target-directory/boot.img</var> 
+# mkisofs -r -V <var>volume_id</var> -b <var>boot.img</var> -c <var>bootcatalog</var> -J -T \
+        -o <var>cd-image.raw</var> <var>target_directory/</var>
 </example>
 <p>
-Una cosa carina è fare dei CD-ROM bootabili in DOS. Se una normale
-immagine DOS di un boot floppy è contenuta nel boot.img, il CD-ROM
-eseguirà il boot come se nel primo floppy drive (A:) ci fosse il
+Una trucco divertente è fare dei CD-ROM bootabili in DOS. Se una normale
+immagine DOS di un boot floppy è contenuta in <file><var>boot.img</var></file>, il CD-ROM
+eseguirà il boot come se nel primo floppy drive (A:) ci fosse un
 floppy DOS. Più interessante potrebbe essere farlo con freeDOS.
 <p>
 Il file CD-image può essere ispezionato montandolo sul device loop.
 <example>
-# mount -t iso9660 -o ro,loop cd-image.raw /cdrom
+# mount -t iso9660 -o ro,loop <var>cd-image.raw</var> /cdrom
 # cd /cdrom
 # mc
 # umount /cdrom
 </example>
 </sect1>
 
-<sect1>Scrivere sul masterizzatore (R, R/W)
+<sect1>Scrivere sul masterizzatore (R, R/W):
 <p>
-Primo test con (in caso di velocità doppia)
+Primo test con (in caso di velocità 2x)
 <example>
-# nice --20 cdrecord -dummy speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -dummy speed=2 dev=0,0 <var>disk.img</var>
 </example>
 Se tutto va bene, scrivete sul CD-R con
 <example>
-# nice --20 cdrecord -v -eject speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -v -eject speed=2 dev=0,0 <var>disk.img</var>
 </example>
-Oppure, sul CD-RWcon
+Oppure, sul CD-RW con
 <example>
-# nice --20 cdrecord -v -eject blank=fast speed=2 dev=0,0 disk.img
+# nice --10 cdrecord -v -eject blank=fast speed=2 dev=0,0 <var>disk.img</var>
 </example>
+Alcune periferiche CD-RW funzionano meglio con
+<example>
+# nice --10 cdrecord -v blank=all speed=2 dev=0,0
+</example>
+seguito da
+<example>
+# nice --10 cdrecord -v -eject speed=2 dev=0,0 <var>disk.img</var>
+</example>
+Sono necessari due passaggi per prevenire i timeout SCSI durante la fase di
+blanking dall'interferire con la fase di masterizzazione. Il valore dell'argomento di 
+<prgn>nice</prgn> può richiedere qualche aggiustamento.
 </sect1>
 
-<sect1>Fare un'immagine di un CD
+<sect1>Creare un file immagine di un CD
 <p>
 Alcuni CD-R e CD commerciali hanno dei settori spuri alla fine, cosa
-che rende impossibile la copia tramite dd (il CD di Windows 98 è uno
-di questi). Il pacchetto cdrecord ha il comando readcd. Usatelo per
-copiare qualsiasi CD in una file immagine. Se è un disco di dati,
-Montatelo ed eseguite "mount" per vedere le dimensioni reali. Dividete
-il numero ottenuto (in blocchi=1024byte) per 2 per avere il numero
-reale di settori del CD (2048 byte). Lanciate readcd con le opzioni ed
-usate l'immagine risultante per bruciare il CD-R/RW.
+che rende impossibile la copia tramite <prgn>dd</prgn> (il CD di Windows 98 è uno
+di questi).  Il pacchetto <package>cdrecord</package> ha il comando <prgn>readcd</prgn>.
+Usatelo per copiare qualsiasi CD in un file immagine. Se è un disco di dati,
+montatelo ed eseguite <prgn>mount</prgn> per vedere le dimensioni reali.  Dividete
+il numero ottenuto (in blocchi = 1024 bytes) per 2 per avere il numero
+reale di settori del CD (2048 bytes). Lanciate <prgn>readcd</prgn> con le
+opzioni ed usate l'immagine risultante per bruciare il CD-R/RW.
 <example>
-# readcd [target] [lun] [scsibusno] # select function 11 </example>
-Per la maggior parte dei casi, impostate tutti e tre i parametri a
-0. Talvolta il numero dei settori dati da readcd è un pò in eccesso!
-Utilizzate il numero ottenuto dal montaggio per i migliori risultati.
+# readcd <var>target</var> <var>lun</var> <var>scsibusno</var> # select
+function 11 </example> Impostate tutti e 3 i parametri a 0 per la maggior
+parte dei casi.  Talvolta il numero di settori dato da <prgn>readcd</prgn> è
+eccessivo!  Utilizzate il numero ottenuto da un montaggio
+reale per i migliori risultati.
 <example>
-Il mio CD-R       = +2 sectors
-MS Windows CD     = +1 sector, i.e., +2048 byte
+Il mio CD-R       = +2 settori
+MS Windows CD     = +1 settore, i.e., +2048 bytes
 </example>
 </sect1>
 
-<sect1>Creare un CD Debian
+<sect1>CD Debian
 <p>
-Le informazioni più aggiornate le potete reperire dal
-<url id="http://cvs.debian.org/debian-cd/" name="Debian CD site."> 
-Il software più aggiornato può essere reperito tramite CVS anonimo.
-<example>
+Per le informazioni più aggiornate sui CD &debian; visitate il
+<url id="&debian-cd;" name="Sito Debian CD">. 
+<p>
+Se avete una connessione Internet veloce, potete prendere in considerazione 
+l'installazione via rete usando:
+<list compact>
+<item>alcune <url id="&debian-floppyinst;" name="immagini floppy">.
+<item>una <url id="&debian-netinst;" name="immagine minima su CD bootabile ">.
+</list>
+<p>
+Se non avete una connessione veloce, considerate l'acquisto dei 
+CD dai <url id="&debian-venders;" name="Venditori di CD">.
+<p>
+Non sprecate banda scaricando i CD immagine standard a meno di non 
+essere un tester di CD immagine (anche con il nuovo metodo jigdo).
+<p>
+Un'mmagine degna di nota è <url id="&knoppix;" 
+name="KNOPPIX - Live Linux Filesystem On CD">.  
+Questo CD farà il boot in un sistema &debian; perfettamente 
+funzionante senza installarsi sul disco rigido.
+
+<!-- old document section
 $ export CVSROOT=anonymous@cvs.debian.org:/cvs/debian-boot
 $ cvs co debian-cd
 </example>
-Per la creazione del CD, date i seguenti comandi. 
+Following is a summary of CD image creation. 
 <example>
 # apt-get install debian-cd
 # cd /etc/debian-cd
@@ -212,343 +486,1025 @@ $ make distclean
 $ make status
 $ make list COMPLETE=1 SIZELIMIT1=555000000 SRCSIZELIMIT=665000000
 $ make official_images
- oppure se volete solo immagini binarie:
+ or if you want only binary images :
 $ make bin-official_images
-</example>
+-->
 </sect1>
 
 <sect1>Backup del sistema su CD-R
 <p>
-Copiate i file di configurazione chiave e di dati sul CD-R.
-Usate questo script: <url id="examples/" name="backup">
+Per copiare i file di configurazione chiave e di dati sul CD-R,
+usate lo script di "backup" <url id="examples/" name="backup">.
+Vedete anche <ref id="diff-backup">.
 </sect1>
 
 <sect1>Copiare CD musicali su CD-R
 <p>
 Non testato da me:
 <example>
-# apt-get get install cdrecord cdparanoia
+# apt-get install cdrecord cdparanoia
 # cdparanoia -s -B
 # cdrecord dev=0,0,0 speed=2 -v -dao -eject defpregap=1 -audio *.wav
 </example>
 oppure,
 <example>
 # apt-get install cdrdao #disk at once
-# cdrdao read-cd --device /dev/cdrom --driver generic-mmc \
-        --paranoia-mode 3 my_cd # legge il cd
-# cdrdao write --device /dev/cdrom --driver generic-mmc --speed 8 \
-        my_cd # scive un nuovo CD
+# cdrdao read-cd --device /dev/cdrom --paranoia-mode 3 mio_cd # legge il cd
+# cdrdao write --device /dev/cdrom --speed 8 mio_cd    # scrive un nuovo CD
 </example>
-cdrdao crea una vera copia.. (senza buchi,.. ecc..)
+<prgn>cdrdao</prgn> esegue una copia conforme (senza pause, ecc...)
 </sect1>
 </sect>
 
-<sect>I programmi X
+<sect id="x"> X 
 <p>
-Il server X è una macchina che mostra il sistema X window su schermo
-ed accetta input da tastiera. Il client X è una macchina su cui girano
-delle applicazioni compatibili con X window. Talvolta i due termini
-vengono invertiti, portando un pò di confusione. Per i dettagli fate
-riferimento 
-al <manref name="X" section="7">,
-all' XWindow-User-HOWTO.txt.gz (LDP) e al
-mini/Remote-X-Apps.txt.gz (LDP).
+L'ambiente grafico X è fornito da <url id="&xfree86home;" name="Xfree86">.
+Due sono le versioni principali del server X server disponibili sun un sistema &debian;: 
+V3.x e V4.x.
+<p>
+<taglist>
+<tag><ref id="xsrvr">
+<item>è un programma su host locale che mostra una finestra X e/o un desktop 
+sul monitor di un utente (CRT, LCD) ed accetta input da tastiera e mouse. 
+<tag><ref id="xclnt">
+<item>è un programma su un host (locale o remoto) su cui girano applicazioni compatibili 
+con X window.
+</taglist>
+Queste definizioni ribaltano il concetto normale di "server" e "client".
+Per i principi base fate riferimento a <manref name="X" section="7">, al LDP
+<url id="&xwindowuser-howto;" name="XWindow-User-HOWTO">, e al <url
+id="&remote-xapps-howto;" name="Remote X Apps mini-HOWTO">.
+<p>
+Molteplici sono i modi di far accettare al "server X" (lato schermo) 
+connessioni remote da un "client X" (lato applicazione):  
 
-<sect1>Il server X
+<list>
+<item><prgn>xhost</prgn>
+<list compact>
+<item>meccanismo della lista degli host (molto poco sicuro).
+<item>protocollo non criptato (soggetto ad attacchi tipo eavesdropping).
+<item>Se possibile, non utilizzatelo.
+<item>Vedere <ref id="xhost"> and <manref name="xhost" section="1x">.
+</list>
+<item><prgn>xauth</prgn>
+<list compact>
+<item>meccanismo MIT dei cookie magici (non sicuro, ma migliore di
+  <prgn>xhost</prgn>).
+<item>protocollo non criptato (soggetto ad attacchi tipo eavesdropping).
+<item>usatelo solo per connessioni locali, dato che chiede meno CPU di
+<prgn>ssh -X</prgn>.
+<item>Vedere <ref id="ss-xsu"> e <manref name="xauth" section="1x">.
+</list>
+<item><prgn>xdm</prgn>, <prgn>wdm</prgn>, <prgn>gdm</prgn>, 
+ <prgn>kdm</prgn>, ... 
+<list compact>
+<item>meccanismo MIT dei cookie magici (non sicuro, come <prgn>xauth</prgn>).
+  <item>Vedere <manref name="xdm" section="1x"> e <manref name="Xsecurity"
+  section="7"> per le basi del controllo degli accessi allo schermo X.
+  <item>Vedere <manref name="wdm" section="1x">, <manref name="gdm"
+  section="8">, e <manref name="kdm.options" section="5"> per maggiori
+  informazioni, se sono installati.  <item>Vedere <ref id="sys-v"> su come
+  disabilitare <prgn>xdm</prgn> per avere una cosole Linux al boot senza
+  rimuovere il pacchetto <prgn>xdm</prgn>.
+</list>
+<item><strong><prgn>ssh -X</prgn></strong>
+<list compact>
+<item>meccanismo del port forwarding tramite shell sicura
+(<strong>sicuro</strong>).  <item>procollo criptato (uno spreco di risorse se
+usato localmente).  <item>usatelo per connessioni remote.  <item>Vedere <ref
+id="xssh">.
+</list>
+</list>
+Tutti i metodi di connessione remota, tranne <prgn>ssh</prgn>, richiedono
+l'abilitazione della connessione TCP/IP sul server X.  Vedere <ref id="xtcp">.
+
+<sect1 id="x-system">Pacchetti del sistema X
 <p>
-Per lanciarlo leggete "man 1 XFree86" 
+Per facilitare l'installazione di X esistono alcuni (meta)pacchetti in Woody.
+<taglist>
+<tag><package>x-window-system-core</package>
+<item>
+Questo metapacchetto fornisce i componenti essenziali per una singola
+postazione con l' X Window System.  Fornisce le librerie X libraries, un X
+server <package>xserver-xfree86</package>, una serie di fonts ed un gruppo di
+X clients base e di utilità.
+
+<tag><package>x-window-system</package>
+<item>
+Fornisce in sostanza tutti i componenti dell' X Window System così come sono
+stati sviluppati dall' XFree86 Project, ed una serie di programmi accessori
+storicamente popolari. (Da notare che dipende da
+<package>x-window-system-core</package>, <package>twm</package>, e
+<package>xdm</package>, cioè non è necessario installare
+<package>x-window-system-core</package> se installate questo.)
+
+<tag><package>xserver-common-v3</package>
+<item>
+Files ed utilità comuni agli X servers XFree86 3.x (X3)
+
+<tag><package>xserver-*</package>
+<item>
+Pacchetti supplementari per X3 server per supportare hardware non supportato
+dal nuovo X4 server per qualsiasi ragione.  Alcune vecchie ATI mach64 non sono
+supportate in X4, alcune schede video si piantano brutalmente nbella versione
+di X4 per woody, ecc.  (Per una lista di pacchetti disponibili, usate
+<tt>apt-cache search xserver-|less</tt>.  Tutti questi X3 servers dipendono da
+<package>xserver-common-v3</package>.)
+</taglist>
 <p>
-per (ri)configurare X4 in woody, lanciate:
+Per la maggior parte dei casi il pacchetto da installare è
+<package>x-window-system</package>.  (Se volete il login da console,
+assicuratevi di diasbilitare <package>xdm</package> come descritto in <ref
+id="no-x-start">.)
+
+<sect1 id="hdetect-x">Pacchetti per il riconoscimento hardware per l'X server
+<p>
+Per abilitare il riconoscimento dell' hardware durante la fase di
+configurazione di X, installate i seguenti pacchetti prima di installare X:
+<list>
+<item><package>discover</package> &mdash; sistema di identificazione hardware.
+<item><package>mdetect</package> &mdash; Strumento di autoidentificazione del
+mouse.  <item><package>read-edid</package> &mdash; strumento per la raccoglta
+di informazioni sull'hardware per monitor VESA PnP.
+</list>
+
+<sect1 id="xsrvr">X server
+<p>
+Vedere <manref name="XFree86" section="1x"> per informazioni sull' X server.
+<p>
+Invocare l' X server da una console locale:
 <example>
-# dpkg-reconfigure --p=low xserver-xfree86
+$ startx -- :&lt;display&gt; <var>vtXX</var> p.es.: $ startx -- :1 vt8 -bpp 16
+... parte su vt8 connesso ao localhost:1 in modalità 16 bpp
+</example>
+Gli argomenti dati dopo <tt>--</tt> sono per l' X server.
+<p>
+Notate che, quando si usa uno script <file>~/.xserverrc</file> per la
+personalizzazione dell'avvio dell' X server, bisogna essere certi di
+<tt>exec</tt> l' X server reale.  Non fare ciò può causare rallentamenti
+nell'avvio e nell'uscita del server. Per esempio:
+<example>
+#!/bin/sh exec /usr/bin/X11/X -dpi 100 -nolisten tcp
+</example>
+
+<sect2 id="config-x4">Configurare l' X4 server
+<p>
+Per (ri-)configurare l' X4 server,
+<example>
+# dpkg-reconfigure --priority=low xserver-common dpkg-reconfigure
+# --priority=low xserver-xfree86
+</example>
+genererà il file <file>/etc/X11/XF86Config-4</file> e configurerà X usando lo
+script <prgn>dexconf</prgn>.
+
+<sect2 id="config-x3">Configurare l' X3 server
+<p>
+Per (ri-)configurare l' X3 server,
+<example>
+# dpkg-reconfigure --priority=low xserver-common-v3 dpkg-reconfigure
+# --priority=low xserver-mach64
+</example>
+genererà il file <file>/etc/X11/XF86Config</file> e configurerà X usando lo
+script <prgn>xf86config-v3</prgn>.
+
+<sect2 id="manual-config-x">Configurazione manuale dell' X4 server
+<p>
+Per aggiungere delle personalizzazioni utente, <strong>non modificate il file
+di configurazione compreso fra il testo</strong> (Questo è per X4): <!-- FIXME
+for X3 -->
+<example>
+### BEGIN DEBCONF SECTION [snip] ### END DEBCONF SECTION
 </example>
 <p>
-Invocate il server X dalla console locale:
+Invece, <strong>aggiungete le personalizzazioni prima del testo</strong>.  Per
+esempio, per usare una scheda video personalizzata, aggiungete qualcosa di
+simile al testo seguente all' <em>inizio</em>
+del file:
 <example>
-$ startx -- :&lt;display&gt; vtXX 
-eg.:
-$ startx -- :1 vt8    
-... esempio per lanciarlo in vt8 connesso a localhost:1
-</example>
-Molti sono i modi per far accettare connessioni remote (lato
-applicazioni) al server (lato schermo). Il meccanismo della host list
-(xhost), il meccanismo della magic cookie (xauth), ed il port
-forwarding con ssh (shell sicura). Spiegherò i più semplici, xhost
-(insicuro) e ssh (sicuro).
-</sect1>
+Section "Device"
+  Identifier        "Custom Device"
+  Driver            "ati"
+  Option            "NoAccel"
+EndSection
 
-<sect1>Client X
+Section "Screen"
+  Identifier  "Custom Screen"
+  Device      "Custom Device"
+  Monitor     "Generic Monitor"
+  DefaultDepth 24
+  Subsection "Display"
+    Depth       8
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+  Subsection "Display"
+    Depth       16
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+  Subsection "Display"
+    Depth       24
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+EndSection
+
+Section "ServerLayout"
+    Identifier        "Custom"
+    Screen            "Custom Screen"
+    InputDevice       "Generic Keyboard" "CoreKeyboard"
+    InputDevice       "Configured Mouse" "CorePointer"
+EndSection
+</example>
+
+<sect1 id="xclnt">X client
 <p>
-Il programma client X  (lato applicazione) ottiene il display a
-cui connettersi leggendo la variabile DISPLAY. Per esempio, prima di
-lanciare un programma client di X, eseguire uno dei seguenti comandi
-ottiene:
+La maggior parte dei programmi X client possono essere lanciati con un comando tipo questo:
+<example>
+client $ xterm -geometry 80x24+30+200 -fn 6x10 -display <var>hostname</var>:0 &amp;
+</example>
+Dove gli argomenti opzionali vogliono dire:
+<list>
+<item><tt>-geometry <var>WIDTH</var>x<var>HEIGHT</var>+<var>XOFF</var>+<var>YOFF</var></tt>: 
+le dimensioni iniziali e la posizione della finestra.
+
+<item><tt>-fn <var>FONTNAME</var></tt>: il font da usare per il testo.
+ <tt><var>FONTNAME</var></tt> può essere:
+<list compact>
+<item>a14: Font di grandezza normale
+<item>a24: Font di grandezza aumentata
+<item>... (controllate i fonts disponibili con <tt>xlsfont</tt>.)
+</list>
+<item><tt>-display <var>displayname</var></tt>: il nome dell' X server da usare. 
+ <tt><var>displayname</var></tt> può essere:
+<list compact>
+<item><tt><var>hostname</var>:<var>D.S</var></tt> significa schermo <tt><var>S</var></tt> sul display
+ <tt><var>D</var></tt> dell' host <tt><var>hostname</var></tt>; l' X server per questo display è in
+ascolto sulla porta TCP 6000+D.
+
+<item><tt><var>host</var>/unix:<var>D.S</var></tt> significa schermo <tt><var>S</var></tt> sul display 
+<var>D</var> dell' host <tt><var>host</var></tt>; l' X server per questo display è in 
+ascolto sullo UNIX domain socket
+<file>/tmp/.X11-unix/XD</file> (in tal modo è raggiungibile solo da <tt><var>host</var></tt>).
+
+<item><tt><var>:D.S</var></tt> è equivalente a 
+<tt><var>host</var>/unix:<var>D.S</var></tt>, dove <tt><var>host</var></tt> è il nome dell'host locale.
+</list>
+</list>
+<p>
+Il <tt><var>displayname</var></tt> di default per il programma X client program (lato applicazione) 
+può essere impostato tramite la variabile d'ambiente DISPLAY.  Per esempio, prima di lanciare un 
+programma X client l'esecuzione di uno dei seguenti comandi permette ciò:
 <example>
 $ export DISPLAY=:0 
-        # default, la macchina locale con il primo schermo X
-$ export DISPLAY=hostname.fulldomain.name:0.2
+        # il default, macchina locale, utilizzando il primo schermo X
+$ export DISPLAY=<var>hostname.fulldomain.name</var>:0.2
 $ export DISPLAY=localhost:0
 </example>
-Dove,
-<list>
-<item>hostname:D.S significa schermo S sul display D dell'host hostname;
-il server X per questo display è in ascolto sulla porta TCP 6000+D.
-<item>host/unix:D.S significa schermo S su display D dell'host host; il server è in ascolto sullo UNIX domain socket
-/tmp/.X11-unix/XD (in tal modo è raggiungibile solo dall'host).
-<item>:D.S equivale a host/unix:D.S, dove host è l'hostname locale.
-</list>
-Questa impostazione può essere cambiata dando al client l'argomento
--display hostname:0 al momento del lancio.
+Il suo lancio può essere personalizzato tramite <file>~/.xinitrc</file>.  per esempio:
+<example>
+xrdb -load $HOME/.Xresources
+xsetroot -solid gray &amp;
+xclock -g 50x50-0+0 -bw 0 &amp;
+xload -g 50x50-50+0 -bw 0 &amp;
+xterm -g 80x24+0+0 &amp;
+xterm -g 80x24+0-0 &amp;
+twm
+</example>
+Come descritto in <ref id="custom-x">, ciò scavalca ogni normale esecuzione di 
+Xsession, quando lanciato da <prgn>startx</prgn>.
+Usate qauesto approccio solo come ultima risorsa.
 </sect1>
+
+<sect1 id="x-session">X session
+<p>
+X session (X server + X client) può essere lanciata da:
+<list compact>
+<item><prgn>startx</prgn>: script wrapper per <prgn>initx</prgn> per
+      lanciare l' X server e client dalla console di Linux.   se
+      <file>~/.xinitrc</file> non esiste, <file>/etc/X11/Xsession</file> viene
+      lanciato tramite <file>/etc/X11/xinit/xinitrc</file>.
+<item><prgn>xdm</prgn>, <prgn>gdm</prgn>, <prgn>kdm</prgn>, o
+      <prgn>wdm</prgn>: demoni di X display manager per lanciare l' X server e
+      client e per controllare il login da un'interfaccia grafica.  
+      <file>/etc/X11/Xsession</file> viene eseguito direttamente.
+</list>
+Si può avere l'accesso alla console come da <ref id="no-x-start">.
+
+<sect2 id="custom-x">Personalizzare X session
+<p>
+Lo script di inizializzazione di default, <file>/etc/X11/Xsession</file> è, in 
+effetti, una combinazione di
+<file>/etc/X11/Xsession.d/50xfree86-common_determine-startup</file> e di
+<file>/etc/X11/Xsession.d/99xfree86-common_start</file>.
+<p>
+L'esecuzione di <file>/etc/X11/Xsession</file> viene in qualche modo influenzata da 
+<file>/etc/X11/Xsession.options</file> ed è fondamentalmente l'esecuzione del programma
+che viene trovato per primo nella seguente lista dal comando 
+<prgn>exec</prgn>:
+<enumlist compact>
+<item><file>~/.xsession</file> o <file>~/.Xsession</file>, se è definito.
+<item><file>/usr/bin/x-session-manager</file>, se è definito.
+<item><file>/usr/bin/x-window-manager</file>, se è definito.
+<item><file>/usr/bin/x-terminal-emulator</file>, se è definito.
+</enumlist>
+<p>
+L'esatto significato di questi comandi è determinato dal sistema alternativo &debian; 
+descritto in <ref id="alternatives">.
+Per esempio:
+<example>
+# update-alternatives --config x-session-manager
+... oppure
+# update-alternatives --config x-window-manager
+</example>
+Per rendere qualsiasi X window manager il default mentre si mantengono installati i
+session manager di GNOME e KDE, sostituite
+<file>/etc/X11/Xsession.d/50xfree86-common_determine-startup</file>
+con quello allegato al secondo second bug in 
+<url id="&bug-xfree;"> (Spero che venga presto incluso.)
+e modificate <file>/etc/X11/Xsession.options</file> come segue per disabilitare l' 
+X session manager:
+<example>
+# /etc/X11/Xsession.options
+#
+# configuration options for /etc/X11/Xsession
+# See Xsession.options(5) for an explanation of the available options.
+# Default enabled
+allow-failsafe
+allow-user-resources
+allow-user-xsession
+use-ssh-agent
+# Default disabled (enable them by uncommenting)
+do-not-use-x-session-manager
+#do-not-use-x-window-manager
+</example>
+<p>
+Senza le summenzionate modifiche al sistema,
+<package>gnome-session</package> e <package>kdebase</package> sono i 
+pacchetti che contengono questi X session manager.  Rimuovendoli si permette
+all'X window manager preferito di essere il default. (Idee migliori?)
+<p>
+Su un sistema in cui <file>/etc/X11/Xsession.options</file> contiene
+una riga <tt>allow-user-xsession</tt> non preceduta da altri caratteri,
+qualsiasi utente che definisse un proprio <file>~/.xsession</file> o <file>~/.Xsession</file>
+sarebbe in grado di personalizzare le azioni di <file>/etc/X11/Xsession</file>.
+<p>
+L'ultimo comando nel file <file>~/.xsession</file> dovrebbe essere sotto forma di 
+<tt>exec <var>some-window/session-manager</var></tt> per lanciare il vostro
+X window/session manager preferito.
+<p>
+Un buon esempio del file <file>~/.xsession</file> si trova in
+<file>&f-xsession;</file>.
+<p>
+Io lo uso per impostare il window manager, accesso allo schermo e lingua per
+ciascun utente. Vedere <ref id="s-w-manager">, <ref id="ss-xsu">, e
+<ref id="x-cjk">.
+<p>
+Risorse addizionali di X specifiche per utente possono essere inserite in
+<file>~/.Xresources</file>, mentre quelle validi per tutto il sistema in
+<file>/etc/X11/Xresources/*</file>.  Vedere <manref name="xrdb"
+section="1x">.
+<p>
+Mappature del mouse e della tastiera specifiche per ciascun utente in X possono essere 
+definite in <file>~/.xmodmaprc</file>.  Vedere <manref name="xmodmap" section="1x">.
+
+<sect2 id="s-w-manager">Lanciare un X session/window manager particolare
+<p>
+Seguendo il principio descritto in <ref id="custom-x">,
+X session/window manager specifici per l'utente possono essere attivati installando
+il pacchetto indicato ed impostando il contenuto all fine del file 
+<file>~/.xsession</file> come segue.
+(Amo blackbox per lo stile semplice e la velocità.):
+
+<list>
+<item>default X session manager. 
+<list compact>
+<item>Vedere <ref id="alternatives">.
+<item><tt>exec /usr/bin/x-session-manager</tt>
+</list>
+<item>default X window manager. 
+<list compact>
+<item>Vedere <ref id="alternatives">.
+<item><tt>exec /usr/bin/x-window-manager</tt>
+</list>
+
+<item>GNOME session manager. (caricato)
+<list compact>
+<item>Installare il pacchetto: <package>gnome-session</package>
+<item><tt>exec /usr/bin/gnome-session</tt>
+</list>
+
+<item>KDE session manager. (caricato)
+<list compact>
+<item>Installare il pacchetto: <package>kdebase</package> (oppure 
+<package>kdebase3</package> per KDE3)
+<item><tt>exec /usr/bin/kde2</tt>
+</list>
+
+<item>Blackbox window manager. (leggero).
+<list compact>
+<item>Installare il pacchetto: <package>blackbox</package>
+<item><tt>exec /usr/bin/blackbox</tt>
+</list>
+
+<item>IceWM window manager. (leggero)
+<list compact>
+<item>Installare il pacchetto: <package>icewm</package>
+<item><tt>exec /usr/bin/X11/icewm</tt>
+</list>
+
+<item>FVWM2 window manager virtuale. 
+<list compact>
+<item>Installare il pacchetto: <package>fvwm</package>
+<item><tt>exec /usr/bin/fvwm2</tt>
+</list>
+
+<item>Windowmaker window manager.
+<list compact>
+<item>Installare il pacchetto: <package>wmaker</package>
+<item><tt>exec /usr/bin/wmaker</tt>
+</list>
+
+<item>Enlightenment window manager (caricato).
+<list compact>
+<item>Installare il pacchetto: <package>enlightenment</package>
+<item><tt>exec /usr/bin/enlightenment</tt>
+</list>
+
+</list>
+Vedere <url id="&windomanagerhome;" name="Window Managers per X">.
+
+
+<sect2 id="kde-gnome">Setup degli ambienti KDE/GNOME
+<p>
+Per un setup completo degli ambienti KDE/GNOME sono utili i seguenti 
+metapacchetti:
+<list>
+<item>KDE: installare il pacchetto <package>kde</package>
+<item>GNOME: installare il pacchetto <package>gnome</package>
+</list>
+L'installazione di questi pacchetti con programmi in grado di maneggiare
+pacchetti marcati con <tt>raccomanda</tt>, tipo <prgn>dselect</prgn> ed
+<prgn>aptitude</prgn>, fornisce una scelta di software rispetto alla semplice
+installazione con <prgn>apt-get</prgn>.
+<p>
+Se volete comunque il login da console, disabilitate gli X display managers,
+tipo <package>kdm</package>, <package>gdm</package>, e <package>wdm</package>,
+che possono essere richiamati dal gioco delle dipendenze, come descritto in
+<ref id="no-x-start">.
+<p>
+Se volete GNOME come sistema di default invece che KDE, configurate
+<prgn>x-session-manager</prgn> come descritto in <ref id="alternatives">.
 
 <sect1 id="xtcp">Connessione TCP/IP ad X
 <p>
-X11 non permette connessioni TCP/IP (remote) di default, a partire dalle
-recenti versioni di Debian. Per scoprire se è così sulla vostra macchina:
+Siccome una connessione remota TCP/IP senza cifratura è vulnerabile ad
+attacchi tipo eavesdropping, l'impostazione di default per X nelle versioni
+&debian; più recenti disabilita il socket TCP/IP.  Prendete in considerazione
+<prgn>ssh</prgn> per una connessione remota ad X (vedere <ref id="xssh">).
+<p>
+Il metodo qui descritto non è consigliato, a meno di essere in un ambiente
+altamente sicuro, dietro un buon firewall, solo con utenti fidati.  Usate il
+seguente comando per verificare le impostazioni del vostro X server rispetto
+al socket TCP/IP:
 <example>
 # find /etc/X11 -type f -print0 | xargs -0 grep nolisten
 /etc/X11/xinit/xserverrc:exec /usr/bin/X11/X -dpi 100 -nolisten tcp
 </example>
-Rimuovete "-nolisten" per permettere le connessioni TCP/IP ad X.
+Rimuovete <tt>-nolisten</tt> per ripristinare l'ascolto TCP/IP sull' X server.
 </sect1>
  
-<sect1>Connessione X remota: Xhost
+<sect1 id="xhost">Connessioni X da remoto: <prgn>xhost</prgn>
 <p>
-Xhost permette l'accesso basato sugli hostnames. Molto poco sicuro. Se
-utilizzato dietro un firewall con utenti fidati, il seguente comando
-disabilita il controllo dell'host e permette la connessione da
-ovunque:
+<prgn>xhost</prgn> permette l'accesso basato sugli hostname. Altamente
+insicuro.  Quanto segue disabilita il controllo degli host e permette le
+connessioni da ovunque se una connessione TCP/IP è permessa (vedere <ref
+id="xtcp">):
 <example>
 $ xhost +
 </example>
-Si può riabilitare con:
+Potete riabilitare il controllo dell'host con:
 <example>
 $ xhost -
 </example>
 <p>
-Non distingue fra utenti diversi sull'host remoto. In più gli
-hostnames (veri indirizzi) possono essere contraffatti. Cosa non buona
-se siete su una rete non sicura (tipo con una connessione telefonica
-PPP ad internet).
+<prgn>xhost</prgn> non fa distinzioni fra utenti differenti sull'host remoto.
+In più gli hostname (in realtà gli indirizzi) possono essere contraffatti.
+<p>
+Tale metodo va evitato, anche con criteri relativi agli host più restrittivi,
+se siete su una rete non fidata (tipo l'accesso dialup con PPP ad Internet).
+Vedere <manref name="xhost" section="1x">.
 </sect1>
 
-<sect1>Connessione X remota: SSH
+<sect1 id="xssh">Connessioni X da remoto: <prgn>ssh</prgn>
 <p>
-Questo è il modo semplice e sicuro di stabilire una connessione remota
-da un server locale ad un'applicazione su un server remoto. Lanciate
-il server locale su un sistema locale. Lanciate da esso x-term ed
-eseguite ssh per stabilire una connessione con il sito
-remoto. Eseguite, poi, i comandi delle applicazioni X del sito remoto.
+L'uso di <prgn>ssh</prgn> permette una connessione sicura da un server X
+locale ad un application server remoto.
+<list>
+<item>Impostate i parametri di <tt>X11Forwarding</tt> e
+<tt>AllowTcpForwarding</tt> to <tt>yes</tt> in
+<file>/etc/ssh/sshd_config</file> sull'host remoto.  <item>lanciate l' X
+sull'host locale.  <item>Aprite un <prgn>xterm</prgn> sul'host locale.
+<item>Lanciate <prgn>ssh</prgn> per stabilire una connessione col sito remoto.
 <example>
-localname @ localhost $ ssh -q -X -l loginname remotehost.domain
-Password:
+localname @ localhost $ ssh -q -X -l loginname remotehost.domain Password:
 .....
+</example>
+<item>Eseguire comandi di applicazioni X sul sito remoto.
+<example>
 loginname @ remotehost $ gimp &
 </example>
+</list>
+Questo metodo permette la visione dell'output del client X remoto come fosse
+connesso localmente attraverso uno UNIX domain socket.
 </sect1>
 
-<sect1 id="xtermfaq">Xterm
+<sect1 id="xtermfaq"><prgn>xterm</prgn>
 <p>
-Tutto quello che avreste voluto sapere ma non avete mai osato chiedere su xterm presso:
-<url id="&xtermfaq;">
+Per conoscere tutto su <prgn>xterm</prgn> guardate a <url id="&xtermfaq;">.
 </sect1>
+
+<sect1 id="xresources">X resource database
+<p>
+Molti programmi per X più vecchi, tipo xterm, usano il cosiddetto "X resource
+database" per configurare il loro aspetto.  Per immagazzinare le risorse
+specifiche per l'utente si usa il file <file>~/.Xresources</file>.
+Questo file viene fatto confluire automaticamente al login nelle "X resources" di default.
+<p>
+Ecco alcune impostazioni utili da aggiungere al vostro file
+<file>~/.Xresources</file>:
+<example>
+! Imposta il font ad un più leggibile 9x15
+XTerm*font: 9x15
+
+! Mostra la barra di scorrimento
+XTerm*scrollBar: true
+
+! Imposta la grandezza del buffer a 1000 linee
+XTerm*saveLines: 1000
+</example>
+Affinchè queste impostazioni abbianno effetto immediato, fatele confluire nel
+database con il comando:
+<example>
+xrdb -merge ~/.Xresources
+</example>
 
 <sect1 id="ss-xsu">Diventare root in X
 <p>
-Create $HOME/.xinitrc come segue:
+Se un programma con interfaccia grafica richiede l'esecuzione da root, usate le seguenti
+procedure per visualizzare l'output del programma sull'X server dell'utente.
+<strong>Non tentate mai di lanciare un X server direttamente dal root
+account</strong> per evitare possibili rischi dal punto di vista della sicurezza.
+<p>
+Lanciate l' X server come un utente normale, ed aprite una console <prgn>xterm</prgn>.
+Poi:
 <example>
-#!/bin/sh
-# X funziona da root quando si esegue su.
+$ XAUTHORITY=$HOME/.Xauthority
+$ export XAUTHORITY
+$ su root
+Password:*****
+# printtool &
+</example>
+Quando usate questo trucco con <prgn>su</prgn> verso un utente non root, assicuratevi che
+<file>~/.Xauthority</file> sia leggibile dal gruppo di detto utente non root.
+<p>
+
+<!-- this section moved up -->
+
+Per automatizzare questa sequenza di comandi, create un file
+<file>~/.xsession</file> dall'accout utente che contenga le seguenti righe:
+<example>
+# Questo fa funzionare X quando lancio su verso l'account root.
 if [ -z "$XAUTHORITY" ]; then
         XAUTHORITY=$HOME/.Xauthority
         export XAUTHORITY
 fi
-# invoca lo script globale della sessione X
-. /etc/X11/Xsession
+unset XSTARTUP
+# Se si desidera un window/session manager particolare, decommentate la riga seguente
+# e modificatela a vostro piacimento.
+#XSTARTUP=/usr/bin/blackbox
+# Questo lancia il programma x-window/session-manager
+if [ -z "$XSTARTUP" ]; then
+  if [ -x /usr/bin/x-session-manager ]; then
+    XSTARTUP=x-session-manager
+  elif [ -x /usr/bin/x-window-manager ]; then
+    XSTARTUP=x-window-manager
+  elif [ -x /usr/bin/x-terminal-emulator ]; then
+    XSTARTUP=x-terminal-emulator
+  fi
+fi
+# lancia automaticamente l'X window/session manager selezionato
+exec $XSTARTUP
 </example>
-e lanciate "su" da xterm.
+Poi lanciate <prgn>su</prgn> (non <tt>su -</tt>) in una finestra
+<prgn>xterm</prgn> dell'utente.  I programmi con interfaccia grafica lanciati da
+questo <prgn>xterm</prgn> possono visualizzare l'output sulla finestra X dell'utente mentre
+girano con i privilegi di root.  Il trucco funziona finchè si usa il file 
+<file>/etc/X11/Xsession</file> di default.
+Se un utente fa le proprie modifiche tramite <file>~/.xinit</file>
+o <file>~/.xsession</file>, la variabile d'ambiente sopra descritta
+<tt>XAUTHORITY</tt> dovrà essere impostata allo stesso modo in questi script.
+
+<p>In alternativa, si può usare, <package>sudo</package> per automatizzare la sequenza di comandi:
+<example>
+$ sudo xterm
+... oppure $ sudo -H -s
+</example>
+In questo caso <file>/root/.bashrc</file> dovrà contenere:
+<example>
+if [ $SUDO_USER ]; then sudo -H -u $SUDO_USER xauth extract - $DISPLAY | xauth
+    merge - fi
+</example>
+Questo funziona bene anche se la directory home dell'utente è montata su NFS
+mount, poichè root non legge il file <file>.Xauthority</file>.
+<p>
+Esistono anche parecchi altri pacchetti specializzati all'uopo:
+<package>kdesu</package>, <package>gksu</package>, <package>gksudo</package>,
+<package>gnome-sudo</package>, e <package>xsu</package>.  Altri metodi possono
+essere usati per raggiungere lo stesso risultato: creare un link simbolico tra
+<file>/root/.Xauthority</file> ed il corrispettivo dell'utente; usare lo
+script <url id="&suxhome;" name="sux">; or mettere "<tt>xauth merge
+~<var>USER_RUNNING_X</var>/.Xauthority</tt>" nello script di inizializzazione
+di root.
+<p>
+Vedere anche sulla <url id="&deb-dev-su;" name="debian-devel mailing list">.
 </sect1>
- 
+
+<sect1 id="xfs-tt">Fonts TrueType in X
+<p>
+Lo standard <prgn>xfs</prgn> in XFree86-4 funziona bene con i fonts TrueType.
+Se usate XFree86-3 dovete installare un server di terzi, tipo
+<prgn>xfs-xtt</prgn>.
+<p>
+Dovete solo assicurarvi che con qualsiasi applicazione vogliate usare, i fonts
+TrueType siano collegati a libXft o libfreetype (se usate file .deb
+precompilati non dovete nemmeno preoccuparvi di questo, probabilmente).
+<p>
+Ricordatevi di installare i fonts richiesti e di generare i file
+<file>fonts.{scale,dir}</file> in maniera che i fonts siano indicizzati ed
+usati.
+<p>
+Dato che i fonts <strong>Liberi</strong> talvolta scarseggiano, installarne o
+condividerne di commerciali è un'opzione possibile per gli utenti
+&debian;. Per facilitare questo processo, sono stati creati apposta alcuni pacchetti:
+<list compact>
+<item><package>ttf-commercial</package>
+<item><package>msttcorefonts (>1.1.0)</package> (Il Pacchetto in Woody non funziona 
+ almeno fino all'agosto 2002 in seguito a dei cambiamenti nel sito Microsoft.)
+</list>
+Così facendo, avrete veramente un'ottima selezione di fonts TT al prezzo di contaminare il vostro
+sistema <strong>Free</strong> con fonts non-Free.
+
+<sect1 id="ss-browser">Web Browser (grafici)
+<p>
+In Woody esistono alcuni pacchetti di Web browser con capacità grafiche:
+<list compact>
+<item><package>mozilla</package> Il browser Mozilla (nuovo)
+<item><package>galeon</package> Browser basato su Mozilla con interfaccia Gnome (nuovo)
+<item><package>konqueror</package> Browser KDE
+<item><package>dillo</package> Browser GTK
+<item><package>amaya-gtk</package> Browser di riferimento W3C
+<item><package>amaya-lesstif</package> idem come sopra
+<item><package>netscape-...</package> (molti, vecchio)
+<item><package>communicator-...</package> (molti, vecchio)
+<item>...
+</list>
+La versione di <package>mozilla</package> deve corrispondere a quella 
+richiesta da <package>galeon</package>.  Nonostante differiscano nell'interfaccia,
+entrambi condividono il motore di rendering HTML Gecko.
+<p>
+I plug-ins per i browsers tipo <package>mozilla</package> e
+<package>galeon</package> possono essere abilitati installando manualmente "<tt>*.so</tt>" 
+nella directory plug-in e riavviando i browsers.
+<p>
+Varie risorse per i plug-in:
+<list compact>
+<item>Java plug-in: installate i binari di "J2SE" da <url id="&javasunhome;">.
+<item>Flash plug-in: installate i binari di "Macromedia Flash Player 5" da
+ <url id="&flashhome;">.
+<item><package>freewrl</package>: Browser VRML e plugin per Netscape
+<item>...
+</list>
+</sect1>
+
+<!-- CJK and X moved to bottom with different name to locale section -->
 
 </sect>
 
 <sect id="ssh">SSH
 <p>
-SSH è il modo sicuro per connettersi ad internet. Io uso openSSH.  [WOODY] usa
-SSH2. Attenzione alla migrazione.
+SSH (Secure SHell) è il modo sicuro per connettersi ad internet. Una versione free
+di SSH, chiamata OpenSSH è disponibile come pacchetto <package>ssh</package>
+in &debian;.
 
 <sect1 id="ssh-basics">Principi basilari
 <p>
-Per ssh, il pacchetto non-US deve essere disponibile per l'installazione.
+Installate prima il server ed il client OpenSSH.
 <example>
-# apt-get install ssh
+# apt-get update && apt-get install ssh
 </example>
-La connessione ssh viene lanciata come segue.
+E' necessario il riferimento a non-US in <file>/etc/apt/source.list</file>.
+<file>/etc/ssh/sshd_not_to_be_run</file> non deve essere presente se si vuole far 
+girare il server OpenSSH.
+<p>
+SSH ha 2 protocolli di autenticazione:
+<list>
+<item>Versione 1: 
+ <list compact>
+<item>Solo Potato supporta questo protocollo.
+<item>metodi di autenticazione disponibili:
+  <list compact>
+<item>RSAAuthentication: autenticazione utente basata su "RSA identity key"
+<item>RhostsAuthentication: autenticazione host basata su .rhosts 
+ (insicura, disabilitata)
+<item>RhostsRSAAuthentication: autenticazione .rhosts combinata con 
+ "RSA host key" (disabilitata)
+<item>ChallengeResponseAuthentication: autenticazione "RSA challenge-response"
+<item>PasswordAuthentication: autenticazione basata su password
+  </list>
+ </list>
+<item>Versione 2: 
+ <list compact>
+<item>tutte le versioni post-Woody la usano come protocollo primario.
+<item>metodi di autenticazione disponibili:
+  <list compact>
+<item>PubkeyAuthentication: autenticazione utente basata su chiave pubblica
+<item>HostbasedAuthentication: autenticazione basata su <file>.rhosts</file> o
+ <file>/etc/hosts.equiv</file>  
+ combinata con autenticazione dell'host basata su chiave pubblica del client (disabilitata)
+<item>ChallengeResponseAuthentication: autenticazione "challenge-response"
+<item>PasswordAuthentication: autenticazione basata su password
+  </list>
+ </list>
+</list>
+
+<p>
+Fate attenzione a queste differenze se state migrando da Woody od usando un sistema 
+non-&debian;.  
+<p>
+Vedere <file>/usr/share/doc/ssh/README.Debian.gz</file>,
+<manref name="ssh" section="1">, 
+<manref name="sshd" section="8">,
+<manref name="ssh-agent" section="1">, e
+<manref name="ssh-keygen" section="1"> per i dettagli.
+
+<p>
+A seguire i file di configurazione chiave:
+
+<list>
+
+<item><file>/etc/ssh/ssh_config</file>: Il default per il client SSH.
+ Vedere <manref name="ssh" section="1">.  Parametri da notare sono:
+
+ <list compact>
+<item><tt>Host</tt>: Restringe le seguenti dichiarazioni 
+  (fino alla "Host keyword" successiva) ad essere le uniche per i dati host 
+   a corrispondere ad uno dei pattern dati dopo la keyword.
+<item><tt>Protocol</tt>: Specifica la versione di protocollo SSH.  
+ Default è "2,1".
+<item><tt>PreferredAuthentications</tt>: Specifica il metodo di autenticazione 
+ del client SSH2.  Il default è 
+"hostbased,publickey,keyboard-interactive,password".
+<item><tt>ForwardX11</tt>: E' disabilitato di default.  Si può scavalcare con l'opzione
+ "<tt>-X</tt>".
+ </list>
+
+<item><file>/etc/ssh/sshd_config</file>: Il default per il server SSH.
+ Vedere <manref name="sshd" section="8">.   Parametri da notare sono:
+
+ <list compact>
+<item><tt>ListenAddress</tt>: Specifica l'indirizzo locale verso cui 
+ <prgn>sshd</prgn> dovrebbe essere in ascolto. Sono permesse opzioni multiple.
+<item><tt>AllowTcpForwarding</tt>: Disabilitato di default.  
+<item><tt>X11Forwarding</tt>: Disabilitato di default.
+ </list>
+
+<item><file>$HOME/.ssh/authorized_keys</file>: lista delle chiavi pubbliche di
+default usate dai client per connettersi ad un dato account sul dato host.
+Vedere <manref name="ssh-keygen" section="1">.
+
+<item><file>$HOME/.ssh/identity</file>: Vedere <manref name="ssh-add"
+section="1"> e <manref name="ssh-agent" section="1">.
+</list>
+
+<p>
+I seguenti comandi lanciano una connessione <prgn>ssh</prgn> da un client.
 <example>
 $ ssh username@hostname.domain.ext $ ssh -1 username@hostname.domain.ext #
-Force SSH version 1
+Forza la versione 1 di SSH
 </example>
-Per l'utente, ssh è più intelligente di telnet (Non vi bombarda di with [^]).
+Per l'utente <prgn>ssh</prgn> funziona da <prgn>telnet</prgn> più sicuro ed
+intelligente (non vi bombarda con ^]).
+
 </sect1>
 
-<sect1 id="ssh-forward">Port forwarding - per il tunneling smtp/pop3
+<sect1 id="ssh-forward">Port forwarding &ndash; per il tunneling SMTP/POP3
 <p>
-Per stabilire una pipe per connettere la porta 25 del server remoto con la
-port 4025 del localhost e la porta 110 del server remoto con la porta 4110 del
-localhost tramite ssh, eseguite dalla macchina locale:
+Per stabilire una pipe per connettere la porta 25 del <var>server-remoto</var> dalla
+porta 4025 del localhost, e la porta 110 del <var>server-remoto</var> dalla porta 4110 del localhost
+attraverso <prgn>ssh</prgn>, eseguite sulla macchina locale:
 <example>
-# ssh -q -L 4025:remote-server:25 4110:remote-server:110 \
-           username@remote-server
+# ssh -q -L 4025:server-remoto:25 4110:server-remoto:110 \
+           username@server-remoto
 </example>
 E' un modo sicuro di eseguire connessioni a server SMTP/POP3 su Internet.
+impostate il parametro <tt>AllowTcpForwarding</tt> a <tt>yes</tt> in 
+<file>/etc/ssh/sshd_config</file> sull'host remoto.
 </sect1>
 
-<sect1 id="ssh-rsa">Connettersi con meno passwords possibili -
-RSAAuthentication
+<sect1 id="ssh-rsa">Connettersi con meno passwords possibili
 <p>
-[POTATO-SSH1] Potete evitare di ricordare una password per ogni sistema remoto
-usando la RSAAuthentication.
+Potete evitare di ricordare una password per ogni sistema remoto
+usando la RSAAuthentication (protocollo SSH1) o PubkeyAuthentication (protocollo SSH2).  
 <p>
-Impostate il contenuto di /etc/ssh/sshd_config sul sistema remoto a
-"RSAAuthentication yes" ed eseguite:
+Sul sistema remoto impostate i rispettivi parametri,
+"RSAAuthentication yes" o "PubkeyAuthentication yes", in 
+<file>/etc/ssh/sshd_config</file>.
+<p>
+Infine, generate le chiavi di autenticazione localmente ed installate la chiave pubblica
+sul sistema remoto:
 <example>
-$ ssh-keygen $ cat .ssh/identity.pub | ssh user1@remote \ "cat -
-&gt;&gt;.ssh/authorized_keys"
+$ ssh-keygen          # RSAAuthentication: chiave RSA per SSH1
+$ cat .ssh/id_rsa.pub | ssh user1@remote \
+        "cat - &gt;&gt;.ssh/authorized_keys"
+...
+$ ssh-keygen -t rsa   # PubkeyAuthentication: chiave RSA per SSH2
+$ cat .ssh/id_rsa.pub | ssh user1@remote \
+        "cat - &gt;&gt;.ssh/authorized_keys"
+...
+$ ssh-keygen -t dsa   # PubkeyAuthentication: chiave DSA per SSH2
+$ cat .ssh/id_dsa.pub | ssh user1@remote \
+        "cat - &gt;&gt;.ssh/authorized_keys"
 </example>
-Potrete cambiare la passphrase in seguito con "ssh-keygen -p".  Verificate le
-impostazioni provando la connessione. In caso di problemi, usate "ssh -v".
+Potrete cambiare la passphrase in seguito con "<tt>ssh-keygen -p</tt>".
+Verificate le impostazioni provando la connessione. In caso di problemi, usate
+"<tt>ssh -v</tt>".
 <p>
-Potete aggiungere opzioni per limitare gli ingressi delle chiavi autorizzate
-sull'host. Vedere "man sshd" per i dettagli.
+Potete aggiungere delle opzioni ai parametri in <prgn>authorized_keys</prgn> per limitare gli
+host e per eseguire comandi specifici. Vedere <manref name="sshd" section="8"> per i dettagli.
 <p>
-[WOODY-SSH2] Potete evitare di ricordare una password per ogni sistema
-remoto. Lanciate i seguenti comandi senza passphrase:
+Notate che SSH2 ha <tt>HostbasedAuthentication</tt>. Affinchè funzioni, 
+dovete aggiustare le impostazioni di <tt>HostbasedAuthentication</tt> a <tt>yes</tt> in 
+both <file>/etc/ssh/sshd_config</file> on the server machine and 
+<file>/etc/ssh/ssh_config</file> o <file>$HOME/.ssh/config</file> sulla macchina
+client.
+</sect1>
+
+<sect1 id="ssh-client">Client SSH stranieri
+<p>
+Esistono alcuni client SSH disponibili per piattaforme non Unix e simili.
+<taglist>
+<tag>Windows
+<item><url id="&puttyhome;" name="puTTY"> (GPL)
+<tag>Windows (cygwin)
+<item>SSH in <url id="&cygwinhome;" name="cygwin"> (GPL)
+<tag>Macintosh Classic
+<item><url id="&macsshhome;" name="macSSH"> (GPL) [Notate che Mac OS X
+  include OpenSSH; usate <tt>ssh</tt> nell'applicazione Terminal]
+</taglist>
+Vedere anche <url id="&sfdochome;" name="SourceForge.net, site documentation">, 
+"6. CVS Instructions".
+
+<sect1 id="ssh-agent">SSH agent
+<p>
+<!-- XXX FIXME XXX ssh-agent can be improved -->
+Inserite semplicemente la vostra chiave pubblica in <file>~/.ssh/authorized_keys</file>, e siete
+a posto:
 <example>
-$ ssh-keygen -t rsa $ cat .ssh/id_rsa.pub | ssh user1@remote \ "cat -
-&lt;&lt;.ssh/authorized_keys"
+$ ssh-agent
+$ # mette l'output sulla vostra shell
+$ ssh-add .ssh/identity
+$ # oppure ssh-add .ssh/id_dsa o qualunque altro sia il nome della vostra chiave privata
+$ scp <var>remote.host.with.public.key</var>
 </example>
-Potrete aggiungere/cambiare la passphrase in seguito con "ssh-keygen
--p". Verificate le impostazioni provando la connessione. In caso di problemi,
-usate "ssh -v".
-<p>
-Potete aggiungere opzioni per limitare gli ingressi di authorized_keys2
-sull'host e l'esecuzione di determinati comandi. Vedere "man sshd" per i
-dettagli.
-<p>
-[FIXME] SSH2 ha HostbasedAuthentication. Da Walter Hofmann walterh@gmx.de
-<example>
-C'erano due errori: 1) Bisogna passare ad HostbasedAuthentication sul client!
-La pagina man è sbagliata, non avviene di default.  2) Bisogna impostare
-PreferredAuthentications così che HostbasedAuthentication venga provata prima
-di chiedere le passwords.
-</example>
-<p>
-<![%FIXME;[<p>=== Add info on "ssh-agent" ===]]>
+Per ulteriori informazioni, leggete <manref name="ssh-agent" section="1"> e
+<manref name="ssh-add" section="1">.
 </sect1>
 
 <sect1 id="ssh-trouble">Problemi
 <p>
 In caso di problemi, controllate i permessi del file di configurazione e
-lanciate con l'opzione "-v".
+lanciate <prgn>ssh</prgn> con l'opzione "<tt>-v</tt>".
 <p>
-Usate "-P" se non siete root ed avete problemi col firewall, per evitare di
-usare la porta del server (1:1023).
+Usate l'opzione "<tt>-P</tt>" se siete root ed avete problemi col firewall, per evitare di
+usare le porte del server 1&ndash;1023.
 <p>
-Dopo che l'amministratore del sistema remoto (potete anche essere voi stessi)
-ha combinato qualche casino, la connessione ssh può smettere di funzionare. In
-genere ciò capita dopo il cambiamento della host_key durante la manutenzione
-del sistema. Dopo essersi assicurati che è proprio questo il caso e che
+Se le connessioni <prgn>ssh</prgn> ad un sito remoto smettono improvvisamente di funzionare, ciò
+può essere dovuto a maneggiamenti dell'amministratore o, più probabilmente a cambiamenti in
+<prgn>host_key</prgn> durante la manutenzione del sistema.  Dopo essersi assicurati che è proprio questo il caso e che
 nessuno sta tentando di falsificare l'host remoto mediante qualche trucco
-geniale, potete riguadagnare la connessione rimuovendo la voce host_key dal
-~/.ssh/known_hosts sulla macchina locale.
+geniale, potete riguadagnare la connessione rimuovendo la voce <prgn>host_key</prgn> da
+<file>$HOME/.ssh/known_hosts</file> della macchina locale.
 </sect1>
+
 </sect>
 
-<sect>Programmi di gestione posta
+<sect id="mail">Programmi di gestione posta
 <p>
-La configurazione della posta si divide in tre fasi:
+La configurazione della posta si divide in tre categorie:
 <list>
-<item>MTA: exim
-<item>MUA: mutt
-<item>Utilities: procmail, fetchmail, mail,...
+<item>agenti di trasferimento posta (mail transfer agent, MTA): <prgn>exim</prgn>
+<item>utilità per la posta: <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
+<prgn>mail</prgn>, ...
+<item>agenti di gestione posta per l'utente (mail user agent, MUA): <prgn>mutt</prgn>
 </list>
 
 <sect1>Mail transport agent (Exim)
 <p>
-Uare exim come mail transfer agent (MTA). Configurazione:
+Riferimenti:
+<list compact>
+<item>i pacchetti <package>exim-doc</package> e <package>exim-doc-html</package>
+<item><url id="&eximhome;">
+</list>
+<p>
+Usare <prgn>exim</prgn> come MTA. Configurazione:
 <example>
 /etc/exim/exim.conf     "eximconfig" per crearlo e modificarlo
 /etc/inetd.conf         decommentate smtp per lanciare exim come demone
-/etc/email-addresses    Aggiunta una lista di indirizzi di partenza fasulli
-verificare il filtro usando exim -brw, -bf, -bF, -bV, ... etc.
+/etc/email-addresses    Aggiungete una lista di indirizzi email fasulli
+verificare il filtro usando exim -brw, -bf, -bF, -bV, ... ecc.
 </example>
-</sect1>
 
-<sect1>Raccolta di tutti gli indirizzi e-mail inesistenti (Exim)
+<sect2>Raccolta di tutti gli indirizzi e-mail inesistenti (Exim)
 <p>
-In /etc/exim/exim.conf [WOODY], aggiungete nella sezione DIRECTORS
-alla fine, (dopo localuser: director) un indirizzatore (director) che
-raccolga tutti gli indirizzi che gli indirizzatori precedenti non sono
-in grado di risolvere (Secondo Miquel van Smoorenburg):
+In <file>/etc/exim/exim.conf</file> (Woody e seguenti,
+aggiungete nella sezione DIRECTORS alla fine, (dopo localuser: director) un
+indirizzatore (director) che raccolga tutti gli indirizzi che i directors
+precedenti non hanno potuto risolvere (Secondo Miquel van Smoorenburg):
 <example>
 catchall:
   driver = smartuser
     new_address = webmaster@mydomain.com
 </example>
 <p>
-Se si desidera avere maggiori dettagli per ogni dominio virtuale,
-ecc., aggiungete la seguente riga alla fine di exim.conf (Secondo me,
-non ancora testato):
+Se si desidera avere una ricetta più dettagliata per ogni dominio virtuale,
+ecc., aggiungete la seguente riga alla fine di <file>/etc/exim/exim.conf</file> 
+(secondo me, non ben testato):
 <example>
 *@yourdomain.com ${lookup{$1}lsearch*{/etc/email-addresses} \
         {$value}fail} T
 </example>
-Poi aggiungete in /etc/email-adresses la voce "*"
-</sect1>
+Aggiungete, poi una "*" in <file>/etc/email-addresses</file>.
+</sect2>
 
-<sect1>Utilità per la posta (fetchmail)
+<sect2>Riscrivere selettivamente l'indirizzo per la posta in uscita (Exim)
 <p>
-"fetchmail" viene eseguito in modalità demone e raccoglie la posta
+<!-- Derrick 'dman' Hudson dman@dman.ddts.net -->
+La riscrittura selettiva dell'indirizzo per la posta in uscita per avere un giusto
+header "From:" può essere fatta con <prgn>exim</prgn>
+configurando verso la parte finale <file>/etc/exim/exim.conf</file>:
+<example>
+*@host1.something.dyndns.org \
+  "${if eq {${lookup{$1}lsearch{/etc/passwd}{1}{0}}} {1}  \
+   {$0}{$1@somethig.dyndns.org}}"  frFs
+</example>
+Ciò riscrive tutti gli indirizzi che coincidono con <tt>*@host1.something.dyndns.org</tt>.
+<enumlist>
+<item>Cerca dentro <file>/etc/password</file> per vedere se la parte locale ($1)
+   è un utente locale o no.
+<item>Se lo è, riscrive l'indirizzo facendolo coincidere con la stessa cosa trovata 
+   al primo posto ($0).
+<item>Se non lo è, riscrive la parte del dominio.
+</enumlist>
+
+<sect1>Utilità per la posta (Fetchmail)
+<p>
+<prgn>fetchmail</prgn> viene eseguito in modalità demone per raccogliere la posta
 dagli account POP3 del vostro provider smistandoli nel sistema locale
 di posta. Configurazione:
 <example>
-/etc/init.d/fetchmail   vedere sotto per lo script
-/etc/rc?.d/???fetchmail lancia update-rc.d fetchmail defaults 30
-/etc/fetchmailrc        file di configurazione (chown 600, posseduto 
-da fetchmail)
-/etc/init.d/fetchmail
+/etc/init.d/fetchmail   
+/etc/rc?.d/???fetchmail lancia update-rc.d fetchmail default priority 30
+/etc/fetchmailrc        file di configurazione (chown 600, posseduto da fetchmail)
 </example>
 <p>
-Le informazioni su come lanciare fetchmail come demone da uno script
-init.d in potato risultano confuse (in woody ciò dovrebbe essere stato
-risolto).
-<url id="examples/" name="/etc/init.d/fetchmail and /etc/fetchmailrc">
+Le informazioni su come lanciare fetchmail come demone dallo script <prgn>init.d</prgn> 
+in Potato sono confuse (in Woody è stato risolto). Vedere i file di esempio
+<file>/etc/init.d/fetchmail</file> e <file>/etc/fetchmailrc</file> negli
+<url id="&examples;" name="scripts di esempio">.
 <p>
 Se i vostri header di posta sono infestati da ^M per colpa del mailer
-del vostro provider, aggiungete 'stripcr' alle opzioni in
-~/.fetchmailrc:
+del vostro provider, aggiungete "stripcr" alle vostre opzioni in <file>$HOME/.fetchmailrc</file>:
 <example>
 options fetchall no keep stripcr
 </example>
 </sect1>
 
-<sect1>Utilità per la posta (procmail)
+<sect1>Utilità per la posta (Procmail)
 <p>
-Procmail è il sistema locale di consegna/filtro della posta. Per ogni
-account si deve creare un file "~/.procmailrc".
-<url id="examples/" name="Per i dettagli vedere i miei esempi.">
+<prgn>procmail</prgn> è il sistema locale di consegna/filtro della posta. Per ogni
+account che lo usa si deve creare un file <file>$HOME/.procmailrc</file>. Per esempio:
+<url id="&examples;" name="_procmailrc">
 </sect1>
 
-<sect1>Mail user agent (Mutt)
+<sect1>MUA (Mutt)
 <p>
-Usare mutt come mail user agent (MUA) in combinazione con vim.
-Personalizzatelo tramite "~/.muttrc":
+Usate <prgn>mutt</prgn> come MUA in combinazione con
+<prgn>vim</prgn>.
+Personalizzatelo tramite <file>~/.muttrc</file>; per esempio:
+
 <example>
 # usa il modo visuale e "gq" per riformattare le citazioni
 set editor="vim -c 'set tw=72 et ft=mail'"
 #
-# impostazione degli header, presa direttamente dal manuale 
-("Sven's Draconian header weeding")
+# impostazione degli header, presa direttamente dal manuale ("Sven's Draconian header weeding")
 #
 ignore *
 unignore from: date subject to cc
@@ -557,14 +1513,354 @@ hdr_order from subject to cc date user-agent x-mailer
 auto_view application/msword
 ....
 </example>
-Aggiungete i seguenti a /etc/mailcap:
+<p>
+Aggiungete quanto segue a <file>/etc/mailcap</file> o a
+<file>$HOME/.mailcap</file> per visualizzare messaggi in HTML ed allegati MS Word:
 <example>
 text/html; lynx -force_html &percnt;s; needsterminal;
 application/msword; /usr/bin/antiword '&percnt;s'; copiousoutput;
 description="Microsoft Word Text"; nametemplate=&percnt;s.doc
 </example>
-Così M$ Word .doc può essere letto (Non testato.) 
+
+</sect1>
+
+</sect>
+
+<sect id="l10n">Localizzazione e supporto delle varie lingue
+<p>
+&debian; è internazionalizzato, offrendo supporto per un numero crescente di
+lingue e convenzioni locali. La sottosezione seguente elenca alcune delle diversità che
+&debian; attualmente supporta, mentre la successiva tratta della
+<strong>localizzazione</strong>, ovvero il processo di personalizzare il vostro ambiente di
+lavoro per permettere il giusto input ed output del(i) linguaggio(i) scelto(i) e le convenzioni
+per date, formati numerici e monetari e per tutti gli aspetti che caratterizzano una data regione.
+
+<sect1 id="languages">Le basi della personalizzazione
+<p>
+Ci sono alcuni aspetti da considerare per la personalizzazione, la localizzazione ed il supporto 
+della propria lingua nazionale.
+
+<sect2 id="keyboard">Tastiera
+<p>
+&debian; è distribuito con le keymap per quasi due dozzine di tastiere.
+In Woody, riconfigurate la tastiera con:
+
+<list compact>
+<item><tt>dpkg-reconfigure --priority=low console-data # console</tt>
+<item><tt>dpkg-reconfigure --priority=low xserver-xfree86   # X4</tt>
+<item><tt>dpkg-reconfigure --priority=low xserver-common-v3 # X3</tt>
+</list>
+</sect2>
+
+<sect2 id="data-stream">Dati
+<p>
+La gran parte dei pacchetti software Debian supporta il trattamento dei dati 
+    formati da caratteri non-US-ASCII attraverso la variabile d'ambiente LC_CTYPE 
+    offerta dalla tecnologia <strong>locale</strong> in glibc 
+   
+    <list compact>
+    <item>8-bit clean: praticamente tutti i programmi
+    <item>altri set di caratteri "Latin" (p.es. ISO-8859-1 o ISO-8859-2): la
+		  maggioranza dei
+    <item>linguaggi multi-byte tipo Cinese, Giapponese o Coreano:
+		  molte applicazioni recenti
+    </list>
+</sect2>
+
+<sect2 id="display">Display
+<p>
+X è in grado di mostrare qualsiasi coding, compreso UTF-8 e supporta tutti i font.
+La lista comprende non solo tutti i font a 8-bit, ma anche quelli a 16-bit, 
+come il Cinese, Giapponese o Coreano.  Il metodo di inserimento dei caratteri
+multi-bite è supportato dal meccanismo XIM.  Vedere <ref id="x-cjk">.
+<p>
+La visualizzazione del codice Giapponese EUC è anche disponibile nella cosole
+grafica (S)VGA, tramite il pacchetto <package>kon2</package>.  Esiste anche un
+nuovo display giapponese alternativo, <package>jfbterm</package> che usa la
+console framebuffer.  In queste console, il metodo di inserimento dei
+caratteri giapponesi deve essere fornito dalla applicazione.  Usate il
+pacchetto <package>egg</package> per Emacs ed il pacchetto "giapponesizzato"
+<package>jvim</package> per Vim.
+</sect2>
+
+<sect2 id="translation">Traduzione
+<p>
+Traduzioni esistono per molti dei messaggi di testo e documenti che vengono
+    visualizzati nel sistema &debian;, tipo messaggi di errore, output dei
+    programmi, menu e pagine man.  Al momento il supporto per le pagine man in
+    Tedesco, Spagnolo, Finlandese, Francese, Ungherese, Italiano, Giapponese,
+    Coreane e Polacco viene fornito attraverso i pacchetti
+    <tt>manpages-<var>LANG</var></tt> (dove <var>LANG</var> è una lista
+    separata da virgole dei codici nazione ISO (di due lettere) Usate
+    <tt>apt-cache search manpages-|less</tt> per avere una lista delle pagine
+    man unix disponibili.)
+    <p>
+    Per accedere ad una pagina man NLS, l'utente deve impostare la variabile
+    d'ambiente LC_MESSAGES alla stringa appropriata. Per esempio, in caso di
+    pagine man in Italiano, LC_MESSAGES dovrà essere impostata a <tt>it</tt>.
+    Il programma <prgn/man</prgn> cercherà quindi le pagine in Italiano sotto
+    <file>/usr/share/man/it/</file>.
+</sect2>
+</sect1>
+
+<sect1 id="locales">Locale
+<p>
+Debian supporta la tecnologia <strong>locale</strong>.  Locale è un meccanismo
+che permette ai programmi di fornire un valido output e funzionalità in
+accordo con le convenzioni locali, tipo il set di caratteri, il formato per
+data e ora, il simbolo di valuta, e così via. Usa delle variabili d'ambiente
+per determinare il comportamento più appropriato.  Per esempio, assumendo che
+abbiate installati i locale per L'Inglese Americano ed il Francese sul vostro
+sistema, i messaggi di errore di molti programmi potrebbero essere bilingue:
+<example>
+$ LANG="en_US" cat foo
+cat: foo: No such file or directory
+$ LANG="fr_FR" cat foo
+cat: foo: Aucun fichier ou répertoire de ce type
+</example>
+Glibc offre il supporto per locale ai programmi sotto forma di libreria.  Vedere
+<manref name="locale" section="7">.
+
+<sect1 id="activate-locales">Attivare le capacità di supporto locale
+<p>
+&debian; <strong>non</strong> arriva con tutti i locale disponibili
+precompilati. Controllate <file>/usr/lib/locale</file> per vedere quali
+(oltre a quello di default, "C") sono compilati sul vostro sistema. Se quello di
+cui avete bisogno non è presente, avete due opzioni:
+<list compact>
+ <item>Modificare <file>/etc/locale.gen</file> per aggiungere il locale desiderato, poi
+   lanciate <prgn>locale-gen</prgn> da root per compilarlo. Vedere <manref
+   name="locale-gen" section="8"> e le pagine man elencate nella sua sezione "SEE ALSO".
+ <item>Lanciare <tt>dpkg-reconfigure locales</tt> per riconfigurare il pacchetto
+   <package>locales</package>. Oppure, se non è stato ancora installato,
+   l'installazione di <package>locales</package> invocherà l'interfaccia debconf per farvi
+   scegliere il locale richiesti e compilare il database.
+</list>
+
+<sect1 id="env-locale">Attivare un locale in particolare
+<p>
+Le seguenti variabili d'ambiente vengono valutate in questo ordine per fornire ai programmi
+particolari valori di locale:
+<enumlist>
+<item>LANGUAGE: Consiste di una lista di nomi di locale, separati da 
+      una virgola, in ordine di priorità. Usata solo se il locale POSIX
+      è impostato ad un valore diverso da "C" [in Woody; la versione Potato
+      ha sempre priorità sul locale POSIX]. (Estensione GNU)
+<item>LC_ALL: Se non è nullo, il valore è usato per tutte le categorie di locale.
+      (POSIX.1) Di solito "" (nullo).
+<item>LC_*: Se non è nullo, il valore è utilizzato per la 
+      categoria corrispondente (POSIX.1).  Di solito "C".
+<p>
+      Variabili LC_* sono:
+ <list compact>
+<item>LC_CTYPE: Classificazione e conversione dei caratteri.
+<item>LC_COLLATE: Ordine di collazione.
+<item>LC_TIME: Formati data e ora.
+<item>LC_NUMERIC: Formati numerici non monetari.
+<item>LC_MONETARY: Formati di valuta.
+<item>LC_MESSAGES: Formati dei messaggi informativi e diagnostici, nonchè
+            delle risposte interattive.
+<item>LC_PAPER: Formato carta.
+<item>LC_NAME: Formati dei nomi.
+<item>LC_ADDRESS: Formati degli indirizzi e località.
+<item>LC_TELEPHONE: Formati dei numeri telefonici.
+<item>LC_MEASUREMENT: Unità di misura (Sistema Metrico decimale od Altri).
+<item>LC_IDENTIFICATION: Metadati sulle informazioni di locale.
+ </list>
+<item>LANG:   Se non è nullo e se LC_ALL non è definito, il valore è usato per
+      tutte le categorie di locale LC_* con valori non definiti. (POSIX.1) Di solito
+      "C".
+</enumlist>
+Notate che alcune applicazioni (p.es., Netscape 4) ignorano le impostazioni LC_*.
+<p>
+Il programma <prgn>locale</prgn> può mostrare le impostazioni attive ed i locale
+disponibili; vedere <manref name="locale" section="1">. (NOTA: <tt>locale
+-a</tt> elenca tutti i locale che il vostro sistema conosce; questo
+<em>non</em> significa che tutti siano compilati! Vedere
+<ref id="activate-locales">.)
+
+<sect1 id="ISO-locale">Formato data ISO 8601
+<p>
+Il supporto locale per lo standard internazionale di data <tt>aaaa-mm-gg</tt>
+(formato data ISO 8601) è fornito dal locale chiamato <tt>en_DK</tt>, 
+&mdash; <strong>English in Denmark</strong> che è un pò uno scherzo :-)
+Sembra funzionare solo in console per <prgn>ls</prgn>.
+
+<!-- beyond locale moved to below -->
+
+<sect1 id="iso-8859-1">Esempio per US (ISO-8859-1)
+<p>
+Aggiungete le righe seguenti in <file>~/.bash_profile</file>:
+<example>
+LC_CTYPE=en_US.ISO-8859-1
+export LC_CTYPE
+</example>
+
+<sect1 id="france">Esempio per l'Italiano con euro (ISO-8859-15)
+<p>
+Aggiungete le righe seguenti in <file>~/.bash_profile</file>:
+<example>
+LANG=it_IT@euro
+export LANG
+LC_CTYPE=it_IT@euro
+export LC_CTYPE
+</example>
+<p>
+Configurate la tastiera per l'Italiano "QWERTY" come descritto in <ref id="keyboard">.
+ed aggiungete le pagine man in Italiano installando <package>manpages-it</package>.
+Il tasto Right-Alt degli USA è Alt-Gr in Europa.  Premedolo con altri tasti 
+crea molti caratteri speciali.
+Per esempio, Alt-Gr+E crea il segno dell'euro.
+<p>
+Molti dei linguaggi dell'Europa occidentale possono essere configurati allo stesso modo.
+<p>
+Vedere <url id="&debian-euro-support;" name="Debian Euro HOWTO"> per 
+aggiungere il supporto per l'euro e 
+<url id="&debian-fr-howto;" name="Utiliser et configurer Debian pour le franc,ais"> 
+per maggiori dettagli per il Francese (no, per l'Italiano non mi risulta un equivalente).
+
+<sect1 id="x-cjk">Esempio per un sistema bilingue (Giapponese EUC ed ISO-8859-1)
+<p>
+Impostiamo un sistema bilingue: ja_JP.eucJP (Giapponese EUC, tradizionale ambiente  
+Unix Giapponese) in X con messaggi in Inglese, data tipo ISO e
+en_US.ISO-8859-1 (quasi ASCII con supporto per i caratteri accentati)in console.
+<list>
+
+ <item>aggiungere il supporto locale per il Giapponese ja_JP.eucJP 
+  usando il metodo descritto in <ref id="l10n">.
+
+ <item>installare il sistema di conversione da-Kana-a-Kanji ed il dizionario:
+  <list compact>
+  <item><package>canna</package> &mdash; Server locale, oppure
+  <item><package>freewnn-jserver</package> &mdash; server estensibile in network 
+   (Dominio Pubblico)
+  </list>
+
+ <item>installare il metodo di input Giapponese:
+  <list compact>
+  <item><package>kinput2-canna</package> &mdash; per X, oppure
+  <item><package>kinput2-canna-wnn</package> &mdash; per X,e
+  <item><package>egg</package> &mdash; lavora direttamente con Emacsen persino 
+    in console (opzionale)
+  </list>
+
+ <item>terminale Giapponese-compatibile:
+  <list compact>
+  <item><package>kterm</package> &mdash; X (classico),
+  <item><package>mlterm</package> &mdash; X (molto pulito, grandezza dei font variabile) ed 
+  </list>
+
+ <item>aggiungere tutti i pacchetti di font giapponesi.
+ 
+ <item>Impostateli come descritto in <ref id="custom-x">. Ciò permette di avere un 
+  ambiente X specifico per ciascun utente, indipendentemente dal modo di avvio di X 
+  (<prgn>startx</prgn>, <prgn>xdm</prgn>, ...)
+  
+ <item>create <file>~/.session</file> che imposta l'ambiente X specifico per l'utente:
+
+<example>
+#!/bin/sh
+# Questo fa funzionare X quando lancio su verso l'account root.
+if [ -z "$XAUTHORITY" ]; then
+	XAUTHORITY=$HOME/.Xauthority
+	export XAUTHORITY
+fi
+
+# Locale Giapponese come default, C come backup
+LANG=ja_JP.eucJP     
+export LANG
+# assicurarsi di sovrascrivere en_US.ISO-8859-1 usato in console
+LC_CTYPE=ja_JP.eucJP
+export LC_CTYPE
+# Voglio i messaggi di menu in Inglese in ASCII :-)
+LC_MESSAGES=C
+export LC_MESSAGES
+# attiva il metodo di input
+kinput2 &        
+XMODIFIERS=@im=kinput2
+export XMODIFIERS
+# Che ne dite di blackbox come window manager (leggero)
+exec /usr/bin/blackbox
+</example>
+
+ <item>aggiungete le righe seguenti in <file>~/.bash_profile</file>:
+<example>
+LC_CTYPE=en_US.ISO-8859-1
+export LC_CTYPE
+# Per la data in ISO yyyy-mm-dd , più naturale per un Giapponese :-)
+LC_TIME=en_DK.ISO-8859-1
+export LC_TIME
+</example>
+
+ <item>aggiungete le righe seguenti in <file>~/.muttrc</file>:
+<example>
+# il supporto UTF-8 non è popolare nell'ambiente EMACS Giapponese l'encoding a
+# 7 bit di iso-2022-jp è più semplice per tutti l'ordine di encoding di
+# default = us-ascii --&gt; iso-8859-1 --&gt; utf-8 #imposta
+# send_charset="us-ascii:iso-8859-1:utf-8" #imposta allow_8bit=yes set
+# send_charset="us-ascii:iso-8859-1:iso-2022-jp" set allow_8bit=no
+</example>
+ <item>attiva XIM <prgn>kinput2</prgn> per applicazioni X
+  <list compact>
+  <item>aggiungete <tt>*inputMethod: kinput2</tt> al vostro file
+  <file>.~/Xresources</file> (sembra che Debian se ne prenda carico
+  automaticamente, in qualche modo).  <item>Alcune applicazioni (tipo
+  <prgn>mlterm</prgn>) permettono anche di impostare <tt>*inputMethod:</tt> ed
+  altre informazioni in maniera dinamica all'avvio (premete
+  <strong>Ctrl-MouseButton-3</strong> in <prgn>mlterm</prgn>).
+  </list>
+ <item>lanciate X digitando <tt>startx</tt> o da uno dei display manager (xdm,
+  gdm, kdm, wdm, ...)  <item>lanciate l'applicazione compatibile con il
+  Giapponese: VIM6, (x)emacs21, mc-4.5, mutt-1.4, ...  (Emacs sembra la
+  piattaforma più popolare, sebbene io non la usi.)  <item>premete
+  "<strong>Maiusc+Spazio</strong>" per attivare e disattivare il modo input
+  Giapponese.
+</list>
+Vedere anche <url id="&suse-cjk;" name="SuSE pages for CJK">.
+
+<sect1 id="x-utf-8">Esempio per UTF-8 in X
+<p>
+Ne avremo bisogno per tutti in futuro.  Vedere <url id="&unicode-howto;"
+name="The Unicode HOWTO">.
+
+<sect1 id="fb-utf-8">Esempio per UTF-8 in console framebuffer
+<p>
+Il supporto UTF-8 sulla console FB è fornito da <package>bterm</package> usato
+nel <package>debian-installer</package>.
+
+<sect1 id="beyond-locale">oltre locale
+<p>
+Quando state impostando il sistema per la prima volta per un
+<strong>linguaggio nazionale</strong>, prendete in considerazione l'uso di
+<prgn>tasksel</prgn> o di <prgn>aptitude</prgn> per scoprire quali pacchetti
+vengono selezionati scegliendo il task corrispondente al linguaggio prescelto.
+La scelta dei pacchetti fatta in tal modo è utile persino per un setup
+multilingua. Se vi imbattete in qualche conflitto di dipendenze durante
+l'installazione del vostro raffinato sistema, evitate di installare i
+programmi che sono in conflitto col sistema esistente.  Potreste dover
+utilizzare <prgn>update-alternative</prgn> per riguadagnare lo stato originale
+per alcuni comandi, dato che quelli puù recentemente installati potrebbero
+avere priorità più elevate rispetto a quelli preesistenti.
+<p>
+I programmi principali più recenti usano glibc 2.2 e sono molto
+interbazionalizzati.  Quindi, versioni localizzate in maniera particolare, come
+<prgn>jvim</prgn> per VIM possono non essere necessarie e la sua funzionalità è
+offerta da <prgn>vim</prgn> versione 6.0 in X.  In realtà, è ancora da raffinare.
+Dato che <prgn>jvim</prgn> ha una versione compilata con il supporto diretto per il
+Giapponese IM (<prgn>canna</prgn>) ha il supporto persino in console
+ed è indirizzato verso molte altre caratteristiche giapponesi, ed è maturo,
+potreste ancora volerlo :-)
+<p>
+I programmi potrebbero avere la necessità di essere configurati oltre la configurazione <tt>locale</tt>,
+per fornire un ambiente di lavoro confortevole.  Il pacchetto
+<package>language-env</package> ed il suo comando
+<prgn>set-language-env</prgn> facilitano di molto questo processo.
+<p>
+Vedere anche il documento sulla internazionalizzazione, <url id="&intro-i18n;" 
+name="Introduction to i18n">. E' indirzzato agli sviluppatori, ma è anche utile per gli 
+amministratori di sistema.
 </sect1>
 
 </sect>
 </chapt>
+
