@@ -1,0 +1,187 @@
+<!-- Science: Andreas Franzen -->
+
+<p>
+Latest update to this chapter: 10th Octobre 1999
+<sect>
+<heading>What this chapter covers</heading>
+<p>
+This chapter shows possible ways to use Debian GNU/Linux for scientific
+research. This means especially how to process measurement data to convert
+them into papers.
+</sect>
+
+<sect>
+<heading>Combining images</heading>
+<p>
+Sometimes, it is necessary to combine plots produced by plotting programs
+like graph with additional images. One possible way is to set the output
+format of graph to fig which creates a .fig file. This can be edited
+manually with the graphics program xfig. This method has the drawback that
+every time a change is done to the original plot the additional
+modifications must be repeated. This is especially annoying when you try to
+summarize the structure of your work in a makefile. The make command cannot
+do the additional modifications you did with xfig, when the original plot is
+updated.</p>
+<p>
+One possibility is to do the creation of the original plot and of the
+additional figure seperately. The manually created figure is saved as an
+.eps file which is considered as source code in the makefile. The
+combination of the manually created figure and the original plot is then
+done by commands within the makefile. Whenever the original plot changes the
+same manually created figure is added automatically to the now plot.</p>
+<p>
+When you want to combine figures from different sources into one figure to
+include into e.g. a LaTeX document, the easiest way is to use the .eps
+format. .eps files are textfiles which have the important possibility to be
+combined easily into new .eps files.</p>
+<p>
+The programming language for the processing of .eps files included in the
+Debian GNU/Linux system is ghostscript. The ghostscript interpreter is in
+the package gs in the text section. The binary is also named gs.</p>
+<p>
+For a quick start with ghostscript, you can open a console window in X
+Window and just type gs at the shell prompt. Then an additional window with
+the graphics display will pop up and you will get the GS> prompt at the
+console. Ghostscript is an interpreted stack oriented programming language.
+To get an impression of this we will try to compute 3+5*7 with ghostscript. The
+program is simple.
+<example>
+3 5 add 7 mul =
+</example>
+In detail this means
+<example>
+3     %Put 3 onto the stack.
+5     %Put 5 onto the stack.
+add   %Take the last two elements from the stack and put
+      %the sum onto the stack.
+7     %Put 7 onto the stack.
+mul   %Take the last two elements from the stack and put
+      %the product onto the stack.
+=     %Take the last element from the stack and print it
+      %at the console.
+</example>
+After every command you can type pstack to see the current content of the
+stack. Then we will try to write a line on the graphics display.
+<example>
+newpath         %Start a new path.
+100 200 moveto  %Move the graphics cursor to x=100, y=200.
+150 210 lineto  %Add a line to the position x=150, y=210.
+stroke          %Draw the current path.
+</example>
+You can leave the ghostscript interpreter by typing quit.</p>
+<p>
+These examples should have given you an idea of the concept of the
+ghostscript languge. All .eps files and .ps files are text files which
+contain ghostscript programs. Often these programs are nearly unreadable
+because in a very big header many short abbreviations are defined which are
+used throughout the following program. Fortunately, you do not need to lock
+into the program describing a figure to include it into another .eps file.
+The general difference between .ps files and .eps files is that .ps files
+usually describe whole documents of many pages while .eps files always
+contain only one figure.</p>
+<p>
+The following example shows an .eps file which contains the line of the
+previous example.
+<example>
+%!PS-Adobe-3.0 EPSF-3.0
+newpath
+100 200 moveto
+150 210 lineto
+stroke
+showpage
+quit
+</example>
+When you save this as test.eps and start gv test.eps, you can see a small
+window with the line from the left lower to the right upper corner.
+The program gv is included in the package gv in the section text of Debian
+GNU/Linux. The first line of the example indicates the file format. The
+second line gives the bounding box. This is a rectangle which contains the
+drawing. When you position the mouse cursor onto the line, you can see the
+coordinates of the mouse cursor. The origin is the lower left corner of the
+printing area, e.g. the paper sheet of a printer. x counts positive to the
+right and y positive upwards. On paper the units are points. One point
+equals 25.4/72mm. When your lpr command is set up to print .ps files you can
+just sent the example file with lpr test.eps to the printer and you will
+get a line on the paper at the accoring coordinates. The command showpage
+tells the printer to actually print the page. This is common but not
+necessary at the end of .eps files.</p>
+<p>
+Now, we will combine two .eps files into a new .eps file. We plot the
+following data points
+<example>
+0 0
+1 1
+2 4
+3 9
+</example>
+and put the Debian logo from http://www.debian.org in the left top corner of
+the plot. The Debian logo is downloaded as logo-50.jpg. The plot is in
+plot.eps. This is created by the following command.
+<example>
+echo '0 0 1 1 2 4 3 9' | graph -T ps > plot.eps
+</example>
+The graph command is contained in the plotutils package in section math of
+the distribution.</p>
+<p>
+The following script inserts the logo into the plot and saves the combined
+figure in figure.eps.
+<example>
+#!/bin/bash
+convert logo-50.jpg logo-50.eps     #Convert the .jpg file
+                                    #into an .eps file.
+cat head.asc plot.eps separation.asc logo-50.eps tail.asc > figure.eps
+</example>
+The command convert is contained in the package imagemagick in section
+graphics. The file head.asc contains
+<example>
+%!PS-Adobe-3.0 EPSF-3.0
+%%BoundingBox: 107 195 492 580
+save gsave /showpage {} def
+</example>
+The first line says it is an .eps file. The second line is the bounding box.
+Because the logo is inserted into the plot this is the same as the boundig
+box of plot.eps. The third line saves the virtual memory and the graphics
+state, thus, any modifications done inside the .eps files can be restored.
+Finally, the /showpage command is redefined into nothing. The file
+separation.asc contains
+<example>
+grestore restore
+save gsave /showpage {} def
+185 400 translate
+2 2 scale
+</example>
+The graphics state and virtual memory are restored and saved again. The
+logo is scaled by factor 2 in both x and y direction and then translated 185
+points to the right and 400 points upwards to fit into the plot. It is also
+possible to rotate with the rotation angle and the command rotate. The order
+of the commands is essential. 2 2 scale 10 10 translate means that the
+origin of the original image is at 20, 20 afterwards. The content of the
+file tail.asc is
+<example>
+grestore restore
+showpage
+quit
+</example>
+This closes the .eps file.</p>
+<p>
+Examples of the handling of .eps files are in the package diploma in section
+doc.</p>
+</sect>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:2
+sgml-indent-data:nil
+sgml-doctype: ("user.sgml")
+sgml-parent-document: ("user.sgml" "debiandoc" "book" ("chapt") )
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+sgml-set-face:1
+End:
+-->
