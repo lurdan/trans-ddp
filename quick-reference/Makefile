@@ -5,296 +5,243 @@
 #
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for the package build.
-##-------------------------------------------------------------------##
-##                          WARNING                                  ##
-##         Use with caution, aimed at woody system                   ##
-##   "ps" and "pdf" tends to break in some ill-configured system     ##
-##-------------------------------------------------------------------##
+# ------------------------------------------------------------------- #
+#                          WARNING                                    #
+#         Use with caution, aimed at woody system                     #
+#   "ps" and "pdf" tends to break in some ill-configured system       #
+# ------------------------------------------------------------------- #
 
-# You must clean before any html build/publish
+# Following default shall be editted buy the cordinaor for the entire
+# set of languages.  If each subsection owner wish to overide setyings,
+# this can be overriden by running make with "make 'LANGS=fi'" etc.. 
 
-
-
-# ============================================================================
-# CONF PART
+# =================================================================== #
+#                 Default configuration part: Customize               #
+# =================================================================== #
 
 # The directory in which this makefile resides must also contain a file
-# called <directoryname>.sgml, which is the top-level file for the manual
-# in this directory.
+# called <directoryname>.[<language>.]sgml, which is the top-level file
+# for the manual in this directory.
 
-# Basename for sgml
-#MANUAL := $(notdir $(CURDIR))
+# Basename for language dependent sgml (DDP default, generated)
+MANUAL := $(notdir $(CURDIR))
 
-# Publish directory
-# This can and will be overriden by a higher level makefile
-#PUBLISHDIR := ../../../public_html/manuals.html
+# Basename for language independent sgml-template.
+MANUAL0 := qref
 
-# The cannonical language, in which the original document is
-ORIG_LANG := en
-
-# List of langs (above the canonical one be included)
-LANGS := en fr it
-# For other languages to be build, run make with "make LANGS=fi" etc..
-# Please do not add new languages until debian.sgml, tips.sgml, tune.sgml,
-# support.sgml, titletoc.sgml, kernel.sgml, preface.sgml, install.sgml,
-# and woody.sgml are all translated.
-
-# List of output format
-# Possible values are EXTS=html txt tov pdf ps info
-EXTS := html ps pdf txt
-
-# Build type
-# Possible values are BUILD_TYPE = web|package|sf
+# Build type: Possible values are BUILD_TYPE = web|package|sf
 BUILD_TYPE  := web
-
-# List of publish target for DDP
-all: html
-
-publish: publish-files publish-html publish-examples
-
-publish-all: publish publish-tar
-
 # Set parameters by build environment
  
 ifeq ("$(BUILD_TYPE)", "web")
 # DDP site or checked out source from DDP
-MANUAL := reference
-PUBLISHDIR := ../../../public_html/manuals.html
+MANUAL := debian-reference
 else 
 ifeq ("$(BUILD_TYPE)", "sf")
 # For sourceforege remote build
 MANUAL := qref
-PUBLISHDIR := $$HOME/public_html
 else
 # Default: for Debian package
 MANUAL := debian-reference
-PUBLISHDIR := .
 endif
 endif
-#
-# Should work both for a manual in the Debian Documentation Project
-# manuals.sgml tree, and for package build.
-# Key source files
-SGMLMSTR := qref.sgml
-SGMLSRCS := custom.ent default.ent  dynamic.%.ent \
-	    $(foreach lang, $(LANGS), $(wildcard $(lang)/*.sgml ) )
 
-# generate entities which are dynamically defined by the settings of this
-# build run, generally set in the top-level config file (always make)
-# Make sure to enable locale by "dpkg-reconfigure locales".
-# LOCALE needs fix
+# Publish directory
+# This can and will be overriden by a higher level makefile
+PUBLISHDIR := ~/public_html/manuals.html
+
+# List of languages build for "publish" target for DDP
+LANGS := en fr it
+
+# Files which affect SGML generation (excluding *.sgml)
+SGMLENTS := custom.ent default.ent dynamic.%.ent
+
+# All SGML source files
+SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
+	    $(foreach lang, $(LANGS), $(wildcard $(lang)/*.sgml ) ) \
+	    $(SGMLENTS)
+
+# Name for example directory
+EXAMPLE := examples
+
+# List of example to be copied
+EXAMPLES := $(wildcard $(EXAMPLE)/*)
+
+
+# List of all files in tar
+ifeq ("$(BUILD_TYPE)", "sf")
+TARSRCS = $(EXAMPLES) bin/* $(SGMLSRCS) Makefile TODO PROJECT README index.php
+else
+TARSRCS = $(EXAMPLES) bin/* $(SGMLSRCS) Makefile TODO PROJECT README
+endif
+
+# =================================================================== #
+#                 Build target default part: Routine                  #
+# =================================================================== #
+# If some languages have problem building, filter-out in here.
+
+# List of parent sgml to be build for each language
+SGMLS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).sgml)
+
+# List of html stamp files to be built
+HTMLS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html.stamp)
+
+# List of pdf to be build
+TXTS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).txt)
+
+# List of ps to be build
+PSS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).ps)
+
+# List of pdf to be build
+PDFS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).pdf)
+
+# =================================================================== #
+#                 Build target part: Customize                        #
+# =================================================================== #
+# If some language have problem building, filter-out in here.
+
+all:  html txt ps pdf 
+sgml: $(SGMLS)
+html: $(HTMLS)
+txt:  $(TXTS)
+ps:   $(PSS)
+pdf:  $(PDFS)
+tar:  $(MANUAL).tar.gz
+
+# For patato, just HTML and TXT
+#publish: publish-html publish-examples publish-txt publish-ps publish-pdf
+publish: publish-html publish-examples publish-txt
+publish-all: publish publish-tar
+
+# =================================================================== #
+#                 Build rule part: If not package build               #
+# =================================================================== #
 
 dynamic.%.ent:
-	: > $@                       # clear the file
-	echo "<!entity language \"$*\">" >> $@
-	echo "<!entity % lang-$* \"INCLUDE\">" >> $@
-ifneq ("$(BUILD_TYPE)", "package")
+	echo "<!entity language \"$*\">"                 > $@
+	echo "<!entity % lang-$* \"INCLUDE\">"          >> $@
 	echo "<!entity docdate \"`LC_ALL=C date -R`\">" >> $@
-	echo "<!entity docversion \"CVS\">" >> $@
-else
-	echo "<!entity docversion \"$(shell \
-		LC_ALL=C \
-		dpkg-parsechangelog | \
-		grep '^Version: ' | \
-		sed 's/^Version: *//')\">" >> $@
-	echo "<!entity docdate \"$(shell \
-		LC_ALL=C \
-		dpkg-parsechangelog | \
-		grep '^Date: ' | \
-		sed 's/^Date: *//')\">" >> $@
-endif
+	echo "<!entity docversion \"CVS\">"             >> $@
 
-# Create starting SGML for each language from template
-# Actual contents are in language segrigated subdirectory
-# generic rules for all the languages to each language
+# =================================================================== #
+#                 Build rule part: Routine                            #
+# =================================================================== #
 
-$(MANUAL).%.sgml: $(SGMLMSTR)
+# SGML
+
+# Create starting SGML for each language from the template.  Actual
+# contents reside in language segrigated subdirectories.
+
+$(MANUAL).%.sgml: $(MANUAL0).sgml
 	sed -e "s/@@@@/$*/g" $< > $(MANUAL).$*.sgml
 
-# If sgml for original language does not use mid-extension
-#%.$(ORIG_LANG).sgml: %.sgml
-#	cp -f $*.sgml $*.$(ORIG_LANG).sgml
+# If sgml for original language "en" does not use mid-extension
+#%.en.sgml: %.sgml
+#	ln -sf $*.sgml $*.en.sgml
 
-sf:
-	$(MAKE) BUILD_TYPE=sf scp
-
-scp: publish-all
-	scp -pr $(PUBLISHDIR)/$(MANUAL)/ \
-	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/ddp
-
-#----[ publish tar.gz files ]--------------------------------------------------
-ifeq ("$(BUILD_TYPE)", "sf")
-TARSRCS = examples/* bin/* ??/*.sgml\
-	  Makefile index.php TODO PROJECT README
-else
-TARSRCS = examples/* bin/* ??/*.sgml\
-	  Makefile TODO PROJECT README
-endif
-
-tar: $(MANUAL).tar.gz
-
-$(MANUAL).tar.gz: $(TARSRCS)
-	# make tar
-	@tar cvzf $(MANUAL).tar.gz $(TARSRCS) >tar.gz.log
-
-
-publish-tar: $(MANUAL).tar.gz
-	# install tar
-	@test -d $(PUBLISHDIR)/$(MANUAL) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	@rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
-	@install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
-
-
-publish-examples:
-# 	install examples.  Excuse me for ugly script (skip CVS directory)
-	@test -d $(PUBLISHDIR)/$(MANUAL)/examples \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
-	@install -p -m 644  --preserve-timestamps \
-	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
-
-
-# END OF CONF PART CHANGE THE END AT YOU OWN RISK
-# =============================================================================
-# Build target (If some language have problem building, filter-out in here)
-
-# List of html index files to be built
-HTMLFILES := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html.stamp)
-html: $(HTMLFILES)
-
-# List of pdf to be build (compatibility)
-TXTFILES := $(foreach lang,$(LANGS),$(MANUAL).$(lang).txt)
-txt: $(TXTFILES)
-
-# List of ps to be build (compatibility)
-PSFILES := $(foreach lang,$(LANGS),$(MANUAL).$(lang).ps)
-ps: $(PSFILES)
-
-# List of pdf to be build (compatibility)
-PDFFILES := $(foreach lang,$(LANGS),$(MANUAL).$(lang).ps)
-pdf: $(PDFFILES)
-
-# List of sgml to be build
-SGMLFILES := $(foreach lang,$(LANGS),$(MANUAL).$(lang).sgml)
-
-# List of non-html EXTS
-FILEEXTS := $(filter-out html,$(EXTS))
-
-# List of non-html to be build
-ALLFILES := $(foreach ext,$(FILEEXTS),\
-	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
-	  )
-files: $(ALLFILES)
-
-#----[ generating HTML ]-------------------------------------------------------
-# FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
-#        which should be reverted to have the content negociation working.
-#   This trick is bad. debiandoc2html should be corrected.
+# HTML
 
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(SGMLSRCS)
 	debiandoc2html    -l $* -c $<
-	@echo "cleaning up file extensions";\
-	for file in `ls $(MANUAL).$*.html/*` ; do\
-	 newfile=`echo $$file|\
-	          sed 's/$(shell echo $*|\
-	      sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
-	                  )\.html/$*\.html/'`;\
-	 if [ $$file != $$newfile ] ; then\
-	   mv $$file $$newfile;\
-	 fi\
-	done;
-# since $(MANUAL).%.html/index.%.html can not be a target
+# since $(MANUAL).%.html/index.%.html can not be a target file
 	touch $(MANUAL).$*.html.stamp
 
-#----[ generating plain text ]-------------------------------------------------
+# TXT
+
 $(MANUAL).%.txt: $(MANUAL).%.sgml $(SGMLSRCS)
 	debiandoc2text -l $* $<
 
-#----[ generating tov text ]---------------------------------------------------
-$(MANUAL).%.tov: $(MANUAL).%.sgml $(SGMLSRCS)
-	debiandoc2textov -l $* $<
+# PS
 
-#----[ generating info ]-------------------------------------------------------
-$(MANUAL).%.info: $(MANUAL).%.sgml
-	debiandoc2info -l $* $<
+$(MANUAL).%.ps: $(MANUAL).%.sgml $(SGMLSRCS)
+	debiandoc2latexps -l $* $<
 
-# for now we avoid problem with above with followings
-#$(MANUAL).%.texinfo: $(MANUAL).%.sgml $(SGMLSRCS)
-#	debiandoc2texinfo -l $* $<
+# PDF
 
-#$(MANUAL).%.info: $(MANUAL).%.texinfo
-#	cp $(MANUAL).$*.texinfo $(MANUAL)-keep.$*.texinfo
-#	makeinfo --force -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
+$(MANUAL).%.pdf: $(MANUAL).%.sgml $(SGMLSRCS)
+	debiandoc2latexpdf -l $* $<
 
-#----[ generating PostScript ]-------------------------------------------------
-#$(MANUAL).%.ps: $(MANUAL).%.sgml $(SGMLSRCS)
-#	debiandoc2latexps -l $* $<
+# TAR
 
-#----[ generating PDF ]--------------------------------------------------------
-#$(MANUAL).%.pdf: $(MANUAL).%.sgml $(SGMLSRCS)
-#	debiandoc2latexpdf -l $* $<
+$(MANUAL).tar.gz: $(TARSRCS)
+	@tar cvzf $(MANUAL).tar.gz $(TARSRCS)
 
-#====[ publishing to the DDP web pages ]=======================================
-#----[ publish html ]----------------------------------------------------------
+# =================================================================== #
+#                 Build rule part: Web publish                        #
+# =================================================================== #
+
 publish-html: html
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	# install all html
 	@$(foreach lang,$(LANGS),\
-	 install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;\
+	 install -p -m 644 $(MANUAL).$(lang).html/*.html \
+	          $(PUBLISHDIR)/$(MANUAL)/ ;\
 	)
+# sourceforge does not have auto language select apache server.
 ifeq ("$(BUILD_TYPE)", "sf")
 	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL)/
+endif
+# Ugly but until updating all the web pages, needs these symlinks
+ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; rm -f quick-reference ; ln -sf $(MANUAL) quick-reference
+	cd $(PUBLISHDIR) ; rm -Rf reference ; ln -sf $(MANUAL) reference
 endif
 
-#----[ publish all files except html ]-----------------------------------------
-publish-files: files
+publish-examples: $(EXAMPLES)
+	test -d $(PUBLISHDIR)/$(MANUAL)/$(EXAMPLE) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/$(EXAMPLE)
+	@install -p -m 644  --preserve-timestamps \
+	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL)/$(EXAMPLE)/
+
+publish-txt:  txt
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	# clear all old non-html: $(FILEEXTS)
-	@$(foreach ext,$(FILEEXTS),\
-	 if [ "$(ext)" == "info" ] ; then \
-	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.info*;\
-	 else \
-	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(ext);\
-	 fi ;\
-	)
-	# install all non-html: $(FILEEXTS)
-	@$(foreach ext,$(FILEEXTS),\
-	 $(foreach lang,$(LANGS),\
-	  if [ "$(ext)" == "info" ] ; then \
-	   install -p -m 644 $(MANUAL).$(lang).info* $(PUBLISHDIR)/$(MANUAL)/;\
-	  else \
-	   install -p -m 644 $(MANUAL).$(lang).$(ext) $(PUBLISHDIR)/$(MANUAL)/;\
-	  fi ;\
-	 )\
-	)
-# DDP
-ifeq ("$(BUILD_TYPE)", "web")
-	# make the symlinks for $(FILEEXTS)
-	@$(foreach ext,$(FILEEXTS),\
-	  if [ "$(ORIG_LANG)" != "" ] ; then\
-	    ( cd $(PUBLISHDIR)/$(MANUAL); \
-	      rm -f $(MANUAL).$(ext);\
-	      ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
-	    ) \
-	  fi ;\
-	)
-	@$(foreach ext,$(FILEEXTS),\
-	 $(foreach lang,$(ORIG_LANG) $(LANGS),\
-	   ( cd $(PUBLISHDIR)/$(MANUAL) ; \
-	     rm -f quick-reference.$(lang).$(ext);\
-	     ln -sf $(MANUAL).$(lang).$(ext) quick-reference.$(lang).$(ext);\
-	    ) ;\
-	  )\
-	)
-endif
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.txt
+	$(foreach lang,$(LANGS), \
+	   install -p -m 644 $(MANUAL).$(lang).txt $(PUBLISHDIR)/$(MANUAL)/ ; )
+
+publish-ps:  ps
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.ps
+	$(foreach lang,$(LANGS), \
+	   install -p -m 644 $(MANUAL).$(lang).ps $(PUBLISHDIR)/$(MANUAL)/ ; )
+
+publish-pdf:  pdf
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.pdf
+	$(foreach lang,$(LANGS), \
+	   install -p -m 644 $(MANUAL).$(lang).pdf $(PUBLISHDIR)/$(MANUAL)/ ; )
+
+publish-tar: $(MANUAL).tar.gz
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
+	install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
+
+#====[ sourceforge maint-script ]==============================================
+sf:
+	$(MAKE) BUILD_TYPE=sf "LANGS=en fr it fi pt es" scp
+
+sf-test:
+	$(MAKE) BUILD_TYPE=sf "LANGS=en fr it fi pt es" html
+
+sf-clean:
+	$(MAKE) BUILD_TYPE=sf distclean
+
+scp: publish-all
+	scp -pr $(PUBLISHDIR)/$(MANUAL)/ \
+	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/ddp
 
 #====[ validating SGML ]=======================================================
-validate: $(MANUAL).en.sgml dynamic.en.ent 
-	set -x; for i in $(MANUAL).en.sgml; do nsgmls -gues -wall $$i; done
+validate:
+	set -x; for i in $(LANGS); do $(MAKE) validate.$$i ; done
+
+validate.%: $(SGMLSRCS)
+	nsgmls -gues -wall $(MANUAL).$*.sgml
 
 #====[ cleaning up ]===========================================================
 distclean: clean
@@ -304,74 +251,8 @@ clean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
 	rm -f *~ prior.aux pprior.aux tar.gz.log
 	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent date.ent $(MANUAL).tar.gz
-	rm -rf $(MANUAL)*.html *.stamp build-stamp
+	rm -rf $(MANUAL)*.html *stamp
 
 .PHONY: all html txt ps pdf files tar sf \
 	publish publish-all publish-html publish-files publish-tar \
 	clean distclean validate
-
-###########--------------------------------------------------------------
-# maximum times we're willing to run TeX to get cross-references right, 
-# if you subtract by 3
-MAX_TEX_RECURSION	:= 6
-#----[ generating teTeX ]------------------------------------------------------
-$(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent  $(SGMLSRCS)
-	debiandoc2latex -l $* $<
-
-#----[ generating PostScript ]-------------------------------------------------
-#$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexps -l $* $<
-
-# debiandoc2latexps is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent  $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich latex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-latex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.ps=.log) for details
-	dvips -t `cat /etc/papersize` -o $(MANUAL).$*.ps $(MANUAL).$*
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
-
-#----[ generating PDF ]--------------------------------------------------------
-# for translated languages
-#$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexpdf -l $* $<
-
-# debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich pdflatex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.pdf=.log) for details
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
