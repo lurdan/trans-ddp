@@ -17,9 +17,8 @@ DEBIANDOC2LATEX	:= debiandoc2latex
 DEBIANDOC2PS	:= debiandoc2latexps
 DEBIANDOC2PDF	:= debiandoc2latexpdf
 
-# this hint is for adding a link to the pdf version
-add_pdf_link	:= patch -p0 < add_pdf_link.diff
-remove_pdf_link	:= patch -p0 -R < add_pdf_link.diff
+htmllink	:= echo "<!entity % htmltext \"INCLUDE\">" > dynamic.ent
+nohtmllink	:= echo "<!entity % htmltext \"IGNORE\">" > dynamic.ent
 
 make_directory	:= install -d -m 755
 install_file	:= install -m 644 -p
@@ -45,37 +44,45 @@ publish:	all
 	   $(PUBLISHDIR)/$(MANUAL)
 
 developers-reference.html:	developers-reference.sgml
-	$(add_pdf_link)
+	$(htmllink)
 	$(DEBIANDOC2HTML) -l en $<
-	$(remove_pdf_link)
 
 developers-reference.html/*:	developers-reference.html
 
 developers-reference.%.html:	developers-reference.%.sgml
+	$(htmllink)
 	$(DEBIANDOC2HTML) -l $* $<
 
 developers-reference.txt:	developers-reference.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2TEXT) -l en -O $< > $@
 
 developers-reference.%.txt:	developers-reference.%.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2TEXT) -l $* -O $< > $@
 
 developers-reference.tex:	developers-reference.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2LATEX) -l en -O $< > $@
 
 developers-reference.%.tex:	developers-reference.%.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2LATEX) -l $* -O $< > $@
 
 developers-reference.ps:        developers-reference.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2PS) -l en $<
 
 developers-reference.%.ps:      developers-reference.%.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2PS) -l $* $<
 
 developers-reference.pdf:       developers-reference.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2PDF) -l en $<
 
 developers-reference.%.pdf:     developers-reference.%.sgml
+	$(nohtmllink)
 	$(DEBIANDOC2PDF) -l $* $<
 
 version.ent:	debian/changelog
