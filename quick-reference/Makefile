@@ -39,7 +39,7 @@ BUILD_TYPE  := web
 
 # Publish directory
 # This can and will be overridden by a higher level makefile
-PUBLISHDIR := ~/public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en fr it es fi pt-br de

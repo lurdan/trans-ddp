@@ -18,7 +18,7 @@ LANGS := en
 EXTS := html pdf txt
 # publish directory (default for all DDP)
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := ../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 # build flag for SGML parse.
 MANUAL := $(notdir $(shell pwd))
 # Should work both for a manual in the Debian Documentation Project

@@ -29,7 +29,7 @@ MANUAL := $(notdir $(shell pwd))
 
 # Publish directory
 # This can and will be overriden by a higher level makefile
-PUBLISHDIR := ../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # The cannonical language, in which the original document is
 ORIG_LANG := en

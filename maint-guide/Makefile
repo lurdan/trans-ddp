@@ -8,7 +8,7 @@
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := $(CURDIR)/../manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 

@@ -9,7 +9,7 @@
 MANUAL :=	$(shell basename $(shell pwd))
 # Where are we publishing to?
 #  (this can be overriden by a higher level makefile)
-PUBLISHDIR :=	../../../../public_html/manuals.html/fr
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # What do we want by default?
 all:		publish

@@ -7,7 +7,7 @@ DEBIAN_VERSIONS=potato slink
 
 # DDP standard
 MANUAL := $(shell basename $(shell pwd))
-PUBLISHDIR :=	../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 .DELETE_ON_ERROR:
 

@@ -41,7 +41,7 @@ endif
 
 # Publish directory
 # This can and will be overriden by a higher level makefile
-PUBLISHDIR := ~/public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # List of languages build for "publish" target for DDP
 LANGS := en fr it

@@ -9,7 +9,7 @@
 MANUAL :=	$(shell basename $(shell pwd))
 # Where are we publishing to?
 #  (this can be overriden by a higher level makefile)
-PUBLISHDIR :=	../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 .SUFFIXES: .sgml .txt .html
 

@@ -7,7 +7,7 @@ SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
 # where we should publish to
-PUBLISHDIR :=	/org/www.debian.org/debian.org/doc/manuals
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 THISSUBDIR :=	$(shell basename $(shell pwd))
 # How to install stuff in publish directory
 install_file := install -p -m 664

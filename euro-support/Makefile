@@ -6,7 +6,7 @@
 
 ##### CONF PART 
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := ../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # Darn, I should have named dir and file the same way
 #MANUAL = $(notdir $(shell pwd))

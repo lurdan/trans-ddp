@@ -10,7 +10,7 @@ currentlang := $(notdir $(CURDIR))
 currentlangcn := $(subst _,-,$(shell echo $(currentlang) | tr A-Z a-z))
 
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := $(CURDIR)/../../manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).sgml ../faqstatic.ent ../faqdynamic.ent $(wildcard *.sgml)
 

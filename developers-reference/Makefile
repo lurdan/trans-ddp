@@ -1,7 +1,7 @@
 # Makefile, used for the DDP manuals.sgml area
 
 MANUAL		:= $(notdir $(shell pwd))
-PUBLISHDIR	:= ../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 SOURCES		:= $(wildcard *.sgml)
 
