@@ -236,10 +236,10 @@ endif
 ifeq ("$(BUILD_TYPE)", "web")
 	# Make index page for web
 	@{ \
-	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
 	echo "<html>" ;\
 	echo "<head>" ;\
-	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<meta http-equiv=\"content-type\" content=\"text/html; charset=iso-8859-1\">" ;\
 	echo "<title>Debian Reference</title>" ;\
 	echo "</head>" ;\
 	echo "<body>" ;\
@@ -275,10 +275,10 @@ endif
 ifeq ("$(BUILD_TYPE)", "web")
 	# Make index page for web
 	@{ \
-	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
 	echo "<html>" ;\
 	echo "<head>" ;\
-	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<meta http-equiv=\"content-type\" content=\"text/html; charset=iso-8859-1\">" ;\
 	echo "<title>Debian Quick Reference</title>" ;\
 	echo "</head>" ;\
 	echo "<body>" ;\
@@ -295,7 +295,6 @@ ifeq ("$(BUILD_TYPE)", "web")
 	echo "</html>" ;\
 	} >> $(PUBLISHDIR)/$(MANUAL2)/index.html
 endif
-
 
 publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
