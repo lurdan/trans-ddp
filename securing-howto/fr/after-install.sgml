@@ -1,3 +1,4 @@
+<!-- Original CVS version: 1.5 -->
 
 <chapt>Après l'installation
 
@@ -820,28 +821,90 @@ au système par le service <prgn>ssh</prgn> sont décrites dans <ref
 id="chroot-ssh-env">.
 
 
-<sect1>Audit d'utilisateur à la main 
+<sect1>Audit d'utilisateur 
 
 <p>
-Si vous êtes paranoïaque, il se peut que vous vouliez configurer 
-pour le système un <file>/etc/profile</file> qui configure l'environnement 
-de telle façon que les utilisateurs ne puissent pas retirer les capacités 
-d'audit du shell (les commandes sont déposées dans <tt>$HISTFILE</tt>. Le 
-<file>/etc/profile</file> peut être paramétré ainsi&nbsp;:
+Si vous êtes vraiment paranoïaque, il se peut que vous vouliez configurer 
+pour le système un fichier de configuration qui configure l'environnement 
+pour auditer ce que les utilisateurs font sur votre système. Cette section
+présente quelques conseils avec différents utilitaires que vous pouvez utiliser.
+
+<sect2>Audit d'entrée et sortie avec script
+
+<p>Vous pouvez utiliser la commande <prgn>script</prgn> pour auditer à la fois
+ce que les utilisateurs exécutent et quels sont les résultats de leurs
+commandes. Vous ne pouvez configurer <prgn>script</prgn> comme un shell (même si
+vous l'ajoutez à <file>/etc/shells</file>). Mais vous pouvez faire en sorte que
+le fichier d'initialisation su shell exécute les commandes suivantes&nbsp;:
+
+<example>
+umask 077
+exec script -q -a "/var/log/sessions/$USER
+</example>
+
+<p>Bien sûr, si vous faites cela pour tout le système, cela veut dire que le
+shell ne continuerait pas à lire les fichiers d'initialisation personnels (car
+le shell sera écrasé par <prgn>script</prgn>). Une alternative est de faire cela
+dans les fichiers d'initialisation de l'utilisateur (mais alorsl'utilisateur
+pourrait l'enlever, voir les commentaires sur cela ci-dessous).
+</p>
+
+<p>Vous devez également configurer les fichiers dans le répertoire d'audit (dans
+l'exemple <file>/var/log/sessions/</file>) pour que les utilisateurs puissent y
+écrire, mais pas supprimer le fichier. Cela pourrait être fait, par exemple, en
+créant les fichiers de session d'utilisateur en avance et en leur positionnant
+le drapeau <em>ajout-seulement</em> («&nbsp;append-only&nbsp;») en utilisant
+<prgn>chattr</prgn>.
+</p>
+
+<p>Une alternative utile pour les administrateurs système, qui inclut des
+informations de date, serait&nbsp;:
+
+<example>
+umask 077
+exec script -q -a "/var/log/sessions/$USER-`date +%Y%m%d`"
+</example>
+
+<sect2>Utiliser le fichier d'historique du shell
+
+<p>Si vous voulez passer en revue ce que les utilisateurs entrent dans le shell
+(mais pas voir le résultat), vous pouvez configurer un <file>/etc/profile</file>
+pour tout le système qui configure l'environnement pour que toutes les comandes
+soient sauvées dans le fichier <tt>history</tt>. La configuration pour tout le
+système doit être réalisée de telle façon que les utilisateurs ne puissent pas
+enlever les capacités d'audit de leur shell. Cela est plutôt spécifique au
+shell, donc assurez-vous que tous les utilisateurs utilisent un shell qui le
+gère.</p>
+
+<p>Par exemple, pour bash, le fichier <file>/etc/profile</file> pourrait être
+paramétré ainsi
+<footnote>
+Configurer HISTSIZE à une très grande valeur peut poser des problèmes sous
+certains shells car l'historique est gardé en mémoire pour la session de chaque
+utilisateur. Il peut être plus prudent de positionner cela à une valeur assez
+élevée et de sauvergarder les fichiers d'historiques des utilisateurs (si vous
+avez besoin de tout l'historique de l'utilisateur pour une raison ou une autre)
+</footnote>&nbsp;:
 
 <example>
   HISTFILE=~/.bash_history
-  HISTSIZE=100000000000000000
-  HISTFILESIZE=10000000000000000
+  HISTSIZE=10000
+  HISTFILESIZE=999999
+  # Empêche les utilisateurs d'entrer des commandes qui seraient ignorées
+  # dans le fichier d'historique
+  HISTIGNORE=""
+  HISTCONTROL=""
   readonly HISTFILE
   readonly HISTSIZE
   readonly HISTFILESIZE
-  export HISTFILE HISTSIZE HISTFILESIZE
+  readonly HISTIGNORE
+  readonly HISTCONTROL
+  export HISTFILE HISTSIZE HISTFILESIZE HISTIGNORE HISTCONTROL
 </example>
 
 <p>
 Afin que cela fonctionne, l'utilisateur doit être seulement capable d'ajouter 
-des informations à <file>.bash_history</file>. Vous devez <em>aussi</em>
+des informations au fichier <file>.bash_history</file>. Vous devez <em>aussi</em>
 positionner l'attribut <em>ajout-uniquement</em> en utilisant le programme
 <prgn>chattr</prgn> sur <file>.bash_history</file> pour tous les utilisateurs.
 <footnote>
@@ -851,14 +914,36 @@ vider le contenu du fichier des historiques en exécutant le programme
 </footnote>
 
 <p>
-Notez que vous pouvez faire cela grâce au fichier utilisateur 
-<file>.profile</file>. Mais alors vous devriez configurer les permissions
-correctement&nbsp;: pour que le répertoire des utilisateurs ne leur appartiennent
-<em>PAS</em> mais qu'ils aient le droit de lire le fichier de configuration
-<file>.profile</file>  et d'écrire le <file>.bash_history</file>. Il serait
-bon de configurer l'attribut <em>immuable</em> (aussi en utilisant 
+Notez que vous pouvez introduire la configuration ci-dessus dans le fichier
+utilisateur <file>.profile</file>. Mais alors vous devriez configurer les permissions
+correctement de façon à empêcher à l'utilisateur de modifier ce fichier. Cela
+inclut&nbsp;: les répertoires personnels de l'utilisateur ne doivent
+<em>pas</em> appartenir à l'utilisateur (sinon, il pourrait supprimer le
+fichier), mais en même temps lui permettre de lire le fichier de configuration
+<file>.profile</file>  et d'écrire dans <file>.bash_history</file>. Il serait
+bien de configurer l'attribut <em>immuable</em> (également en utilisant 
 <prgn>chattr</prgn>) pour le <file>.profile</file> aussi si vous procédez
 ainsi.
+
+<sect2>Audit utilisateur complet avec utilitaires de comptabilité
+
+<p>
+L'exemple précédent est une manière simple de configurer l'audit utilisateur,
+mais qui peut ne pas être utile pour des systèmes complexes ou pour ceux dans
+lesquels les utilisateurs ne peuvent pas exécuter de shell du tout (ou
+exclusivement). Si c'est votre cas, vous devrez examiner
+<package>acct</package>, les utilitaires de comptabilité. Ces utilitaires
+archiveront toutes les commandes exécutées par les utilisateurs ou processus du
+système au détriment de l'espace disque.
+
+<p>
+Lors de l'activation de la comptabilité, toutes les informations sur les processus et 
+utilisateurs sont conservées dans <file>/var/account/</file>, plus spécifiquement dans
+le fichier <file>pacct</file>. Le paquet de comptabilité 
+inclut certains outils (<prgn>sa</prgn> et <prgn>ac</prgn>) afin d'analyser ces 
+données.
+
+<sect2>Autres méthodes d'audit utilisateur
 <p>
 Si vous êtes complètement paranoïaque et que vous voulez auditer toutes 
 les commandes des utilisateurs, vous pouvez prendre les codes sources du 
@@ -875,26 +960,10 @@ Notez que vous ne pouvez pas utiliser la commande <prgn>script</prgn>
 pour ceci étant donné qu'elle ne fonctionnera pas comme un shell (même 
 si vous l'ajoutez à <file>/etc/shells</file>.
 
-<sect1>Audit utilisateur complet
-
-<p>
-L'exemple précédent est une manière simple de configurer le contrôle 
-utilisateur mais qui peut ne pas être pratique pour des systèmes 
-complexes. Si cela est votre cas, vous devrez examiner <package>acct</package>,
-l'utilitaire de comptabilité. Ceci archivera toutes les commandes ou processus 
-du système au détriment de l'espace disque.
-
-<p>
-Lors de l'activation de la comptabilité, toutes les informations sur les processus et 
-les utilisateurs sont conservées dans <file>/var/account/</file>, plus spécifiquement dans 
-le fichier <file>pacct</file>. Le paquetage de comptabilité 
-inclut des outils (<prgn>sa</prgn> et <prgn>ac</prgn>) afin d'analyser ces 
-données.
-
 <sect1>Inspection des profils utilisateurs
 
 <p>
-Si vous désirez <em>voir</em> ce que font les utilisateurs habituellement, 
+Si vous désirez <em>voir</em> ce que font vraiment les utilisateurs, 
 comme l'heure à laquelle ils se connectent, vous pouvez utiliser la base 
 de données <file>wtmp</file> qui contient toutes les informations 
 concernant les connexions. Ce fichier peut être employé avec plusieurs 
@@ -1269,12 +1338,13 @@ http://www.csis.gvsu.edu/sharp/. Est-ce un logiciel libre ? Empaqueté ? -->
 
 <sect1 id="custom-logcheck">Utiliser et personnaliser <prgn>logcheck</prgn>
 
-<p>Le paquet <prgn>logcheck</prgn> dans Debian est divisé entre deux paquets
-<package>logcheck</package> (le programme principal) et
+<p>Le paquet <prgn>logcheck</prgn> dans Debian est divisé en trois paquets
+<package>logcheck</package> (le programme principal),
 <package>logcheck-database</package> (une base de données d'expressions
-rationnelles pour le programme). Le comportement par défaut sous Debian (dans
+rationnelles pour le programme) et <package>logtail</package> (affiche les
+lignes de log qui n'ont pas encore été lues). Le comportement par défaut sous Debian (dans
 <file>/etc/cron.d/logcheck</file>) est que <prgn>logcheck</prgn> est exécuté
-chaque jour à 2&nbsp;h et une fois après le démarrage.
+toutes les heures juste après l'heure et une fois après le démarrage.
 
 <p>Cet outil peut être assez utile s'il est personnalisé correctement pour
 alerter l'administrateur d'événements inhabituels dans le système.
@@ -1287,7 +1357,7 @@ de configuration <file>/etc/logcheck/logcheck.conf</file>, sourcé par le
 programme, qui définit à quel utilisateur sont envoyés les vérifications. Il
 fournit également un moyen pour les paquets qui fournissent des services pour
 implémenter de nouvelles règles dans les répertoires&nbsp;:
-<file>/etc/logcheck/hacking.d/_packagename_</file>,
+<file>/etc/logcheck/cracking.d/_packagename_</file>,
 <file>/etc/logcheck/violations.d/_packagename_</file>,
 <file>/etc/logcheck/violations.ignore.d/_packagename_</file>,
 <file>/etc/logcheck/ignore.d.paranoid/_packagename_</file>,
@@ -1296,33 +1366,37 @@ implémenter de nouvelles règles dans les répertoires&nbsp;:
 paquets le font actuellement. Si vous avez une règle qui peut être utile à
 d'autres utilisateurs, veuillez l'envoyer comme un rapport de bogue sur le
 paquet approprié (comme un bogue de gravité <em>wishlist</em>). Pour plus
-d'informations, veuillez lire <file>/usr/share/doc/logcheck/README.Debian</file>
+d'informations, veuillez lire <file>/usr/share/doc/logcheck/README.Debian</file>.
 
-<p>Le meilleur moyen de configurer <prgn>logcheck</prgn> est de l'installer
-(il demandera à quel utilisateur les comptes-rendus doivent être envoyés et
-générera le fichier <file>/etc/logcheck/logcheck.logfiles</file> à partir des
-entrées syslog). Si vous désirez ajouter de nouveaux fichiers de log, ajoutez
-les simplement à <file>/etc/logcheck/logcheck.logfiles</file>. La dépendance du
-paquet va également forcer l'installation de
-<package>logcheck-database</package>&nbsp;; pendant l'installation, il demandera
-quel niveau de sécurité est désiré&nbsp;: station de travail, serveur ou
-paranoïaque. Cela va faire pointer <file>/etc/logcheck/ignore.d</file> vers les
-répertoires appropriés (par des liens symboliques). Pour changer ceci, exécutez
-<tt>dpkg-reconfigure -plow logcheck-database</tt>. Puis, créez le
-<file>/etc/ignore.d/local</file>, ce fichier contiendra toutes les rêgles pour
-exclure les messages qui ne doivent pas être reportées. Laissez le vide pour le
-moment (un simple <tt>cp /dev/null /etc/ignore.d/local</tt> fera l'affaire). 
+<p>Le meilleur moyen de configurer <prgn>logcheck</prgn> est d'éditer son
+fichier de configuration principal <file>/etc/logcheck/logcheck.conf</file>
+après l'avoir installé. Modifiez l'utilisateur par défaut (root) à qui seront
+envoyés par courrier les comptes-rendus. Vous devriez également y positionner le
+niveau de compte-rendu. <package>logcheck-database</package> a trois niveaux de
+compte-rendu de verbosité croissante&nbsp;: station de travail, serveur,
+paranoïaque. «&nbsp;serveur&nbsp;» étant le niveau par défaut,
+«&nbsp;paranoïaque&nbsp;» n'est recommandé que pour les machines de haute
+sécurité ne faisant fonctionner qu'aussi peu de services que possible et
+«&nbsp;station de travail&nbsp;» est pour les machines relativement protégés et
+non critiques. Si vous désirez ajouter de nouveaux fichiers journaux,
+ajoutez-les simplement à <file>/etc/logcheck/logcheck.logfiles</file>. Celui-ci
+est configuré pour une installation de syslog par défaut.
 
 <p>Une fois ceci fait, vous pouvez vouloir vérifier les courriers envoyés, pour
 les quelques premiers jours/semaines/mois. Si vous trouvez que vous recevez des
 messages que vous ne voulez pas recevoir, ajoutez simplement l'expression
-rationnalle (voir <manref name="regex" section="7">) qui correspond à ces
-messages au fichier <file>/etc/ignore.d/local</file>. C'est un processus
-d'affinement perpétuel&nbsp;; une fois que les messages qui sont envoyés sont
-toujours pertinents, vous pouvez considérer que l'affinement est terminé. Notez
-que si <prgn>logcheck</prgn> ne trouve rien de pertinent dans votre système, il
-ne vous enverra pas de courrier même s'il fonctionne (donc, vous pouvez ne
-recevoir de courrier qu'une fois par semaine si vous êtes chanceux).
+rationnalle (voir <manref name="regex" section="7"> et <manref name="egrep"
+section="1">) qui correspond à ces messages au fichier
+<file>/etc/logcheck/ignore.d.<var>reportlevel</var>/local</file>. Essayez de
+faire correspondre à la ligne de log entière. Des détails sur l'écriture des
+règles sont expliquées dans
+<file>/usr/share/doc/logcheck-database/README.logcheck-database.gz</file>. C'est
+un processus d'affinement perpétuel&nbsp;; une fois que les messages qui sont
+envoyés sont toujours pertinents, vous pouvez considérer que l'affinement est
+terminé. Notez que si <prgn>logcheck</prgn> ne trouve rien de pertinent dans
+votre système, il ne vous enverra pas de courrier même s'il fonctionne (donc,
+vous pouvez ne recevoir de courrier qu'une fois par semaine si vous êtes
+chanceux).
 
 <sect1>Configurer l'endroit où les alertes sont envoyées 
 
