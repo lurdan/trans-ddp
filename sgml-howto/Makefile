@@ -3,7 +3,8 @@ XML_DECL=/usr/lib/sgml/declaration/xml.dcl
 # slink or above
 #XML_DECL=/usr/lib/sgml/declaration/xml.decl
 
-DEBIAN_VERSIONS=potato slink
+DEBIAN_VERSIONS := potato
+# don't need slink
 
 # DDP standard
 MANUAL := $(shell basename $(shell pwd))
@@ -37,13 +38,12 @@ install:  index.html
 
 # DDP standard
 # This target installs the generated HTML in the published directory.
-publish:	html
-# 		fail if there is no PUBLISHDIR
-		[ -d $(PUBLISHDIR) ] || exit 1
-		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
-			$(PUBLISHDIR)/$(MANUAL)/
+publish: html
+	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+	install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	install -m 644 --preserve-timestamps potato/*.html $(PUBLISHDIR)/$(MANUAL)/
+	ln -sf howto.html $(PUBLISHDIR)/$(MANUAL)/index.html
 
 Debian-SGML.tar: distclean
 	(cd ..; tar  --exclude=CVS --exclude=.wmlrc  --exclude=latex-ss -cvf Debian-HOWTO/$@ Debian-HOWTO)
@@ -59,15 +59,3 @@ clean:
 
 distclean: clean
 	rm -f *~
-
-
-
-
-
-
-
-
-
-
-
-
