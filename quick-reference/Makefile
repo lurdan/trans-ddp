@@ -28,15 +28,9 @@ ifeq ("$(HTDOCS)", "manuals.sgml")
 PUBLISHDIR := ../../../public_html/manuals.html
 MANUAL := $(notdir $(shell pwd))
 else
-ifeq ("$(HTDOCS)", "htdocs")
-# qref.sourceforge.net
-PUBLISHDIR := .
-MANUAL := qref
-else
 # default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
 MANUAL := qref
-endif
 endif
 #
 # Should work both for a manual in the Debian Documentation Project
@@ -100,12 +94,11 @@ dynamic.%.ent:
           echo "<!entity docversion \"CVS\">" >> $@; \
         fi
 #	Build SGML with portion marked qref-dev in English (Testing at SF.NET)
-	@if [ "$(MANUAL)" = "qref" -a "$*" = "en" ]; then \
+	@if [ "$(MANUAL)" = "qref" ]; then \
           echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
         else \
           echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
         fi
-
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
 #
@@ -235,7 +228,7 @@ publish-html: $(HTMLDIRS)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
 	@install -p -m 644  --preserve-timestamps \
 	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
-ifeq ("$(HTDOCS)", "htdocs")
+ifneq ("$(HTDOCS)", "manuals.sgml")
 	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL)/
 endif
 
@@ -251,6 +244,7 @@ publish-files: $(ALLFILES)
 	                    $(PUBLISHDIR)/$(MANUAL)/;\
 	  )\
 	)
+ifeq ("$(HTDOCS)", "manuals.sgml")
 	# soft link $(FILEEXTS)
 	@$(foreach ext,$(FILEEXTS),\
 	  if [ "$(ORIG_LANG)" != "" ] ; then\
@@ -260,6 +254,7 @@ publish-files: $(ALLFILES)
 	    ) \
 	  fi ;\
 	)
+endif
 
 #----[ publish tar.gz files ]--------------------------------------------------
 publish-tar: $(MANUAL).tar.gz
@@ -286,16 +281,16 @@ neat:
 	rm -f $(MANUAL)*.{dvi,log,tex,aux,toc,sasp*} *~
 	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent
 
-clean distclean: neat
+clean: neat
 	rm -f $(MANUAL)*.{txt,tov,texinfo,out,ps,pdf,info*,tar.gz} date.ent
 	rm -rf $(MANUAL)*.html
 
-xpublish:
-	rm -Rf $(PUBLISHDIR)/$(MANUAL)/
+distclean: clean
+	rm -rf $(PUBLISHDIR)/$(MANUAL)/
 
 scp: publish
 	scp -pr $(PUBLISHDIR)/$(MANUAL)/ \
-	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/quick
+	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/qref
 
 debug: 
 	# TARGETS   = $(TARGETS)
