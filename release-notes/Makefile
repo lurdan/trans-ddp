@@ -4,8 +4,6 @@
 
 arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%//)
 
-export PATH:=../quick-reference/bin/:${PATH}
-
 ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file 	:= install -m 2664 -p
   makedir	:= mkdir -p -m 2775
@@ -36,8 +34,10 @@ ifneq "$(PUBLISHDIR)" ""
 	  for lang in $(LANGUAGES); do \
             $(install_file) $$lang/release-notes.$$lang.html/* $(PUBLISHDIR)/$$arch/release-notes/; \
             $(install_file) $$lang/release-notes.$$lang.txt $(PUBLISHDIR)/$$arch/; \
-            $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/$$arch/; \
-            $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/$$arch/; \
+            if [ "$$lang" != "ja" ] && [ "$$lang" != "zh_TW" ]; then \
+              $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/$$arch/; \
+              $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/$$arch/; \
+            fi; \
 	  done; \
           for i in $(PUBLISHDIR)/$$arch/release-notes/*.en.html; do \
             ln -sf $$i $${i%.en.html}.html; \
@@ -55,7 +55,6 @@ else
 	  ln -sf index.en.html upgrade-$$arch/index.html; \
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
 	done
-	# Jens: where are ps and pdf versions?
 # XXX needs to be updated for each release that introduces new architectures!
 #	for newarch in mips mipsel ia64 hppa s390; do \
 #          mv upgrade-$$newarch disks-$$newarch; \
