@@ -5,7 +5,7 @@ all : debian-tutorial.tar.gz debian-tutorial.text.gz debian-tutorial.ps.gz
 outputs : debian-tutorial.ps debian-tutorial.text debian-tutorial.html
 
 debian-tutorial.ps : debian-tutorial.sgml
-	debiandoc2ps debian-tutorial.sgml
+	debiandoc2dvips debian-tutorial.sgml
 
 debian-tutorial.text : debian-tutorial.sgml
 	debiandoc2text debian-tutorial.sgml
