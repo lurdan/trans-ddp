@@ -26,22 +26,31 @@ validate:
 
 html: $(manual).html
 $(manual).html: $(sources)
-	xmlto html-nochunks $<
+	xsltproc --catalogs -o $@ \
+	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/html/docbook.xsl \
+	$<
+
+fo: $(manual).fo
+$(manual).fo: $(sources)
+	xsltproc --catalogs -o $@ \
+	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/docbook.xsl \
+	$<
 
 dvi: $(manual).dvi
-$(manual).dvi: $(sources)
-	xmlto dvi $<
+$(manual).dvi: $(manual).fo
+	xmltex --interaction=batchmode $<
 
 ps: $(manual).ps
-$(manual).ps: $(sources)
-	xmlto ps $<
+$(manual).ps: $(manual).dvi
+	dvips $<
 
 pdf: $(manual).pdf
-$(manual).pdf: $(sources)
-	xmlto pdf $<
+$(manual).pdf: $(manual).fo
+	pdfxmltex --interaction=batchmode $<
 
 clean distclean:
-	rm -f $(manual).html $(manual).pdf
+	rm -f $(manual).aux $(manual).html $(manual).dvi $(manual).fo \
+	$(manual).log $(manual).pdf $(manual).ps $(manual).out $(manual).toc
 	rm -f *~ .*~ core tsa*
 
-.PHONY: all publish clean distclean validate
+.PHONY: all publish clean distclean dvi fo html pdf ps validate
