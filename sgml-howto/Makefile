@@ -42,7 +42,7 @@ publish:	html
 			$(PUBLISHDIR)/$(MANUAL)/
 
 Debian-SGML.tar: distclean
-	(cd ..; tar  --exclude=CVS --exclude=.wmlrc  -cvf Debian-HOWTO/$@ Debian-HOWTO)
+	(cd ..; tar  --exclude=CVS --exclude=.wmlrc  --exclude=latex-ss -cvf Debian-HOWTO/$@ Debian-HOWTO)
 
 Debian-SGML.tar.gz: Debian-SGML.tar
 	gzip -9 -v -f $<
