@@ -51,9 +51,10 @@ ORIG_LANG=en
 LANGS=fr it
 #LANGS=
 
-# Because Latex is hard to work with, I just to do text for now
-# When it is not a problem to enable others, we should enable the rest.
+# ps and pdf are disabled since the files do not compile cleanly to
+# PS/PDF (LATEX).
 #EXTS=ps pdf txt tov info
+# Latex is hard to work with, I just to do text for now.
 EXTS=txt
 # default language for build
 TLANG           := en
@@ -109,6 +110,12 @@ dynamic.%.ent:
 	@echo "<!entity % lang-$* \"INCLUDE\">" >> $@
 	@echo "<!entity booklet \"$(BOOK)\">" >> $@
 	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
+	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" >> $@
+	@if [ -f ../debian/changelog ]; then \
+          echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> $@; \
+        else \
+          echo "<!entity docversion \"CVS\">" >> $@; \
+        fi
 
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
@@ -190,10 +197,7 @@ $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
-#publish: publish-html publish-files 
-# publish-file is disabled since the files do not compile cleanly to
-# PS/PDF.
-publish: publish-html publish-files
+publish: publish-html publish-files publish-tar
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
@@ -248,10 +252,25 @@ publish-ps: ps
 	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
 
+#----[ publish tar.gz files ]--------------------------------------------------
+publish-tar: $(MANUAL).tar.gz
+$(MANUAL).tar.gz:
+	@test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
+	install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
 
 #====[ validating SGML ]=======================================================
 validate:
 	set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
+
+#====[ Saving SGML tar ]=======================================================
+.PHONY:	tar
+tar: $(MANUAL).tar.gz
+$(MANUAL).tar.gz:
+	tar cvzf $(MANUAL).tar.gz custom.ent default.ent $(MANUAL).sgml  \
+	         ./??/*.sgml ./examples/* Makefile index.php \
+		 TODO PROJECT README ./bin/* 
 
 #====[ cleaning up ]===========================================================
 neat:
@@ -270,5 +289,6 @@ publishclean:
 	rm -Rf $(PUBLISHDIR)/$(MANUAL)/*
 
 .PHONY: all sf\
-	publish publish-html publish-files publish-txt publish-ps\
+	publish publish-html publish-files publish-txt publish-ps \
+	publish-tar \
 	neat clean distclean publishclean validate
