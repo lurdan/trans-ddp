@@ -1,0 +1,1392 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" "/usr/share/sgml/docbook/dtd/xml/4.2/docbookx.dtd">
+<!-- 
+  Currently the original is in http://www.netfort.gr.jp/~dancer/column/libpkg-guide
+  -->
+<book>
+  <title>Debian Library Packaging Guide</title>
+  <titleabbrev>libpkg-guide</titleabbrev>
+  <bookinfo>
+    <title>Debian Library Packaging guide</title>
+    <copyright>
+      <year>2002-2005</year>
+      <holder>Junichi Uekawa</holder>
+    </copyright>
+    <legalnotice>
+      <para>
+	Distributed under the terms and conditions of GPL version 2 or
+	later. 
+      </para>
+    </legalnotice>
+  </bookinfo>
+  <chapter id="introduction">
+    <title>Introduction</title>
+    <para>
+      This guide tries to make the problems related with 
+      library packaging to be clear to the Developers of Debian Project,
+      to hopefully raise the general awareness, and to fill the gap of
+      Debian documentation lacking in the direction of library package.
+    </para>
+    <para>
+      Hopefully this document will be more accurate as criticisms come, 
+      and will improve the general quality of Debian,
+      and provide a good reading for Debian developers,
+      instead of the "don't even dare packaging libraries if you 
+      are a newbie" policy.
+    </para>
+    <para>
+      Latest version of this document is currently available at
+      <ulink url="http://www.netfort.gr.jp/~dancer/column/libpkg-guide/libpkg-guide.xml">
+	http://www.netfort.gr.jp/~dancer/column/libpkg-guide/libpkg-guide.xml
+      </ulink>
+    </para>
+  </chapter>
+
+  <chapter id="debiantrait">
+    <title>Traits of Debian</title>
+    <para>
+      First, let us check what Debian is from the perspective of 
+      maintaining library packages, and why Debian is different to 
+      other systems.
+    </para>
+    <para>Debian is a binary-distribution-oriented system.
+      The binaries are created from source packages and are the ones that
+      get distributed.
+      The binaries are from the source as a snapshot for one architecture
+      and several copies of the binaries are built from the same source at
+      different times for different architectures, sometimes even against 
+      different versions of libraries.
+    </para>
+    
+    <para>
+      Thus, unless one is careful, one has no control over which version of 
+      specific development package a binary will be compiled with.
+    </para>
+    <para>
+      The SONAME of a library will help, as we will see in a moment.
+    </para>
+    <para>From the point of a single distribution all packages should
+      use the same version to reduce the number of installed packages and
+      increase the possibility of sharing loaded libraries.
+      And from the view point of a distribution which can be upgraded,
+      several different incompatible 
+      versions of shared libraries should be able to coexist.
+    </para>
+    <para>
+      Debian has a packaging scheme for libraries, with having
+      libfooX package for run-time required library files,
+      and libfooX-dev package for build-time required library files.
+    </para>
+    <para>
+      Other systems have a different approach to the problem.
+      Some systems try to rebuild the whole system in one 
+      run, compiling against one version of single shared library.
+      This is an ideal way, but requires a lot of resource to 
+      rebuild all packages in the archive. 
+    </para>
+    <para>
+      Some other systems (including the ones which call their
+      shared libraries .DLL) don't allow for upgrades, and assume that
+      libraries are never upgraded, and even if they are upgraded
+      they will be always compatible. Such systems are susceptible
+      to random, very difficult to track, errors.
+    </para>
+  </chapter>
+  <chapter id="recommendedreading">
+    <title>Recommended reading before doing library packages</title>
+    <para>
+      It is recommended to read the info page for libtool,
+      which is contained in the libtool-doc package.
+      It explains many things in detail, and talks about
+      generic aspects of library programs not specific to Debian.
+      Reading <command>ld</command> documentation is also interesting.
+    </para>
+    <para>
+      Also, please read the respective documentation for Debian Developers. 
+      Namely the Debian Policy, the New Maintainer's Guide, and 
+      the Developers Reference.
+      (An experience of having your package broken by some 
+      random library upgrade might be a plus.)
+    </para>
+  </chapter>
+  <chapter id="sonames">
+    <title>SONAMEs</title>
+
+    <para>
+      In most cases, if a package version matches the SONAME,
+      it is a sign that there is a problem with the versioning 
+      scheme. Scrap it, and bash the upstream with the libtool manual.
+      It is usually a good sign that either he has not read the manual
+      thoroughly, or he has not understood it, or both.
+    </para>
+    <para>
+      A soname is an information stored in shared library,
+      which can be seen with the command
+      <command>objdump -p <parameter>filename</parameter> | grep SONAME</command>. 
+      The value is referenced from binaries and shared libraries 
+      when linking, and embedded in the NEEDED fields, which can
+      be seen with <command>objdump -p <parameter>filename</parameter> | grep NEEDED</command>. 
+      A soname usually looks something like <filename>libsomething.so.0</filename>.
+    </para>
+    <para>    
+      If a package keeps the same SONAME, it means that the
+      <emphasis>BINARY COMPATIBILITY IS KEPT</emphasis>.
+    </para>
+    <para>    
+      If a new version of a library package breaks currently existing and
+      working package, the SONAME version number should be bumped up, or 
+      the change be reverted, or both.
+      By bumping up the SONAME version number, 
+      the old binaries which used to link to the 
+      old version of the library should be able to run with the old library,
+      and the new and the old libraries can coexist.
+    </para>
+    <para>    
+      Signs of binary incompatibility include:
+      function declaration change,
+      change of "struct" contents, 
+      and changing semantics of functions (hard to detect).
+    </para>
+    <section>
+      <title>Choosing which method to use for versioning</title>
+      <para>
+	The upstream authors have the liberty of choosing 
+	two major methods for versioning using libtool.
+	-version-info, and -release.
+	-release is used for unstable libraries that change ABI 
+	on every new release.
+	However, such unstable library package usually don't belong 
+	in Debian, because it will require a rebuild in every dependent 
+	package against the new library package.
+      </para>
+      <para>
+	-release is recently used more for signifying major releases.
+	Due to the serial nature of -version-info, SONAME version numbers
+	usually get quite large fairly quickly. Using new -release
+	value in major library release, the SONAME version numbers can be 
+	re-set to
+	zero. Some people prefer the lower numbers.
+      </para>
+    </section>
+  </chapter>
+  <chapter id="naminglibpkg">
+    <title>Naming library packages</title>
+    <para>
+      The policy documents how to name library packages.
+      <filename>"lib[libraryname][SONAME-version-number]"</filename>
+      like 
+      <productname>"libc6"</productname> 
+      for <filename>/lib/libc.so.6</filename>
+    </para>
+    <para>	
+      However, there are packages which contain libraries that look like this:
+    </para>
+    <screen>    
+      /usr/lib/libsomelibrary-1.2.so.0
+    </screen>    
+    <para>	
+      This is a library with a name of <filename>libsomelibrary-1.2</filename>, and a SONAME version number of "0".
+      The current practice in packaging such package is to have 
+      <filename>libsomelibrary-1.2-0</filename>
+      as the package name.
+    </para>
+    <para>	
+      To distinguish the package name and the SONAME version number, 
+      for library packages with
+      a name ending in a numeric, the form 
+      <filename>lib[libraryname]-[SONAME]</filename> is
+      preferred.
+    </para>
+    <para>
+      There are packages like libc6, which contain multiple
+      shared libraries in one package. This is not encouraged.
+      <footnote>
+	<para>	
+	  This is the case unless
+	  it is confident that shared libraries will not change interfaces 
+	  independently, or compatibility issues are carefully handled.
+	  In general, when shared libraries are split, there is no reason
+	  upstream will keep changes to interfaces synchronized.
+	</para>
+      </footnote>
+      It becomes more complex and more difficult to handle complex upgrade patterns.
+      <ulink url="http://bugs.debian.org/142175">
+	bug#141275, omniorb package contained several different
+	libraries with different SONAME version numbering policies.
+      </ulink>
+    </para>
+    <para>
+      There has been a history of packages which were named with 
+      the source package name, but it is better practice to name the package 
+      according to the library name, for consistency.
+      Some old packages are not named this way, such as aalib-dev,
+      but new packages should follow the scheme of using the library
+      SONAME.
+    </para>
+    <para>
+      For an example of package which migrated from single-package 
+      library file, see xlibs.
+      xlibs in Debian 3.0 was one package containing many shared libraries,
+      and it is split into multiple packages in later releases of Debian.
+      xlibs package itself is kept as a package which depends on  
+      library packages, so that compatibility and smooth upgrade 
+      is ensured.
+    </para>
+  </chapter>
+  <chapter id="devpkg">
+    <title>-DEV packages</title>
+    <section>
+      <title>-DEV package names</title>
+
+      <para>    
+	It is ideal to have the SONAME version numbers in the package name, 
+	like the following:
+      </para>
+      <screen>    
+	Package: libpackage2-dev
+	Provides: libpackage-dev
+	Conflicts: libpackage-dev
+      </screen>
+      <para>    
+	This ensures that only one version of
+	<filename>libpackageX-dev</filename>
+	is installed, and also allows the maintainer of each package
+	to selectively link with the expected library with the 
+	expected SONAME version number.
+      </para>
+      <para>    
+	Even though the policy allows omitting the SONAME version number
+	from the package
+	name it is very discouraged, since this has caused much
+	problems as in libpng-dev and others, 
+	which could not live up to the promise of
+	never-changing interfaces.
+      </para>
+      <para>    
+	The notation including the SONAME version number should be 
+	used especially
+	when the library package is depended upon by other library packages.
+      </para>
+      <para>
+	Exception: The rule for conflicting -dev packages can be avoided by 
+	using versioned symbols in the shared library.
+	However, be cautious about <link linkend="versymproblems">
+	  problems not solved by versioned symbols
+	</link>
+      </para>
+    </section>
+    <section>
+      <title>-DEV package dependencies</title>
+
+      <para>    
+	The -dev package should depend on all -dev packages for libraries that the library
+	package depends upon, with the specific (so)version that the library package is
+	linked against. This includes libc-dev.
+	<footnote>
+	  <para>A package should depend on libc-dev, without versioned depends, or generate different dependencies depending on architectures. Not all architectures have libc-dev as libc6-dev.</para>
+	</footnote>
+      </para>
+      <para>
+	The dependency is required to make things such
+	as statically linked libraries to work, and C header file inclusions.
+      </para>
+      <para>
+	It will also need to depend on specific versions of -dev packages
+	that corresponds to the version of shared library 
+	that it will be dlopened with a global namespace.
+	<footnote>
+	  <para>
+	    This will prevent creating applications
+	    that are linked against different libraries which 
+	    load incompatible shared libraries in the same namespace
+	    with dlopen.
+	  </para>
+	  <para>
+	    This problem will go away with using versioned symbols, 
+	    after a full transition, but Debian is not there yet.
+	  </para>
+	</footnote>
+      </para>
+      <para> e.g.: 
+	libFOO2-dev -&gt; libBAR2-dev
+	because libFOO2 depends on libBAR2
+      </para>
+      <para>
+	This will ensure that only the -dev packages compatible with
+	the libraries linked with the library will be installed,
+	and such conflicting relations can be expressed in the 
+	-dev packages. Lacking such depends will
+	cause problems like binaries being linked to libpng2 and libpng3
+	at the same time. 
+	<footnote>
+	  <para>
+	    Bugs like<ulink url="http://bugs.debian.org/146079">Bug 146079</ulink>
+	    go undetected when -dev packages do not properly depend on other
+	    -dev packages.
+	  </para>
+	</footnote>
+      </para>
+      <para>    
+	When <filename> libFOO2-dev</filename> 
+	that can compile with libBAR3-dev is required,
+	SONAME version number of libFOO should be bumped up, or a new package 
+	containing libFOO linked with <filename>libBAR3-dev</filename> conflicting 
+	with the original <filename>libFOO2</filename> needs to be created.
+	However this is not enough, as discussed in <link linkend="binarycompat">
+	  binary compatibility section
+	</link>.
+      </para>
+      <para>    
+	<filename>libFOO2-BAR3-dev</filename> 
+	(which is a development package for shared library
+	package <filename>libFOO2-libBAR3</filename> which 
+	contains <filename>libFOO.so.2</filename> linked with
+	<filename>libBAR.so.3</filename>)
+	which depends on  <filename>libBAR3-dev</filename>
+	and have <filename>libFOO2</filename> and 
+	<filename>libFOO2-BAR3</filename> conflicting with each other.
+      </para>
+      <para>    
+	or 
+      </para>
+      <para>    
+	discuss with the upstream to get:
+	<filename>libFOO3-dev</filename> for depending upon
+	<filename>libBAR3-dev</filename>.
+	Which is a better solution, which keeps cross-distribution 
+	binary-compatibility.
+      </para>
+      <para>
+	There is one exception for this section; 
+	the case of libraries with versioned symbols.
+	For example, if a -dev package depends on 
+	libdb2-dev, and libdb2-dev has symbols that are versioned
+	to allow coexisting with libdb3, 
+	it may depend on libdb-dev, and not libdb2-dev.
+      </para>
+    </section>
+    <section>
+      <title>Packages which Build-depend on a -DEV package</title>
+      <para>    
+	It is advised to
+      </para>
+      <screen>Build-Depend: libpackage[SONAME-version-number]-dev
+      </screen>
+      <para> 
+	(Which needs to be updated every time a new -dev comes out, and 
+	the new SONAME becomes the standard, and the old one becomes obsolete)
+      </para>
+      <para>      
+	or
+      </para>
+      <screen>
+	Build-Depend: libpackage[SONAME-version-number]-dev | libpackage-dev 
+      </screen>
+      <para>      
+	(this can cause undesired effect of linking with a source-incompatible 
+	library version, i.e. a serious "cannot build from source" bug)
+      </para>
+    </section>
+    <section>
+      <title>"Build-Depend: libpackage-dev" is not optimal</title>
+      <para>    
+	The question is:
+	Are you really sure all past/present/future version of that 
+	-dev package can be used with the source to build the package?
+	If this is not true, some trouble will happen every time the 
+	-dev package changes.
+	<footnote>
+	  <para>
+	  Stephen Frost commented that: 
+	  Build-Depend's should be *accurate* in that they map to the *API* that's
+	  required.  Sometimes this works out as being the same as the SONAME, but
+	  that's not always the case.  Multiple ABI's can be associated with a
+	  single API.  This is actually the case with OpenLDAP which claims, at
+	  least, to have not broken backwards compatibility with the API since the
+	  1.x days, though the ABI has changed a number of times.  Of course, if a
+	  package depends on parts of the API that were added later they should
+	  version their build-depends appropriately.  In general it'd probably
+	  actually be good to get away from having version numbers in -dev package
+	  names based on the expectation that upstream will be similar to the
+	  OpenLDAP case, and in the event that the API is changed in a way which
+	  is not backwards compatible the library name may be changed in some
+	  other way.
+	  </para>
+	</footnote>
+      </para>
+    </section>
+  </chapter>
+  <chapter id="upstreambrokensoname">
+    <title>How to fix upstream packages with somewhat broken SONAMEs</title>
+    <para>
+      Refer to libssl and other packages which used to handle it.
+      They basically had SONAME version numbers which matched the package
+      version, and every version: e.g. 0.9.4 and 0.9.6 had incompatibility.
+      The solution was to create a SONAME containing 0.9.6, so that :
+    </para>
+    <screen>    
+      $ objdump -p /usr/lib/libssl.so.0.9.6 | grep SONAME
+      SONAME      libssl.so.0.9.6
+    </screen>
+    <para>    
+      libssl-dev contains the symlink
+      <filename>    /usr/lib/libssl.so -&gt; /usr/lib/libssl.so.0.9.6</filename>
+    </para>
+    <para>    This way, binary programs linked with libssl.so via "-lssl" command
+      line option passed to gcc will be looking for libssl.so.0.9.6 at runtime.
+    </para>
+    <para>    
+      It is quite important that Debian does not lose binary compatibility 
+      with other distributions, so changing the SONAME specifically for 
+      Debian is generally a bad idea. Discuss and convince the upstream to
+      use a saner method for determining the SONAMEs.
+    </para>
+
+  </chapter>
+
+  <chapter id="binarycompat">
+    <title>When binary compatibility breaks</title>
+    <para>    
+      SONAME needs to be updated when the binary compatibility is broken.
+    </para>
+    <para>    
+      When the library itself changes the interface, the SONAME 
+      needs to be changed, because the binary compatibility has changed.
+    </para>
+    <para>    
+      Also, when the library that the library depends has changed incompatibly,
+      it means that the library depending on the changed library have 
+      changed incompatibly. i.e. if the library will need to link to a 
+      shared library with a different soname than it had previously,
+      the soname needs to be modified.
+    </para>
+    <para>    
+      The SONAME needs to be modified to reflect this change.
+    </para>
+    <para>    
+      However, it is not always possible to increase the SONAME version number,
+      possibly to remedy past problems, and experiences.
+      To do that, it is also possible to change just the package name.
+      Note that it is the best to modify the SONAME in the upstream level,
+      because recompiling with new package name will solve problems within the Debian
+      packages, but it will not solve problems with the user 
+      compiled binaries in 
+      places such as <filename>/usr/local/</filename>. 
+      Also it might cause problems with software that is distributed in 
+      binary-only form, which expects to have some shared library 
+      with specific interface.
+      Debian supports use of such 
+      binaries, and packages should not break them.
+      Therefore the method described here should only be 
+      used as a last resort.
+      It is better than changing the binary interface and not changing
+      the library package name or soname (<link linkend="libsdlimagepng3">libsdl-image1.2 recompiled with libpng3 while it was previously linked with libpng2 and broke many packages</link>).
+    </para>
+    <para>
+      It is strongly discouraged to create a shlibs file containing 
+      a (= VERSION) relationship, or 
+      (&gt; VERSION) and (&lt; VERSION) relationship. Such packages should not be released as
+      stable.
+    </para>
+    <para>    
+      <filename>libfooX</filename> may have been broken, and to fix it, introduce a new package
+      <filename>libfooXSOMETHING</filename>. Alter the shlibs files so that building with
+      <filename>libfooX-dev</filename> will cause the binary package to depend on 
+      <filename>libfooXSOMETHING</filename>, like the following:
+    </para>
+    <screen>
+        libfoo X libfooXSOMETHING 
+    </screen>
+    <para>    
+      Also <filename>libfooXSOMETHING </filename> 
+      should have the following package information:
+    </para>
+    <screen>    
+      Package: libfooXSOMETHING
+      Provides: libfooX
+      Conflicts: libfooX
+    </screen>
+    <para>
+      to reflect that
+      <filename> libfooXSOMETHING</filename> is not installable alongside with
+      libfooX. 
+      A package rename is necessary, because such relationship is 
+      very difficult to express without a package rename, and 
+      without one, problems such as described in bug #155938 may occur.
+    </para>
+    <para>    
+      And start recompiling every package that is linked against 
+      libfooX against the libfooX-dev, updating the Build-Depends 
+      accordingly (to build-depend on a version greater than the newly 
+      created libfooX-dev). 
+    </para>
+    <screen>        
+      apt-cache showpkg libfooX
+    </screen>
+    <para>    
+      or
+    </para>
+    <screen>    
+      grep-available -F Depends -s Package,Depends libfooX
+    </screen>
+    <para>    
+      will give a rough idea of what needs to be done (although possibly 
+      not complete).
+    </para>
+    <para>    
+      This whole process needs a lot of interaction between developers.
+      The individual maintainers need to be notified, and 
+      some discussion and coordination through 
+      debian-devel@lists.debian.org mailing list is recommended.
+      It usually takes more than two months to get something like this fixed,
+      and it is best to avoid such breakage.
+    </para>
+    <para>
+      Also note the implication on the <quote>testing</quote> release model of Debian.
+      Library binary-package name changes currently require manual 
+      intervention and <quote>hinting</quote> for migration into the <quote>testing</quote> distribution,
+      since a set of packages 
+      need to migrate from <quote>unstable</quote> to <quote>testing</quote> in one set.
+      This is true when library source package name is unchanged,
+      and the version in unstable cannot coexist with the version
+      in <quote>testing</quote> in the source archive; meaning that the old package 
+      with the old soname will be removed from <quote>testing</quote>.
+      This is due to the fact that multiple packages depend on 
+      a shared library, and these packages need to be updated at the 
+      same time.
+    </para>
+    <table>
+      <title>References for broken SONAME upgrades and packages </title>
+      <tgroup cols="2">
+	<tbody>
+	  <row>
+	    <entry>      
+	      SDL
+	    </entry>
+	    <entry>	    
+	      <ulink url="http://lists.debian.org/debian-devel/2001/debian-devel-200110/msg00353.html">
+		http://lists.debian.org/debian-devel/2001/debian-devel-200110/msg00353.html</ulink>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>      
+	      libpng
+	    </entry>
+	    <entry id="libsdlimagepng3">
+	      <ulink url="http://lists.debian.org/debian-devel/2002/debian-devel-200201/msg00243.html">
+		(approx??) lists.debian.org/debian-devel/2002/debian-devel-200201/msg00243.html, discussion about png transition and qt2</ulink>.
+	      <ulink url="http://bugs.debian.org/147707">Bug#147707: should libpng2 conflict with old gimp?, commenting 
+	      about problems with sonames not changing when binary compatibility is broken.</ulink>
+	      <ulink url="http://bugs.debian.org/153813" >
+		libsdl-image1.2 relinked from libpng2 to libpng3 
+		without changing the soname.
+		causing libsdl-perl to break,
+		causing frozen-bubble to break.
+		Upgrade from woody will break even if this ad-hoc fix
+		is installed.
+	      </ulink>
+	      <ulink url="http://bugs.debian.org/155938">
+		libsdl-perl and libsdl-image1.2 in sarge (testing)
+		got out of sync, although libsdl-image1.2 problem
+		(linking with libpng3) was addressed with random
+		recompilation of packages within sid,
+		their migration to testing caused similar 
+		problem, because there was no dependency 
+		tracking information.
+	      </ulink>
+	    </entry>
+	  </row>      
+	  <row>
+	    <entry>
+	      slang-utf8
+	    </entry> 
+	    <entry>	
+	      http://lists.debian.org/debian-devel/2002/debian-devel-200201/msg02539.html</entry>
+	  </row>
+	  <row>
+	    <entry>      
+	      libsmpeg0
+	    </entry>
+	    <entry>
+	      <ulink url="http://bugs.debian.org/140572">
+		libsmpeg0 naming problem, should have been 
+		libsmpeg0-4, bug #140572
+	      </ulink>
+	    </entry>
+	  </row>      
+	  <row>
+	    <entry>	  
+	      liby2
+	    </entry>
+	    <entry>
+	      liby2 contained liby2.so.7, or liby2.so.12, but the 
+	      package name was same from potato to woody.
+	      <ulink url="http://bugs.debian.org/140753">
+		http://bugs.debian.org/140753 (xshipwars, a package depending on liby2)
+	      </ulink>
+	      <ulink url="http://bugs.debian.org/138815">
+		http://bugs.debian.org/138815 (liby2 fix)
+	      </ulink>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>clanlib</entry>
+	    <entry>
+	      <ulink url="http://bugs.debian.org/140976">
+		clanlib SONAME version number is upgraded from .1 to .2 without
+		changing package name: bug #140976
+	      </ulink>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>libsnmpkit1</entry>
+	    <entry>
+	      <ulink url="http://bugs.debian.org/145462">
+		pconf-detect was broken by libsnmpkit1 when
+		the package was silently upgraded 
+		with libsnmpkit.so.2 included.
+		Obviously, the maintainer didn't test the binaries,
+		only compiled the shared libraries and uploaded.
+	      </ulink>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>libmotif</entry>
+	    <entry>
+	      <ulink url="http://bugs.debian.org/150635">
+		libmotif: soname changed without package name change.
+	      </ulink>
+	      libmotif used to contain libXm.so.2, but it now contains
+	      libXm.so.3, with the same package name.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>libvorbis</entry>
+	    <entry>
+	      libvorbis0 package was split into libvorbisfile3
+	      etc packages without changing package name.
+	      Causing many breakages.
+	      <ulink url="http://bugs.debian.org/154699">broken ogg123.</ulink>
+	      <ulink url="http://bugs.debian.org/154704">broken defendguin.</ulink>
+	      <ulink url="http://bugs.debian.org/154744">frozen-bubble breakage..</ulink>
+	      <ulink url="http://bugs.debian.org/154699">libvorbis upgrade breaks many apps.</ulink>
+	      <ulink url="http://bugs.debian.org/154680">libsdl-mixer1.2 breakage.</ulink>
+	      <ulink url="http://bugs.debian.org/154765">xmms breakage.</ulink>
+
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </chapter>
+  <chapter id="sonameoftenchange">
+    <title>What to do when SONAMEs change too often</title>
+    <para>    
+      There are some cases where the library SONAMEs change too often.
+      It might be a legitimate thing, but the upstream may be doing it
+      just for the sake of it.
+      Check their modifications, and suggest to increase the SONAME 
+      version number
+      only when the library has an incompatible change.
+    </para>
+    <para>    
+      When you only see ChangeLog file and configure.in and 
+      such files being modified, and yet you see SONAME changes,
+      it is a good sign that the upstream is not taking SONAMEs seriously.
+    </para>
+    <para>    
+      There are libraries which are under heavy development.
+      It is a pain anyway, because people have to follow it,
+      accept that it is a pain. It is almost impossible to package 
+      a moving target into a stable distribution.
+    </para>
+    <para>    
+      As a temporary measure such fast moving libraries can be built as .a
+      libraries and statically linked to. This ensures that binaries contain
+      the object files they were compiled against. Be careful though, while
+      this removes the need of an ever increasing SONAME version number, 
+      doing this can cause
+      problems later if these static libraries are used in shared objects of other
+      packages. And also, this does not solve everything.
+      Library packages are constantly evolving for a reason.
+    </para>
+    <para>
+      Using statically linked libraries open up a can of worms.
+      Even if upstream does not come up with a shared library,
+      it might be better to use -release flag to add a Debian
+      specific version string, like debian.20020512.
+      Constructing the version number including the string 
+      debian, and the date should make the version number
+      unique.
+    </para>
+    <para>
+      <ulink url="http://lists.debian.org/debian-devel/2002/debian-devel-200201/msg01772.html"> There was a problem with libgal SONAME changing too rapidly, which caused people to work around it in all sorts of strange ways.
+      </ulink>
+    </para>
+  </chapter>
+  <chapter id="shlibsfile"> 
+    <title>What to put in shlibs file</title>
+
+    <para>    
+      Read policy section on "Shared Libraries", 
+      and "Handling shared library dependencies - the `shlibs' system".
+      <command>dh_makeshlibs</command> 
+      creates a decent shlibs file, in a simple case.
+    </para>
+    <para>    in shlibs file, put something like 
+    </para>
+    <screen>    
+      libpcap 0 libpcap0 (&gt;= 0.6.1-1)
+    </screen>
+    <para>    
+      When compatibility breaks, make it look like
+    </para>
+    <screen>    
+      libpcap 1 libpcap1 
+    </screen>
+    <para>    
+      or, 
+    </para>
+    <screen>    
+      libpcap 0 libpcap0a
+    </screen>
+    <para>    
+      and create a new libpcap0a package, conflicting with libpcap0
+    </para>
+    <para>    
+      Doing something like :
+    </para>
+    <screen>    
+      libpcap 0 libpcap0 (&gt;= 0.6.1-1), libpcap0 (&lt;&lt; 0.7.0)
+    </screen>
+    <para>    
+      is not good because it will not survive the 
+      epoch in the version, and is really unnecessary if 
+      SONAMEs are used properly.
+    </para>
+  </chapter>
+  <chapter id="staticonlylibs">
+    <title>Can I provide static link library only?</title>
+    <para>
+      There are cases where the upstream provides only the 
+      static link libraries.
+      However, doing so is not ideal, because it will
+      result in binaries that cannot be rebuilt from source.
+      If a newer static library is released since the last
+      time a binary package was linked against it, the binary
+      package contains code that is no longer be rebuilt 
+      from Debian source.
+    </para>
+    <para>
+      There are several reasons for providing static libraries,
+      but it is best to avoid it, if it is technically possible.
+      Unstable ABI is one reason to provide static libraries for,
+      but please reconsider putting such a library package into a
+      stable Debian distribution.
+    </para>
+    <para>
+      Providing -fPIC versions of static libraries for linking with shared libraries
+      is a bad sign, because the "unstable interface" is now exported through another
+      library's stable library interface.
+    </para>
+    <para>
+      <ulink url="http://www.debian.org/security/">
+	zlib vulnerability (DSA122-1) required many packages to be rebuilt from
+	source, because many packages were linked to it statically.
+	It takes much resource to fix such bugs, and if it were 
+	linked dynamically, only one binary package had to be updated.
+      </ulink>
+    </para>
+  </chapter>
+  <chapter id="shldevpackagecontents">
+    <title>Contents of the shared library package and development package</title>
+    <section>
+      <title>Files in lib* package</title>
+      <para>
+	In the lib* package, only runtime library, and the files 
+	necessary to use the runtime library should be included
+	in such a way that different versions of the runtime library
+	can be co-installed on user's system.
+      </para>
+      <para>
+	Usually, it contains the library file itself, 
+	somehow called <filename>libLIB.so.X.X.X</filename>
+	and its symlink <filename>libLIB.so.X</filename>
+	which matches the SONAME.
+	<footnote>
+	  <para>	  The SONAME may or may not end in a numerical value
+	  depending on the linkage option, and it is usually
+	  necessary to use <command>objdump</command>
+	  to really check it out.
+	  </para>
+	</footnote>
+      </para>
+      <para>
+	The package name should match the shared library SONAME.
+	It can be deduced with <command>sed s/\.so\./-/</command>
+	and removing <quote>-</quote> later 
+	when removing it will not result in consecutive numbers.
+	<table>
+	  <title>Example match between SONAME and package name </title>
+	  <tgroup cols="2">
+	    <thead>
+	      <row>
+		<entry>SONAME</entry>
+		<entry>package name</entry>
+	      </row>
+	    </thead>
+	    <tbody>
+	      <row>
+		<entry>libsome-1.2.3.so.4</entry>
+		<entry>libsome-1.2.3-4</entry>
+	      </row>
+	      <row>
+		<entry>libsome-1.2.3.so</entry>
+		<entry>libsome-1.2.3</entry>
+	      </row>
+	      <row>
+		<entry>libsome.so.4</entry>
+		<entry>libsome4</entry>
+	      </row>
+	      <row>
+		<entry>libsome.so</entry>
+		<entry>libsome</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+      </para>
+      <para>
+	When plugins  and runtime binaries exist that are essential 
+	for running the program,
+	they should be placed under a directory that can be 
+	derived uniquely from the SONAME.
+	Usually that means they should reside under
+	<filename>/usr/lib/libpackageX/</filename>
+	where libpackageX is the full package name for
+	the library package.
+      </para>
+    </section>
+    <section>
+      <title>-dev package</title>
+      <para>
+	-dev package should contain the 
+	development symlink used when linking,
+	static libraries, and header files,
+	and if they exist, package configuration scripts.
+	<table>
+	  <title>Annotated list of files that usually reside in -dev package</title>
+	  <tgroup cols="2">
+	    <thead>
+	      <row>
+		<entry>files</entry>
+		<entry>meaning</entry>
+	      </row>
+	    </thead>
+	    <tbody>
+	      <row>
+		<entry>usr/lib/*.so</entry>
+		<entry>development linkage file, used when other programs are
+		linked with -lxxx</entry>
+	      </row>
+	      <row>
+		<entry>usr/lib/*.a</entry>
+		<entry>static link files</entry>
+	      </row>
+	      <row>
+		<entry>usr/lib/*.la</entry>
+		<entry>libtool linkage information file</entry>
+	      </row>
+	      <row>
+		<entry>usr/include/*</entry>
+		<entry>Development include files</entry>
+	      </row>
+	      <row>
+		<entry>usr/bin/*-config</entry>
+		<entry>Some configuration script used in obtaining the library paths, like <filename>gtk-config</filename></entry>
+	      </row>
+	      <row>
+		<entry>usr/lib/pkgconfig/*.pc</entry>
+		<entry>Some information required for <command>pkgconfig</command></entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+      </para>
+      <para>
+	Each -dev package should conflict and provide
+	<filename>libpackage</filename> so that 
+	no two -dev package can coexist.
+	This is because the <filename>.so</filename>
+	symlink and other files use the same name
+	on shared library package of different SONAME.
+      </para>
+    </section>
+    <section>
+      <title>Other files, plugins, runtime binaries</title>
+      <para>
+	Usually upstream shared library packages contain some
+	documentation and example runtime binaries.
+	They should not reside in the runtime shared library package.
+	They should be put in the -dev package, or 
+	another package that does not have a SONAME version number appended
+	on it, such as <filename>libsomething-runtime</filename>
+      </para>
+      <para>
+	This is because upgradability and coexistability of runtime shared library package 
+	suffers if the binaries are included in the runtime shared library package.
+      </para>
+      <para>
+	There are plugin files, and binaries that are required by the 
+	shared library at run-time, which cannot be split out from
+	the shared library.
+	They are placed under versioned directory inside <filename>/usr/lib</filename>.
+	Examples include <filename>usr/lib/pango/1.0.0/modules/pango-arabic-ft2.so</filename>
+	for pango-1.0-0 modules, <filename>usr/lib/vdkbuilder2/libvdkbcalendar.so.2</filename>
+	for vdkbuilder2 modules, etc.
+      </para>
+      <para>
+	Although Debian Policy does not currently allow it,
+	<filename>/libexec</filename> directory in GNU Coding Standards was
+	designed to allow versioned binaries to exist. However, use of 
+	<filename>libexec</filename> is not currently allowed under current Debian policy.
+	Use subdirectories of <filename>/usr/lib/packagename</filename>.
+      </para>
+    </section>
+
+    <section>
+      <title>Example of which packages the files belong to when using libtool</title>
+      <para>
+	It is not immediately clear which files go to where when using 
+	libtool. The following table shows a list.
+      </para>
+      <table>
+	<title>The relationship between the link-time libtool command-line option and 
+	the actual file contents of each package</title>
+	<tgroup cols="5">
+	  <thead>
+	    <row>
+	      <entry>The libtool command-line</entry>
+	      <entry>lib* package name</entry>
+	      <entry>lib* package contents</entry>
+	      <entry>lib*-dev package name</entry>
+	      <entry>lib*-dev package contents</entry>
+	    </row>
+	  </thead>
+	  <tbody>
+	    <row>
+	      <entry>-export-dynamic -version-info 0:0:0 -release 1.2.3</entry>
+	      <entry>libpackage-1.2.3-0</entry>
+	      <entry>libpackage-1.2.3.so.0, libpackage-1.2.3.so.0.0.0 </entry>
+	      <entry>libpackage-1.2.3-0-dev</entry>
+	      <entry>libpackage.so, libpackage.a, libpackage.la  </entry>
+	    </row>
+	    <row>
+	      <entry>-export-dynamic -release 1.2.3</entry>
+	      <entry>libpackage-1.2.3</entry>
+	      <entry>libpackage-1.2.3.so</entry>
+	      <entry>libpackage-1.2.3-dev</entry>
+	      <entry>libpackage.so, libpackage.a, libpackage.la  </entry>
+	    </row>
+	    <row>
+	      <entry>-export-dynamic -version-info 0:0:0</entry>
+	      <entry>libpackage0</entry>
+	      <entry>libpackage.so.0, libpackage.so.0.0.0 </entry>
+	      <entry>libpackage0-dev</entry>
+	      <entry>libpackage.so, libpackage.a, libpackage.la  </entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+    </section>
+  </chapter>
+  <chapter id="libraryfromsinglesource">
+    <title>Consideration when building binary package and library package from single source</title>
+    <para>
+      When building packages which have binaries linked against the 
+      shared library built from the same source, 
+      a trick is required to properly set the Depends: line.
+    </para>
+    <para>
+      Create a <filename>debian/shlibs.local</filename> 
+      file containing the necessary dependency 
+      information, and add the shared library location to LD_LIBRARY_PATH.
+      <filename>shlibs.local</filename> should contain something in the 
+      line of <type>SONAME-before.so SONAME-after.so package-name</type>,
+      which is documented in the policy manual.
+    </para>
+    <para>
+      When using debhelper, such can be achieved by:
+      <command>
+	dh_shlibdeps -l${PWD}/debian/lib-package-name/usr/lib
+      </command>
+    </para>
+    <para>
+      New versions of debhelper 4 series have a new way of dealing with 
+      this problem.
+    </para>
+  </chapter>
+  <chapter id="symbolversioning">
+    <title>Symbol Versioning for shared libraries</title>
+    <para>
+      Sometimes, multiple versions of shared library in distribution
+      is a social problem. The reasoning being that 
+      other maintainers are not willing to rebuild their packages 
+      against new versions of shared libraries.
+      However, there are cases where it is necessary to retain 
+      compatibility with older versions of shared library;
+      especially when dlopen is used, and the application is not 
+      going to be restarted through upgrades.
+      PAM, and some daemons are affected by this.
+      This effectively requires most of Debian base system to be 
+      eventually versioned, to allow seamless upgrades.
+    </para>
+    <para>
+      <ulink url="http://www.debconf.org/debconf4/talks/dependency-hell/index.html">
+	A presentation was given by Steve Langasek in Debconf4, Brazil.</ulink>
+      The strategy of -dev packages conflicting with each other 
+      did not scale very well, and caused much disruptions.
+      To ease transition of changing library sonames, it is possible to 
+      use versioned symbols in shared library and allow multiple 
+      versions of the same shared library to coexist within single application.
+    </para>
+    <section>
+      <title>Symbol versioning</title>
+      <para>
+	Symbol versioning is a linker trick where functions are
+	treated as if they were prefixed by a specific symbol.
+	For example, if there are two different libraries libA and libB
+	providing one "initialize" function, it is possible to
+	symbol-version them so that binaries will try to resolve
+	libA@initialize and libB@initialize so that they can
+	coexist within the same shared library namespace.
+      </para>
+    </section>
+    <section id="sharedversionlibhowto">
+      <title>How to make a shared library package with versioned symbol</title>
+      <para>
+	Adding options <command><parameter>-Wl,--version-script,<replaceable>dsh.ver</replaceable></parameter></command> to gcc or libtool allows using the version script for versioning of shared library.
+      </para>
+      <para>
+	A version script will look like this:
+	<screen>
+HIDDEN {
+  local:
+	__*;
+	_rest*;
+	_save*;
+};
+
+libdshconfig0 {
+	*;
+};
+
+	</screen>
+      </para>
+      <para>
+	HIDDEN part is required to hide some symbols from being versioned.
+	This example will add a version "libdshconfig0" to the exported symbols defined within the library.
+	To verify that the symbols are versioned, <command>objdump -T</command> can be used. A snippet of output looks like this:
+	<screen>
+00000000      DO *UND*	00000004  GLIBC_2.0   stderr
+00000e04 g    DF .text	00000048  libdshconfig0 free_dshconfig
+00000dc4 g    DF .text	0000003f  libdshconfig0 free_dshconfig_internal
+00000000 g    DO *ABS*	00000000  HIDDEN      HIDDEN
+00000ed0 g    DF .fini	00000000  libdshconfig0 _fini
+	</screen>
+	The name of the version symbol needs to be unique across all shared libraries within Debian, and it should be a good idea to derive the string from the shared library SONAME.
+      </para>
+      <para>
+	Not all Operating systems support versioned symbols, 
+	and usually making the script optional would be required.
+	You may use autoconf/automake checks to make the option configurable. 
+	An example of doing such check can be found in libdshconfig.
+	The following snippet is added to configure.ac to check for 
+	<command><parameter>--with-versioned-symbol</parameter></command> option to configure script invocation:
+      </para>
+      <screen>
+vsymldflags=
+AC_MSG_CHECKING([version script options])
+AC_ARG_WITH([versioned-symbol],AC_HELP_STRING([--with-versioned-symbol],[Use versioned symbols]),[dnl
+vsymldflags="-Wl,--version-script,dsh.ver -Wl,-O1"
+])
+AC_SUBST(vsymldflags)
+AC_MSG_RESULT([${vsymldflags}])
+      </screen>
+      <para>
+	The following snippet is added to Makefile.am to actually add ld flags for versioned symbol.
+      </para>
+      <screen>
+lib_LTLIBRARIES = libdshconfig.la
+libdshconfig_la_LDFLAGS = -export-dynamic -version-info $(DSHCONFIG_SONAME) @vsymldflags@
+      </screen>
+    </section>
+    <section>
+      <title>Migration strategy</title>
+      <para>
+	To enable symbol versioning on two different shared libraries
+	which were previously not versioned,
+	all binaries need to be rebuilt against the versioned
+	shared library.
+      </para>
+      <para>
+	Enabling versioned symbol does not 
+	break binary compatibility, and it is be easier and less disruptive to 
+	just enable versioned symbols and rebuild all other
+	binaries depending on the shared library, to avoid too much 
+	disruptions to the Debian archive.
+	However, make sure enough time is given for the library to build
+	to get all architectures synchronized.
+	<footnote>
+	  <para>	  
+	    Note also that this assumes that user is going to 
+	    perform dist-upgrade to upgrade all packages at once, 
+	    and does not support the use of individual upgrades.
+	  </para>
+	</footnote>
+      </para>
+      <para>
+	Note that, to be pedantic, the new library needs to conflict 
+	with binaries which were linked against the unversioned 
+	shared library.
+	This is discussed in <link linkend="binarycompat">
+	  binary compatibility section
+	</link>.
+	Say the library package was originally named libunversion0.
+	The most pedantic way to ensure this effect is to
+	change the shared library package name to libunversion0v, 
+	and conflict with libunversion0, so that 
+	every binary package built against the versioned 
+	shared library will show up in the Depends: field.
+	This process will be disruptive and make many packages uninstallable,
+	and should be used with care.
+      </para>
+    </section>
+    <section id="versymproblems">
+      <title>Possible problem cases</title>
+      <para> 
+	Symbol versioning only versions function/variable name symbols,
+	and does not version structures etc, so it does not solve problems
+	with mixed protocols, data structures and other things with
+	mixed versions of shared library. Thus, it is not a silver 
+	bullet for all cases.
+      </para>
+      <para>
+	Symbol versioning only handles shared libraries, and 
+	it will not help with statically linked libraries.
+      </para>
+      <para>
+	Also there is a possibility of breakage in the transition phase. 
+	When binary A is linked against unversioned libpng.so.2 and libB,
+	and old libB was linked against unversioned libpng.so.2.
+	libB is now linked against versioned libpng.so.3, and 
+	upgrading libB may cause failures.
+      </para>
+      <para>
+	The dynamic linker is intelligent enough to handle cases when 
+	the new library is only available as versioned symbols, 
+	and the older library is only available as unversioned symbol.
+      </para>
+      <para>
+	<ulink url="http://bugs.debian.org/140490">Bug 140490 is for some symbols that should not be versioned. You need to be restrictive about what symbols to version.</ulink>
+      </para>
+      <para>
+	libdb transition was painful, but it was completed.
+      </para>
+    </section>
+    <section>
+      <title>Supported architectures</title>
+      <para>
+	All architectures that are in Debian distribution support
+	symbol versioning.
+	But it should be noted that each architecture has its list of symbols that 
+	should not be versioned.
+      </para>
+    </section>
+    <section>
+      <title>Some references on symbol versioning</title>
+      <para>
+	<ulink url="http://lists.debian.org/lsb-spec/1999/lsb-spec-199912/msg00017.html">
+	"ELF symbol versioning with glibc 2.1 and later" from Ulrich Drepper</ulink>
+      and Info manual for "ld" has some documentation.
+      </para>
+    </section>
+  </chapter>
+  <chapter id="dlopenimplies">
+    <title>dlopened modules and implication of dlopening</title>
+    <para>
+      Many basic library packages freely use dlopen as a method for loading shared library symbols 
+      dynamically. Examples are glibc and PAM. There are several advantages and disadvantages.
+      For advantages:
+    </para>
+    <itemizedlist>
+      <listitem>
+	<para>Dynamic loading allows dynamic library dependency</para>
+      </listitem>
+      <listitem>
+	<para>No fork/exec/pipe/ipc overhead for extra functionality, and allows easy code sharing</para>
+      </listitem>
+      <listitem>
+	<para>Allows use of library code without intermediate interfacing</para>
+      </listitem>
+    </itemizedlist>
+    <para>
+      Disadvantages:
+    </para>
+    <itemizedlist>
+      <listitem>
+	<para>Cannot take advantage of prelinking</para>
+      </listitem>
+      <listitem>
+	<para>Introduces untested combinations of shared libraries</para>
+      </listitem>
+      <listitem>
+	<para>Shared library being dlopened may change while the applications are running (e.g. when upgrading)</para>
+      </listitem>
+    </itemizedlist>
+    <para>
+      There were a few problem cases with this situation.
+      PAM_ldap dlopened ldap libraries, which depended on a chain of shared libraries such as libssl.
+      However, ssh and ldap did not agree on which version of libssl to depend upon,
+      and ssh ended up loading two different libssl versions into the same function namespace
+      when PAM was configured with ldap.
+    </para>
+    <para>
+      Similar problem appeared when GTK themes used libpng2. 
+      Because GTK pixmap theme uses libpng2, and GTK applications dlopen theme engines,
+      GTK applications that are linked with libpng3 resulted in load failures when 
+      the pixmap engine was specified as the theming engine.
+    </para>
+    <para>
+      This situation cannot be avoided with strict -dev versioning and dependency as described in this
+      paper.
+    </para>
+    <para>
+      If library or application dlopens a module, that module and its chain of dependencies have a chance 
+      of being loaded in two versions at the same time.
+      Unless RTDL_GROUP option for dlopen gets implemented and gets used, 
+      there are basically two options:
+    </para>
+    <itemizedlist>
+      <listitem>
+	<para>Uniquely name symbols, differently between different SONAMES</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Version the symbols using symbol versioning as described in <xref linkend="symbolversioning" />.
+	</para>
+      </listitem>
+    </itemizedlist>
+  </chapter>
+  <chapter id="shlibsdependonshlibs">
+    <title>Shared libraries should link with shared libraries it depends on</title>
+    <para>
+      Sometimes upstream decide that it is a good idea not to 
+      link shared libraries with the depending shared libraries,
+      which was the case for libpng, and some BSD variants.
+      That breaks a few things, and thus not desirable.
+    </para>
+    <section>
+      <title>dlopen</title>
+      <para>
+	dlopen loads shared library, and allows resolving
+	functions in the shared library at run time.
+	The shared library dependency information is used to 
+	resolve the dependencies.
+	Not linking the required shared libraries with the 
+	shared library will result in missing symbols.
+	This bug does not appear very much with <quote>RTDL_GLOBAL</quote>, 
+	but appears more with loading with <quote>RTDL_LOCAL</quote>.
+      </para>
+    </section>
+    <section>
+      <title>symbol versioning</title>
+      <para>
+	Symbol versioning works at shared library link time,
+	so if the shared library is not linked with 
+	the symbol-versioned shared libraries, 
+	symbol versioning will not work.
+      </para>
+    </section>
+    <section>
+      <title>linking with -Bsymbollic</title>
+      <para>
+	-Bsymbollic tries to link things with local namespace,
+	and resolves function symbols within the shared library.
+	Not linking will break it.
+	<footnote>
+	  <para>This is generally a bad idea and tends to break due to its way of resolving symbols. Use of symbol versioning is recommended.</para>
+	</footnote>
+      </para>
+    </section>
+  </chapter>
+  <chapter sect="rpath">
+    <title>-rpath</title>
+    <para>
+      Use of -rpath is usually discouraged in Debian, since having -rpath
+      of /usr/lib will make the dynamic loader behave differently,
+      and will have trouble  working fine in cases of libc5-libc6 transition, 
+      and cases where multiple shared library versions exist under subdirectories of /usr/lib and are selected by ld.so under some criteria.
+    </para>
+    <para>
+      To remove -rpath in the upstream level, it is usually non-invasive 
+      to request upstream to special-case /usr/lib, to not add -rpath.
+    </para>
+    <para>
+      <ulink url="http://lists.debian.org/debian-devel/2002/07/msg02030.html">
+	Richard Atterer summarized his points on his post to debian-devel.
+      </ulink>
+    </para>
+  </chapter>
+  <chapter id="credits">
+    <title>Credits and notes on this document</title>
+    <para>
+      This document created: 10 Jan 2002, 13 Jan 2002. Junichi Uekawa (<email>dancer@debian.org</email>).
+      Revised to be up-to-date on 17 Mar 2002.
+      31 Mar 2002, merged suggestions from David Schmitt.
+      Translation to DocBook SGML done on 8 April 2002.
+      Major spell checking and review was done on 11 April 2002.
+      Reorganisation of some text was done on 14 April 2002.
+      Added more real-ish examples on what files go where, on 9 May 2002.
+      Overview of usage of term SONAME was done on 12 May 2002, and they
+      were corrected.
+      Some more examples were added on 20 May 2002, and some language fixing 
+      was done on 25 May 2002.
+      Added some notes on shlibs.local file at the end on 23 June 2002, because
+      this document was missing that large portion.
+      Added notes on libvorbis breakage on 8 Aug 2002, and start adding symbol versioning information (not really complete.)
+      Notes on binary compatibility and shared library versioning are updated.
+      Rewording on confusing binarycompat section cleared up slightly, 9 Aug 2002.
+      Updates on versioned symbols, 13 Feb 2003.
+    </para>
+    <para>
+      More documentation on versioned symbols and dlopening problems, 
+      summarising what was discussed over libssl0.9.6/0.9.7 discussion, on 
+      17 Mar 2003.
+      Also, on that occasion, a read-through and general improvements was done over the
+      text.
+    </para>
+    <para>
+      25 Jun 2003; Received fixes on some text from John Belmonte.
+    </para>
+    <para>
+      28 Sep 2003; added URL from what was said on IRC wrt symbol versioning.
+    </para>
+    <para>
+      18 Apr 2004; updates on testing/unstable migration problem.
+    </para>
+    <para>
+      1 June 2004: update after vorlon's talk on dependency hells,
+      a howto on making a shared library with versioned symbol.
+    </para>
+    <para>
+      14 Jul 2004: Quickly added a -rpath chapter, since nothing
+      was said in libpkg-guide, and DWN had something to say.
+    </para>
+    <para>
+      5 Feb 2005: translated to docbook XML format
+    </para>
+    <para>      Distributed under the terms of GPL version 2 or later.
+    </para>
+  </chapter>
+</book>
