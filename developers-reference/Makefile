@@ -82,7 +82,7 @@ clean:
 	      developers-reference*.sasp* developers-reference*.tex \
 	      developers-reference*.aux developers-reference*.toc \
 	      developers-reference*.idx developers-reference*.log \
-	      developers-reference*.out
+	      developers-reference*.out developers-reference*.dvi
 	rm -f version.ent
 	rm -f `find . -name "*~"`
 
