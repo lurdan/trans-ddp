@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.25 $"  -->
+<!-- CVS revision of this document "$Revision: 1.26 $"  -->
 
 <chapt id="install">Debian System installation hints
 
@@ -430,44 +430,115 @@ I like a transparent system, so I set <prgn>umask</prgn> to 002 or 022.
 
 <sect>Mouse configuration
 <p>
-<sect1>PS2 mice
+<sect1>PS/2 mice
 <p>
-In the case of a PS/2-connector mouse on an ATX motherboard, the signal flow
-should be:
+In the case of a PS/2-connector mouse on an ATX motherboard, the signal 
+flow should be:
 <example>
 mouse -&gt; /dev/psaux -&gt; gpm -&gt; /dev/gpmdata = /dev/mouse -&gt; X
 </example>
-This allows the keyboard and mouse to be unplugged and reinitialized by
-restarting gpm upon reconnect.  X will stay alive! 
+Here, a symlink <file>/dev/mouse</file> is created and is pointing to
+<file>/dev/gpmdata</file> to make some configuration utilities happy and
+to make reconfiguration easy. 
+( e.g. If you decide not to use the gpm daemon after all, just point the
+symlink <file>/dev/mouse</file> to <file>/dev/psaux</file> after getting
+rid of the <prgn>gpm</prgn> daemon.)
 <p>
-For a Logitech 3-button <strong>PS2</strong> mice, 
-configuration combinations should be:
+This signal flow allows the keyboard and mouse to be unplugged and
+reinitialized by restarting <prgn>gpm</prgn> upon reconnect.  
+X will stay alive! 
+<p>
+The protocol of the signal flow between <prgn>gpm</prgn> output and X input
+can be implemented in either of two ways, as "ms3" (use the Microsoft 3-button
+serial mouse protocol) or "raw" (use the same protocol as the mouse
+connected), and this choice dictates the choice of protocol used in X
+configuration.
+<p>
+I will demonstrate the configuration examples using a Logitech 3-button
+(traditional Unix-style mouse) PS/2 mouse as an example in the following.
+<p>
+If you are one of the unfortunate whose graphics card is not supported 
+by new X4 and needs to use old X3 (some ATI 64 bit card), configure 
+<tt>/etc/X11/X86Config</tt> instead of <tt>/etc/X11/X86Config-4</tt>
+in the following examples while installing X3 packages.
+
+<sect2 id="gpmms3">The ms3 protocol approach
+<p>
 <example>
-/etc/gpm.conf               /etc/X11/X86Config or X86Config-4
-=============================================================
-device=/dev/psaux             Section "Pointer"
-responsiveness=                 Protocol    "IntelliMouse"
-repeat_type=ms3                 Device      "/dev/gpmdata"
-type=ps2auto   (Woody)
-append=""
---------------------------------------------------------------
-device=/dev/psaux             Section "Pointer"
-responsiveness=                 Protocol    "IntelliMouse"
-repeat_type=raw                 Device      "/dev/gpmdata"
-type=ps2auto  (Woody)
-append=""
+/etc/gpm.conf            | /etc/X11/X86Config-4
+=========================+======================================
+device=/dev/psaux        | Section "InputDevice"
+responsiveness=          |  Identifier "Configured Mouse"
+repeat_type=ms3          |  Driver     "mouse"
+type=autops2             |  Option     "CorePointer"
+append=""                |  Option     "Device"   "/dev/mouse"
+sample_rate=             |  Option     "Protocol" "IntelliMouse"
+                         | EndSection
 </example>
-If a normal 2-button PS2 mouse is used, set the X protocol to
-<tt>Microsoft</tt> 
-and enable <tt>Emulate3Buttons</tt>.
-For a scroll mouse, you can adjust X to the real protocol, such as 
-<tt>IMPS/2</tt>.
-Create a symlink <file>/dev/gpmdata</file> --&gt; <file>/dev/mouse</file> to make some 
-configuration utilities happy. 
-<url id="examples/" name="See my example scripts for details">.
+If this approach is used, the mouse type adjustment is done only by
+editing <file>gpm.conf</file> and X configuration stays constant.
+See <url id="examples/" name="my example scripts">.
+
+<sect2 id="gpmraw">The raw protocol approach
 <p>
-For some recent thin Toshiba notebook PCs: Activate <prgn>gpm</prgn> before PCMCIA in 
-the System-V init script.  This keeps <prgn>gpm</prgn> from crashing.  Weird but true.
+<example>
+/etc/gpm.conf            | /etc/X11/X86Config-4
+=========================+======================================
+device=/dev/psaux        | Section "InputDevice"
+responsiveness=          |  Identifier "Configured Mouse"
+repeat_type=raw          |  Driver     "mouse"
+type=autops2             |  Option     "CorePointer"
+append=""                |  Option     "Device"   "/dev/mouse"
+sample_rate=             |  Option     "Protocol" "MouseManPlusPS/2"
+                         | EndSection
+</example>
+If this approach is used, the mouse type adjustment is done by
+editing <file>gpm.conf</file> as well as adjusting X configuration.
+
+<sect2>How to adjust to different mice
+<p>
+The <prgn>gpm</prgn> device type <tt>autops2</tt> is supposed to 
+auto detect most of the PS/2 mice in the market.  Unfortunately it 
+doesn't always work and it isn't available in pre-Woody versions.  
+Try using <tt>ps2</tt>, or <tt>imps2</tt> in <file>gpm.conf</file> 
+instead of <tt>autops2</tt> for such cases.  To find out the specific 
+types of mouse gpm knows about type: <tt>gpm -t help</tt>.
+See <manref name="gpm" section="8">.
+<p>
+If a 2-button PS/2 mouse is used, set the X protocol to
+enable <tt>Emulate3Buttons</tt>. The difference of protocol between 
+the 2-button mouse and the 3-button mouse is auto detected and auto 
+adjusted for <prgn>gpm</prgn> after tapping the middle button once.
+<p>
+For X protocol with <ref id="gpmraw"> or without <prgn>gpm</prgn>, use:
+<list compact>
+<item><tt>IntelliMouse</tt>: serial port mouse (gpm repeater with "ms3")
+<item><tt>PS/2</tt>: PS/2 port mouse (always test this first)
+<item><tt>IMPS/2</tt>: any PS/2 port mice (2, 3, or scroll mice, better)
+<item><tt>MouseManPlusPS/2</tt>: Logitech PS/2 port mouse
+<item><tt>...</tt>
+</list>
+See more at <url id="&mousexf86;" name="Mouse Support in XFree86">.
+<p>
+For typical Microsoft scroll mouse, it is reported to work 
+best with:
+<example>
+/etc/gpm.conf            | /etc/X11/X86Config-4
+=========================+======================================
+device=/dev/psaux        | Section "InputDevice"
+responsiveness=          |  Identifier "Configured Mouse"
+repeat_type=raw          |  Driver     "mouse"
+type=autops2             |  Option     "CorePointer"
+append=""                |  Option     "Device"   "/dev/mouse"
+sample_rate=             |  Option     "Protocol" "IMPS/2"
+                         |  Option     "Buttons" "5"
+                         |  Option  "ZAxisMapping" "4 5"
+                         | EndSection
+</example>
+<p>
+For some recent thin Toshiba notebook PCs, activating <prgn>gpm</prgn>
+before PCMCIA in the System-V init script may help prevent system
+lock-up.  Weird but true.
 
 <sect1>USB mice
 <p>
@@ -491,16 +562,20 @@ with major 13 and minor 63 as follows:
 For Logitech 3-button <strong>USB</strong> mice, 
 configuration combinations should be:
 <example>
-/etc/gpm.conf                 /etc/X11/X86Config or X86Config-4
-===============================================================
-device=/dev/input/mice        Section "InputDevice"
-responsiveness=                 Option "Protocol" "ImPS/2"
-repeat_type=ms3                 Option "Device" "/dev/input/mice"
-type=ps2                        Option "ZAxisMapping" "4 5"
-append=""                     EndSection
+/etc/gpm.conf            | /etc/X11/X86Config-4
+=========================+======================================
+device=/dev/input/mice   | Section "InputDevice"
+responsiveness=          |  Identifier "Generic Mouse"
+repeat_type=raw          |  Driver     "mouse"
+type=autops2             |  Option     "SendCoreEvents" "true"
+append=""                |  Option     "Device"   "/dev/input/mice"
+sample_rate=             |  Option     "Protocol" "IMPS/2"
+                         |  Option     "Buttons" "5"
+                         |  Option  "ZAxisMapping" "4 5"
+                         | EndSection
 </example>
-[This USB mouse section was written by Jan Michael C Alonzo 
-<email>jmalonzo@softhome.net</email>.]
+[This USB mouse section was originally written by Jan Michael C Alonzo 
+<email>jmalonzo@softhome.net</email>.] 
 <p>
 See <url id="&linuxusb;" name="Linux USB Project"> for more information.
 </sect>
