@@ -7,7 +7,7 @@
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
 # this can and will be overriden by a higher level makefile
-PUBLISHDIR := ../../../public_html/manuals.html
+PUBLISHDIR := /var/www
 
 all: html txt ps
 
@@ -34,6 +34,8 @@ publish: html
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
+	test -f $(PUBLISHDIR)/$(MANUAL)/index.en.html && \
+	ln -fs $(PUBLISHDIR)/$(MANUAL)/index.en.html $(PUBLISHDIR)/$(MANUAL)/index.html
 
 # validating SGML
 validate:
