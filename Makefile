@@ -17,6 +17,7 @@ SUBDIRS	:=	\
 		programmer		\
 		intro-i18n		\
 		java-faq		\
+		euro-support		\
 		faq
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
