@@ -23,7 +23,7 @@
 # in this directory.
 
 # Basename for sgml
-#MANUAL := $(notdir $(shell pwd))
+#MANUAL := $(notdir $(CURDIR))
 
 # Publish directory
 # This can and will be overriden by a higher level makefile
