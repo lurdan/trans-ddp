@@ -74,13 +74,16 @@ date.ent:
 
 # generate entities which are dynamically defined by the settings of this
 # build run, generally set in the top-level config file (always make)
-dynamic.ent::
+#dynamic.ent: dynamic.%.ent
+#	cp -f $< $@
+
+dynamic.%.ent:
 	@#echo H===$(HTDOCS)===
 	@#echo M===$(MANUAL)===
 	@#echo M===$(PUBLISHDIR)===
 	: > $@                       # clear the file
-	@echo "<!entity language \"$(TLANG)\">" >> $@
-	@echo "<!entity % lang-$(TLANG) \"INCLUDE\">" >> $@
+	@echo "<!entity language \"$*\">" >> $@
+	@echo "<!entity % lang-$* \"INCLUDE\">" >> $@
 	@echo "<!entity booklet \"$(BOOK)\">" >> $@
 	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
 
@@ -97,14 +100,14 @@ $(MANUAL).%.sgml: qref.sgml
 
 #----[ generating HTML ]-------------------------------------------------------
 # for orig_lang
-$(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.ent
+$(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
 	debiandoc2html -l $(ORIG_LANG) -c $< 2>_html.error
 
 # for translated languages
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.ent
+$(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	debiandoc2html -l $* -c $< 2>_html.$*.error
 	@echo "cleaning up file extensions";\
 	for file in `ls $(MANUAL).$*.html/*` ; do\
@@ -120,11 +123,11 @@ $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.ent
 
 #----[ generating plain text ]-------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.ent
+$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.%.ent
 	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
 
 # for translated languages
-$(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.ent
+$(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	debiandoc2text -l $* $< 2>_txt.$*.error
 
 #----[ generating tov ]--------------------------------------------------------
@@ -231,7 +234,7 @@ clean distclean:
 	rm -rf $(MANUAL)*.html
 	rm -f $(MANUAL).??.sgml 
 	rm -f *.error
-	rm -f dynamic.ent date.ent
+	rm -f dynamic.ent date.ent dynamic.??.ent
 
 
 .PHONY: all html txt ps\
