@@ -1,13 +1,14 @@
 # Top-level makefile for the Debian Documentation Project manuals
 
 # live documentation
-SUBDIRS	:=	
+SUBDIRS	:= apt-get-mini-COMO apt-guia-usuarios making-packages \
+           mitos-debian
 
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
 # where we should publish to
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals/es
 THISSUBDIR :=	$(shell basename $(shell pwd))
 # How to install stuff in publish directory
 install_file := install -p -m 664
