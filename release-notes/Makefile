@@ -12,7 +12,7 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-LANGUAGES := en fr nl pt cs it da de
+LANGUAGES := en fr nl pt cs it da de ja fi
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
