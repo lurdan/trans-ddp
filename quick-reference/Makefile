@@ -12,13 +12,7 @@
 # ------------------------------------------------------------------- #
 # Read local texmf.cnf file
 
-ifeq ("$(BUILD_TYPE)", "web")
-# DDP: woody
-export TEXMFCNF=texmf-ddp/
-else
-# SF buils or Package: sid
-export TEXMFCNF=texmf/
-endif
+export TEXMFCNF=texmf:
 
 # Following default shall be edited by the coordinator for the entire
 # set of languages.  If a subsection owner wishes to override settings,
