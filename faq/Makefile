@@ -28,7 +28,7 @@ validate:
 	nsgmls -gues debian-faq.sgml
 
 clean distclean:
-	rm -f debian-faq.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc} *~ .*~ core tsa*
+	rm -f debian-faq.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*} *~ .*~ core tsa*
 	rm -rf debian-faq.html
 	test -f ../debian/changelog || rm -f faqdynamic.ent
 
