@@ -16,6 +16,8 @@ export PATH:=../quick-reference/bin/:${PATH}
 
 export TEXMFCNF=texmf:
 
+.SUFFIXES:
+
 # Following default shall be edited by the coordinator for the entire
 # set of languages.  If a subsection owner wishes to override settings,
 # they can be overridden by running make with "make 'LANGS1=fi'" etc.. 
@@ -44,8 +46,7 @@ PUBLISHDIR := ~/public_html/manuals.html
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en de fr es it ru ja zh-cn
 # List of languages built for "publish" target for DDP
-LANGS := en de fr es it ru
-
+LANGS    := en de fr es it ru ja
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -115,9 +116,8 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 	        $< > $(MANUAL).$*.sgml
 
 # HTML
-
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2html -l $* -c $<
+	debiandoc2html -l $(subst pt-br,pt_BR,$*) -c $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	newfile=`echo $$file|\
@@ -134,18 +134,18 @@ $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 # TXT
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2text -l     $* $<
+	debiandoc2text -l $(subst pt-br,pt_BR,$*) $<
 
 
 # PS
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2latexps -l  $(subst pt-br,pt_BR,$*) $<
+	debiandoc2latexps -l $(subst pt-br,pt_BR,$*) $<
 
 # PDF
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -l $(subst pt-br,pt_BR,$*) $<
 
 
 # =================================================================== #
