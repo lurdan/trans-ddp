@@ -8,13 +8,14 @@
 # What is the current manual's name
 MANUAL :=	$(shell basename $(shell pwd))
 # Where are we publishing to?
+#  (this can be overriden by a higher level makefile)
 PUBLISHDIR :=	../../../public_html/manuals.html
 
-# What do we want?
+# What do we want by default?
 all:		publish
 
 # This target installs the generated HTML in the published directory.
-publish:	html
+publish:	$(MANUAL).html
 # 		fail if there is no PUBLISHDIR
 		[ -d $(PUBLISHDIR) ] || exit 1
 		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
@@ -22,11 +23,17 @@ publish:	html
 		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
 			$(PUBLISHDIR)/$(MANUAL)/
 
-html:		$(wildcard *.sgml)
+$(MANUAL).html:	$(wildcard *.sgml)
 		debiandoc2html $(MANUAL).sgml
 
-clean:	
+# ensure our SGML is valid
+#   (add this to $(MANUAL).html rule to prevent building if not)
+validate:
+		nsgmls -gues $(MANUAL).sgml
+
+clean:
 		rm -rf $(MANUAL).html
 
 distclean:	clean
 
+.PHONY: all publish clean distclean validate
