@@ -1,49 +1,256 @@
 #
-# Makefile for the APT-HOWTO
+# Makefile Template
+# Modified for apt-howto due to unconventional file names.
+# Also "ko" has problem in my system for "ps" and "pdf".
 #
-# stolen from maint-guide =)
+#  Build html(multi-page), txt, ps, pdf, and other formats.
 #
+# Should work both for a manual in the Debian Documentation Project
+# manuals.sgml tree, and for the package build.
 
-MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
+##### CONF PART ###############################################################
 
-# this can and will be overriden by a higher level makefile
-PUBLISHDIR := /var/www
+# The directory in which this makefile resides must also contain a file
+# called <directoryname>.sgml, which is the top-level file for the manual
+# in this directory.
 
-all: html txt ps
+# Basename for sgml
+MANUAL := $(notdir $(shell pwd))
 
-# generating HTML
-html: $(patsubst %.sgml,%.html/index.html,$(wildcard *.sgml))
+# Publish directory
+# This can and will be overriden by a higher level makefile
+PUBLISHDIR := ../../../public_html/manuals.html
 
-$(MANUAL)-%.html/index.html: $(MANUAL)-%.sgml
-	debiandoc2html -c -l $* $<
+# The cannonical language, in which the original document is
+ORIG_LANG := en
 
-# generating plain text
-txt text: $(patsubst %.sgml,%.txt,$(wildcard *.sgml))
+# List of langs (above the canonical one)
+LANGS := en es pl ko pt_BR
 
+# List of langs to eXclude from pdf/ps 
+# Only because it breaks system.  If anyone know how-to fix, let me know.
+# LaTeX Error: File `euc-kr.def' not found (from apt-howto-ko.log)
+#XLANGS := 
+XLANGS := ko
+
+# List of output format
+# Possible values are EXTS=html txt tov pdf ps info
+EXTS := html txt info
+# "ps" and "pdf" was removed since "ko" conflicts
+# Call this script with following to avoid problem.
+# $ make "EXTS=ps pdf" "LANGS=en es pl pt_BR" publish-files 
+
+# maximum times we're willing to run TeX to get cross-references right, 
+# if you subtract by 3 (taken from Adam di Carlo's boot-floppy trick)
+MAX_TEX_RECURSION	:= 7
+
+# List of publish target for DDP
+publish: publish-html publish-files
+
+# If sgml for original language does not use mid-extension
+#%-$(ORIG_LANG).sgml: %.sgml
+#	cp -f $*.sgml $*-$(ORIG_LANG).sgml
+
+##### END OF CONF PART CHANGE THE END AT YOU OWN RISK ########################
+
+# List of html to be built
+HTMLDIRS := $(foreach lang,$(LANGS),$(MANUAL)-$(lang).html)
+
+# List of non-html EXTS
+FILEEXTS := $(filter-out html,$(EXTS))
+
+# List of non-html to be build
+ALLFILES0 := $(foreach ext,$(FILEEXTS),\
+	    $(foreach lang,$(LANGS),$(MANUAL)-$(lang).$(ext))\
+	  )
+
+XALLFILES := $(foreach ps pdf,$(FILEEXTS),\
+	    $(foreach lang,$(XLANGS),$(MANUAL)-$(lang).$(ext))\
+	  )
+
+ALLFILES := $(filter-out $(XALLFILES),$(ALLFILES0))
+
+# List of ps to be build (compatibility)
+PSFILES := $(foreach lang,$(LANGS),$(MANUAL)-$(lang).ps)
+
+# List of sgml to be build
+SGMLFILES := $(foreach lang,$(LANGS),$(MANUAL)-$(lang).sgml)
+
+#====[ build rules ]===========================================================
+# generate anything some dirs want version.ent to be builded, some not
+
+DEBIAN=$(wildcard debian)
+ifeq ($(DEBIAN),"debian")
+all: version.ent $(HTMLDIRS) $(ALLFILES)
+else
+all: $(HTMLDIRS) $(ALLFILES)
+endif
+
+version.ent: debian/changelog
+	./debian/rules $@
+
+
+#----[ generating HTML ]-------------------------------------------------------
+# FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
+#        which should be reverted to have the content negociation working.
+#   This trick is bad. debiandoc2html should be corrected.
+$(MANUAL)-%.html: $(MANUAL)-%.sgml
+	debiandoc2html    -l $* -c $<
+#	debiandoc2html -1 -l $* -c $<
+	@echo "cleaning up file extensions";\
+	for file in `ls $(MANUAL)-$*.html/*` ; do\
+	 newfile=`echo $$file|\
+	          sed 's/$(shell echo $*|\
+	      sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
+	                  )\.html/$*\.html/'`;\
+	 if [ $$file != $$newfile ] ; then\
+	   mv $$file $$newfile;\
+	 fi\
+	done;   
+
+#----[ generating plain text ]-------------------------------------------------
 $(MANUAL)-%.txt: $(MANUAL)-%.sgml
 	debiandoc2text -l $* $<
 
-# generating PostScript
-ps: $(patsubst %.sgml,%.ps,$(wildcard *.sgml))
+#----[ generating tov text ]---------------------------------------------------
+$(MANUAL)-%.tov: $(MANUAL)-%.sgml
+	debiandoc2textov -l $* $<
 
-$(MANUAL)-%.ps: $(MANUAL)-%.sgml
-	debiandoc2latexps -l $* $<
+#----[ generating info ]-------------------------------------------------------
+#$(MANUAL)-%.info: $(MANUAL)-%.sgml
+#	debiandoc2info -l $* $<
 
-# publishing to the DDP web pages
-publish: html
-	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+# for now we avoid problem with above with followings
+$(MANUAL)-%.texinfo: $(MANUAL)-%.sgml
+	debiandoc2texinfo -l $* $<
+
+$(MANUAL)-%.info: $(MANUAL)-%.texinfo
+	makeinfo --force -v -o $(MANUAL)-$*.info $(MANUAL)-$*.texinfo
+
+#----[ generating teTeX ]------------------------------------------------------
+$(MANUAL)-%.tex: $(MANUAL)-%.sgml
+	debiandoc2latex -l $* $<
+
+#----[ generating PostScript ]-------------------------------------------------
+$(MANUAL)-%.ps: $(MANUAL)-%.tex
+#	debiandoc2latexps -l $* $<
+# for now we avoid problem with above with followings
+# note that I have seen bi-stable .aux files, thus we check two levels deep
+	@-cp -pf prior.aux pprior.aux 2>/dev/null
+	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
+#	 fail if we don't have pdflatex correctly installed
+	@kpsewhich latex.fmt >/dev/null
+#	 due to a bug in debiandoc2latex2e output, this might fail
+	@-latex '\nonstopmode\input{$<}' >/dev/null 
+	# see $(@:.ps=.log) for details
+	dvips -t `cat /etc/papersize` -o $(MANUAL)-$*.ps $(MANUAL)-$*
+	@set -e								;\
+	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
+	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
+		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
+		then							\
+		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
+		   rm -f $@						;\
+		   $(MAKE) $@						;\
+		else							\
+		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
+		fi							\
+	fi
+	@rm -f prior.aux pprior.aux
+
+#----[ generating PDF ]--------------------------------------------------------
+$(MANUAL)-%.pdf: $(MANUAL)-%.tex
+#	debiandoc2latexpdf -l $* $<
+# for now we avoid problem with above with followings
+# note that I have seen bi-stable .aux files, thus we check two levels deep
+	@-cp -pf prior.aux pprior.aux 2>/dev/null
+	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
+#	 fail if we don't have pdflatex correctly installed
+	@kpsewhich pdflatex.fmt >/dev/null
+#	 due to a bug in debiandoc2latex2e output, this might fail
+	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
+	# see $(@:.pdf=.log) for details
+	@set -e								;\
+	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
+	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
+		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
+		then							\
+		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
+		   rm -f $@						;\
+		   $(MAKE) $@						;\
+		else							\
+		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
+		fi							\
+	fi
+	@rm -f prior.aux pprior.aux
+
+#====[ publishing to the DDP web pages ]=======================================
+#----[ publish html ]----------------------------------------------------------
+publish-html: $(HTMLDIRS)
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
-	test -f $(PUBLISHDIR)/$(MANUAL)/index.en.html && \
-	ln -fs $(PUBLISHDIR)/$(MANUAL)/index.en.html $(PUBLISHDIR)/$(MANUAL)/index.html
+	# install all html
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL)-$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;\
+	)
 
-# validating SGML
-validate:
-	set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
+#----[ publish all files except html ]-----------------------------------------
+publish-files: $(ALLFILES)
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	# clear all old non-html: $(FILEEXTS)
+	@$(foreach ext,$(FILEEXTS),\
+	 if [ "$(ext)" == "info" ] ; then \
+	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.info*;\
+	 else \
+	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(ext);\
+	 fi ;\
+	)
+	# install all non-html: $(FILEEXTS)
+	@$(foreach ext,$(FILEEXTS),\
+	 $(foreach lang,$(LANGS),\
+	  if [ "$(ext)" == "info" ] ; then \
+	   install -p -m 644 $(MANUAL)-$(lang).info* $(PUBLISHDIR)/$(MANUAL)/;\
+	  else \
+	   install -p -m 644 $(MANUAL)-$(lang).$(ext) $(PUBLISHDIR)/$(MANUAL)/;\
+	  fi ;\
+	 )\
+	)
+	# make the symlinks for $(FILEEXTS)
+	@$(foreach ext,$(FILEEXTS),\
+	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL)-$(ORIG_LANG).$(ext)\
+	        $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
+	)
 
-# cleaning up
-clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
+#----[ publish the ps ]--------------------------------------------------------
+# Just in case external program uses this target (Doubtful)
+publish-ps: $(PSFILES)
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.ps
+	# install all ps
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL)-$(lang).ps \
+	                   $(PUBLISHDIR)/$(MANUAL)/ ;
+	)
+	# make the symlinks for ps
+	ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL)-$(ORIG_LANG).ps\
+	       $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
+
+#====[ validating SGML ]=======================================================
+validate: $(SGMLFILES)
+	set -x; for i in $(SGMLFILES); do nsgmls -gues -wall $$i; done
+
+#====[ cleaning up ]===========================================================
+distclean: clean
+	rm -rf $(PUBLISHDIR)/$(MANUAL)
+
+clean:
+	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
+	rm -f *~ prior.aux pprior.aux
 	rm -rf $(MANUAL)*.html
 
-.PHONY: all publish clean distclean validate
+.PHONY: all publish\
+	publish-html publish-ps \
+	clean distclean validate
