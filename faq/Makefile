@@ -31,8 +31,8 @@ publish: all
 	ln -sf $(manual).en.txt $(PUBLISHDIR)/$(manual)/$(manual).txt
 	ln -sf $(manual).en.ps $(PUBLISHDIR)/$(manual)/$(manual).ps
 	ln -sf $(manual).en.pdf $(PUBLISHDIR)/$(manual)/$(manual).pdf
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	@[ ! -d ru ] || $(MAKE) -C ru $@
+	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
 
 faqdynamic.ent:
 	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
@@ -46,8 +46,8 @@ validate:
 	nsgmls -ges -wall $(manual).sgml
 
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	@[ ! -d ru ] || $(MAKE) -C ru $@
+	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
@@ -55,8 +55,8 @@ $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	mv $(manual).html $(manual).$(currentlang).html
 
 text: $(manual).$(currentlang).txt
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	@[ ! -d ru ] || $(MAKE) -C ru $@
+	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
@@ -72,14 +72,14 @@ $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang
 	mv $(manual).$* $(manual).$(currentlang).$*
 
 ps dvi pdf info: %: $(manual).$(currentlang).%
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	@[ ! -d ru ] || $(MAKE) -C ru $@
+	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
 	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,out,sasp*}
 	rm -f faqdynamic.ent *~ .*~ core tsa*
-	$(MAKE) -C ru $@
-	$(MAKE) -C pt_BR $@
+	@[ ! -d ru ] || $(MAKE) -C ru $@
+	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
 
 .PHONY: all publish clean distclean validate
