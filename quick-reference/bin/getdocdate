@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Copyright Jens Seidel, Sun May 4 2003
+#
+# This script outputs date in a language specific format and can be used in
+# Makefile or related files.
+# "bin/getdocdate de" outputs current date in German:
+#    Mon 16. Jun 2003, 17:18:46 UTC,
+# "bin/getdocdate -p fi" outputs date from changelog in Finnish.
+
+if [ x"$1" = x"-p" -a "$0" != "bin/getdocdate" ]; then
+  echo "Start this from base directory of the checked out CVS tree."
+  exit 2
+fi
+
+if [ \( $# -ne 2 -o x"$1" != x"-p" \) -a \( $# -ne 1 -o x"$1" = x"-p" \) ]
+then
+  echo "usage: $0 [ -p ] en|de|...  output date for specified language"
+  echo "  -p  use date from Debian package changelog"
+  exit 2
+fi
+
+datearg=""
+lang="$1"
+if [ x"$1" = x"-p" ]; then
+  lang="$2"
+  # obtain date from changelog
+  olddate=$(LC_ALL=C dpkg-parsechangelog | sed -n 's/^Date: *//p')
+  # use $olddate instead of current
+  datearg="--date \"$olddate\""
+fi
+day=$(eval date $datearg '+%w')   # 0,..,6
+day=$(echo $day+1 | bc)           # 1,..,7
+month=$(eval date $datearg '+%m') # 01,..,12
+# default format: Sun May 4 20:52:14 UTC 2003
+datefmt="$datearg -u \"+\$day \$month %-d %H:%M:%S %Z %Y\""
+case "$lang" in
+  # If you add a new language please note that the internal day list starts
+  # with Sunday (Sun:Mon:Tue:...:Sat) and the month list with January.
+  # The document encoding should be used instead of a fixed one.
+  # See the German (de) example and `info date` how to specify a different
+  # date output format.
+  de) day=$(echo "Son:Mon:Die:Mit:Don:Fre:Sam" | cut -d: -f$day)
+      month=$(echo "Jan:Feb:Mär:Apr:Mai:Jun:Jul:Aug:Sep:Okt:Nov:Dez" | \
+              cut -d: -f$month)
+      datefmt="$datearg -u \"+\$day %-d. \$month %Y, %H:%M:%S %Z\"";;
+  en) day=$(LC_ALL=C eval date $datearg '+%a')
+      month=$(LC_ALL=C eval date $datearg '+%b');;
+  es) day=$(echo "dom:lun:mar:mié:jue:vie:sáb" | cut -d: -f$day)
+      month=$(echo "ene:feb:mar:abr:may:jun:jul:ago:sep:oct:nov:dic" | \
+              cut -d: -f$month);;
+  fi) day=$(echo "su:ma:ti:ke:to:pe:la" | cut -d: -f$day)
+      month=$(echo \
+      "tammi:helmi:maalis:huhti:touko:kesä:heinä:elo:syys:loka:marras:joulu" |\
+              cut -d: -f$month);;
+  fr) day=$(echo "dim:lun:mar:mer:jeu:ven:sam" | cut -d: -f$day)
+      month=$(echo "jan:fév:mar:avr:mai:jun:jui:aoû:sep:oct:nov:déc" | \
+              cut -d: -f$month)
+      datefmt="$datearg -u \"+\$day %d \$month %Y %H:%M:%S %Z\"";;
+  it) day=$(echo "dom:lun:mar:mer:gio:ven:sab" | cut -d: -f$day)
+      month=$(echo "gen:feb:mar:apr:mag:giu:lug:ago:set:ott:nov:dic" | \
+              cut -d: -f$month);;
+  pl) day=$(echo "niedziela:poniedzia³ek:wtorek:¶roda:czwartek:pi±tek:sobota" |\
+ 			  cut -d: -f$day)
+      month=$(echo "styczeñ:luty:marzec:kwiecieñ:maj:czerwiec:lipiec:sierpieñ:wrzesieñ:pa¼dziernik:listopad:grudzieñ" | \
+              cut -d: -f$month)
+	  datefmt="$datearg -u \"+\$day, %-d \$month %Y, %H:%M:%S %Z\"";;
+  pt-br) day=$(echo "Dom:Seg:Ter:Qua:Qui:Sex:Sáb" | cut -d: -f$day)
+      month=$(echo "Jan:Fev:Mar:Abr:Mai:Jun:Jul:Ago:Set:Out:Nov:Dez" | \
+              cut -d: -f$month);;
+  zh-tw) day=$(echo "¶g¤é:¶g¤@:¶g¤G:¶g¤T:¶g¥|:¶g¤­:¶g¤»" | cut -d: -f$day)
+      month=$(echo \
+         "¤@¤ë:¤G¤ë:¤T¤ë:¥|¤ë:¤­¤ë:¤»¤ë:¤C¤ë:¤­¤ë:¤E¤ë:¤Q¤ë:¤Q¤@¤ë;¤Q¤G¤ë" | \
+              cut -d: -f$month);;
+  *)  echo "$0: language \"$lang\" isn't supported."
+      echo "Please try one of de, en, es, fi, fr, it, pl, pt-br, zh-tw."
+      exit 2;;
+esac
+# output date ...
+# echo "olddate: $olddate, day: $day, month: $month"
+LC_ALL=C eval date $datefmt
