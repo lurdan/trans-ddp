@@ -12,6 +12,8 @@
 # ------------------------------------------------------------------- #
 # Read local texmf.cnf file
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 export TEXMFCNF=texmf:
 
 # Following default shall be edited by the coordinator for the entire
@@ -78,8 +80,7 @@ PDFS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).pdf)
 # =================================================================== #
 # If some languages have problems building, filter-out in here.
 
-all: html txt 
-#all: html txt ps pdf
+all: html txt ps pdf
 html: $(HTMLS)
 text txt:  $(TXTS)
 ps:   $(PSS)
