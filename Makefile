@@ -8,6 +8,7 @@ SUBDIRS	:=	\
 		debian-bugs	 	\
 		developers-reference	\
 		dictionary 		\
+		distribute-deb		\
 		dselect-beginner 	\
 		euro-support		\
 		faq			\
@@ -21,6 +22,7 @@ SUBDIRS	:=	\
 		project-history 	\
 		quick-reference		\
 		release-notes	 	\
+		repository-howto	\
 		securing-howto		\
 		system-administrator 	\
 		tutorial		\
@@ -28,9 +30,6 @@ SUBDIRS	:=	\
 		users-guide
 
 # documents with broken or newest Makefiles will be moved to the bottom
-
-#		repository-howto
-#		distribute-deb
 
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
