@@ -5,7 +5,7 @@
 # manuals.sgml tree, and for $(MANUAL) package build.
 
 # Basename for SGML
-MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
+MANUAL := project-history
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
