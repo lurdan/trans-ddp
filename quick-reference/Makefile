@@ -408,7 +408,7 @@ sf-clean:
 scp: publish-all
 	echo SCP strat
 	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
-	ssh $$SFUSER@shell.sf.net install -d -m 755 /home/groups/q/qr/qref/htdocs/Debian/
+	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/
 
 	echo SCP README
 	scp -p README \
