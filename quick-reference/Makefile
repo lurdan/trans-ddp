@@ -22,7 +22,7 @@ ORIG_LANG := en
 LANGS := fr it
 # Because Latex is hard to work with, I just to do text for now
 #EXTS := ps pdf txt tov info
-EXTS := txt
+EXTS := txt ps pdf
 else
 ifeq ("$(HTDOCS)", "htdocs")
 # qref.sourceforge.net
@@ -62,6 +62,8 @@ SGMLSRC = custom.ent default.ent qref.sgml  \
 	 ./??/*.sgml ./examples/* Makefile index.php \
 	 TODO PROJECT README ./bin/* 
 
+# maximum times we're willing to run TeX to get cross-references right, if you subtract by 3
+MAX_TEX_RECURSION	:= 9
 
 #====[ build rules ]===========================================================
 # generate anything some dirs want version.ent to be built, some not
@@ -88,8 +90,6 @@ date.ent:
 
 # generate entities which are dynamically defined by the settings of this
 # build run, generally set in the top-level config file (always make)
-#dynamic.ent: dynamic.%.ent
-#	cp -f $< $@
 
 dynamic.%.ent:
 	: > $@                       # clear the file
@@ -129,6 +129,7 @@ $(MANUAL).%.sgml: qref.sgml
 # for any  languages
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
+
 #   This trick is bad. debiandoc2html should be corrected.
 $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	debiandoc2html -l $* -c $< 2>_html.$*.error
@@ -163,12 +164,32 @@ $(MANUAL).%.tov: $(MANUAL).%.sgml date.ent dynamic.%.ent
 
 #----[ generating info ]-------------------------------------------------------
 # for orig_lang
+#$(MANUAL).$(ORIG_LANG).texinfo: $(MANUAL).$(ORIG_LANG).sgml
+#	debiandoc2texinfo -l $(ORIG_LANG) -c $<
+
+# for translated languages
+$(MANUAL).%.texinfo: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+	debiandoc2texinfo -l $* $<
+
+# Buggy, Top must be moved manually
+
+
+#----[ generating info ]-------------------------------------------------------
+# for orig_lang
 #$(MANUAL).$(ORIG_LANG).info: $(MANUAL).$(ORIG_LANG).sgml
 #	debiandoc2info -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-	debiandoc2info -l $* $<
+#$(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+#	debiandoc2info -l $* $<
+
+$(MANUAL).%.info: $(MANUAL).%.texinfo
+	makeinfo -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
+
+
+#----[ generating teTeX ]------------------------------------------------------
+$(MANUAL).%.tex: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
 # for orig_lang
@@ -176,8 +197,33 @@ $(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent
 #	debiandoc2latexps -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-	debiandoc2latexps -l $* $<
+#$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+#	debiandoc2latexps -l $* $<
+
+# debiandoc2latexps is broken. Imitate Makefile in boot-floppies
+$(MANUAL).%.ps:	$(MANUAL).%.tex
+#	 note that I have seen bi-stable .aux files, thus we check two levels deep
+	@-cp -pf prior.aux pprior.aux 2>/dev/null
+	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
+#	 fail if we don't have pdflatex correctly installed
+	@kpsewhich latex.fmt >/dev/null
+#	 due to a bug in debiandoc2latex2e output, this might fail
+	@-latex '\nonstopmode\input{$<}' >/dev/null 
+	# see $(@:.ps=.log) for details
+	dvips -t `cat /etc/papersize` -o $(MANUAL).$*.ps $(MANUAL).$*
+	@set -e								;\
+	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
+	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
+		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
+		then							\
+		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
+		   rm -f $@						;\
+		   $(MAKE) $@						;\
+		else							\
+		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
+		fi							\
+	fi
+	@rm -f prior.aux pprior.aux
 
 #----[ generating PDF ]--------------------------------------------------------
 # for orig_lang
@@ -185,8 +231,32 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent
 #	debiandoc2latexpdf -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-	debiandoc2latexpdf -l $* $<
+#$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+#	debiandoc2latexpdf -l $* $<
+
+# debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
+$(MANUAL).%.pdf:	$(MANUAL).%.tex
+#	 note that I have seen bi-stable .aux files, thus we check two levels deep
+	@-cp -pf prior.aux pprior.aux 2>/dev/null
+	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
+#	 fail if we don't have pdflatex correctly installed
+	@kpsewhich pdflatex.fmt >/dev/null
+#	 due to a bug in debiandoc2latex2e output, this might fail
+	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
+	# see $(@:.pdf=.log) for details
+	@set -e								;\
+	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
+	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
+		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
+		then							\
+		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
+		   rm -f $@						;\
+		   $(MAKE) $@						;\
+		else							\
+		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
+		fi							\
+	fi
+	@rm -f prior.aux pprior.aux
 
 #====[ publishing to the DDP web pages ]=======================================
 publish: publish-html publish-files publish-tar
