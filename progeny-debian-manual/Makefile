@@ -22,8 +22,9 @@ publish-html: $(HTMLDIRS)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -rf $(PUBLISHDIR)/$(MANUAL)/*
 	install -p -m 644 *.html $(PUBLISHDIR)/$(MANUAL)/
-	mkdir img ; cd img ; install -p -m 644 *.png $(PUBLISHDIR)/$(MANUAL)/img/ ; cd -
-	cd $(PUBLISHDIR)/$(MANUAL)/ ; ln -sf ProgenyTOC.html index.html ; cd -
+	cd $(PUBLISHDIR)/$(MANUAL) ;mkdir img
+	install -p -m 644 img/*.png $(PUBLISHDIR)/$(MANUAL)/img/ 
+	cd $(PUBLISHDIR)/$(MANUAL)/ ; ln -sf ProgenyTOC.html index.html
 
 #====[ cleaning up ]===========================================================
 clean distclean: 
