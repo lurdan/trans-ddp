@@ -214,7 +214,7 @@ publish-html: publish-html1 publish-html2
 publish-html1: html1
 # Ugly but until updating all the web pages, needs these symlinks
 ifeq ("$(BUILD_TYPE)", "web")
-	cd $(PUBLISHDIR) ; rm -f reference
+	cd $(PUBLISHDIR) ; rm -Rf reference
 endif
 	test -d $(PUBLISHDIR)/$(MANUAL1) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)
@@ -231,13 +231,13 @@ ifeq ("$(BUILD_TYPE)", "sf")
 endif
 # Ugly but until updating all the web pages, needs these symlinks
 ifeq ("$(BUILD_TYPE)", "web")
-	cd $(PUBLISHDIR) ; rm -f debian-reference ; ln -sf $(MANUAL1) debian-reference
+	cd $(PUBLISHDIR) ; rm -Rf debian-reference ; ln -sf $(MANUAL1) debian-reference
 endif
 
 publish-html2: html2
 # Ugly but until updating all the web pages, needs these symlinks
 ifeq ("$(BUILD_TYPE)", "web")
-	cd $(PUBLISHDIR) ; rm -f quick-reference
+	cd $(PUBLISHDIR) ; rm -Rf quick-reference
 endif
 	test -d $(PUBLISHDIR)/$(MANUAL2) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
