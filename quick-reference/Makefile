@@ -108,11 +108,6 @@ PDFS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).pdf)
 # If some languages have problems building, filter-out in here.
 
 all: html txt ps pdf
-	rm -Rf $(PUBLISHDIR)/en
-	rm -Rf $(PUBLISHDIR)/es
-	rm -Rf $(PUBLISHDIR)/fr
-	rm -Rf $(PUBLISHDIR)/it
-
 html1: $(HTMLS1)
 html2: $(HTMLS2)
 html: html1 html2
@@ -148,7 +143,7 @@ $(MANUAL2).%.ent:
 	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
 	echo "<!ENTITY docdate \"`LC_ALL=C date '+%Y-%m-%d-%H:%M:%S'`\">" >> $@
 	echo "<!ENTITY docversion \"CVS\">"             >> $@
-	# if "Debian Quick Reference" (20 page max)
+	# if "Debian Quick Reference" (about 20 pages max)
 	echo "<!ENTITY % f-ref   \"IGNORE\">" >> $@ 
 	echo "<!ENTITY % q-ref   \"INCLUDE\">" >> $@
 
