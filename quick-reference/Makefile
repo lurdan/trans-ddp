@@ -10,7 +10,7 @@ ALL_LANGS := en fr it pt es
 # target languages
 LANGS := en
 # Target file type (html ps pdf txt tov info)
-EXTS := html txt ps pdf
+EXTS := html txt
 # publish directory (default for all DDP)
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
