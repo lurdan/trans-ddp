@@ -1,16 +1,25 @@
-manual := distribute-deb
+#
+# Makefile for DDP documentation generated with xmlto etc
+#
+# (Repository HOWTO, How software producers can distribute software
+# in .deb format, etc)
+
+manual := $(notdir $(CURDIR))
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).xml
 
-all: html pdf #dvi ps
+all: html pdf dvi ps
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
 	rm -f $(PUBLISHDIR)/$(manual)/*.html
 	install -p -m 644 $(manual).html $(PUBLISHDIR)/$(manual)
+	install -p -m 644 $(manual).pdf $(PUBLISHDIR)/$(manual)
+	install -p -m 644 $(manual).dvi $(PUBLISHDIR)/$(manual)
+	install -p -m 644 $(manual).ps $(PUBLISHDIR)/$(manual)
 
 validate:
 	nsgmls -s -wxml $(sources)
