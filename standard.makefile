@@ -1,39 +1,42 @@
-# Makefile for a manual in the Debian Documentation Project manuals.sgml
-# tree.
+# template makefile for a manual in the Debian Documentation Project
+# manuals.sgml tree.
 
-# The directory in which this makefile resides must also contain a file
-# called <directoryname>.sgml, which is the top-level file for the manual
-# in this directory.
-
-# What is the current manual's name
-MANUAL :=	$(shell basename $(shell pwd))
 # Where are we publishing to?
-#  (this can be overriden by a higher level makefile)
-PUBLISHDIR :=	../../../public_html/manuals.html
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+# How to install stuff in publish directory
+install_file :=	install -p -m 664
+install_dir :=	install -d -m 2775
+
+# Manual name and its source files
+manual :=	$(notdir $(CURDIR))
+sources :=	$(manual).sgml $(wildcard *.sgml)
 
 # What do we want by default?
-all:		publish
+all: $(manual).html/index.html
 
 # This target installs the generated HTML in the published directory.
-publish:	$(MANUAL).html/index.html
-# 		fail if there is no PUBLISHDIR
-		[ -d $(PUBLISHDIR) ] || exit 1
-		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
-			$(PUBLISHDIR)/$(MANUAL)/
+publish: $(manual).html/index.html
+	[ -d $(PUBLISHDIR)/$(manual) ] || $(install_dir) $(PUBLISHDIR)/$(manual)
+	$(install_file) $(manual).html/*.html $(PUBLISHDIR)/$(manual)/
 
-$(MANUAL).html/index.html:	$(wildcard *.sgml)
-		debiandoc2html $(MANUAL).sgml
+$(manual).html/index.html: $(sources)
+	debiandoc2html $(manual).sgml
+
+$(manual).txt: $(sources)
+	debiandoc2text $(manual).sgml
+
+$(manual).ps $(manual).dvi $(manual).pdf: $(manual).%: $(sources)
+	debiandoc2latex$* $(manual).sgml
 
 # ensure our SGML is valid
-#   (add this to $(MANUAL).html rule to prevent building if not)
+#   (add this to the `all' rule to prevent building if not)
 validate:
-		nsgmls -gues $(MANUAL).sgml
+	nsgmls -ges -wall $(manual).sgml
 
-clean:
-		rm -rf $(MANUAL).html
-
-distclean:	clean
+clean distclean:
+	rm -rf $(manual).html
+	rm -f $(manual).txt $(manual).ps $(manual).dvi $(manual).pdf \
+          $(manual).aux $(manual).log $(manual).man $(manual).tex \
+          $(manual).toc *~ .*~ core tsa*
 
 .PHONY: all publish clean distclean validate
