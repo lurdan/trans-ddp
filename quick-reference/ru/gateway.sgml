@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.1 $"  -->
-<!-- CVS revision of original english document "1.209"  -->
+<!-- CVS revision of this document "$Revision: 1.2 $"  -->
+<!-- CVS revision of original english document "1.232"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -14,7 +14,7 @@ network interfaces need to be supported by the kernel
 and properly configured.
 <p>
 The first requirement is kernel support for network interface devices
-such as Ethernet cards, Wi-Fi cards and modems.  To obtain this support
+such as Ethernet cards, Wi-Fi cards, and modems.  To obtain this support
 you may need to recompile the kernel or add modules to it as
 described in <ref id="kernel">.
 <p>
@@ -38,7 +38,7 @@ Interfaces may be of several different types, including:
 <list compact>
 <item>Loopback:  <tt>lo</tt>
 <item>Ethernet:  <tt>eth0</tt>, <tt>eth1</tt>, ...
-<item>Wi-Fi:  <tt>wifi0</tt>, <tt>wifi1</tt>, ...
+<item>Wi-Fi:  <tt>wlan0</tt>, <tt>wlan1</tt>, ...
 <footnote>
 Note that a Wi-Fi interface is really an alias for an Ethernet
 interface that gives access to the configuration parameters 
@@ -177,7 +177,7 @@ all network interfaces and routing.
 <example>
 # ifconfig
 eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
-     inet addr:192.168.0.3  Bcast:192.168.0.255  Mask:255.255.255.0
+     inet addr:192.168.0.3  Bcast:192.168.255.255  Mask:255.255.0.0
      UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
      RX packets:23363 errors:0 dropped:0 overruns:0 frame:0
      TX packets:21798 errors:0 dropped:0 overruns:0 carrier:0
@@ -210,14 +210,14 @@ lo   Link encap:Local Loopback
 Then we bring it up with the new IP address and new routing.
 <example>
 # ifconfig eth0 inet up 192.168.0.111 \
-           netmask 255.255.0.0 broadcast 192.168.255.255
+           netmask 255.255.255.0 broadcast 192.168.0.255
 # route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.1 dev eth0
 </example>
 The result:
 <example>
 # ifconfig
 eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
-     inet addr:192.168.0.111  Bcast:192.168.255.255  Mask:255.255.0.0
+     inet addr:192.168.0.111  Bcast:192.168.0.255  Mask:255.255.255.0
      UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
      ...
 
@@ -226,9 +226,9 @@ lo   Link encap:Local Loopback
      ...
 # route
 Kernel IP routing table
-Destination  Gateway      Genmask      Flags Metric Ref Use Iface
-192.168.0.0  *            255.255.0.0  U     0      0     0 eth0
-10.0.0.0     192.168.0.1  255.0.0.0    UG    0      0     0 eth0
+Destination  Gateway      Genmask        Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.255.0  U     0      0     0 eth0
+10.0.0.0     192.168.0.1  255.0.0.0      UG    0      0     0 eth0
 </example>
 <p>
 For more information see <manref name="ifconfig" section="8"> and
@@ -243,7 +243,7 @@ and <prgn>route</prgn> commands are:
 <item><tt>ip route list</tt>
 <item><tt>ip link set eth0 down</tt>
 <item><tt>ip addr del dev eth0 local 192.168.0.3</tt>
-<item><tt>ip addr add dev eth0 local 192.168.0.111/16 broadcast 192.168.255.255</tt>
+<item><tt>ip addr add dev eth0 local 192.168.0.111/24 broadcast 192.168.0.255</tt>
 <item><tt>ip link set eth0 up</tt>
 <item><tt>ip route add dev eth0 to 10.0.0.0/8 src 192.168.0.111 via 192.168.0.1</tt>
 </list>
@@ -276,7 +276,7 @@ If you access the Internet through a modem connected to a dial-up
 telephone line then the connection is negotiated using the
 Point-to-Point Protocol (PPP).
 Such connections are accessed as network interface
-<tt>ppp0</tt>, <tt>ppp1</tt> and so on.
+<tt>ppp0</tt>, <tt>ppp1</tt>, and so on.
 <p>
 A PPP interface is managed by the PPP daemon <prgn>pppd</prgn>
 which comes in the <package>ppp</package> package.
@@ -449,6 +449,7 @@ name, so one supplies a client name instead; this was done on the
 kpn                 *            kpn
 user3579@planet.nl  *            myfavoritepet
 </example>
+See <file>&f-ppp-readme;</file> for more information.
 
 <sect2 id="ppp-pppconfig">Configuring <prgn>pppd</prgn> using <package>pppconfig</package>
 <p>
@@ -457,9 +458,6 @@ A quick way to configure <prgn>pppd</prgn> is to use the
 of the same name.
 <prgn>pppconfig</prgn> sets up files like those above
 after asking the user questions through a menu interface.
-<p>
-If you choose to use the <package>resolvconf</package>
-then be sure to select "None" in the "Configure Nameservers" screen.
 
 <sect2 id="ppp-wvdial">Configuring a PPP interface using <package>wvdial</package>
 <p>
@@ -616,35 +614,33 @@ manual intervention to get it to work properly.
 This is certainly true if you have ever customized packages
 so that they update <file>/etc/resolv.conf</file>:
 you will need to disable your customizations.
-<p>
 See <url id="&f-resolvconf;"> for details.
 
-<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; <package>dnsmasq</package>
+<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; <package>nscd</package>, <package>dnsmasq</package>, <package>pdnsd</package>, <package>bind9</package>
 <p>
-Unless your nameserver has to be authoritative for a domain you
-are better off running a caching forwarding local nameserver
-such as <package>dnsmasq</package>.
-It works well with <package>resolvconf</package>.
-
-<sect1 id="dns-bind-cache">Caching looked-up names &ndash; <package>bind</package>
+If your nameserver is slow to respond then you may want to use
+<prgn>nscd</prgn> to cache the results of things that are looked
+up using the <package>libc6</package> resolver.
 <p>
-If you wish you can also use <package>bind9</package> or
-<package>bind</package> as a caching forwarding local nameserver.
-It also works with <package>resolvconf</package>,
-but at the time of writing this (October 2003) you have to set it up
-manually to do so.
-See <url id="&f-resolvconf;"> for instructions.
+If you want to cache results for other hosts on your local network
+then you may want to run a caching forwarding nameserver
+such as <package>dnsmasq</package> or <package>pdnsd</package>.
+<p>
+If you wish you can also use <package>bind9</package>'s
+<prgn>named</prgn> as a caching forwarding nameserver.
+It is a heavy program, though, so unless you need its
+advanced features you are better off with one of the
+packages mentioned earlier.
+<p>
+All of these packages work well with <package>resolvconf</package>.
 
 <sect1 id="dns-bind-server">Providing Domain Name Service &ndash; <package>bind</package>
 <p>
 If you need to provide authoritative name service for a domain
 then you need a fully fledged nameserver such as
-<prgn>named</prgn> which comes in either the <package>bind9</package>
-or the <package>bind</package> package.
-<package>bind9</package> is recommended for new installations.
+<prgn>named</prgn> which comes in the <package>bind9</package> package.
 <p>
-To install <package>bind9</package>, install these basic packages:
-<package>bind9</package>;
+If you install <package>bind9</package> you should also install
 <package>dnsutils</package>.
 You may also want to install these utility packages:
 <package>bind9-host</package>;
@@ -698,19 +694,23 @@ To make this work you must install one of the following packages:
 <list compact>
 <item><package>dhcp3-client</package> (version 3, Internet Software Consortium)
 <item><package>dhcpcd</package> (Yoichi Hariguchi and Sergei Viznyuk)
-<item><package>pump</package> (Redhat)
+<item><package>pump</package> (Red Hat)
 </list>
 
 <package>pump</package> is simple and widely used.
 <package>dhcp3-client</package> is complex but more configurable.
 <footnote>
-As of October 2003 there is also a <package>dhcp-client</package> 
+As of April 2004 there is also a <package>dhcp-client</package> 
 package available.
-This contains version 2 of the ISC DHCP Client which has been
-superseded by version 3 which comes in <package>dhcp3-client</package>.
-The maintainers plan to rename <package>dhcp3-client</package> to
-<package>dhcp-client</package> some day but it does not appear
-that this will happen in time for the release of Sarge.
+This contains version 2 of the ISC DHCP Client.
+This has been superseded by version 3 which is currently
+packaged as <package>dhcp3-client</package>.
+The maintainers plan to rename <package>dhcp3-client</package>
+to <package>dhcp-client</package> after the release of Sarge.
+<p>
+Make sure you do not have the experimental versions
+of <package>dhcp-client</package> installed.
+<package>ifupdown</package> does not work with them.
 </footnote>
 
 <sect id="net-high">High level network configuration in &debian;
@@ -725,16 +725,7 @@ versions of <package>ifupdown</package> is slightly incompatible
 with the file format for earlier Potato versions of the package.
 The <package>ifupdown</package> post-installation script should
 upgrade the file automatically if necessary.
-<!--
-However, if you are upgrading from Potato then you should read
-<manref name="interfaces" section="5"> and examine
-<file>/etc/network/interfaces</file> to make sure that the file
-was converted properly.
-
-My intial note was issues over downgrade from Woody to Potato but it is
-not needed since Woody is stable already and no more old-stable support
-exist for Potato.
--->
+However, it is a good idea to check over the converted file.
 </footnote>
 If you choose to use <package>ifupdown</package> to do your network
 configuration then normally you should <strong>not</strong> use
@@ -744,8 +735,9 @@ This means also that you should not use other high level
 configuration tools such as <package>whereami</package>
 that call low level configuration tools.
 </footnote>
-<package>Ifupdown</package> is written under the assumption that
-it alone will be used to configure and deconfigure network interfaces.
+The <package>ifupdown</package> program was written
+with the intent that it alone be used
+to configure and deconfigure network interfaces.
 <p>
 To update interface configuration do this:
 <example>
@@ -755,7 +747,7 @@ To update interface configuration do this:
 </example>
 <p>
 For more information see <manref name="interfaces" section="5">,
-<url id="&f-ifupdown;"> and 
+<url id="&f-ifupdown;">, and 
 <manref name="ifup" section="8">.
 
 <sect1 id="high-static">Configuring an interface with a static IP address
@@ -769,32 +761,49 @@ Edit <file>/etc/network/interfaces</file> so that it includes a stanza
 like this:
 <example>
 iface eth0 inet static
-        address 192.168.0.123
+        address 192.168.0.111
         netmask 255.255.255.0
         gateway 192.168.0.1
 </example>
-If you have <package>resolvconf</package> installed then you can 
-add lines that specify DNS information.  For example:
+You can configure other aspects of the interface
+or perform other actions
+after the interface is brought up
+or before it is brought down
+by specifying appropriate commands on "up" and "down" lines.
 <example>
 iface eth0 inet static
-        address 192.168.0.123
+        address 192.168.0.111
         netmask 255.255.255.0
         gateway 192.168.0.1
-        dns-search nicedomain.org
+        up route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        down route del -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        up echo Interface $IFACE going up | /usr/bin/logger -t ifup
+        down echo Interface $IFACE Going down | /usr/bin/logger -t ifdown
+</example>
+Alternatively, commands can be inserted into scripts in the
+<file>/etc/network/if-up.d</file> and
+<file>/etc/network/if-down.d</file> directories.
+Such scripts can also implement extended options.
+See <manref name="interfaces" section="5"> for details.
+For example, the <package>resolvconf</package> package includes
+scripts that allow you to add options specifying DNS
+information to be included in <file>/etc/resolv.conf</file>
+while the interface is up:
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        dns-search somedomain.org
         dns-nameservers 195.238.2.21 195.238.2.22
 </example>
-After the interface is brought up, the arguments of the
-<tt>dns-search</tt> and <tt>dns-nameservers</tt>
-options are made available to <package>resolvconf</package>
-for inclusion in <file>resolv.conf</file>.
-The argument <tt>nicedomain.org</tt> of the <tt>dns-search</tt>
+The argument <tt>somedomain.org</tt> of the <tt>dns-search</tt>
 option corresponds to the argument of a <tt>search</tt> option in
 <manref name="resolv.conf" section="5">.
 The arguments <tt>195.238.2.21</tt> and <tt>195.238.2.22</tt>
 of the <tt>dns-nameservers</tt> option
-correspond to the arguments of <tt>nameserver</tt> options in
-<manref name="resolv.conf" section="5">.
-Other recognized option words are <tt>dns-domain</tt> and
+correspond to the arguments of <tt>nameserver</tt> options.
+Other recognized options are <tt>dns-domain</tt> and
 <tt>dns-sortlist</tt>.
 See <ref id="dns-resolvconf">.
 
@@ -832,6 +841,11 @@ iface eth0 inet dhcp
         wireless-essid myessid
         wireless-key 123456789e
 </example>
+Note that you should not use this method of setting the ESSID
+and key if you are running <prgn>waproamd</prgn> for this interface.
+By the time <prgn>ifup</prgn> is run
+<prgn>waproamd</prgn> has already set the ESSID and key.
+See <ref id="trigger-waproamd">.
 
 <sect1 id="high-ppp">Configuring a PPP interface
 <p>
@@ -961,7 +975,7 @@ iface eth0:0 inet dhcp
 The interface <tt>eth0:0</tt> is a virtual interface.
 When it is brought up, so will its parent <tt>eth0</tt>.
 
-<sect id="net-reconf">Network <strong>re</strong>configuration
+<sect id="net-reconf">Network configuration using logical interface definitions
 <p>
 In the following it will be important for the reader to understand
 the difference between a <strong>physical interface</strong> and a 
@@ -970,26 +984,29 @@ the difference between a <strong>physical interface</strong> and a
 This terminology is used in the <package>ifupdown</package>
 documentation.
 </footnote>
-A physical interface is what we have been calling "the interface",
-the thing that is named <tt>eth0</tt>, <tt>ppp1</tt>, or what have you.
-A logical interface is a set of values that can be assigned to the
-variable parameters of a physical interface.  If you find that 
-confusing, replace the expression
-"configured as logical interface <tt>X</tt>"
+A <strong>physical</strong> interface
+is what we have been calling "the interface",
+the thing that the kernel names
+<tt>eth0</tt>, <tt>eth1</tt>, <tt>ppp0</tt>, or what have you.
+A <strong>logical</strong> interface
+is a set of values that can be assigned to the
+variable parameters of a physical interface.
+If you find that confusing, replace the expression
+"configured as logical interface <var>X</var>"
 with the expression
-"configured with interface profile <tt>X</tt>"
+"configured with interface profile <var>X</var>"
 as you read.
 <p>
 The <tt>iface</tt> definitions in <file>/etc/network/interfaces</file>
 are actually definitions of logical interfaces, not of physical
 interfaces.
 <footnote>
-Note that the interfaces named on <tt>auto</tt> lines are physical
-interfaces, not logical interfaces.
+Note that the interfaces named on <tt>auto</tt> lines
+must be physical interfaces, not logical interfaces.
 </footnote>
 If you never want to reconfigure your interfaces then you can ignore
-this fact since the physical interface <tt>X</tt> will by default
-be configured as logical interface <tt>X</tt>.
+this fact since the physical interface <var>foo</var> will by default
+be configured as logical interface <var>foo</var>.
 <p>
 However, suppose your computer is a laptop that you transport between
 home and work.  When you connect the computer to the corporate network
@@ -1030,10 +1047,10 @@ The reason is that <prgn>ifup</prgn> uses the physical interface
 name as the default logical interface name and now in our example
 no <tt>eth0</tt> logical interface is defined.
 
-<sect id="net-magic-reconf">Magic network reconfiguration
+<sect id="net-magic-reconf">Magic network configuration
 <p>
-Logical interface names can be "mapped" to other logical interface
-names when <prgn>ifup</prgn> runs.
+Interface names can be "mapped" to other names
+when <prgn>ifup</prgn> runs.
 How names are mapped can be made to depend on circumstances.
 Thus <prgn>ifup</prgn> can be so configured that it brings up a
 given physical interface as the appropriate logical interface
@@ -1047,8 +1064,8 @@ initial logical interface name.
 <item>If the logical interface name matches the glob-pattern
 of a <tt>mapping</tt> stanza then that mapping is applied to 
 generate a new logical interface name.
-This is done recursively until no glob-pattern matches.
-<item>If the last logical interface name is the label of a
+This is done for each mapping stanza in turn.
+<item>If the final logical interface name is the label of a
 logical interface definition in <file>/etc/network/interfaces</file>
 then the physical interface is brought up as that logical interface.
 Otherwise <prgn>ifup</prgn> prints a message that it is
@@ -1061,10 +1078,11 @@ mapping <var>glob-pattern</var>
         [map <var>script input</var>]
 </example>
 
-The script named in the <tt>mapping</tt> stanza is run with
-the physical interface name as its argument and with the contents
-of all following "map" lines in the stanza provided to it on its
-standard input.
+The script named in the <tt>mapping</tt> stanza is always run with
+the <strong>physical</strong> interface name as its argument
+and with the contents of all following "map" lines in the stanza
+(without the word "map" itself)
+provided to it on its standard input.
 The script prints the result of the mapping on its standard output
 before exiting.
 <p>
@@ -1082,32 +1100,11 @@ echo home
 </example>
 <p>
 Because mapping is done with a script it is possible to select
-the logical interface based on some sort of test.
-Let's start with an example.
-Suppose you have different network cards for home and work.
-The <file>/usr/share/doc/ifupdown/examples/</file> directory contains
-a mapping script that can be used to select a logical interface based
-on the Media Access Controller address (MAC address).
-First install the script to an appropriate directory.
-<example>
-# install -m770 /usr/share/doc/ifupdown/examples/match-mac-address.sh \
-   /usr/local/sbin/
-</example>
-Then add a stanza like the following to
-<file>/etc/network/interfaces</file>:
-<example>
-mapping eth0
-        script /usr/local/sbin/match-mac-address.sh
-        map 02:23:45:3C:45:3C home
-        map 00:A3:03:63:26:93 work
-</example>
-<p>
-More sophisticated mapping programs are described below in 
-<ref id="high-guessnet">,
-<ref id="high-ifupdown-roam">, and
-<ref id="high-laptop-net">.
+the logical interface automatically &mdash;
+based on some sort of test.
+See <ref id="high-guessnet"> for an example of this.
 
-<sect1 id="high-guessnet">guessnet
+<sect1 id="high-guessnet">Logical interface selection using guessnet
 <p>
 Install <package>guessnet</package>
 and then add a stanza like the following to
@@ -1127,39 +1124,87 @@ on a <tt>test-peer</tt> line.
 <p>
 <package>guessnet</package> is still under development.
 
-<sect1 id="high-ifupdown-roam">ifupdown-roam
-<p>
-The <package>ifupdown-roam</package> package includes the
-<prgn>ifscout</prgn> program whose capabilities as a mapping
-script are a superset of those of guessnet.  <prgn>ifscout</prgn>
-calls <prgn>guessnet</prgn> to look for hosts on wired Ethernet
-networks but it can also detect DHCP servers and wireless access
-points.  <prgn>ifscout</prgn> is a shell script so it can be
-customized to suit your needs.
-<p>
-Currently (October 2003) <package>ifupdown-roam</package>
-is not part of Debian.  It might have been uploaded to the
-Debian archives by the time you read this;
-otherwise it is available via the
-<url id="&iudroam-home;" name="the ifupdown-roam home page">
-where you will also find installation and usage information.
-
-<sect1 id="high-laptop-net">laptop-net
+<sect1 id="high-laptop-net">Automatic network configuration using laptop-net
 <p>
 The <package>laptop-net</package> package takes a different approach
 to automagic network reconfiguration.
 Laptop-net does not make use of <package>ifupdown</package>'s logical
 interfaces but instead has its own system of configuration "schemes"
 and system "profiles".
-Laptop-net still uses <package>ifupdown</package> to configure physical
-interfaces, though.
+Laptop-net still uses <prgn>ifup</prgn> and <prgn>ifdown</prgn>
+to configure physical interfaces, though.
 For more information consult the well written documentation in
 <package>laptop-net-doc</package>.
 
-<sect id="net-trigger">Triggering network reconfiguration
+<sect id="high-rename">Dealing with inconsistent naming of interfaces by the kernel
 <p>
-We have seen how interfaces can be reconfigured.  
-Reconfiguration needs to be done at appropriate times.  
+The names <tt>eth0</tt>, <tt>eth1</tt>, etc.
+are assigned by the kernel
+in the order that the kernel creates the interfaces
+that go by those names.
+While adapters that are detected at boot time
+are usually detected in the same order every time,
+and are therefore assigned the same names every time,
+the same is not true of adapters that are hot plugged.
+These can be detected in any order and end up getting
+assigned different names by the kernel
+on different occasions.
+<p>
+Because of this fact, on a system into which network adapters 
+are hot plugged it won't always do to define logical interfaces
+in <file>/etc/network/interfaces</file> with names
+<tt>eth0</tt>, <tt>eth1</tt>, etc., and to rely on the
+default mapping.
+Instead you must give distinct names to the logical interfaces
+and use one of the following two methods
+to restrict which logical interfaces can be assigned
+to which adapters.
+<p>
+One method is to use either
+the <prgn>nameif</prgn> utility
+(in the <package>net-tools</package> package)
+or the more flexible <prgn>ifrename</prgn> utility
+(in the <package>ifrename</package> package)
+to make the kernel assign names to interfaces
+according to properties of the underlying adapters.
+With this naming scheme in effect,
+the physical interface name can be used to infer
+which adapter underlies it.
+<p>
+Another method is to use <prgn>ifup</prgn>'s mapping mechanism
+in such a way that a logical interface is chosen
+for a physical interface being brought up
+according to some property of the adapter
+that underlies it.
+<p>
+Suppose, for example, you have two different network adapters
+which you use with networks <tt>net1</tt> and <tt>net2</tt>,
+respectively.
+The <file>/usr/share/doc/ifupdown/examples/</file> directory contains
+a mapping script that can be used to select a logical interface based
+on the Media Access Controller address (MAC address) of the adapter.
+First install the script to an appropriate directory.
+<example>
+# install -m770 /usr/share/doc/ifupdown/examples/match-mac-address.sh \
+   /usr/local/sbin/
+</example>
+Then add a stanza like the following to
+<file>/etc/network/interfaces</file>:
+<example>
+mapping eth0
+        script /usr/local/sbin/match-mac-address.sh
+        map 02:23:45:3C:45:3C net1
+        map 00:A3:03:63:26:93 net2
+</example>
+See <ref id="high-multistage-mapping"> for a more complex example.
+<p>
+In applying either method the property that is most commonly used
+to identify the adapter is the MAC address.
+
+<sect id="net-trigger">Triggering network configuration
+<p>
+We have seen how interfaces can be configured or reconfigured.
+This needs to be done at appropriate times.  
 <p>
 Traditionally the network was configured during the boot sequence
 via the <file>/etc/rcS.d/S40networking</file> initscript
@@ -1186,9 +1231,16 @@ For example, suppose service <tt>foo</tt> controlled by initscript
 <file>/etc/init.d/foo</file> depends on dynamically reconfigured
 network interface <tt>eth0</tt>.
 <list compact>
-<item>First remove <tt>foo</tt> from the control of the init system:
+<item>First remove <tt>foo</tt> from the control of the init system.
+If you are using the <package>sysv-rc</package> init system then
+do the following.
+<footnote>
+Note that this leaves the "stop" links
+(<file>/etc/rc?.d/K??foo</file>) behind.
+See <ref id="runlevels"> for more information.
+</footnote>
 <example>
-# update-rc.d -f foo remove
+# rm /etc/rc[2345].d/S??foo
 </example>
 <item>Then put <tt>foo</tt> under the control of
 <package>ifupdown</package> by adding <tt>up</tt> and <tt>down</tt>
@@ -1226,10 +1278,6 @@ auto lo
 
 iface lo inet loopback
 </example>
-<!--
-Above should be separated by some space to show that they are
-distinct stanzas
--->
 You can list additional physical interface names in <tt>auto</tt>
 stanzas if you want them to be brought up on boot too.
 <strong>Never</strong> list PCMCIA interfaces in <tt>auto</tt> stanzas.
@@ -1238,7 +1286,7 @@ than when <prgn>/etc/rcS.d/S40networking</prgn> runs.
 
 <sect1 id="trigger-hotplug">Triggering network configuration &ndash; <package>hotplug</package>
 <p>
-For hot plug support install the <package>hotplug</package> package.
+For hot-plug support install the <package>hotplug</package> package.
 <p>
 Networking hardware can be hot plugged either at boot time or
 after a card (e.g., a PCMCIA card) is inserted into the machine
@@ -1258,12 +1306,28 @@ See <manref name="hotplug" section="8"> for details.
 Newly inserted network hardware is configured by the script
 <file>/etc/hotplug/net.agent</file>.
 <footnote>
-It may also be configured by any scripts that have been installed
-in <file>/etc/hotplug.d/net/</file>.
+It may also be configured by any hook scripts
+that have been installed in <file>/etc/hotplug.d/net/</file>.
+The <package>ifplugd</package> and <package>waproamd</package>
+packages install hook scripts there, for example.
 </footnote>
 Suppose your PCMCIA network card has been inserted resulting
 in interface <tt>eth0</tt> becoming available for use.
-<file>/etc/hotplug/net.agent</file> does the following:
+<file>/etc/hotplug/net.agent</file> does the following
+<footnote>
+As of version 0.0.20040329-4 or so,
+<package>hotplug</package> can optionally be put into modes
+wherein it behaves differently from how it is described here
+as behaving.
+One such mode is so-called "all" mode wherein
+<prgn>hotplug</prgn> brings up all hot plugged interfaces.
+The other such mode is so-called "auto" mode wherein
+<prgn>hotplug</prgn> brings up interfaces only if they are listed
+on <tt>auto</tt> lines in <file>/etc/network/interfaces</file>.
+In these alternative modes <prgn>ifup</prgn> is invoked without
+the <tt>=hotplug</tt> suffix.
+</footnote>
+:
 <example>
 ifup eth0=hotplug
 </example>
@@ -1284,9 +1348,9 @@ ifup eth0=eth0
 </example>
 <p>
 (Do <strong>not</strong> include a mapping stanza like this
-if you are using <prgn>ifplugd</prgn> instances started by
-<prgn>hotplug</prgn> to control the interface, 
-as described in <ref id="trigger-ifplugd">.)
+if you are using <prgn>ifplugd</prgn> or <prgn>waproamd</prgn>
+instances started by
+<prgn>hotplug</prgn> to control the interface.)
 <p>
 If you want only <tt>eth0</tt> and no other interfaces
 to be brought up on hot plug then use <prgn>grep</prgn>
@@ -1302,96 +1366,73 @@ for more tips.
 
 <sect1 id="trigger-ifplugd">Triggering network configuration &ndash; <package>ifplugd</package>
 <p>
-<package>ifplugd</package> brings an interface up or down according to
-whether its underlying hardware is or is not plugged in to a network.
+The <prgn>ifplugd</prgn> daemon
+brings an interface up or down according to
+whether or not its underlying hardware is plugged in to a network.
 The program can detect a live cable connected to an Ethernet
-interface or an access point associated to a Wi-Fi interface.
+interface or an access point associated to a Wi-Fi interface
+(although <prgn>waproamd</prgn> is probably what you want to use
+in the latter case).
 When <prgn>ifplugd</prgn> sees that the state of the link has changed
 it runs a proxy script which by default calls <prgn>ifup</prgn> or
-<prgn>ifdown</prgn> for the interface.
-<p>
-<package>ifplugd</package> works well in combination with
-<package>hotplug</package>.
-When a card has been inserted resulting in an interface
-becoming available for use,
-<file>/etc/hotplug.d/net/ifplugd.hotplug</file> starts an
-instance of <prgn>ifplugd</prgn> for that interface.
-When <prgn>ifplugd</prgn> detects that the card is plugged
-into a network it <prgn>ifup</prgn>s the interface.
+<prgn>ifdown</prgn>.
 
 <sect1 id="trigger-waproamd">Triggering network configuration &ndash; <package>waproamd</package>
 <p>
-In order to associate to an access point a Wi-Fi card may have
-to be programmed with an appropriate WEP encryption key.
-If you are using <prgn>ifplugd</prgn> to control <prgn>ifup</prgn>
-as described in <ref id="trigger-ifplugd"> then obviously you
-cannot set the encryption key using <prgn>ifup</prgn> because
-<prgn>ifup</prgn> only gets called after the card has associated.
-One possible solution is to program all required keys
-into the Wi-Fi card's nonvolatile memory.
-If you roam among many networks then your Wi-Fi card may not
-be able to store enough keys.
+The <prgn>waproamd</prgn> daemon is just like <prgn>ifplugd</prgn>
+except that it is designed to be used with Wi-Fi cards.
+It actively scans for access points to which
+the Wi-Fi hardware is able to associate.
+When association is achieved, <prgn>waproamd</prgn> 
+runs <prgn>ifup</prgn>.
 <p>
-Another solution is to use <prgn>waproamd</prgn> which
-sets the WEP encryption key according to the access points
-that are available, as revealed by scanning.
-<p>
-<package>waproamd</package> works well in combination with
-<package>hotplug</package>.
-When a card has been inserted resulting in an interface
-becoming available for use,
-<file>/etc/hotplug.d/net/waproamd.hotplug</file> starts an
-instance of <prgn>waproamd</prgn> for that interface.
-<prgn>waproamd</prgn> works nicely in combination with
-<prgn>ifplugd</prgn>.
-<p>
-See the <package>waproamd</package> package README file
-for more information.
+If you are using <prgn>waproamd</prgn> then in general
+you configure the Wi-Fi card via <prgn>waproamd</prgn>
+and not via <tt>wireless-*</tt> options in
+<file>/etc/network/interfaces</file>.
 
 <sect1 id="trigger-pcmcia">Network configuration and PCMCIA
 <p>
 If you use 16 bit PCMCIA network cards then you should set
 <tt>CARDMGR_OPTS="-f"</tt> in
-<file>/etc/defaults/pcmcia</file>.
+<file>/etc/default/pcmcia</file>.
 This slows down initialization slightly
 but it prevents a race condition by running 
 <prgn>cardmgr</prgn> in the foreground until all
 16 bit PCMCIA cards are configured.
-<p>
-Although by default <file>/etc/init.d/pcmcia</file> is started
-from <file>/etc/rc2.d/S20pcmcia</file> you may want to 
-move this earlier, e.g., to <file>/etc/rc2.d/S12pcmcia</file>
-in order to ensure that the PCMCIA subsystem is initialized
-before network services are started at S20.
 <p>
 There are several possible approaches to configuring
 PCMCIA network interfaces.
 <list compact>
   <item>For 32 bit PCI (CardBus) PCMCIA network cards:
     <list compact>
-      <item><package>hotplug</package> /
-      <package>ifupdown</package>
+      <item><package>ifupdown</package>
+      controlled by <package>hotplug</package>
    </list>
 <item>For 16 bit ISA PCMCIA network cards:
   <list compact>
-    <item><package>hotplug</package> /
-      <package>ifupdown</package>
-      with locally disabled <file>/etc/pcmcia/network</file>
+    <item><package>ifupdown</package>
+      controlled by <package>hotplug</package>
+      with <package>pcmcia-cs</package> locally disabled
+      by modifying <file>/etc/pcmcia/network</file>
+      as described below
       (recommended),
       or
-    <item><package>pcmcia-cs</package> /
-      <package>ifupdown</package>
-      with default <file>/etc/pcmcia/network</file>
+    <item><package>ifupdown</package>
+      controlled by <package>pcmcia-cs</package>
+      with the factory default <file>/etc/pcmcia/network</file>
       (deprecated),
       or
-    <item><package>pcmcia-cs</package>
+    <item>low level tools
+      controlled by <package>pcmcia-cs</package>
       customized by enabling features of <file>/etc/pcmcia/network</file>
+      by editing <file>/etc/pcmcia/network.opts</file>
       (deprecated)
   </list>
 </list>
 <p>
 The recommended approach for 16 bit cards takes advantage of
-the fact that the Linux 2.4 hot plug subsystem now supports
+the fact that the Linux 2.4 hotplug subsystem now supports
 PCMCIA.
 Simply follow the directions in <ref id="trigger-hotplug">.
 <footnote>
@@ -1420,18 +1461,21 @@ it does what is better left to <package>ifupdown</package> to do.
 Consequently it is deprecated.
 </footnote>
 Note, however, that
-in order to prevent <prgn>cardmgr</prgn>'s hook script
-<file>/etc/pcmcia/network</file>
-from interfering with <package>hotplug</package> you must locally
-add the line:
+in order to prevent <package>pcmcia-cs</package>
+from interfering with <package>hotplug</package> you must
+locally disable it by adding the line:
 <example>
 exit 0
 </example>
-to the beginning of <file>/etc/pcmcia/network</file> in order to
-disable its default behavior.
+to the beginning of the <tt>start</tt> method
+in <file>/etc/pcmcia/network</file>.
 <p>
-Note that there is nothing wrong with running <prgn>cardmgr</prgn>.
-We just don't want it to call network configuration programs.
+Note that <package>pcmcia-cs</package> is still needed
+if you have 16 bit PCMCIA cards.
+The <prgn>cardmgr</prgn> daemon that it contains is responsible
+for managing the sockets and loading driver modules.
+We just don't want it to call network configuration programs
+via <file>/etc/pcmcia/network</file>.
 <p>
 In order for <prgn>cardmgr</prgn> to work properly
 you may need to edit <file>/etc/pcmcia/config.opts</file>
@@ -1440,6 +1484,53 @@ to configure resources assigned to 16 bit PCMCIA cards.
 See <ref id="kernel-pcmcia"> and the
 <url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">
 for more information.
+
+<sect id="high-multistage-mapping">Multi-stage mapping
+<p>
+Suppose your network adapters are hotplugged
+and you enable automatic configuration as described in
+<ref id="trigger-hotplug">.
+Suppose further that you need to map logical interfaces
+to "physical" interfaces depending both
+on the adapter underlying the physical interface
+(as described in <ref id="high-rename">)
+and on the network connected to the interface
+(as described, for example, in <ref id="high-guessnet">).
+You can accomplish this with multi-stage mapping.
+<p>
+The first mapping stage takes the <tt>hotplug</tt> group
+name and outputs the kernel-assigned interface name if
+the interface is to be hot plugged.
+The second mapping stage takes a kernel-assigned interface name
+and outputs an adapter name.
+The third mapping stage maps adapter names to logical interface names
+based on the network environment.
+<example>
+# Allow hotplug to bring up interfaces
+mapping hotplug
+	script echo
+
+# Determine whether interface is wired or Wi-Fi
+mapping eth?
+        script /usr/local/sbin/match-mac-address.sh
+        map 02:23:45:3C:45:3C wired
+        map 00:A3:03:63:26:93 wifi
+
+# Detect which wired network is available
+mapping wired
+        script guessnet-ifupdown
+        map work-wired
+        map home
+
+# Detect which Wi-Fi network is available
+mapping wifi
+        script ifscout
+        map starbucks
+        map work-wireless
+
+iface work-wired inet static
+	...
+</example>
 
 <sect id="net-service-conf">Network service configuration
 <p>

@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.45 $"  -->
+<!-- CVS revision of this document "$Revision: 1.46 $"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -37,7 +37,7 @@ Interfaces may be of several different types, including:
 <list compact>
 <item>Loopback:  <tt>lo</tt>
 <item>Ethernet:  <tt>eth0</tt>, <tt>eth1</tt>, ...
-<item>Wi-Fi:  <tt>wifi0</tt>, <tt>wifi1</tt>, ...
+<item>Wi-Fi:  <tt>wlan0</tt>, <tt>wlan1</tt>, ...
 <footnote>
 Note that a Wi-Fi interface is really an alias for an Ethernet
 interface that gives access to the configuration parameters 
@@ -613,35 +613,33 @@ manual intervention to get it to work properly.
 This is certainly true if you have ever customized packages
 so that they update <file>/etc/resolv.conf</file>:
 you will need to disable your customizations.
-<p>
 See <url id="&f-resolvconf;"> for details.
 
-<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; <package>dnsmasq</package>
+<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; <package>nscd</package>, <package>dnsmasq</package>, <package>pdnsd</package>, <package>bind9</package>
 <p>
-Unless your nameserver has to be authoritative for a domain you
-are better off running a caching forwarding local nameserver
-such as <package>dnsmasq</package>.
-It works well with <package>resolvconf</package>.
-
-<sect1 id="dns-bind-cache">Caching looked-up names &ndash; <package>bind</package>
+If your nameserver is slow to respond then you may want to use
+<prgn>nscd</prgn> to cache the results of things that are looked
+up using the <package>libc6</package> resolver.
 <p>
-If you wish you can also use <package>bind9</package> or
-<package>bind</package> as a caching forwarding local nameserver.
-It also works with <package>resolvconf</package>,
-but at the time of writing this (October 2003) you have to set it up
-manually to do so.
-See <url id="&f-resolvconf;"> for instructions.
+If you want to cache results for other hosts on your local network
+then you may want to run a caching forwarding nameserver
+such as <package>dnsmasq</package> or <package>pdnsd</package>.
+<p>
+If you wish you can also use <package>bind9</package>'s
+<prgn>named</prgn> as a caching forwarding nameserver.
+It is a heavy program, though, so unless you need its
+advanced features you are better off with one of the
+packages mentioned earlier.
+<p>
+All of these packages work well with <package>resolvconf</package>.
 
 <sect1 id="dns-bind-server">Providing Domain Name Service &ndash; <package>bind</package>
 <p>
 If you need to provide authoritative name service for a domain
 then you need a fully fledged nameserver such as
-<prgn>named</prgn> which comes in either the <package>bind9</package>
-or the <package>bind</package> package.
-<package>bind9</package> is recommended for new installations.
+<prgn>named</prgn> which comes in the <package>bind9</package> package.
 <p>
-To install <package>bind9</package>, install these basic packages:
-<package>bind9</package>;
+If you install <package>bind9</package> you should also install
 <package>dnsutils</package>.
 You may also want to install these utility packages:
 <package>bind9-host</package>;
@@ -1103,8 +1101,7 @@ echo home
 Because mapping is done with a script it is possible to select
 the logical interface automatically &mdash;
 based on some sort of test.
-See <ref id="high-guessnet"> and <ref id="high-ifupdown-roam">
-for examples of this.
+See <ref id="high-guessnet"> for an example of this.
 
 <sect1 id="high-guessnet">Logical interface selection using guessnet
 <p>
@@ -1125,23 +1122,6 @@ ARP requests to detect either the gateway or a host identified
 on a <tt>test-peer</tt> line.
 <p>
 <package>guessnet</package> is still under development.
-
-<sect1 id="high-ifupdown-roam">Logical interface selection using ifupdown-roam
-<p>
-The <package>ifupdown-roam</package> package includes the
-<prgn>ifscout</prgn> program whose capabilities as a mapping
-script are a superset of those of guessnet.  <prgn>ifscout</prgn>
-calls <prgn>guessnet</prgn> to look for hosts on wired Ethernet
-networks but it can also detect DHCP servers and wireless access
-points.  <prgn>ifscout</prgn> is a shell script so it can be
-customized to suit your needs.
-<p>
-Currently (October 2003) <package>ifupdown-roam</package>
-is not part of Debian.  It might have been uploaded to the
-Debian archives by the time you read this;
-otherwise it is available via the
-<url id="&iudroam-home;" name="the ifupdown-roam home page">
-where you will also find installation and usage information.
 
 <sect1 id="high-laptop-net">Automatic network configuration using laptop-net
 <p>
@@ -1367,9 +1347,9 @@ ifup eth0=eth0
 </example>
 <p>
 (Do <strong>not</strong> include a mapping stanza like this
-if you are using <prgn>ifplugd</prgn> instances started by
-<prgn>hotplug</prgn> to control the interface, 
-as described in <ref id="trigger-ifplugd">.)
+if you are using <prgn>ifplugd</prgn> or <prgn>waproamd</prgn>
+instances started by
+<prgn>hotplug</prgn> to control the interface.)
 <p>
 If you want only <tt>eth0</tt> and no other interfaces
 to be brought up on hot plug then use <prgn>grep</prgn>
@@ -1385,94 +1365,73 @@ for more tips.
 
 <sect1 id="trigger-ifplugd">Triggering network configuration &ndash; <package>ifplugd</package>
 <p>
-<package>ifplugd</package> brings an interface up or down according to
-whether its underlying hardware is or is not plugged in to a network.
+The <prgn>ifplugd</prgn> daemon
+brings an interface up or down according to
+whether or not its underlying hardware is plugged in to a network.
 The program can detect a live cable connected to an Ethernet
-interface or an access point associated to a Wi-Fi interface.
+interface or an access point associated to a Wi-Fi interface
+(although <prgn>waproamd</prgn> is probably what you want to use
+in the latter case).
 When <prgn>ifplugd</prgn> sees that the state of the link has changed
 it runs a proxy script which by default calls <prgn>ifup</prgn> or
-<prgn>ifdown</prgn> for the interface.
-<p>
-<package>ifplugd</package> works well in combination with
-<package>hotplug</package>.
-When a card has been inserted resulting in an interface
-becoming available for use,
-<file>/etc/hotplug.d/net/ifplugd.hotplug</file> starts an
-instance of <prgn>ifplugd</prgn> for that interface.
-When <prgn>ifplugd</prgn> detects that the card is plugged
-into a network it <prgn>ifup</prgn>s the interface.
+<prgn>ifdown</prgn>.
 
 <sect1 id="trigger-waproamd">Triggering network configuration &ndash; <package>waproamd</package>
 <p>
-In order to associate to an access point a Wi-Fi card may have
-to be programmed with an appropriate WEP encryption key.
-If you are using <prgn>ifplugd</prgn> to control <prgn>ifup</prgn>
-as described in <ref id="trigger-ifplugd"> then obviously you
-cannot set the encryption key using <prgn>ifup</prgn> because
-<prgn>ifup</prgn> only gets called after the card has associated.
-One possible solution is to program all required keys
-into the Wi-Fi card's nonvolatile memory.
-If you roam among many networks then your Wi-Fi card may not
-be able to store enough keys.
+The <prgn>waproamd</prgn> daemon is just like <prgn>ifplugd</prgn>
+except that it is designed to be used with Wi-Fi cards.
+It actively scans for access points to which
+the Wi-Fi hardware is able to associate.
+When association is achieved, <prgn>waproamd</prgn> 
+runs <prgn>ifup</prgn>.
 <p>
-Another solution is to use <prgn>waproamd</prgn> which
-sets the WEP encryption key according to the access points
-that are available, as revealed by scanning.
-<p>
-<package>waproamd</package> works well in combination with
-<package>hotplug</package>.
-When a card has been inserted resulting in an interface
-becoming available for use,
-<file>/etc/hotplug.d/net/waproamd.hotplug</file> starts an
-instance of <prgn>waproamd</prgn> for that interface.
-<p>
-See the <package>waproamd</package> package README file
-for more information.
+If you are using <prgn>waproamd</prgn> then in general
+you configure the Wi-Fi card via <prgn>waproamd</prgn>
+and not via <tt>wireless-*</tt> options in
+<file>/etc/network/interfaces</file>.
 
 <sect1 id="trigger-pcmcia">Network configuration and PCMCIA
 <p>
 If you use 16 bit PCMCIA network cards then you should set
 <tt>CARDMGR_OPTS="-f"</tt> in
-<file>/etc/defaults/pcmcia</file>.
+<file>/etc/default/pcmcia</file>.
 This slows down initialization slightly
 but it prevents a race condition by running 
 <prgn>cardmgr</prgn> in the foreground until all
 16 bit PCMCIA cards are configured.
-<p>
-Although by default <file>/etc/init.d/pcmcia</file> is started
-from <file>/etc/rc2.d/S20pcmcia</file> you may want to 
-move this earlier, e.g., to <file>/etc/rc2.d/S12pcmcia</file>
-in order to ensure that the PCMCIA subsystem is initialized
-before network services are started at S20.
 <p>
 There are several possible approaches to configuring
 PCMCIA network interfaces.
 <list compact>
   <item>For 32 bit PCI (CardBus) PCMCIA network cards:
     <list compact>
-      <item><package>hotplug</package> /
-      <package>ifupdown</package>
+      <item><package>ifupdown</package>
+      controlled by <package>hotplug</package>
    </list>
 <item>For 16 bit ISA PCMCIA network cards:
   <list compact>
-    <item><package>hotplug</package> /
-      <package>ifupdown</package>
-      with locally disabled <file>/etc/pcmcia/network</file>
+    <item><package>ifupdown</package>
+      controlled by <package>hotplug</package>
+      with <package>pcmcia-cs</package> locally disabled
+      by modifying <file>/etc/pcmcia/network</file>
+      as described below
       (recommended),
       or
-    <item><package>pcmcia-cs</package> /
-      <package>ifupdown</package>
-      with default <file>/etc/pcmcia/network</file>
+    <item><package>ifupdown</package>
+      controlled by <package>pcmcia-cs</package>
+      with the factory default <file>/etc/pcmcia/network</file>
       (deprecated),
       or
-    <item><package>pcmcia-cs</package>
+    <item>low level tools
+      controlled by <package>pcmcia-cs</package>
       customized by enabling features of <file>/etc/pcmcia/network</file>
+      by editing <file>/etc/pcmcia/network.opts</file>
       (deprecated)
   </list>
 </list>
 <p>
 The recommended approach for 16 bit cards takes advantage of
-the fact that the Linux 2.4 hot plug subsystem now supports
+the fact that the Linux 2.4 hotplug subsystem now supports
 PCMCIA.
 Simply follow the directions in <ref id="trigger-hotplug">.
 <footnote>
@@ -1501,18 +1460,21 @@ it does what is better left to <package>ifupdown</package> to do.
 Consequently it is deprecated.
 </footnote>
 Note, however, that
-in order to prevent <prgn>cardmgr</prgn>'s hook script
-<file>/etc/pcmcia/network</file>
-from interfering with <package>hotplug</package> you must locally
-add the line:
+in order to prevent <package>pcmcia-cs</package>
+from interfering with <package>hotplug</package> you must
+locally disable it by adding the line:
 <example>
 exit 0
 </example>
-to the beginning of <file>/etc/pcmcia/network</file> in order to
-disable its default behavior.
+to the beginning of the <tt>start</tt> method
+in <file>/etc/pcmcia/network</file>.
 <p>
-Note that there is nothing wrong with running <prgn>cardmgr</prgn>.
-We just don't want it to call network configuration programs.
+Note that <package>pcmcia-cs</package> is still needed
+if you have 16 bit PCMCIA cards.
+The <prgn>cardmgr</prgn> daemon that it contains is responsible
+for managing the sockets and loading driver modules.
+We just don't want it to call network configuration programs
+via <file>/etc/pcmcia/network</file>.
 <p>
 In order for <prgn>cardmgr</prgn> to work properly
 you may need to edit <file>/etc/pcmcia/config.opts</file>
@@ -1547,7 +1509,7 @@ based on the network environment.
 mapping hotplug
 	script echo
 
-# Determine whether interface is wired or wifi
+# Determine whether interface is wired or Wi-Fi
 mapping eth?
         script /usr/local/sbin/match-mac-address.sh
         map 02:23:45:3C:45:3C wired
