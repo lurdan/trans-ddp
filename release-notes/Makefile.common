@@ -1,0 +1,69 @@
+#
+# Makefile for the release notes, language subdirectory
+#
+
+manual := release-notes
+release := sarge
+
+currentlang := $(notdir $(CURDIR))
+currentlangcn := $(subst _,-,$(shell echo $(currentlang) | tr A-Z a-z))
+
+# this can and will be overriden by a higher level makefile
+PUBLISHDIR := /org/www.debian.org/www/releases/$(release)
+
+sources := $(wildcard *.sgml) ../$(manual).ent ../dynamic.ent
+
+export LANG=C
+# stupid debiandoc stuff uses strings in another language otherwise
+
+all: html text ps pdf
+
+publish: all
+	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
+	rm -f $(PUBLISHDIR)/$(manual)/*.$(currentlangcn).html
+	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
+	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
+
+validate:
+	nsgmls -ges -wall $(manual).sgml
+
+html: $(manual).$(currentlang).html/index.$(currentlangcn).html
+$(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
+	debiandoc2html -c -l $(currentlang) $<
+
+text: $(manual).$(currentlang).txt
+$(manual).$(currentlang).txt: $(sources)
+	debiandoc2text -l $(currentlang) $<
+
+$(manual).$(currentlang).info: $(sources)
+	debiandoc2info -l $(currentlang) $<
+# TODO: rename to .$(currentlang).info?
+
+$(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
+  $(manual).$(currentlang).%: $(sources)
+	debiandoc2latex$* -l $(currentlang) $<
+
+ps dvi pdf info: %: $(manual).$(currentlang).%
+
+# generate entities which are dynamically defined by the settings of this
+# build run
+../dynamic_$(architecture).ent:
+ifeq "$(architecture)" ""
+	@echo architecture variable must be set
+	exit 1
+endif
+	: > $@			# clear the file
+	echo "<!entity architecture     \"$(architecture)\">" >> $@
+	echo "<!entity % $(architecture) \"INCLUDE\">" >> $@
+
+.PHONY: dynamic.ent
+../dynamic.ent: ../dynamic_$(architecture).ent
+	rm -f $@
+	ln -s $(notdir $<) $@
+
+clean distclean:
+	rm -rf $(manual)*.$(currentlang).html
+	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*,tpt}
+	rm -f *~ .*~ core tsa*
+
+.PHONY: all publish clean distclean validate
