@@ -93,12 +93,14 @@ dynamic.%.ent:
         else \
           echo "<!entity docversion \"CVS\">" >> $@; \
         fi
+#	Always build SGML with portion marked qref-dev
+	echo "<!entity % qref-dev \"INCLUDE\">" >> $@
 #	Build SGML with portion marked qref-dev in English (Testing at SF.NET)
-	@if [ "$(MANUAL)" = "qref" ]; then \
-          echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-        else \
-          echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
-        fi
+#	@if [ "$(MANUAL)" = "qref" ]; then \
+#          echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+#       else \
+#          echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
+#        fi
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
 #
