@@ -16,6 +16,12 @@ EXTS := html txt ps pdf
 PUBLISHDIR := ../../../public_html/manuals.html
 # build flag for SGML parse.
 BOOK    := qref
+# Document type, dev always include, stable, always exclude, 
+# default, include for english
+#DOCTYPE := dev
+#DOCTYPE := default
+#DOCTYPE := stable
+DOCTYPE := default
 # Set parameters by build environment
 # build dir type               site type      languages  ; format         
 # `pwd`/.. -> manuals.sgml -> DDP/DDP mirror  en, fr, it ; html,txt, ps, pdf
@@ -89,18 +95,18 @@ dynamic.%.ent:
 	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
 	@echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" >> $@
 	@if [ -f ../debian/changelog ]; then \
-          echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> $@; \
-        else \
-          echo "<!entity docversion \"CVS\">" >> $@; \
-        fi
-#	Always build SGML with portion marked qref-dev
-	echo "<!entity % qref-dev \"INCLUDE\">" >> $@
-#	Build SGML with portion marked qref-dev in English (Testing at SF.NET)
-#	@if [ "$(MANUAL)" = "qref" ]; then \
-#          echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-#       else \
-#          echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
-#        fi
+	  echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> $@; \
+	else \
+	  echo "<!entity docversion \"CVS\">" >> $@; \
+	fi
+#	Build SGML with portion marked qref-dev if LANGS=en or DOCTYPE=dev.
+	@if [ "x$(DOCTYPE)" = "xdev" ]; then \
+	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+	elif [ "x$(DOCTYPE)" = "xdefault" -a "x$(LANGS)" = "xen" ]; then \
+	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+	else \
+	  echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
+	fi
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
 #
