@@ -53,7 +53,7 @@
 
 <chapt id="scope"><heading>About This Document</heading>
 
-<sect><heading>Scope</heading>
+<sect id="scope2"><heading>Scope</heading>
 
 <P>
 This document describes the basic ideas of I18N written for
@@ -664,6 +664,8 @@ where 'F' is determined for each character set:
      <item>and more
     </list>
 </list>
+A more detailed list of these character set is found at
+<url id="http://www.kudpc.kyoto-u.ac.jp/~yasuoka/CJK.html" name="&urlname">.
 <footnote>
 WHERE CAN I FIND THE COMPLETE AND AUTHORITATIVE TABLE OF THIS? 
 </footnote>
@@ -1405,12 +1407,6 @@ for example, obtain number of columns a character occupies.
 </P>
 
 
-
-
-
-
-
-
 <chapt id="other"><heading>Other Special Topics</heading>
 
 <sect id="locale"><heading>Locale in C</heading>
@@ -1604,6 +1600,37 @@ connect them so as to single string contains the full
 sentence.  
 This is because the order of words in a sentence
 is different among languages.
+For example, a routine
+<example>
+printf("There ");
+switch(num_of_files) {
+case 0:
+        printf("are no files ");
+        break;
+case 1:
+        printf("is 1 file ");
+        break;
+default:
+        printf("are %d files ", num_of_files);
+        break;
+}
+printf("in %s directory.\n", dir_name);
+</example>
+has to be written like that:
+<example>
+switch(num_of_files) {
+case 0:
+        printf("There are no files in %s directory", dir_name);
+        break;
+case 1:
+        printf("There is 1 file in %s directory", dir_name);
+        break;
+default:
+        printf("There are %d files in %s directory", num_of_files, dir_name);
+        break;
+}
+</example>
+before it is <prgn>gettext</prgn>ized.
 </P>
 
 <P>
@@ -1691,36 +1718,148 @@ version of the software is released.
 <sect id="mailnews"><heading>Mail/News</heading>
 
 <P>
-Headers and main texts of mail and news messages have
-to expressed in 7bit.  Headers and main texts have 
-different standard for using non-ASCII codesets.
-(ESMTP, the extension of SMTP, can treat 8bit messages.)
+Internet mail uses SMTP (RFC 821) and ESMTP (RFC 1869) protocols.
+SMTP is 7bit protocol and ESMTP is 8bit.
 </P>
 
 <P>
-Codesets for main text is specified in 
-'<tt>codeset</tt>' subitem of
-'<tt>Content-type</tt>' header item.
-The whole list of parameters which can be written
-is found at ***.
-<footnote>
-I HAVE TO FIND THIS LIST (RFC?)
-</footnote>
+Original SMTP can only send ASCII characters.  Thus 
+non-ASCII characters (ISO 8859-*, Asian characters, and so on)
+have to be converted into ASCII characters.
 </P>
 
 <P>
-'B' encoding and 'Q' encoding are used to use non-ASCII codesets
-in the headers.  These 'B' and 'Q' encodings are not codesets themselves.
-They are a way to express non-ASCII strings using ASCII characters.
-<footnote>
-I HAVE TO WRITE EXPLANATION
-</footnote>
+MIME (RFC 2045, 2046, 2047, 2048, and 2049) deals with this problem.
+</P>
+
+<P>
+At first RFC 2045 determines three new headers.
+<list>
+ <item>MIME-Version:
+ <item>Content-Type:
+ <item>Content-Transfer-Encoding:
+</list>
+Now <tt>MIME-Version</tt> is 1.0 and thus all MIME mails have
+a header like this:
+<example>
+MIME-Version: 1.0
+</example>
+<tt>Content-Type</tt> describes the type of content.
+For example, an usual mail with Japanese text has a header like that:
+<example>
+Content-Type: text/plain; charset="iso-2022-jp"
+</example>
+Available types are described in RFC 2046.
+<tt>Content-Transfer-Encoding</tt> describes the way to
+convert the contents. Available values are <tt>BINARY</tt>,
+<tt>7bit</tt>, <tt>8bit</tt>, <tt>BASE64</tt>, and <tt>QUOTED-PRINTABLE</tt>.
+Since SMTP cannot handle 8bit data, <tt>8bit</tt> and <tt>BINARY</tt>
+cannot be used.  ESMTP can use them.
+Base64 and quoted-printable are ways to convert 8bit data into 7bit
+and 8bit data have to be converted using either of them to sent by SMTP.
+</P>
+
+<P>
+RFC 2046 describes media type and sub type for 
+<tt>Content-Type</tt> header. Available types are
+<tt>text</tt>, <tt>image</tt>, <tt>audio</tt>, <tt>video</tt>,
+and <tt>application</tt>.  Now we are interested in <tt>text</tt>
+because we are discussing about i18n.
+Sub types for <tt>text</tt> are <tt>plain</tt>, <tt>enriched</tt>,
+<tt>html</tt>, and so on.  <tt>charset</tt> parameter can also be
+added to specify codeset.
+<tt>US-ASCII</tt>, <tt>ISO-8859-1</tt>, 
+<tt>ISO-8859-2</tt>, ..., <tt>ISO-8859-10</tt> are defined by
+RFC 2046 for <tt>charset</tt>.  This list can be added by writing
+a new RFC.
+<list>
+ <item>RFC 1468 <tt>ISO-2022-JP</tt>
+ <item>RFC 1554 <tt>ISO-2022-JP-2</tt> 
+ <item>RFC 1557 <tt>ISO-2022-KR</tt>
+ <item>RFC 1922 <tt>ISO-2022-CN</tt>
+ <item>RFC 1922 <tt>ISO-2022-CN-EXT</tt>
+ <item>RFC 1842 <tt>HZ-GB-2312</tt>
+ <item>RFC 1641 <tt>UNICODE-1-1</tt>
+ <item>RFC 1642 <tt>UNICODE-1-1-UTF-7</tt>
+ <item>RFC 1815 <tt>ISO-10646-1</tt>
+</list>
+</P>
+
+<P>
+RFC 2045 and 2046 determine the way to write non-ASCII characters
+in the main text of mail.  On the other hand, RFC 2047 describes
+'encoded words' which is the way to write non-ASCII characters in the header.
+It is like that:
+<tt>=?</tt><var>codeset</var><tt>?</tt><var>conversion algorithm</var><tt>?</tt><var>data</var><tt>?=</tt>,
+where <var>codeset</var> is selected from the list of <tt>charset</tt>
+of <tt>Content-Type</tt> header, <var>algorithm</var> is <tt>Q</tt>
+or <tt>q</tt> for quoted-printable or <tt>B</tt> or <tt>b</tt> for
+base64, and <var>data</var> is encoded data whose length is less than
+76 bytes.  If the <var>data</var> is longer than 75 bytes, 
+it must be divided into multiple encoded words.
+For example,
+<example>
+Subject: =?ISO-2022-JP?B?GyRCNEE7eiROJTUlViU4JSclLyVIGyhC?=
+</example>
+reads 'a subject written in Kanji' in Japanese (ISO-2022-JP codeset,
+encoded by base64).  Of course human cannot read it.
 </P>
 
 
+<sect id="www"><heading>WWW</heading>
+
+<P>
+WWW is a system that HTML documents (mainly; and files in other formats) 
+are transferred using HTTP protocol.
+</P>
+
+<P>
+HTTP protocol is defined by RFC 2068.
+HTTP uses headers like mails and <tt>Content-Type</tt> header
+is used to describe the type of the contents.
+Though <tt>charset</tt> parameter can be described in the
+header, it is rarely used.
+</P>
+
+<P>
+RFC 1866 describes that the default codeset for HTML is
+ISO-8859-1.  However, many web pages are written in,
+for example, Japanese and Korean using (of course) codesets
+different from ISO-8859-1.
+Sometimes the HTML document describes:
+<example>
+&lt;META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-2022=jp"&gt;
+</example>
+which declares that the page is written in ISO-2022-JP codeset.
+However, there many pages without any declaration of codeset.
+</P>
+
+<P>
+Web browsers have to deal with such a circumstance.
+Of course web browsers have to be able to deal with every
+codesets in the world which is listed in MIME.
+However, many web browsers can only deal with ASCII
+or ISO-8859-1.  Such web browsers are useless at all
+for non-ASCII or non-ISO-8859-1 people.
+</P>
+
+<P>
+URL should be written in ASCII character,
+though non-ASCII characters can be expressed
+using <tt>%</tt><var>nn</var> sequence where <var>nn</var>
+is hexadegimal value.  This is because there are
+no way to specify codeset. Wester-European people
+would treat it as ISO-8859-1, while Japanese people
+would treat it as EUC-JP or SHIFT-JIS.
+</P>
 
 
+<sect id="filename"><heading>File Names</heading>
 
+<P>
+I heard that Linux has a potential to deal with filenames written in 
+UTF-8.  Is it true?
+</P>
 
 
 <chapt id="examples"><heading>Examples of I18N</heading>
