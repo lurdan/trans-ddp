@@ -254,7 +254,6 @@ publish-ps: ps
 
 #----[ publish tar.gz files ]--------------------------------------------------
 publish-tar: $(MANUAL).tar.gz
-$(MANUAL).tar.gz:
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
