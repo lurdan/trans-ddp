@@ -1,0 +1,707 @@
+
+<chapt>Before the compromise
+
+<sect id="keep-up-to-date">Continuously update the system
+
+<p>You should conduct security updates frequently. The vast majority
+of exploits result from known vulnerabilities that have not been
+patched in time, as this <url
+id="http://www.cs.umd.edu/~waa/vulnerability.html" name="paper by
+Bill Arbaugh"> (presented at the 2001 IEEE Symposium on Security and
+Privacy) explains. Updates are described under <ref
+id="security-update">.
+
+<sect1>Manually checking which security updates are available
+<p>Debian does have an specific tool to check if a system needs to
+be updated (see Tiger below) but many users will just want to manually
+check if any security updates are available for their system. 
+
+<p>If you have configured your system as described in 
+<ref id="security-update"> you just need to do:
+
+<example>
+# apt-get update
+# apt-get upgrade -s
+</example>
+
+<p>The first line will download the list of packages available from your
+configured package sources. The <tt>-s</tt> will do a simulation run, 
+that is, it will <em>not</em> download or install the packages but rather 
+tell you which ones should be downloaded/installed.
+From the output you can derive which packages have been fixed by
+Debian and are available as a security update. Sample:
+<example>
+# apt-get upgrade -s
+Reading Package Lists... Done
+Building Dependency Tree... Done
+2 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Inst cvs (1.11.1p1debian-8.1 Debian-Security:3.0/stable)
+Inst libcupsys2 (1.1.14-4.4 Debian-Security:3.0/stable)
+Conf cvs (1.11.1p1debian-8.1 Debian-Security:3.0/stable)
+Conf libcupsys2 (1.1.14-4.4 Debian-Security:3.0/stable)
+</example>
+<p>In this example, you can see that the system needs to be updated
+with new cvs and cupsys packages which are being retrieved from
+<em>woody's</em> security update archive. If you want to understand
+why this packages are needed, you should go to 
+<url id="http://security.debian.org"> and check which recent Debian Security
+Advisories have been published related to these packages. In this case,
+the related DSAs are
+<url id="http://www.debian.org/security/2003/dsa-233" name="DSA-233"> (for cvs)
+and
+<url id="http://www.debian.org/security/2003/dsa-232" name="DSA-232"> (for cupsys)
+
+<sect1 id="cron-apt">Automatically checking for updates with cron-apt
+<p>Another method for automatic security updates is the use of 
+<package>cron-apt</package>. This package provides a tool to update
+the system at regular intervals (using a cron job). It will just 
+update the package list and download new packages by default. I
+can also be configured to send mails to the system administrator.
+<p>Notice that you might want to check the distribution release,
+as described in <ref id="check-releases">, if you intend to 
+automatically updated your system (even if only downloading
+the packages). Otherwise, you cannot be sured that the downloaded
+packages really come from a trusted source.
+
+<sect1>Using Tiger to automatically check for security updates 
+
+<p> If you're looking for a tool to quickly check and report system
+security vulnerabilities, try the <package>tiger</package> package.
+This package is a set of Bourne shell scripts, C programs and data
+files used to perform security audits. The Debian GNU/Linux package
+has additional enhancements oriented toward the Debian distribution,
+providing more functionality than the Tiger scripts provided by TAMU
+(or even TARA, a tiger version distributed by ARSC). See the
+README.Debian file and the man page <manref section="8" name="tiger">
+for more information.
+
+<p>One of these enhancements is the <tt>deb_checkadvisories</tt>
+script. This script takes a list of DSA's and checks against the
+installed package base, reporting back any packages that are
+vulnerable according to the Debian Security Team. This is a slightly
+different, more general approach than is implemented by the Tiger
+<tt>check_signatures</tt> script, which checks MD5sums of known
+vulnerable programs.
+
+<p>Since Debian currently does not ship a list of MD5sums of known
+vulnerable programs (utilized by some other operating systems like Sun
+Solaris), the <em>check-against-DSA</em> approach is used. The DSA
+approach and the MD5sums approach both suffer from the problem that
+signatures have to be updated regularly.
+
+<p>This is currently solved by making new versions of the Tiger
+package, but the package maintainer might not make a new version every
+time a DSA is announced. A nice addition, which is not yet
+implemented, might be to do this proactively. That is, download the
+DSAs from the web, make the list and then run the check. The DSAs are
+currently updated from the maintainer's local CVS update of the WML
+sources used to build <url id="http://security.debian.org"> (the web
+server, that is).
+
+<p>A program to parse published DSAs, either received through e-mail
+or available in security.debian.org, and then generate the file used
+by 'deb_checkadvisories' to confirm vulnerabilities would be
+appreciated. Send it as a bug report for <package>tiger</package>.
+
+<p>The mentioned check is run through the standard program
+configuration once installed (see <file>/etc/tiger/cronrc</file>):
+
+<example>
+# Check for Debian security measures every day at 1 AM
+#
+1 * *   deb_checkmd5sums deb_nopackfiles deb_checkadvisories
+#
+</example>
+
+<p>There is an additional check that you might want to add, which is
+not yet part of the standard <prgn>cron</prgn> scripts. That check is
+the script <tt>check_patches</tt>, which works in the following way:
+
+<list>
+
+<item>run <tt># apt-get update</tt>
+
+<item>checks if there are new packages available
+
+</list>
+
+<p>If you are running a <em>stable</em> system and add the
+security.debian.org <prgn>apt</prgn> source line to your
+<file>/etc/apt/sources.list</file> (as described in <ref
+id="security-update">), this script will be able to tell you if there
+are new packages that you need to install. Since the only packages
+changing in this setup are security updates, then you have just what
+you wanted.
+
+<p>Of course, this will not work if you are running <em>testing</em>
+or <em>sid/unstable</em>, since currently, the new packages are
+probably much more than security updates.
+
+<p>You can add this script to the checks done by the <prgn>cron</prgn>
+job (in the above configuration file) and <prgn>tigercron</prgn> would
+mail (to whomever <tt>Tiger_Mail_RCPT</tt> was set to in
+<file>/etc/tiger/tigerrc</file>) the new packages:
+
+<example>
+# Check for Debian security measures every day at 1 am
+#
+1 * *   deb_checkmd5sums deb_nopackfiles check_patches
+#
+</example>
+
+<sect1>Other methods for security updates.
+
+<P>You might also want to take a look at 
+<url id="http://therapy.endorphin.org/secpack/" name="secpack"> which
+is an unofficial program to do security updates from security.debian.org
+with signature checking written by Fruhwirth Clemens.
+
+<sect1>Avoid using the unstable branch
+
+<p>Unless you want to dedicate time to patch packages yourself when a
+vulnerability arises, you should <em>not</em> use Debian's unstable
+branch for production-level systems. The main reason for this is that
+there are no security updates for <em>unstable</em> (see <ref
+id="sec-unstable">).
+
+<p>The fact is that some security issues might appear in unstable and
+<em>not</em> in the <em>stable</em> distribution. This is due to new
+functionality constantly being added to the applications provided
+there, as well as new applications being included which might not yet
+have been throughly tested.
+
+<p>In order to do security upgrades in the <em>unstable</em> branch,
+you might have to do full upgrades to new versions (which might update
+much more than just the affected package). Although there have been
+some exceptions, security patches are usually only back ported into
+the <em>stable</em> branch. The main idea being that between updates,
+<em>no new code</em> should be added, just fixes for important issues.
+
+<sect1>Avoid using the testing branch
+
+<p>If you are using the <em>testing</em> branch, there are some issues
+that you must take into account regarding the availability of security
+updates:
+
+<list>
+
+<item>When a security fix is prepared, the Security Team backports the
+patch to <em>stable</em> (since stable is usually some minor or major
+versions behind). Package maintainers are responsible for preparing
+packages for the <em>unstable</em> branch, usually based on a new
+upstream release.  Sometimes the changes happen at nearly the same
+time and sometimes one of the releases gets the security fix before.
+Packages for the <em>stable</em> distribution are more thoroughly
+tested than <em>unstable</em>, since the latter will in most cases
+provide the latest upstream release (which might include new, unknown
+bugs)
+
+<item>Security updates are available for the <em>unstable</em> branch
+usually when the package maintainer makes a new package and for the
+<em>stable</em> branch when the Security Team make a new upload and publish a
+DSA. Notice that neither of these change the <em>testing</em> branch.
+
+<item>If no (new) bugs are detected in the <em>unstable</em> version
+of the package, it moves to <em>testing</em> after several days. The
+time this takes is usually ten days, although that depends on the
+upload priority of the change and wether the package is blocked from
+entering testing by its dependency relationships. Note that if the
+package is blocked from entering testing the upload priority will not
+change the time it takes to enter.
+
+</list>
+
+This behaviour might change based on the release state of the
+distribution. When a release is almost inminent, the Security Team or
+package maintainers might provide updates directly to testing.
+
+<sect1>Automatic updates in a Debian GNU/Linux system
+
+<p>First of all, automatic updates are not fully recommended, since
+administrators should review the DSAs and understand the impact of any
+given security update.
+
+<p>If you want to update your system automatically you should:
+
+<list>
+
+<item>Configure <prgn>apt</prgn> so that those packages that you do
+not want to update stay at their current version, either with
+<prgn>apt</prgn>'s <em>pinning</em> feature or marking them as
+<em>hold</em> with <prgn>dpkg</prgn> or <prgn>dselect</prgn>.
+
+<p>To pin the packages under a given release, you must edit
+<file>/etc/apt/preferences</file> (see <manref section="5"
+name="apt_preferences">) and add:
+
+<example>
+  Package: *
+  Pin: release a=stable
+  Pin-Priority: 100
+</example>
+<p>FIXME: verify if this configuration is OK.
+
+<item>Either use cron-apt as describe in <ref id="cron-apt"> and enable
+it to install downloaded packages or add a <prgn>cron</prgn> entry
+yourself so that the update is run daily, for example:
+
+<example>
+  apt-get update && apt-get -y upgrade
+</example>
+
+The <tt>-y</tt> option will have <prgn>apt</prgn> assume 'yes' for all
+the prompts that might arise during the update. In some cases, you
+might want to use the <tt>--trivial-only</tt> option instead of the
+<tt>--assume-yes</tt> (equivalent to <tt>-y</tt>).
+
+<footnote>You may also want to use the <tt>--quiet</tt> (<tt>-q</tt>)
+option to reduce the output of <prgn>apt-get</prgn>, which will stop
+the generation of any output if no packages are installed.</footnote>
+
+<item>Configure <prgn>cron</prgn> so that <prgn>debconf</prgn> will
+not ask for any input during upgrades, that way they are done
+non-interactively. <footnote>Note that some packages might
+<em>not</em> use <prgn>debconf</prgn> and updates will stall due to
+packages asking for user input during configuration.</footnote>
+
+<item>Check the results of the <prgn>cron</prgn> execution, which will
+be mailed to the superuser (unless changed with <tt>MAILTO</tt>
+environment variable in the script).
+
+</list>
+
+<p>A safer alternative might be to use the <tt>-d</tt> (or
+<tt>--download-only</tt>) option, which will download but not install
+the necessary packages. Then if the <prgn>cron</prgn> execution shows
+that the system needs to be updated, it can be done manually.
+
+<p>In order to accomplish any of these tasks, the system must be
+properly configured to download security updates as discussed in <ref
+id="security-update">.
+
+<p>However, this is not recommended for <em>unstable</em> without
+careful analysis, since you might bring your system into an unusable
+state if some serious bug creeps into an important package and gets
+installed in your system. <em>Testing</em> is slightly more
+<em>secure</em> with regard to this issue, since serious bugs have a
+better chance of being detected before the package is moved into the
+testing branch (although, you may have <em>no</em> security updates
+available whatsoever).
+
+<p>If you have a mixed distribution, that is, a <em>stable</em>
+installation with some packages updated to <em>testing</em> or
+<em>unstable</em>, you can fiddle with the pinning preferences as well
+as the <tt>--target-release</tt> option in <prgn>apt-get</prgn> to
+update <em>only</em> those packages that you have updated.
+<footnote>This is a common issue since many users want to maintain a
+stable system while updating some packages to <em>unstable</em> to
+gain the latest functionality. This need arises due to some projects
+evolving faster than the time between Debian's <em>stable</em>
+releases.</footnote>
+
+<sect id="periodic-integrity">Do periodic integrity checks 
+
+<P>Based on the baseline information you generated after installation
+(i.e. the snapshot descrived in <ref id="snapshot">), you should be
+albe to do an integrity check from time to time. An integrity check
+will be able to detect filesystem modifications made by an intruder or
+due to a system administrators mistake.
+
+<P>Integrity checks should be, if possible, done offline
+<footnote>
+An easy way to do this is using a Live CD, such as 
+<url id="http://www.knoppix-std.org/" name="Knoppix Std"> which includes
+both the file integrity tools and the integrity database for your system.
+</footnote>
+. That is,
+without using the operating system of the system to review, in order
+to avoid a false sense of security (i.e. false negatives) produced by,
+for example, installed rootkits. The integrity database that the
+system is checked against should also be used from read-only media.
+
+<P>You can consider doing integrity checks online using any of the
+filesystem integrity tools available (described in <ref
+id="check-integ">) if taking offline the system is not an
+option. However, precaution should be taken to use a read-only
+integrity database and also assure that the integrity checking tool
+(and the operating system kernel) has not been tampered with.
+
+<P>Some of the tools mentioned in the integrity tools section, such as
+<prgn>aide</prgn>, <prgn>integrit</prgn> or <prgn>samhain</prgn> are
+already prepared to do periodic reviews (through the crontab in the
+first two cases and through a standalone daemon in
+<prgn>samhain</prgn>) and can warn the administrator through different
+channels (usually e-mail, but samhain can also send pages, SNMP traps
+or syslog alerts) when the filesystem changes.
+
+<P>Of course, if you execute a security update of the system, the
+snapshot taken for the system should be re-taken to accomodate the
+changes done by the security update.
+
+</sect>
+<sect id="intrusion-detect">Set up Intrusion Detection
+
+<p>Debian GNU/Linux includes tools for intrusion detection, which is
+the practice of detecting inappropriate or malicious activity on your
+local system, or other systems in your private network. This kind of
+defense is important if if the system is very critical or you are
+truly paranoid. The most common approaches to intrusion detection are
+statistical anomaly detection and pattern-matching detection.
+
+<p>Always be aware that in order to really improve the system's
+security with the introduction of any of these tools, you need to have
+an alert+response mechanism in place. Intrusion detection is a waste
+of time if you are not going to alert anyone.
+
+<p>When a particular attack has been detected, most intrusion
+detection tools will either log the event with <prgn>syslogd</prgn> or
+send e-mail to the root user (the mail recipient is usually
+configurable). An administrator has to properly configure the tools so
+that false positives do not trigger alerts. Alerts may also indicate
+an ongoing attack and might not be useful, say, one day later, since
+the attack might have already succeeded. So be sure that there is a
+proper policy on handling alerts and that the technical mechanisms to
+implement this policy are in place.
+
+<p>An interesting source of information is
+<url id="http://www.cert.org/tech_tips/intruder_detection_checklist.html"
+name="CERT's Intrusion Detection Checklist">
+
+<sect1>Network based intrusion detection
+
+<p>Network based intrusion detection tools monitor the traffic on a
+network segment and use this information as a data source.
+Specifically, the packets on the network are examined, and they are
+checked to see if they match a certain signature.
+
+<p><package>Snort</package> is a flexible packet sniffer or logger
+that detects attacks using an attack signature dictionary. It detects
+a variety of attacks and probes, such as buffer overflows, stealth
+port scans, CGI attacks, SMB probes, and much more. <prgn>Snort</prgn>
+also has real-time alerting capability. You can use <prgn>snort</prgn>
+for a range of hosts on your network as well as for your own
+host. This is a tool which should be installed on every router to keep
+an eye on your network. Just install it with <tt>apt-get install
+snort</tt>, follow the questions, and watch it log.
+
+<p>Debian's <package>snort</package> package has many security checks
+enabled by default. However, you should customize the setup to take
+into account the particular services you run on your system. You may
+also want to seek additional checks specific to these services.
+
+<P><em>Note</em>: The snort packages available in woody are rather out
+of date, and might even be <url
+id="http://lists.debian.org/debian-devel/2003/debian-devel-200308/msg02105.html"
+name="buggy">, you can retrieve backported (and signed) Snort packages
+provided by the maintainer at
+<url id="http://people.debian.org/~ssmeenk/snort-stable-i386/">
+
+<p>There are other, simpler tools that can be used to detect network
+attacks. <package>portsentry</package> is an interesting package that
+can tip you off to port scans against your hosts. Other tools like
+<package>ippl</package> or <package>iplogger</package> will also
+detect some IP (TCP and ICMP) attacks, even if they do not provide the
+kind of advanced techniques <prgn>snort</prgn> does.
+
+<p>You can test any of these tools with the Debian package
+<package>idswakeup</package>, a shell script which generates false
+alarms, and includes many common attack signatures.
+
+<sect1>Host based intrusion detection 
+
+<p>Host based intrusion detection involves loading software on the
+system to be monitored which uses log files and/or the systems
+auditing programs as a data source. It looks for suspicious processes,
+monitors host access, and may even monitor changes to critical system
+files.
+
+<p><package>Tiger</package> is an older intrusion detection tool which
+has been ported to Debian since the Woody branch. <prgn>Tiger</prgn>
+provides checks of common issues related to security break-ins, like
+password strength, file system problems, communicating processes, and
+other ways root might be compromised. This package includes new
+Debian-specific security checks including: MD5sums checks of installed
+files, locations of files not belonging to packages, and analysis of
+local listening processes. The default installation sets up
+<prgn>tiger</prgn> to run each day, generating a report that is sent
+to the superuser about possible compromises of the system.
+
+<p>Log analysis tools, such as <package>logcheck</package> can also be
+used to detect intrusion attempts. See <ref id="custom-logcheck">.
+
+<p>In addition, packages which monitor file system integrity (see <ref
+id="check-integ">) can be quite useful in detecting anomalies in a
+secured environment. It is most likely that an effective intrusion
+will modify some files in the local file system in order to circumvent
+local security policy, install Trojans, or create users. Such events
+can be detected with file system integrity checkers.
+
+<sect>Avoiding root-kits
+
+<sect1 id="LKM">Loadable Kernel Modules (LKM)
+
+<p>Loadable kernel modules are files containing dynamically loadable
+kernel components used to expand the functionality of the kernel. The
+main benefit of using modules is the ability to add additional
+devices, like an Ethernet or sound card, without patching the kernel
+source and recompiling the entire kernel. However, crackers are now
+using LKMs for root-kits (knark and adore), opening up back doors in
+GNU/Linux systems.
+
+<p>LKM back doors are more sophisticated and less detectable than
+traditional root-kits. They can hide processes, files, directories and
+even connections without modifying the source code of binaries.  For
+example, a malicious LKM can force the kernel into hiding specific
+processes from <file>procfs</file>, so that even a known good copy of
+the binary <prgn>ps</prgn> would not list accurate information about
+the current processes on the system.
+
+<sect1>Detecting root-kits
+
+<p>There are two approaches to defending your system against LKM
+root-kits, a proactive defense and a reactive defense. The detection
+work can be simple and painless, or difficult and tiring, depending on
+the approach taken.
+
+<sect2 id="proactive">Proactive defense
+
+<p>The advantage of this kind of defense is that it prevents damage to
+the system in the first place. One such strategy is <em>getting there
+first</em>, that is, loading a LKM designed to protect the system from
+other malicious LKMs. A second strategy is to remove capabilities from
+the kernel itself. For example, you can remove the capability of
+loadable kernel modules entirely. Note, however, that there are 
+rootkits which might work even in this case, there are some that
+tamper with <file>/dev/kmem</file> (kernel memory) directly to make
+themselves undetectable.
+
+<p>Debian GNU/Linux has a few packages that can be used to mount a
+proactive defense:
+
+<list>
+
+<item><package>kernel-patch-2.4-lsm</package> - LSM is the Linux
+Security Modules framework.
+
+<item><package>lcap</package> - A user friendly interface to remove
+<em>capabilities</em> (kernel-based access control) in the kernel,
+making the system more secure. For example, executing <tt>lcap
+CAP_SYS_MODULE</tt>
+<footnote>
+There are over 28 capabilities including:
+<tt>CAP_BSET</tt>,
+<tt>CAP_CHOWN</tt>,
+<tt>CAP_FOWNER</tt>,
+<tt>CAP_FSETID</tt>,
+<tt>CAP_FS_MASK</tt>,
+<tt>CAP_FULL_SET</tt>,
+<tt>CAP_INIT_EFF_SET</tt>,
+<tt>CAP_INIT_INH_SET</tt>,
+<tt>CAP_IPC_LOCK</tt>,
+<tt>CAP_IPC_OWNER</tt>,
+<tt>CAP_KILL</tt>,
+<tt>CAP_LEASE</tt>,
+<tt>CAP_LINUX_IMMUTABLE</tt>,
+<tt>CAP_MKNOD</tt>,
+<tt>CAP_NET_ADMIN</tt>,
+<tt>CAP_NET_BIND_SERVICE</tt>,
+<tt>CAP_NET_RAW</tt>,
+<tt>CAP_SETGID</tt>, 
+<tt>CAP_SETPCAP</tt>,
+<tt>CAP_SETUID</tt>,
+<tt>CAP_SYS_ADMIN</tt>,
+<tt>CAP_SYS_BOOT</tt>,
+<tt>CAP_SYS_CHROOT</tt>,
+<tt>CAP_SYS_MODULE</tt>,
+<tt>CAP_SYS_NICE</tt>,
+<tt>CAP_SYS_PACCT</tt>,
+<tt>CAP_SYS_PTRACE</tt>,
+<tt>CAP_SYS_RAWIO</tt>,
+<tt>CAP_SYS_RESOURCE</tt>,
+<tt>CAP_SYS_TIME</tt>, and
+<tt>CAP_SYS_TTY_CONFIG</tt>. All of them can be de-activated to harden your
+kernel.
+</footnote>
+will remove module loading capabilities (even for the root user).
+<footnote>
+You don't need to install <package>lcap</package> to do this, but it's
+easier than setting <file>/proc/sys/kernel/cap-bound</file> by hand.
+</footnote>
+For more information on capabilities you might want to check out an
+Jon Corbet's <url id="http://lwn.net/1999/1202/kernel.php3" 
+name="Kernel development">  section on LWN (december 1999) 
+
+</list>
+
+<p>If you don't really need many kernel features on your GNU/Linux
+system, you may want to disable loadable modules support during kernel
+configuration. To disable loadable module support, just set
+CONFIG_MODULES=n during the configuration stage of building your
+kernel, or in the <file>.config</file> file. This will prevent LKM
+root-kits, but you lose this powerful feature of the Linux kernel.
+Also, disabling loadable modules can sometimes overload the kernel,
+making loadable support necessary.
+
+<sect2>Reactive defense
+
+<p>The advantage of a reactive defense is that it does not overload
+system resources. It works by comparing the system call table with a
+known clean copy in a disk file, <file>System.map</file>. Of course, a
+reactive defense will only notify the system administrator after the
+system has already been compromised.
+
+<p>Detection of some root-kits in Debian can be accomplished with the
+<package>chkrootkit</package> package. The <url name="Chkrootkit"
+id="http://www.chkrootkit.org"> program checks for signs of several
+known root-kits on the target system, but is not a definitive test.
+
+<p>Another helpful tool is <url name="KSTAT"
+id="http://www.s0ftpj.org/en/site.html"> (Kernel Security Therapy Anti
+Trolls) by the S0ftproject group. KSTAT checks the kernel memory area
+(<file>/dev/kmem</file>) for information about the target host to
+assist the system administrator in finding and removing malicious
+LKMs.
+
+<sect>Genius/Paranoia Ideas &mdash; what you could do
+
+<p>This is probably the most unstable and funny section, since I hope
+that some of the "duh, that sounds crazy" ideas might be realized. The
+following are just some ideas for increasing security &mdash; maybe
+genius, paranoid, crazy or inspired depending on your point of view.
+
+<list>
+
+<item>Playing around with Pluggable Authentication Modules (PAM). As
+quoted in the Phrack 56 PAM article, the nice thing about PAM is that
+"You are limited only by what you can think of." It is true. Imagine
+root login only being possible with fingerprint or eye scan or
+cryptocard (why did I use an OR conjunction instead of AND?).
+
+<item>Fascist Logging. I would refer to all the previous logging
+discussion above as "soft logging". If you want to perform real
+logging, get a printer with fanfold paper, and send all logs to
+it. Sounds funny, but it's reliable and it cannot be tampered with or
+removed.
+
+<item>CD distribution. This idea is very easy to realize and offers
+pretty good security. Create a hardened Debian distribution, with
+proper firewall rules. Turn it into a boot-able ISO image, and burn it
+on a CDROM. Now you have a read-only distribution, with about 600 MB
+space for services. Just make sure all data that should get written is
+done over the network. It is impossible for intruders to get
+read/write access on this system, and any changes an intruder does
+make can be disabled with a reboot of the system.
+
+<item>Switch module capability off. As discussed earlier, when you
+disable the usage of kernel modules at kernel compile time, many
+kernel based back doors are impossible to implement because most are
+based on installing modified kernel modules.
+
+<item>Logging through serial cable. (contributed by Gaby Schilders) As
+long as servers still have serial ports, imagine having one dedicated
+logging system for a number of servers. The logging system is
+disconnected from the network, and connected to the servers via a
+serial-port multiplexer (Cyclades or the like). Now have all your
+servers log to their serial ports, write only. The log-machine only
+accepts plain text as input on its serial ports and only writes to a
+log file. Connect a CD/DVD-writer, and transfer the log file to it
+when the log file reaches the capacity of the media. Now if only they
+would make CD writers with auto-changers... Not as hard copy as direct
+logging to a printer, but this method can handle larger volumes and
+CDROMs use less storage space.
+
+<item>Change file attributes using <prgn>chattr</prgn>. (taken from
+the Tips-HOWTO, written by Jim Dennis). After a clean install and
+initial configuration, use the <prgn>chattr</prgn> program with the
+<tt>+i</tt> attribute to make files unmodifiable (the file cannot be
+deleted, renamed, linked or written to). Consider setting this
+attribute on all the files in <file>/bin</file>, <file>/sbin/</file>,
+<file>/usr/bin</file>, <file>/usr/sbin</file>, <file>/usr/lib</file>
+and the kernel files in root. You can also make a copy of all files in
+<file>/etc/</file>, using <prgn>tar</prgn> or the like, and mark the
+archive as immutable.
+
+<p>This strategy will help limit the damage that you can do when
+logged in as root. You won't overwrite files with a stray redirection
+operator, and you won't make the system unusable with a stray space in
+a <prgn>rm -fr</prgn> command (you might still do plenty of damage to
+your data &mdash; but your libraries and binaries will be safer.)
+
+<p>This strategy also makes a variety of security and denial of
+service (DoS) exploits either impossible or more difficult (since many
+of them rely on overwriting a file through the actions of some SETUID
+program that <em>isn't providing an arbitrary shell command</em>).
+
+<p>One inconvenience of this strategy arises during building and
+installing various system binaries. On the other hand, it prevents the
+<prgn>make install</prgn> from over-writing the files. When you forget
+to read the Makefile and <prgn>chattr -i</prgn> the files that are to
+be overwritten, (and the directories to which you want to add files)
+&dash; the make command fails, and you just use the
+<prgn>chattr</prgn> command and rerun it. You can also take that
+opportunity to move your old bin's and libs out of the way, into a
+.old/ directory or tar archive for example.
+
+<p>Note that this strategy also prevents you from upgrading your
+system's packages, since the files updated packages provide cannot be
+overwritten. You might want to have a script or other mechanism to
+disable the immutable flag on all binaries right before doing an
+<prgn>apt-get update</prgn>.
+
+</list>
+
+<sect1>Building a honeypot
+
+<p>FIXME: More Content specific to Debian needed.
+
+<p>A honeypot is a system designed to teach system administrators how
+crackers probe for and exploit a system. It is a system setup with the
+expectation and goal that the system will be probed, attacked and
+potentially exploited. By learning the tools and methods employed by
+the cracker, a system administrator can learn to better protect their
+own systems and network.
+
+<p>A Debian GNU/Linux system can easily be setup as a honeypot, if you
+dedicate the time to implement and monitor it. Simply setup the fake
+server with a firewall and some sort of network intrusion detector,
+put it on the Internet, and wait. Do take care that if the system is
+exploited, you are alerted in time (see <ref id="log-alerts">) so that
+you can take appropriate measures and terminate the compromise when
+you've seen enough. Here are some of the packages and issues to
+consider when setting up your honeypot:
+
+<list>
+
+<item>The firewall technology you will use (provided by the Linux
+kernel).
+
+<item><package>syslog-ng</package>, useful for sending logs from the
+honeypot to a remote syslog server.
+
+<item><package>snort</package>, to set up capture of all the incoming
+network traffic to the honeypot and detect the attacks.
+
+<item><package>osh</package>, a SETUID root, security enhanced,
+restricted shell with logging (see Lance Spitzner's article below).
+
+<item>Of course, all the daemons you will be using for your fake
+server honeypot (but do <em>not</em> harden the honeypot).
+
+<item>The Deception Toolkit, which uses deception to counter attacks.
+Homepage: <url id="http://www.all.net/dtk/" name="Deception Toolkit">
+
+<item>Integrity checkers (see <ref id="check-integ">) and The
+Coroner's Toolkit (<package>tct</package>) to do post-attack audits.
+
+</list>
+
+<p>You can read more about building honeypots in Lanze Spitzner's
+excellent article <url
+id="http://www.net-security.org/text/articles/spitzner/honeypot.shtml"
+name="To Build a Honeypot"> (from the Know your Enemy series), or
+David Raikow's <url
+id="http://www.zdnetindia.com/techzone/resources/security/stories/7601.htm"
+name="Building your own honeypot">. Also, the <url
+id="http://project.honeynet.org/" name="Honeynet Project"> provides
+valuable information about building honeypots and auditing the attacks
+made on them.

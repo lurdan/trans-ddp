@@ -1,0 +1,604 @@
+<appendix>El proceso de fortalecimiento es manejado paso a paso  <!--
+me tomé la libertad de cambiar de lista de chequeo a un proceso "paso
+a paso" porque yo habia adicionado un tipo de checklist diferente. El
+renombramiento es más para evitar una confución que otra cosa// era
+-->
+
+<p>Un procedimiento siempre es útil, si le permite ver el proceso
+completo de fortalecimiento y le permita tomar desiciones. Una
+posibles aproximación para este procedimiento en Debian 2.2.GNU/linux
+es mostrado abajo. Este es un proceso post de instalación para una
+revición de la lista de medidas a ser tomadas, paso a paso, durante la
+configuración. vea <ref id="checklist">.también este procedimiento
+está (por el momento) más orientado hacia el fortalecimiento de
+servicios del sistema de redes.
+
+<list>
+
+<item>Haga una instalación del sistema (considere la información en
+este howto acerca de las particiones). Después que la instalación de
+base sea instalada, entre a la instalación por defecto , no seleccione
+paquetes de tareas, si no seleccione shadow passwords.
+
+<item>Vaya através de <prgn>dselect</prgn> y remueva lo que no es
+necesario, si no selecciono paquetes antesv de ser (I)instalados. Deje
+la menor cantidad de programas necesarios en el servidor.
+
+<item>Actualice todo el software desde los utimos paquetes disponibles
+en security.debian.org como se expuso previamente en <ref
+id="update">.
+
+<item>implemente las sugerencias presentadas en este manual ,
+considerando las cuotas del usuario, definiciones de login y lilo.
+
+<item>Para hacer un fortalecimiento del servicio haga una lista de
+servicios activos actualmente en el sistema.
+
+<example>
+$ ps -aux
+$ netstat -pn -l -A inet 
+# /usr/sbin/lsof -i | grep LISTEN
+</example>
+
+Necesitará instalar <package>lsof-2.2</package> para que el tercer
+comando funcione (corralo como root). Debería ser consiente que
+<package>lsof</package> puede transladar la palabra LISTEN a su
+configuraciones de los locales.
+
+<item>Para eliminar los servicios innecesario, primero determine como
+comienza y de que paquete proviene. Puede hacer esto fácil revisando
+el programa que escucha en ese puerto, el siguiente ejemplo le dice
+como hacer uso de estas herramientas y <prgn>dpkg</prgn>
+
+<example>
+#!/bin/sh
+# ARREGLAME: this is quick and dirty; replace with a more robust script snippet
+for i in `sudo lsof -i | grep LISTEN | cut -d " " -f 1 |sort -u` ; do
+ pack=`dpkg -S $i |grep bin |cut -f 1 -d : | uniq`
+ echo "Service $i is installed by $pack";
+ init=`dpkg -L $pack |grep init.d/ `
+ if [ ! -z "$init" ]; then
+ echo "and is run by $init"
+ fi
+done
+</example>
+
+<item>Una vez que usted encuentre servicios no deseados, remueva el
+paquete (con <prgn>dpkg --purge</prgn>) o, si es útil, pero no
+debería estar habilitado al inicio, use <prgn>update-rc.d</prgn> (vea
+<ref id="disableserv">) para removerlo del sistema de inicio.
+
+<item>Para los servicios inetd (lanzado por el super demonio)usted
+podría revisar los servicios habilitados, por ejemplo con:
+
+<example>
+$ grep -v "^#" /etc/inetd.conf | sort -u
+</example>
+
+e incapacitar aquellos que no sean necesarios, comentando la línea que
+los incluye, removiendo los paquetes o usando
+<prgn>update-inetd</prgn>
+
+<item>Si se tienen servicios de cubierta (usando estos
+<prgn>/usr/sbin/tcpd</prgn>) revise que los
+<file>/etc/hosts.allow</file> y <file>/etc/hosts.deny</file> estén
+configurados acorde a su política de servicios.
+
+<item>Si es posible y dependiendo de cada servicio usted puede tener
+un límite de servicios, si desea limitar cuando se usa más de una
+interfaz externa para escuchar solamente cada una de ellas. Por
+ejemplo, si usted desea el acceso interno a FTP, haga que el demonio
+escuche en su interfaz de administración solamente, no sobre todas las
+interfaces (i.e, 0.0.0.0:21).
+
+<item>Reinicie la máquina, o cámbiela para entrar a single user y
+vuelva a multiusuario con
+
+<example>
+$ init 1
+(....)
+$ init 2
+</example>
+
+<item>Revise los servicios disponibles actualmente, y si es necesario
+repita estos pasos de nuevo.
+
+<item>Instale, ahora los servicios necesarios, si usted todavia no lo
+ha hecho, y configurelos apropiadamente.
+
+<item>Revise que usuarios son utilizados para correr los servicios
+deisponibles, por ejemplo con:
+
+<example>
+$ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`;
+do user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; echo
+"Service $i is running as user $user"; done
+</example>
+
+y considere cambiar estos servicios para un usuario o grupo dado, que
+pueden también ser cambiados de directorio raíz, para incrementar la
+seguridad. Puede hacer esto cambiando el script
+<file>/etc/init.d</file> donde el servicio se activa. La mayoría de
+servicios en Debian usan <prgn>start-stop-daemon</prgn> de tal forma
+que puede usar la opción --change-uid y la opción --chroot para
+configurar estos servicios. Cambiar el directorio raíz de los
+servicios está más allá del alcance de este documento, pero ofrecemos
+una palabra de advertencia: Usted podría necesitar poner todos los
+archivos instalados por el servicio de paquetes usando dpkg -L y los
+paquetes de los que dependen en el ambiente de cambio de directorio
+raíz.
+
+<item>Repita los pasos anteriores para revisar que los solamente los
+servicios deseados corran, y que lo hagan como el usuario o grupo
+desea.
+
+<item>Pruebe la instalación de servicios para saber si trabajan como
+se esperaba.
+
+<item>Compruebe el sistema usando un revisor de aseguramiento de
+vulnerabilidades (como <package>nessus</package>) para determinar las
+vulnerabilidades del sistema (configuraciones erróneas, servicios
+viejos o innecesarios)
+
+<item>Instale medidas de instrusión por red y medidas de intrusión por
+servidor (como <package>snort</package> y
+<package>logsentry</package>).
+
+<item>Repita el paso del revisor de red y verifique que los sistemas
+de detección de intrusiónd trabajan correctamente.
+
+</list>
+para los verdaderos paranoicos, considere también lo siguiente: 
+<list>
+
+<item>Agregar capacidades de cortafuegos al sistema, aceptando
+conexiones entrantes solamente para los servicios ofrecidos y limite
+conexiones salientes para los autorizados. 
+
+<item>Vuelva a revisar la instalación con una nueva herramienta de
+revisión de vulnerabilidades.
+
+<item>Revise las conexiones salientes usando un revisor de red desde
+el sistema a un servidor externo y verificque que las conexiones
+indeseadas no encuentren vía de salida.</list>
+
+<p>ARREGLAME: Este procedimiento considera el servicio de fortelecimiento,
+pero no el sistema de fortalecimiento a nivel de usuario, incluir
+informaciones con respecto al chequeo de permisos del usuario,
+archivos setuid y paros en el sistema usando el sistema de archivos.
+
+
+
+<appendix id="checklist">Lista de chequeo de la configuración
+
+<p>Este apéndice reitera puntos de otras secciones de este manual
+condensando en un formato de lista de chequeo. El propósito es ser un
+resumen para quienes ya han leído el manual. También hay otras buenas
+listas de chequeo disponibles, Kurt Seifried tiene una configuración
+basada en un curso en <url
+id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.h
+tml"name="Securing Linux Step by Step">.
+
+<!-- ARREGLAME: Adicionar puntos a la seguridad Unix del chekeo de listas (CERT) -->
+
+<!-- Order is slightly different from body text. Consider changing text? -->
+<!-- (ARREGLAME) -->
+
+<p>ARREGLAME: esto es basado en v1.4 del manual, y podría necesitar actualizarse.
+
+<list>
+
+<item>límitar la entrada para un acceso físico.
+ 
+ <list>
+
+ <item>Capacitar la contraseña BIOS 
+
+ <item>incapacitar la entrada floppy/cdrom/...
+		 
+ <item>enviar una contraseña LILO o GRUB (<file>/etc/lilo.conf</file>
+ o <file>/boot/grub/menu.lst</file>, respectivamente); revisar que la
+ configuración de los archivos LILO o GRUB sea de lectura-protegida.
+ 
+ <item>desaprobar el disco flexible MBR para iniciar por el respaldo
+ de la floppy booting back door by overwriting the MBR (maybe not?)
+
+ </list>
+	 
+<item>partitura 
+
+ <list>
+		
+ <item>Separe los datos del suscriptor, no sistema de datos, y cambiar
+ rápaidamente los datos del tiempo de recorrido de sus datos de
+ particón.
+		 
+ <item>enviar <tt>nosuid,noexec,nodev</tt> montar opciones en
+ <file>/etc/fstab</file> sobre la partición ext2 tal como
+ <file>/tmp</file>.
+
+ </list>
+	 
+<item>Higiene de las contraseñas y aseguramiento a la entrada
+	 
+ <list>
+
+ <item>Defina una buena contraseña para el administrador
+
+ <item>Habilite shadowing y MD5 en las contraseñas
+
+ <item>Instale y use PAM
+		 
+ <list>
+ 
+ <item>Agregue MD5 para soportar PAM y asegúrese que: (en términos
+ generales) las entradas en el archivo <file>/etc/pam.d/</file> que
+ permiten acceso a la máquina, tengan en el segundo campo del archivo
+ pam.d <!-- or is it third? (ARREGLAME: check) --> definidoc com
+ "requisite" o "required".
+		 
+ <item>Cambie <file>/etc/pam.d/login</file> para permitir solamente
+ entradas locales al administrador.
+
+ <item>también marque las tty: atuorizadas en
+ <file>/etc/security/access.conf</file> y generalmente configurar
+ este archivo para limitar la entrada del administrador tanto como
+ sea posible.
+			 
+ <item>Agregue pam_limits.so si usted desea habilitar límites para
+ usuarios.
+
+ <item>Cambie <file>/etc/pam.d/passwd</file>: especifique un tamaño
+ mínimo de contraseña.(podrían ser 6 caracteres) y habilite md5
+
+ <item>agregue un grupo wheel a <file>/etc/group</file> si desea,
+ agregue pam_wheel. para entrar a <file>/etc/pam.d/su</file>
+			 
+ <item>para especificar controles por usuario iniciales, use
+ pam_listfile cuando sea apropiado.
+			 
+ <item>tenga un archivo <file>/etc/pam.d/other</file>y montarlo con
+ seguridad alta.
+			 
+ </list>
+		 
+
+ <item>ponga límites en <file>/etc/security/limits.conf</file> (note
+ que <file>/etc/limits</file> no es usado si usted está utilizando
+ PAM)
+
+ <item>Restrinja <file>/etc/login.defs</file>; también, si usted
+ habilita MD5 y/o PAM, asegurese que usted hace los cambios
+ carrespondientes ahí también.
+		 
+ <item>inhabilite el acceso a root por ftp en
+ <file>/etc/ftpusers</file>
+		 
+ <item>inhabilite la entrada vía red al root; use <manref name="su"
+ section="1"> o <manref name="sudo" section="1">. (considere
+ instalar <package>sudo</package>)
+		 
+ <item>Use PAM para hacer cumplir las restrinciones adicionales sobre
+ logins?
+
+ </list>
+
+	 <item>Otros asuntos de la seguridad local.
+	 <list>
+		<item>Cambios de Kernel 
+		 (ver <ref id="kernel-conf">)
+		 
+		<item>Parches del Kernel 
+		 (ver <ref id="kernel-patches">)
+		 
+		<item>restrinja los permisos de los archivos de bitácora
+	 (<file>/var/log/{last,fail}log</file>, Apache logs)
+		 
+ <item>Verifique que la revisión de setuid está habilitada en
+ <file>/etc/checksecurity.conf</file>
+		 
+ <item>Considere hacer algunos archivos log append-only y
+ configurar archivos inmutables usando chattr (ext2 filesystems
+ únicamente)
+
+
+
+ <item>Active integridad de archivos (vea <ref id="check-integ">).
+ instale <package>debsums</package>
+		 
+ <item>Considere remplazar locate con slocate
+		 
+ <item>Enviar bitácoras a una impresora local?
+		 
+ <item>Queme su configuración sobre un CD de arranque y e inicie la
+ máquina desde este?
+		 
+ <item>incapacitar módulos del kernel? 
+
+	 </list>
+	 
+ <item>Limite el acceso a la red
+
+ <list>
+
+<item>Instale y configure <prgn>ssh</prgn> (se sugiere PermitRootLogin
+No <file>/etc/ssh/sshd_config</file>, PermitEmptyPasswords No; note
+que hay otras sugerencias en este texto)
+		 
+<item>Considere incapacitar o eliminar in.telnetd
+		 
+<item>Generalmente, inhabilite los servicios gratuitos en
+<file>/etc/inetd.conf</file> usando <tt>update-inetd --disable</tt>
+(or inhabilite todo inetd, o use un reemplazo como xinetd or rlinetd)
+		 
+<item>Inhabilite los otros servicios gratuitos de red; mail, ftp, DNS,
+www, etc no deben estar corriendo si usted no los necesita y
+monitoréelos regularmente.
+
+<item>Para los servicios que necesite, no use solamente los programas
+comunes, busque más versiones seguras enviadas por Debian (o busque
+otros recursos). Para cualquier servicio que usted termine usando,
+asegúrese de entender los riesgos.
+
+<item>Monte celdas de directorio raíz distintos para usuarios externos
+y demonios.
+
+<item>Configure firewall y tcpwrappers (i.e. <manref
+name="hosts_access" section="5">); revise <file>/etc/hosts.deny</file>
+en este texto.
+		 
+<item>si usted corre ftp, monte su servidor ftpd y siempre corra
+chrooted para el directorio raíz del usuario
+		 
+<item>Si usted corre X, inhabilite la autenticación xhost y use ssh a
+cambio, mejor aún, inhabilite X remoto si usted puede (adicione
+-nolisten tcp a X desde la línea de comandos y apague XDMCP en
+<file>/etc/X11/xdm/xdm-config</file> configurando requestPort a 0)
+		 
+<item>Inhabilite el acceso externo a impresoras.
+		 
+<item>Use tunel para sesiones de IMAP o POP a través de SSL o ssh;
+instale stunnel si usted quiere proporcionar este servicio a usuarios
+de correo remoto
+		 
+<item>Monte un loghost y configure otras máquinas para enviar logs a
+ésta (<file>/etc/syslog.conf</file>)
+		 
+<item>asegure BIND, Sendmail, y otros demonios complejos
+(Configure una celda de cambio de directorio ; corra como non-root
+pseudo-user)
+
+<item>Instale snort o una herramienta de logging similar.
+		 
+<item>Prescinda de NIS y RPC si usted puede (inhabilite portmap).
+		 
+ </list>
+ 
+ <item>Políticas 
+
+ <list>
+		
+<item>Eduque a los usuarios acerca de los porque y los como de sus
+políticas. Cuando usted ha prohibido algo que normalmente está
+disponible en otros sistemas, suministre documenteción que explique
+como conseguir resultados similares usando otros medios más seguros.
+
+<item>Prohiba el uso de protocolos que usa claves en texto plano
+(telnet, rsh y friends; ftp, imap, http, ...).
+		 
+<item>Prohiba programas comoVGAlib.
+		 
+<item>Use quotas de disco.
+
+</list>
+	 
+<item>manténegase informado sobre asuntos de seguridad
+ 
+ <list>
+		
+ <item>Subscríbase a la lista de correo de seguridad 
+
+ <item>Subscríbase a las actualizaciones de seguridad, adicione a
+ <file> /etc/apt/sources.list</file> una entrada (o entradas) a
+ http://security.debian.org/debian-security
+		 
+ <item>Además recuerde correr periódicamente <prgn>apt-get update ;
+ apt-get upgrade</prgn> (tal vez instalar un cron job?) como se
+ explicó en <ref id="update">.
+
+ </list>
+
+</list>
+
+<appendix id="snort-box">Montar un IDS aislado
+
+<p>Usted puede montar fácilmente una máquina Debian como un Sistema de
+Detección de Instrusos usando <package>snort</package>.
+
+<p>Algunas pautas:
+
+<list>
+
+<item>Instale una base de sistema Debian y no seleccione paquetes
+adicionales. 
+
+<item>Baje e instale (con dpkg) manualmente los paquetes necesarios
+(vea los paquetes instalados en la lista de abajo).
+
+<item>Baje e instale ACID (Analisis Consolado para Instrucciones para
+la Base de Datos).
+
+</list>
+
+<p>ACID es un paquete corrientepara Debian con el
+<package>acidlab</package>, esto ocaciona un grafico WWW interfaz
+para sacar snort's . Esto pude obtenerse desde <url
+id="http://www.cert.org/kb/acid/">, <url
+id="http://acidlab.sourceforge.net"> or <url
+id="http://www.andrew.cmu.edu/~rdanyliw/snort/">. You might want to
+read the <url
+id="http://www.linuxdoc.org/HOWTO/Snort-Statistics-HOWTO/index.html"
+name="Snort Statistics HOWTO">.
+
+<p>Usted puede montar este sistema con almenos dos interfaces: una
+interfaz conectada para un mantenimiento lan (para el acceso a los
+resultados y para mantener el sistema), una interfaz conectada con
+ip-direcciónagregada al sistema al segmento de la red para ser
+analizado .
+ 
+<p>Para configurar las tarjetas de red sin una ip-dirección usted
+no puede usar el standard's Debian
+<file>/etc/network/interfaces</file> desde el <prgn>ifup</prgn> y
+<prgn>ifdown</prgn> espere más informaciones que necesita. Usted
+tiene (simple <tt>ifconfig eth0 up</tt>) 
+
+<p> Usted necesita tener puesta instalacióne Debian standard Apache,
+MySQL y PHP4 por ACID para trabajar. Downloaded paquetes (Nota:las
+versiones podrian variar dependiendo de cada distribución debian que
+usted usa, esto es desde Debian <em>woody</em> septiembre 2001):es
+
+<example>
+ACID-0.9.5b9.tar.gz
+adduser_3.39_all.deb
+apache-common_1.3.20-1_i386.deb
+apache_1.3.20-1_i386.deb
+debconf_0.9.77_all.deb
+dialog_0.9a-20010527-1_i386.deb
+fileutils_4.1-2_i386.deb
+klogd_1.4.1-2_i386.deb
+libbz2-1.0_1.0.1-10_i386.deb
+libc6_2.2.3-6_i386.deb
+libdb2_2.7.7-8_i386.deb
+libdbd-mysql-perl_1.2216-2_i386.deb
+libdbi-perl_1.18-1_i386.deb
+libexpat1_1.95.1-5_i386.deb
+libgdbmg1_1.7.3-27_i386.deb
+libmm11_1.1.3-4_i386.deb
+libmysqlclient10_3.23.39-3_i386.deb
+libncurses5_5.2.20010318-2_i386.deb
+libpcap0_0.6.2-1_i386.deb
+libpcre3_3.4-1_i386.deb
+libreadline4_4.2-3_i386.deb 
+libstdc++2.10-glibc2.2_2.95.4-0.010703_i386.deb
+logrotate_3.5.4-2_i386.deb
+mime-support_3.11-1_all.deb
+mysql-client_3.23.39-3_i386.deb
+mysql-common_3.23.39-3.1_all.deb
+mysql-server_3.23.39-3_i386.deb
+perl-base_5.6.1-5_i386.deb
+perl-modules_5.6.1-5_all.deb
+perl_5.6.1-5_i386.deb
+php4-mysql_4.0.6-4_i386.deb
+php4_4.0.6-1_i386.deb
+php4_4.0.6-4_i386.deb
+snort_1.7-9_i386.deb
+sysklogd_1.4.1-2_i386.deb
+zlib1g_1.1.3-15_i386.deb
+</example>
+
+<p>Installed packages (dpkg -l):
+<example>
+ii adduser 3.39
+ii ae 962-26
+ii apache 1.3.20-1
+ii apache-common 1.3.20-1
+ii apt 0.3.19
+ii base-config 0.33.2
+ii base-files 2.2.0
+ii base-passwd 3.1.10
+ii bash 2.03-6
+ii bsdutils 2.10f-5.1
+ii console-data 1999.08.29-11.
+ii console-tools 0.2.3-10.3
+ii console-tools- 0.2.3-10.3
+ii cron 3.0pl1-57.2
+ii debconf 0.9.77
+ii debianutils 1.13.3
+ii dialog 0.9a-20010527-
+ii diff 2.7-21
+ii dpkg 1.6.15
+ii e2fsprogs 1.18-3.0
+ii elvis-tiny 1.4-11
+ii fbset 2.1-6
+ii fdflush 1.0.1-5
+ii fdutils 5.3-3 
+ii fileutils 4.1-2 
+ii findutils 4.1-40
+ii ftp 0.10-3.1
+ii gettext-base 0.10.35-13
+ii grep 2.4.2-1
+ii gzip 1.2.4-33
+ii hostname 2.07
+ii isapnptools 1.21-2
+ii joe 2.8-15.2 
+ii klogd 1.4.1-2 
+ii ldso 1.9.11-9 
+ii libbz2-1.0 1.0.1-10
+ii libc6 2.2.3-6
+ii libdb2 2.7.7-8
+ii libdbd-mysql-p 1.2216-2
+ii libdbi-perl 1.18-1
+ii libexpat1 1.95.1-5
+ii libgdbmg1 1.7.3-27
+ii libmm11 1.1.3-4
+ii libmysqlclient 3.23.39-3
+ii libncurses5 5.2.20010318-2
+ii libnewt0 0.50-7 
+ii libpam-modules 0.72-9
+ii libpam-runtime 0.72-9 
+ii libpam0g 0.72-9
+ii libpcap0 0.6.2-1
+ii libpcre3 3.4-1 
+ii libpopt0 1.4-1.1
+ii libreadline4 4.2-3 
+ii libssl09 0.9.4-5 
+ii libstdc++2.10 2.95.2-13 
+ii libstdc++2.10- 2.95.4-0.01070
+ii libwrap0 7.6-4 
+ii lilo 21.4.3-2
+ii locales 2.1.3-18
+ii login 19990827-20
+ii makedev 2.3.1-46.2
+ii mawk 1.3.3-5
+ii mbr 1.1.2-1 
+ii mime-support 3.11-1 
+ii modutils 2.3.11-13.1
+ii mount 2.10f-5.1
+ii mysql-client 3.23.39-3
+ii mysql-common 3.23.39-3.1
+ii mysql-server 3.23.39-3
+ii ncurses-base 5.0-6.0potato1
+ii ncurses-bin 5.0-6.0potato1
+ii netbase 3.18-4 
+ii passwd 19990827-20
+ii pciutils 2.1.2-2
+ii perl 5.6.1-5 
+ii perl-base 5.6.1-5 
+ii perl-modules 5.6.1-5
+ii php4 4.0.6-4 
+ii php4-mysql 4.0.6-4 
+ii ppp 2.3.11-1.4
+ii pppconfig 2.0.5
+ii procps 2.0.6-5 
+ii psmisc 19-2 
+ii pump 0.7.3-2 
+ii sed 3.02-5 
+ii setserial 2.17-16
+ii shellutils 2.0-7
+ii slang1 1.3.9-1 
+ii snort 1.7-9
+ii ssh 1.2.3-9.3
+ii sysklogd 1.4.1-2
+ii syslinux 1.48-2
+ii sysvinit 2.78-4 
+ii tar 1.13.17-2 
+ii tasksel 1.0-10 
+ii tcpd 7.6-4 
+ii telnet 0.16-4potato.1
+ii textutils 2.0-2 
+ii update 2.11-1 
+ii util-linux 2.10f-5.1
+ii zlib1g 1.1.3-15 
+</example>
+
+<P>FIXME: !!!!! Falta mucho aqui !!!!! ¿Dónde esta lo demás?

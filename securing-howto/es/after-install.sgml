@@ -1,0 +1,1398 @@
+
+<chapt>Después de la instalación
+
+<sect>Colocar una contraseña a lilo o grub
+<p>
+Es muy fácil entrar a una shell con el usuario root y cambiar las
+contraseñas simplemente tecleando 
+"&lt;name-of-your-bootimage&gt; init=/bin/sh". Luego de
+cambiar las contraseñas y reingresar al sistema, la persona ha
+tiene acceso ilimitado (como root) y puede hacer cualquier cosa que el/ella
+quiera en el sistema. Después de este procedimiento, usted no tendrá
+acceso a su sistema, porque usted no conoce la contraseña de root.
+<p> Asegúrese que esto no pueda suceder, usted debería colocar una
+contraseña para el cargador de linux. Usted puede escoger entre
+una contraseña global y una contraseña para una imagen.
+
+<p>
+Para LILO usted necesita editar el archivo
+<file>/etc/lilo.conf</file> y agregar una contraseña y restringirlo
+como en el siguiente ejemplo:
+
+<example>
+image=/boot/2.2.14-vmlinuz
+ label=Linux
+ read-only
+ password=hackme
+ restricted
+</example>
+
+<p> Cuando haya terminado, ejecute LILO. Omitir la línea <tt>restricted</tt>
+produce que LILO siempre pida una contraseña, aun si no se le pasan
+parámetros a LILO.Los permisos defectuosos de <file>/etc/lilo.conf</file> para 
+que el gran root lea yescriba, y se habilite el acceso de solo lectura para el 
+grupolilo.conf's de root. 
+
+<p> Si usted usa GRUB en lugar de LILO, edite
+<file>/boot/grub/menu.lst</file> y agregue las siguientes dos líneas
+al inicio (sustituyendo, por supuesto 'hackme' con la contraseña
+deseada). Esto previene a los usuarios de editar los ítems de
+entrada. 'timeout3' especifica tres segundos antes del
+arranque del sistema por defecto.
+
+<example>
+timeout 3
+password hackme
+</example>
+
+Para asegurar mas la integridad de la contraseña, usted
+podría guardarla una forma encriptada. La utilidad de
+grub-d5-crypt es que genera una contraseña la cual es compatible con el
+algorítmo (md5) de encripción de grub. Para
+especificar en GRUB que el formato de la contraseña md5 será usado,
+use la siguiente instrucción:
+
+<example>
+timeout 3
+password --md5 $1$bw0ez$tljnxxKLfMzmnDVaQWgjP0
+</example>
+
+El parámetro --md5 fue agregado para instruir a grub a realizar el
+proceso de autenticación. La contraseña
+proporcionada es la versión encriptada en md5 de "hackme". Usar el método de
+encripción md5 es preferible a su contraparte en solo texto. Mas información 
+acera de la contraseña GRUB puede ser encontrada en el paquete de grub-doc.
+
+<sect>Eliminar el prompt de root del núcleo
+
+<p>Los núcleos de Linux 2.4 proporcionan una forma para tener acceso a
+la línea de comandos del administrador que será presentada justo
+después de cargar el sistema de archivos cramfs. Un mensaje aparecerá
+para permitir al administrador entrar en una línea de comandos con
+permisos de root, esta línea de comandos puede ser usada manualmente
+para cargar módulos cuando la autodetección falla. Este
+comportamiento es el predeterminado para initrd's linuxrc. El
+siguiente mensaje aparecerá:
+
+<example>
+Press ENTER to obtain a shell (waits 5 seconds)
+</example>
+
+<p>Para eliminar este comportamiento usted necesita cambiar 
+<file>/etc/mkinitrd/mkinitrd.conf</file> y colocar:
+<example>
+# DELAY The number of seconds the linuxrc script should wait to
+# allow the user to interrupt it before the system is brought up
+DELAY=0
+</example>
+<p>Luego regenera su imagen del disco RAM. Usted puede hacer esto por ejemplo 
+con:<example>º
+# cd /boot
+# mkinitrd -o initrd.img-2.4.18-k7 /lib/modules/2.4.18-k7
+</example>
+<p>O hacer (preferir):
+<example>
+# dpkg-reconfigure kernel-image-2.4.x-yz
+</example>
+<p>Note que DEBIAN 3.0 WOODY permite a los usuarios instalar 2.4 kernels 
+(seleccionando<em>flavors</em>), <em>sin embargo</em> el defecto de 
+kernel es de 2.2 (salvo para algunos artífices, para los cuales Kernel 2.2 no 
+estaba en la entrada). Si usted considera esto un BUG considere el 
+<url id="http://bugs.debian.org/145244" name="Bug 145244"> antes de enviar este.
+<sect>Deshabilitar el arranque desde diskette
+<p>
+El MBR defectuoso en Debian antes de la versión 2.2 no actúa como un registro 
+dominante en la entrada y deja abierto un método para quebrar fácilmente el 
+sistema:<list>
+<item>Presione shift al momento de entrar, y de inmediato un MBR aparece.
+<item>Luego presione F, y su sistema entrará desde un disquete. Esto puede 
+ser usado para tener un acceso de ROOT al sistema. 
+</list>
+
+<p>Este comportamiento puede ser cambiado totalmente por:
+
+<example>
+lilo -b /dev/hda
+</example>
+
+<p>Ahora LILO es puesto dentro del MBR. Este también puede ser
+archivado agregando "boot=/dev/hda" para lilo.conf. Hay otra solución
+la cual inhabilita rápidamente el MBR, completamente:
+
+<example>
+install-mbr -i n /dev/hda
+</example>
+
+<p>De otra forma, esta "puerta trasera" desde la cual mucha gente no
+está enterada, puede salvar su pellejo si usted esta en aprietos con
+su instalación por cualquier razón.
+<p>ARREGLAMEcheck whether this really is true as of 2.2 or was it 2.1? INFO: 
+Thebootdisks as of Debian 2.2 do NOT install the mbr, but only LILO
+
+<sect>Restricción del acceso a la consola
+
+<p>Algunas políticas de seguridad quieren forzar a los administradores
+para registrarse en el sistema a través de la consola con su
+usuario/contraseña y luego llegar a ser un superusuario
+(con<prgn>su</prgn> o <prgn>sudo</prgn>). Esta política es
+implementada en Debian al editar el archivo
+<file>/etc/login.defs</file> o <file>/etc/securetty</file> cuando se
+usa PAM. En: <list>
+
+<item><file>login.defs</file>, edite el la variable CONSOLE , que
+define un archivo o lista de terminales sobre las cuales la entrada de
+root es permitida.
+<item><file>securetty</file> agregando/removiendo las terminales desde
+las cuales el acceso a root es permitido. </list>
+
+<p>Cuando use PAM se hacen otros cambios para el proceso de registro,
+los cuales pueden incluir restricciones para usuarios y grupos a
+tiempos dados, puede ser configurado en <file>/etc/pam.d/login</file>.
+Una interesante característica que puede ser incapacitada es la
+posibilidad de registrar con contraseñas sin efecto (nulas). Esta
+característica puede ser limitada removiendo el <em>nullok</em> de la
+linea:
+
+
+<example>
+auth required pam_unix.so nullok
+</example>
+
+
+<sect>Montando particiones de manera correcta
+<p>
+cuando se monta una partición ext2, usted tiene varias opciones
+adicionales para aplicar a el llamado montaje o a
+<file>/etc/fstab</file>.
+Por ejemplo, este fstab entra por la partición <file>/tmp</file>:
+/dev/hda 7 /tmp ext2 defaults .nosuid.noexec.nodev 0 2
+ 
+<example>
+/dev/hda7 /tmp ext2 defaults,nosuid,noexec,nodev 0 2
+</example>
+
+<p> usted ve la diferencia a las secciones de opciones . La opción
+<tt>nosuid</tt> ignora los bits setuid y setgid completamente ,
+mientras que <tt>noexec</tt> prohibe la ejecución de programas
+en ese punto de montaje, y
+<tt>nodev</tt>, ignora los dispositivos.Esto suena grandioso , pero
+esto
+
+<list>
+<item>únicamente se aplica a archivos del sistema ext2
+<item>puede ser evitado fácilmente
+</list>
+
+<p>La opción <tt>noexec</tt> previene los binarios de ejecutarse directamente, 
+pero se engaña fácilmente: 
+<example>
+alex@joker:/tmp# mount | grep tmp
+/dev/hda7 on /tmp type ext2 (rw,noexec,nosuid,nodev)
+alex@joker:/tmp# ./date
+bash: ./date: Permission denied
+alex@joker:/tmp# /lib/ld-linux.so.2 ./date
+Sun Dec 3 17:49:23 CET 2000
+</example>
+
+<p> Sin embargo, muchos "script kiddies" cuentan con "xploits" que
+intentan crear y ejecutar los archivos en <file>/tmp</file>.Si ellos
+no tienen una pista, ellos entrarán en esta trampa. En otros términos,
+un usuario no puede engañarse en ejecutar un binario troyanizado en
+<file>/tmp</file> e.g. por ejemplo cuando él agrega a propósito
+<file>/tmp</file>dentro de su PATH.
+
+<p>También se previene de algún programa que podría depender en que
+<file>/tmp</file> sea ejecutable. Más notablemente,
+Debconf tiene (¿tenía?) algunos problemas que consideran esto, para más
+información vea Bug <url id="http://bugs.debian.org/116448"
+name="116448">.
+
+<p> Lo siguiente es un ejemplo más completo. Una nota, sin embargo:
+<file>/var</file> podrían ponerse en noexec, pero algún software como
+Smartlist contiene sus programas en / var. El mismo aplicado a la
+opción nosuid. 
+
+<example>
+/dev/sda6 /usr ext2 defaults,ro,nodev 0 2
+/dev/sda12 /usr/share ext2 defaults,ro,nodev,nosuid 0 
+2/dev/sda7 /var ext2 defaults,nodev,usrquota,grpquota 
+ 0 2/dev/sda8 /tmp ext2 
+defaults,nodev,nosuid,noexec,usrquota,grpquota 0 2/dev/sda9 
+/var/tmp ext2 defaults,nodev,nosuid,noexec,usrquota,grpquota 0 
+ 2/dev/sda10 /var/log ext2 defaults,nodev,nosuid,noexec 0 
+ 2/dev/sda11 /var/account ext2 defaults,nodev,nosuid,noexec 0 
+ 2/dev/sda13 /home ext2 
+rw,nosuid,nodev,exec,auto,nouser,async,usrquota,grpquota 0 
+2/dev/fd0 /mnt/fd0 ext2 defaults,users,nodev,nosuid,noexec 
+0 0/dev/fd0 /mnt/floppy vfat 
+defaults,users,nodev.nosuid,noexec 0 0/dev/hda /mnt/cdrom 
+iso9660 ro,users,nodev.nosuid,noexec 0 0</example><sect1>Serie 
+/tmp noexec
+<p>Tenga cuidado si esta poniendo <file>/tmp</file>y usted quiere
+instalar el nuevo software, desde que alguno podría usarlo para la
+instalación. Apt es uno de esos programas (vea <url
+id="http://bugs.debian.org/116448">) si no configuró propiamente
+<tt>APT::ExtractTemplates::TempDir</tt> (vea <manref
+name="apt-extracttemplates" section="1">). Usted puede poner esta
+variable en <file>/etc/apt/apt.conf</file> a otro directorio con
+privilegios exec que no sea <file>/tmp</file>
+
+<p>Con respecto al noexec, por favor sea consciente que no podría ofrecerle 
+tanta seguridad.Considere esto: 
+<example>
+$ cp /bin/date /tmp
+$ /tmp/date
+(does not execute due to noexec)
+$/lib/ld-linux.so.2 /tmp/date
+(works since date is not executed directly)
+</example>
+
+<sect1>Serie /usr leer-únicamente
+<p> Si usted pusiera <file>/usr</file> leer - únicamente usted no
+podrá instalar los nuevos paquetes en su Debian GNU / sistema Linux.
+Usted tendrá, primero que remontar leer -escribir, instale los
+paquetes y entonces remóntelo leer-únicamente. La última versión apt
+(en Debian 3.0´woody´) puede configurarse para ejecutar las órdenes
+antes y después de instalar los paquetes, para que usted pueda
+propiamente querer configurarlo. 
+
+<p>Hacer esto modifica <file>/etc/apt/apt.conf</file> y agrega:
+<example>
+ DPkg
+ {
+ Pre-Invoke { "mount /usr -o remount,rw" };
+ Post-Invoke { "mount /usr -o remount,ro" };
+ };
+</example>
+
+<p>Note que el Post-invoke puede fallar con un "/usr busy" error en el
+mensaje. Esto pasa principalmente cuando usted está usando los
+archivos durante la actualización en que se puso al día. Incomodando
+pero no realmente una cantidad grande. Sólo hacerlo seguro que ésto
+ya no se use y ejecute Post - Invoke manualmente. 
+ 
+<sect id="update">Ejecute una actualización de seguridad 
+
+<p>En cuanto generalmente se revelen los nuevos bugs de seguridad en
+los paquetes, mantenedoras de debian y autores upstream generalmente
+dentro de días o incluso en horas. Después de que el bug es fijo, un
+nuevo paquete se proporciona en <url
+name="http://security.debian.org"
+id="http://security.debian.org">.Ponga la línea siguiente en sus
+fuentes. la lista y usted conseguirá la seguridad que se pone al día
+automáticamente, siempre que usted ponga al día su sistema. 
+<example>
+deb http://security.debian.org/debian-security stable/updates main contrib 
+non-free</example>
+
+<p>
+La mayoría de las personas que no viven en un país que prohibe la 
+importación o usa la criptografía fuerte,
+debe agregar esta línea también: 
+<example>
+deb http://security.debian.org/debian-non-US stable/non-US main contrib non-free
+</example>
+
+<p>Si le gusta, usted puede agregar las líneas del deb-src también a apt. 
+Vea <manref name="apt" section="8"> para detalles extensos.
+
+<p>Usted debe dirigir la seguridad frecuentemente que se pone al día,
+la inmensa mayoría de resultado de explotaciones de vulnerabilidades
+conocidas que no se han remendado a tiempo, cuando un nombre de <url
+id="http://www.cs.umd.edu/~waa/vulnerability.html"> name="papel por
+Bill Arbaugh"> (presentó en el 2001 Simposio de IEEE en Seguridad y
+Retiro) explica.
+
+<p>ARREGLAME:Añade info cómo la firma de paquetes que se hace para que esto 
+pueda hacerse automáticamente a través de un trabajo del cron (engaña 
+grandemente :DNS). 
+<sect>Acceso de acuerdo a las necesidades del usuario
+
+<sect1> Uso de la autenticacion: PAM
+
+<p>PAM (modulos de autenticación de enchufes ) permiten a los
+administradores de sistema elegir como usar la aplicaciones
+autenticadas . Note que PAM puede hacer nada a menos que una
+aplicación es compilada con soporte para PAM . La mayor parte de las
+aplicaciones que son enviadas con Debian 2.2 tienen este soporte
+construido . Ademas , Debian no tiene soporte PAM antes del 2.2.
+Cada aplicación con soporte PAM provee un archivo de configuración
+en <file>/etc/pam.d/</file> el cual puede ser usado para modificar
+este comportamiento. La siguiente descripción está lejos para
+completarla, para mas información usted podria querer leer la guia de
+el sistema administrador Linux -PAM <url
+id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html">
+(en la principal distribución ubicada de PAM <url
+id="http://www.kernel.org/pub/linux/libs/pam/">)
+
+<p>PAM le ofrece a usted la posibilidad a ir por varios pasos de
+autenticación una vez, sin el uso de conocimientos .Usted puede
+autenticar de nuevo una base de datos Berkeley y de nuevo el archivo
+de password normal y el uso únicamente de registros en si
+correctamente autenticos en ambos. Usted puede limitar a muchos con
+PAM , así como usted puede abrir sus puertas del sistema muy
+extensamente. Así que tenga cuidado. Una línea de la típica
+configuración tiene un campo de mando como su segundo elemento. 
+
+<!-- Second in mine (old Debian v2.0 though), check this! (ARREGLAME)
+(era) --> Generalmente debe ponerse a " requisito", el cual devuelve
+un fracaso del login si hay una falta en el módulo. <!-- Lots of
+fields in mine are "required", please elaborate? (ARREGLAME) (era) -->
+
+<p>La primera cosa que me gusta hacer, es agregar soporte MD5 a las
+aplicaciones de PAM, desde que esto ayuda, protege contra los
+cracks (passwords del diccionario que puede ser más largo usando MD5).
+Lo siguiente debe agregarse dos líneas a todos los archivos en
+<file>/etc/pam.d/</file> ese acceso de concesión a la máquina, como
+<tt>login</tt> and <tt>ssh</tt>.
+
+<example>
+# Be sure to install libpam-cracklib first or you will not be able to log in
+password required pam_cracklib.so retry=3 minlen=12 difok=3
+password required pam_unix.so use_authtok nullok md5
+</example>
+ 
+
+<p>¿Así, qué hace esta maravilla? Las primeras cargas de la línea en
+el cracklib módulo de PAM que proporciona la contraseña
+strenght-checking (fuerza-verificando) las sugerencias para una nueva
+contraseña con una longitud mínima de 12 carácteres, una diferencia de
+por lo menos 3 carácteres de la contraseña vieja, y permite 3
+reintentos. La segunda línea introduce el módulo de la autenticación
+normal con las contraseñas de MD5 y permite una cera de contraseña de
+longitud. El director use_authtok es necesario para entregar la
+contraseña del módulo anterior. 
+
+<p>Para asegurarse que el root (administrador de Linux) del usuario
+sólo puede anotarse en el sistema de los términos locales, la línea
+siguiente debe habilitarse en <file>/etc/pam.d/login</file>:
+
+<example>
+auth requisite pam_securetty.so
+</example>
+
+<p>Entonces usted debe agregar los términos que el root del usuario
+puede anotar en el sistema en <file>/etc/security/access.conf</file>.
+Último pero no menor a la línea siguiente debe ser los anabled si
+usted quiere preparar los límites del usuario. 
+
+<!-- ARREGLAME: This is pam.d/login you're talking about, still? Elaborate? era -->
+<example>
+session required pam_limits.so
+</example>
+
+<p>Esto restringe los recursos del sistema que se permiten a los
+usuarios (vea en la siguiente pagina <ref id="user-limits">. Por
+ejemplo, usted podría restringir el número de logins coexistente (de
+un grupo dado de usuarios, o sistema-ancho) usted puede tener, el
+número de procesos, el tamaño de memoria...... 
+
+<p>Ahora revise <file>/etc/pam.d/passwd</file> y cambie la primera
+línea. Usted debe agregar el "md5" de la opción para usar las
+contraseñas de MD5, cambie el lenght mínimo de contraseñas de 4 a 6 (o
+más) y ponga un legth máximo, si usted desea. La línea resultante
+mirará algo como: 
+
+<example>
+password required pam_unix.so nullok obscure min=6 max=11 md5
+</example>
+
+<p>Si usted quiere proteger su (un comando), para que sólo algunas
+personas puedan usarlo para volverse a root en su sistema, usted
+necesita agregar uno nuevo para agregar un nuevo "wheel" de grupo a
+su sistema (ésa es la manera más limpia, desde que ningún archivo
+tiene tal un permiso de grupo todavía). Agregue el root y los otros
+usuarios que deberian ser capaces de ejecutar <tt>su</tt> a el
+usuario de root a este grupo. Entonces agregue la línea siguiente a
+<file>/etc/pam.d/su</file>:
+
+<example>
+auth requisite pam_wheel.so group=wheel debug
+</example>
+
+<p>Esto asegura que sólo personas de el grupo wheel pueden usar
+<prgn>su</prgn> para volverse root. Otros usuarios no seran capaces de
+volverse root. De hecho ellos conseguirán un mensaje negado si ellos
+intentan volverse volverse root. 
+
+<p>Si usted quiere que sólo ciertos usuarios autentiquen a un servicio
+de PAM, esto es bastante fácil de lograr usando los archivos dónde los
+usuarios que son permitidos al login (o no) se guarden. Sólo imagine
+que usted quiere permitirle el login de ´ref´to al usuario vía ssh.
+Así que usted lo pone en <file>/etc/sshusers-allowed</file> y le
+escribe lo siguiente en <file>/etc/pam.d/ssh</file>:
+
+<example>
+auth required pam_listfile.so item=user sense=allow 
+file=/etc/sshusers-allowed onerr=fail</example>
+
+<p>Por último, pero no menos importante, cree
+<file>/etc/pam.d/other</file> y coloque las líneas siguientes: 
+
+<example>
+auth required pam_securetty.so
+auth required pam_unix_auth.so
+auth required pam_warn.so
+auth required pam_deny.so
+account required pam_unix_acct.so
+account required pam_warn.so
+account required pam_deny.so
+password required pam_unix_passwd.so
+password required pam_warn.so
+password required pam_deny.so
+session required pam_unix_session.so
+session required pam_warn.so
+session required pam_deny.so
+</example>
+
+<p>Estas líneas mantendrán una buena configuración predefinida en
+todas las aplicaciones que apoyan PAM (se niega el acceso por el valor
+predeterminado).
+
+
+<sect1 id="user-limits"> Los límites de el archivo.conf 
+
+<p> Usted realmente debe hacer una mirada seria en este archivo. Aquí
+usted puede definir los límites de recurso del usuario. Si usted usa
+PAM, el archivo <file>/etc/limits.conf</file> se ignora y usted debe
+usar en cambio <file>/etc/security/limits.conf</file>.
+
+<p>ARREGLAME: Adquirir unos buenos limites.conf concluidos aquí. 
+
+<sect1>Editar /etc/login.defs
+<p>
+El próximo paso es revisar la configuración básica y acción en el login del 
+usuario.
+<example>
+FAIL_DELAY 10
+</example>
+
+Esta variable debe ponerse a un valor más alto, para hacerlo más
+difícil usar el término para anotar usando la fuerza bruta. Si una
+contraseña mala se teclea en, el posible asaltador (o el usuario
+normal!) tiene que esperar por 10 segundos para conseguir un nuevo
+login que incite realmente el tiempo que se consume cuando usted
+prueba las contraseñas.Preste atención al hecho que esta escena es
+inútil si se usa el programa de otra manera que el getty, como el
+mingetty por ejemplo. 
+
+<example>
+FAILLOG_ENAB yes
+</example>
+
+Si usted habilita esta variable, se anotarán los logins fallados. Es
+importante guardar huella de ellos para coger a alguien que pruebe un
+ataque de fuerza bruta.
+
+<example>
+LOG_UNKFAIL_ENAB yes
+</example>
+
+Si usted pusiera la variable "FAILLOG_ENAB" asi, entonces usted
+también deberia poner esta variable a sí. Esto grabará el usernames
+desconocido si los login fallaron. Si usted hace esto, asegúrese de
+que los logs tienen por ejemplo permisiones (640 por ejemplo, con una
+escena de grupo apropiada como el adm), porque los usuarios entran en
+su contraseña a menudo accidentalmente como el username y usted no
+quiere otro para verlo.
+
+<example>
+SYSLOG_SU_ENAB yes
+</example>
+
+<p>Este uno habilita el logging de la pueba <tt>su</tt> a syslog.
+Bastante importante en serias maquinas pero note que esto puede crear
+el retiro de los resultados a medida que esten bien. 
+
+<example>
+SYSLOG_SG_ENAB yes
+</example>
+
+<p>Igual que SYSLOG_SU_ENAB pero lo aplica al programa <prgn>sg</prgn>.
+
+<example>
+MD5_CRYPT_ENAB yes
+</example>
+
+<p>Como lo expuesto anteriormente, MD5 suma grandemente las
+contraseñas que reducen el problema de ataques del diccionario, desde
+que usted puede usar las contraseñas más largas. Si usted está usando
+slink, lea los documentos sobre MD5 antes de habilitar esta opción.Por
+otra parte esto esta fijo en PAM. 
+
+<example>
+PASS_MAX_LEN 50
+</example>
+
+<p>Si se activan las contraseñas de MD5 en su configuración PAM,
+Entonces esta variable debería ser ajustada al mismo valor que se uso
+allí.
+
+<!--
+# TODO list:
+# - There was a 'useful software section' why was it removed? jfs
+# - Shorten overlong lines - there are lots of sections (by jfs?)
+# where lines are routinely longer than 80 characters. Actually it
+# ma<!doctype debiandoc system -->
+
+<!--
+# TODO list:
+# - There was a 'useful software section' why was it removed? jfs
+# - Shorten overlong lines - there are lots of sections (by jfs?) where
+# lines are routinely longer than 80 characters. Actually it maicios.
+-->
+<sect1>Usar su
+
+<p> Si usted realmente necesita que los usuarios se vuelvan el super
+usuario en su sistema,e.g. por instalar los paquetes o agregar
+usuarios, usted puede usar el comando <prgn>su</prgn> para cambiar su
+identidad. Usted debe intentar evitar cualquier login como root del
+usuario y en cambio usar <prgn>su</prgn>. Realmente, la mejor
+solución es quitar su y cambiar a <prgn>sudo</prgn>, como él tiene más
+rasgos que <prgn>su</prgn>. Sin embargo,<prgn>su</prgn> es más común
+como se usa en muchos otro Unixes.
+
+
+<sect1>Usar sudo
+
+<p> <prgn>sudo</prgn> le permite al usuario ejecutar los comandos
+definidos bajo la identidad de otro usuario, así como root. Si el
+usuario agrega a <file>/etc/sudoers</file> y se autentica
+correctamente, él es capaz de avanzar comandos en que se ha definido
+<file>/etc/sudoers</file>. Las Violaciones, como las contraseñas
+incorrectas o intentos de ejecutar un programa usted no tienen permiso
+para ser anotado y mandado por correo a root.
+
+<sect1 id="user-restrict">Restringiendo usuarios 
+
+<p>A veces usted podría pensar que necesita tener los usuarios creados
+en su sistema local para proporcionar un servicio (pop3 manda por
+correo el servicio o ftp). Antes de hacer eso, primero recuerde que
+la aplicación de PAM en Debian GNU/Linux le permite validar a los
+usuarios con una variedad ancha de el servicio de directorio externo
+(el radio, el ldap, etc.) con tal de que por el ,el libpam sea
+empacado. 
+
+<p>Si los usuarios necesitan ser creados y el sistema puede ser
+remotamente de acceso tome en cuenta que los usuarios sean capaces al
+login al sistema. Usted puede arreglar esto dando a los usuarios una
+nula (<file>/dev/null</file>) interfaz de comandos (él necesitaría ser
+listada en <file>/etc/shells</file>). Si usted quiere permítales a los
+usuarios acceder a el sistema pero limitar sus movimientos, usted
+puede usar el <file>/bin/rbash</file>, equivalente a agregar la
+opción <tt>-r</tt> en bash (<em>RESTICTED SHELL</em> ver <manref
+name="bash" section="1">). Por favor note que incluso con la interfaz
+de comandos restringido, un usuario que entra en acceso a un programa
+interactivo (eso podría permitirle la ejecución de un subshell) podría
+poder desviar los límites de el shell.
+
+<p>Debian no es proporcionado actualmente (pero puede serlo en el
+futuro) el módulo del <file>pam_chroot</file>. Una alternativa a este
+chroot es el servicio que proporciona el logging remoto (ssh,
+telnet). 
+
+<p>Si usted desea restringirlo <em>when</em> los usuarios pueden
+acceder a el sistema que usted quiere tener personalizado
+<file>/etc/security/access.conf</file> para sus necesidades. 
+
+<sect2>Restringiendo ssh para los usuarios 
+
+<p>Los sshd de Debian no le permitirán restringir el movimiento del
+usuario a través del servidor desde que le falte la función de Chroot
+que el anuncio (sshd2) el programa tiene (uso de 'ChrootGroups' o
+'ChrootUsers', vea <manref name="sshd2_config" section="5">). Sin
+embargo,hay un parche disponible eso le permitirá hacer esto, el
+parche, puede recuperarse del informe <url
+id="http://bugs.debian.org/139047" name="Bug report 139047"> o <url
+id="http://www.cag.lcs.mit.edu/~raoul/"> (y podría aplicarse en el
+paquete de OpenSSH en el futuro). Emanuel Lacour tiene los paquetes
+del ssh con este rasgo a <url
+id="http://debian.home-dn.net/woody/ssh/">, yendo a través de el paso
+de la recopilación se recomienda, sin embargo. Una descripción de
+todos los pasos necesitados puede encontrarse en <url
+id="http://mail.incredimail.com/howto/openssh/"> (casi todos son
+aplicables a Debian aun cuando habla sobre RedHat 7.2). Después de
+aplicar el parche simplemente usted modifica lo que necesita el
+<file>/etc/passwd</file> cambiando el camino de la casa de los
+usuarios (con la especial ficha <tt>/./</tt>):
+
+<example>
+joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+
+<p>Esto restringirá <em>both</em> accesos de el interfaz de comandos
+remoto así como la copia remota a través del canal ssh.
+
+<p>Asegúrese para tener todos los binarios necesitados y bibliotecas
+en el el camino del chrooted para los usuarios. Estos archivos deben
+poseer por root evitar ser manoseados por el usuario (para terminar
+el chrooted encarcelado). Una muestra podría incluir:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x 2 root root 4096 Mar 18 13:36 .
+drwxr-xr-x 8 guest guest 4096 Mar 15 16:53 ..
+-r-xr-xr-x 1 root root 531160 Feb 6 22:36 bash
+-r-xr-xr-x 1 root root 43916 Nov 29 13:19 ls
+-r-xr-xr-x 1 root root 16684 Nov 29 13:19 mkdir
+-rwxr-xr-x 1 root root 23960 Mar 18 13:36 more
+-r-xr-xr-x 1 root root 9916 Jul 26 2001 pwd
+-r-xr-xr-x 1 root root 24780 Nov 29 13:19 rm
+lrwxrwxrwx 1 root root 4 Mar 30 16:29 sh -> bash
+
+./etc:
+total 24
+drwxr-xr-x 2 root root 4096 Mar 15 16:13 .
+drwxr-xr-x 8 guest guest 4096 Mar 15 16:53 ..
+-rw-r--r-- 1 root root 54 Mar 15 13:23 group
+-rw-r--r-- 1 root root 428 Mar 15 15:56 hosts
+-rw-r--r-- 1 root root 44 Mar 15 15:53 passwd
+-rw-r--r-- 1 root root 52 Mar 15 13:23 shells
+
+./lib:
+total 1848
+drwxr-xr-x 2 root root 4096 Mar 18 13:37 .
+drwxr-xr-x 8 guest guest 4096 Mar 15 16:53 ..
+-rwxr-xr-x 1 root root 92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x 1 root root 1170812 Mar 15 12:49 libc.so.6
+-rw-r--r-- 1 root root 20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r-- 1 root root 9436 Mar 15 12:49 libdl.so.2
+-rw-r--r-- 1 root root 248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r-- 1 root root 71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r-- 1 root root 34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r-- 1 root root 29420 Mar 15 12:57 libpam.so.0
+-rw-r--r-- 1 root root 105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r-- 1 root root 25596 Mar 15 12:51 librt.so.1
+-rw-r--r-- 1 root root 7760 Mar 15 12:59 libutil.so.1
+-rw-r--r-- 1 root root 24328 Mar 15 12:57 libwrap.so.0
+
+./usr:
+total 16
+drwxr-xr-x 4 root root 4096 Mar 15 13:00 .
+drwxr-xr-x 8 guest guest 4096 Mar 15 16:53 ..
+drwxr-xr-x 2 root root 4096 Mar 15 15:55 bin
+drwxr-xr-x 2 root root 4096 Mar 15 15:37 lib
+
+./usr/bin:
+total 340
+drwxr-xr-x 2 root root 4096 Mar 15 15:55 .
+drwxr-xr-x 4 root root 4096 Mar 15 13:00 ..
+-rwxr-xr-x 1 root root 10332 Mar 15 15:55 env
+-rwxr-xr-x 1 root root 13052 Mar 15 13:13 id
+-r-xr-xr-x 1 root root 25432 Mar 15 12:40 scp
+-rwxr-xr-x 1 root root 43768 Mar 15 15:15 sftp
+-r-sr-xr-x 1 root root 218456 Mar 15 12:40 ssh
+-rwxr-xr-x 1 root root 9692 Mar 15 13:17 tty
+
+./usr/lib:
+total 852
+drwxr-xr-x 2 root root 4096 Mar 15 15:37 .
+drwxr-xr-x 4 root root 4096 Mar 15 13:00 ..
+-rw-r--r-- 1 root root 771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r-- 1 root root 54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x 1 root root 23096 Mar 15 15:37 sftp-server
+</example>
+
+
+<sect1>Manual de auditoría del usuario 
+
+<p>Si usted es paranoico usted podría querer agregar a los usuarios
+una definición <file>.profile</file> que pone el ambiente en cierto
+modo tal que ellos no pueden retirar las capacidades de la auditoría
+de la interfaz de comandos (los comandos son descargas a
+<tt>$HISTFILE</tt>. El <file>.profile</file> podría ponerse como
+sigue: 
+
+<example>
+HISTFILE=/home/_user_/.bash_history
+HISTSIZE=100000000000000000
+HISTFILESIZE=10000000000000000
+set -o HISTFILE
+set -o HISTSIZE
+set -o HISTFILESIZE
+export HISTFILE HISTSIZE HISTFILESIZE
+</example>
+
+<p>Note: el - o atribuye colocar una variable leer-únicamente en bash. 
+
+<p> Para trabajar esto el usuario no pueden modificar el
+<file>.profile</file> o <file>.bash_history</file> pero debe poder
+primero leer uno y escribe uno en el segundo. Usted puede hacer esto
+fácilmente cambiando éstos archivos y el directorio dónde ellos
+residen para ser poseídos por otro usuario (root), y da escritura a los
+permisos del grupo de usuarios a la historia del archivo. Otra opción
+está terminando el uso del programa <prgn>chattr</prgn>. 
+ 
+<p> Si usted es completamente paranoico y quiere intervenir en el
+comando de cada usuario,usted podría tomar bash a el código de la
+fuente, revise este y haga envío a todos de que el usuario tecleó en
+otro archivo. O tiene <package>ttysnoop</package> constantemente algun
+nuevo monitor ttys y dump en el rendimiento en un archivo. Otro
+programa útil es <url name="Snoopy"
+id="http://sourceforge.net/project/?group_id=2091"> el cual es un
+programa usuario-transparente que engancha como en una
+bibliotecaproporcionando una envoltura alrededor del execve llamadas
+(), cualquier comando ejecuta el estar anotado a syslogd usando la
+facilidad del <tt>authpriv</tt> facility (usualmente storead a
+<file>/var/log/auth.log</file>. <!-- ARREGLAME: Debian package for
+snoopy??? --> 
+
+<p> Note que usted no puede usar el comando <prgn>script</prgn> por
+esto desde que este no funcionará como una interfaz de comandos (aun
+si usted agrega esto a <file>/etc/shells</file>.
+
+<sect1> Completa auditoría del usuario 
+
+<p> El ejemplo anterior es una manera simple de configurar el usuario
+interviniendo el cual no podría ser útil para los sistemas complejos.
+Si éste es su caso, usted necesita mirar a <package>acct</package>, la
+contabilidad de utilidades. Éstos anotarán todos los comandos corridos
+por usuarios o procesos en el sistema, al gasto de espacio del disco.
+
+
+<p> Al activar la contabilidad, toda la información sobre los procesos
+y el usuario se guarda bajo <file>/var/account/</file>, más
+específicamente en el <file>pacct</file>. El paquete de contabilidad
+incluye algunas herramientas (<prgn>sa</prgn> y <prgn>ac</prgn>) para
+analizar estos datos. 
+
+<sect1> Repasando los perfiles del usuario 
+
+<p> Si usted quiere normalmente <em>see</em> a los usuarios qué están
+haciendo, cuando esten ellos conectándos usted pueden usar la base de
+datos de <file>wtmp</file> que incluye toda la información del login.
+Este archivo puede procesarse con varias utilidades, entre ellos
+<prgn>sac</prgn> el cual puede hacer un profile en cada usuario que
+muestra en que estructura de tiempo ellos normalmente anotan adelante
+en el sistema. 
+
+<p> En caso de que usted tiene la contabilidad activada, usted también
+puede usar las herramientas con tal de que por esto en el comando
+determine cuando los usuarios acceden a el sistema y qué ellos
+ejecuten. 
+
+<sect>Proporcionando acceso seguro a los usuarios
+<sect1>Limitando lo que los usuarios pueden ver/hacer
+<sect2 id="limit-user-perm">Limitando el acceso a la información de otros usuarios
+
+<sect> Usando tcpwrappers 
+
+<p> Las envolturas de TCP se desarrollaron cuando no había ningún
+filtro del paquete real disponible y el control de acceso fue
+necesitado. Las envolturas de TCP permiten permitir o negar un
+servicio para un organizador o un dominio y defina un valor permitido
+o niegue la regla. Si usted quiere que más informaciones de una
+mirada a <manref name="hosts_access" section="5">.
+
+<p> Muchos servicios instalados en Debian son cualquiera de estos dos:
+
+
+<list>
+<item> lanzó a través del servicio del tcpwrapper (<file>tcpd</file>)
+<item> compiló con el soporte libwrapper incorporado. </list>
+
+<p> En la primera mano, de servicios son configurados en
+<file>/etc/inetd.conf</file>, esto incluye telnet,ftp,netbios,swat and
+finger (usted verá que el archivo de la configuración se ejecute
+primero <prgn>/usr/sbin/tcpd</prgn>. Por otro lado, aun cuando un
+servicio no se lanza por el superdemonio del <prgn>inetd</prgn> ,en
+cualquier caso,sujetó las reglas de envolturas de tcp compilando su
+soporte en él. Los servicios compilados con las envolturas del tcp en
+Debian incluyen ssh,portmap, in.talk, rpc.statd, rpc.mountd,gdm,oaf
+(el demonio activador de GNOME), Nessus y muchos otros. 
+
+<p> Tenga en cuenta esto cuando el <prgn>tcpchk</prgn> está avanzando.
+Usted puede agregar servicios en que se unen a la biblioteca de la envoltura de 
+los archivos <file>host.deny</file> y <file>hosts.allow</file> pero 
+los <prgn>tcpchk</prgn> advertirá que este no puede encontrar 
+esos servicios desde que parece para ellos en <file>/etc/inetd.conf</file>
+(el manpage no es totalmente exacto aquí). 
+
+<p> Ahora, aquí viene un truco pequeño, y probablemente la intrusión
+más pequeña del sistema de descubrimiento disponible. En general,
+usted debe tener una política decente del cortafuego como una primera
+línea, y envolturas del tcp como la segunda línea de defensa. Un
+truco pequeño es poner un comando SPAWN <footnote>beware of the case
+here since <em>spawn</em> will not work</footnote>en /etc/hosts.deny
+que envía correos a root siempre que hay un servicio negado en las
+envolturas de los gatillos: 
+
+<example>
+ALL: ALL: SPAWN ( \
+ echo -e "\n\
+ TCP Wrappers\: Connection refused\n\
+ By\: $(uname -n)\n\
+ Process\: %d (pid %p)\n\
+ User\: %u\n\
+ Host\: %c\n\
+ Date\: $(date)\n\
+" | /usr/bin/mail -s "Connection to %d blocked" root) &
+</example>
+
+<p><em> Beware </em>(tenga cuidado): El ejemplo anterior impreso puede
+fácilmente ser DoSed por estar haciendo las muchas conexiones en un
+período corto de tiempo. Muchos correos electrónicos significan mucho
+del archivo I/O para enviar únicamente unos correos. 
+
+<!--
+# Could this example be more interesting? 
+# It also relates to the next section (jfs)
+#
+# era: cf hosts_access(5) manual page,
+# and why are you not using logger(1) here? (ARREGLAME?)
+#
+#&lt;example&gt;
+#ALL: ALL: SPAWN ( \
+# /usr/local/sbin/send_syslog %u %c %d )
+#&lt;example&gt;
+
+# With send_syslog as:
+##!/usr/bin/perl -w
+#
+#use Sys::Syslog qw(:DEFAULT setlogsock);
+#
+#$user=shift(@ARGV) || 'unkown';
+#$host=shift(@ARGV) || 'unkown';
+#$service=shift(@ARGV) || 'unkown';
+#setlogsock('unix');
+#openlog("alert",'', 'user');
+#syslog('warning', 'Connection from %s at %s to %s blocked.', ($user, $host, 
+$service) );#closelog();
+#
+#exit 0;
+-->
+
+<sect id="log-alerts"> La importancia de logs y alarmas 
+
+<p>Cómo las bitácoras y alarmas son tratadas es un problema importante
+en un sistema seguro. Es fácil ver que, aun cuando el sistema está
+perfectamente configurado y, supuestamente, 99% asegurado. Si el 1%
+sucede, y no hay seguridad midiendo en tales situaciones, primero,
+descubra esto y, segundo, las alarmas del aumento, el sistema no está
+en absoluto seguro. 
+
+<p> Debian GNU/Linux proporciona algunas herramientas para hacer el
+análisis de bitácoras, la mayoría, notablemente el
+<package>logcheck</package>. Sin embargo, allí se está considerando
+mucho análisis del log que no puede cubrirse totalmente aquí, un
+recurso bueno para la información es <url name="Couterpane's Log
+Analysis Resources"
+id="http://www.counterpane.com/log-analysis.html">.
+
+
+<sect1>Configurando el sitio donde las alertas son enviadas
+
+<p>Debian viene con una configuración de syslog estándard dentro
+de (etc/syslog.conf)que anota mensajes para apropiar archivos
+dependiendo de la facilidad del sistema. Usted debería familiarizarse
+con ésto, debe mirar el archivo <file>syslog.conf</file> o sino la
+documentación. Si usted pretende mantener un sistema seguro usted
+podrá estar precavido de a dónde se mandan los mensajes de registro de
+manera que no pasen inadvertidos. 
+
+<p>Por ejemplo, enviar mensajes a la consola es una configuración
+interesante ya que es útil para muchos sistemas de nivel de
+producción. Pero para muchos sistemas también es importante añadir una
+nueva máquina que podría servir como servidor de registro (i.e. esto
+recibe los registros desde todos los otros sistemas). <p>El correo de
+Root también deberia ser considerado, muchos controles de seguridad
+como <package>snort</package>) envían alarmas al buzón de Root. Este
+buzón normalmente apunta al primer usuario que se creó en el sistema
+(compruebe <file>/etc/aliases</file>). Tenga cuidado de enviar correo
+de root a cualquier lugar donde pueda ser leído (ya sea local ó
+remotamente) 
+
+<p>Hay otros informes y alianzas en su sistema. En un pequeño sistema,
+ésto probablemente lo más simple para asegurarse de que todas las
+alianzas apunten hacia la cuenta de root, y que el correo para root
+este dispuesto para el sistema de buzón personal del administrador.
+
+<p>ARREGLAME: it would be interesting to tell how a Debian system can
+send/receive SNMP traps related to security problems (jfs). Check:
+<package>snmptraglogd</package>, <package>snmp</package> and
+<package>snmpd</package>.
+
+
+<sect1>Usar un servidor de registro
+
+<p>Un servidor de regiastro es un servidor que recoge remotamente
+datos syslog de la red. Si una de sus máquinas es craqueada, el
+intruso no puede cubrir sus huellas, a menos de que también altere el
+servidor de registro. Así el servidor de registro deberá ser
+especialmente seguro. Convertir una máquina en servidor de registro es
+simple. Simplemente lance syslogd con 'syslogd -r' y nace un nuevo
+servidor de registro. Seguidamente, congifure las otras máquinas para
+que envíen datos al servidor de registro, Para hacer ésto
+permanentemente en Debian edite <file>/etc/init.d/sysklogd</file> y
+cambie la línea:
+
+<example>
+SYSLOGD=""
+</example>
+to 
+<example>
+SYSLOGD="-r"
+</example>
+
+Luego, configure las otras máquinas al enviar los datos al servidor de
+registro. Agrege una entrada como la siguiente
+<file>/etc/syslog.conf</file>:
+
+<example>
+facility.level @your_loghost
+</example>
+
+Mire la documentación para saber que usar en lugar de <em>facility</em>
+y <em>level</em> (ellos no deben ser introducirse de forma literal
+como se hace aquí).  Si usted quiere registrar todo remotamente, escriba:
+
+<example>
+*.* @your_loghost
+</example>
+
+dentro de su syslog.conf. Registrar tanto remota como localmente es la
+mejor solución (el atacante creerá haber cubierto sus pasos
+después de eliminar los archivos locales de registro). Para información
+adicional consulte el manual de paginas <manref name="syslog"
+section="3">, <manref name="syslogd" section="8"> y <manref
+name="syslog.conf" section="5">.
+
+
+<sect1>Permisos para el archivo de registro
+
+<p>No sólo es importante decidir como son usadas las alertas, sino
+también quienes tiene acceso a éstas, i.e. puede leer o modificar los
+archivos de registro (si no se está usando un servidor remoto de
+registros). Las alertas de seguridad que el atacante pueda cambiar o
+inhabilitar no son de mucho valor en el momento de la invasión.
+
+<!-- It should be explained why after installation this is not
+ already done, jfs -->
+
+<p> Algunos permisos para el achivo de registro no son perfectos
+despúes de la instalación. Primero <file>/var/log/lastlog</file> y
+<file>/var/log/faillog</file>no necesitan tener un permiso de lectura
+para un usuario normal. En el archivo lastlog usted puede ver quien
+entró recientemente y en faillog usted mira un resumen de las entradas
+fallidas. El autor recomienda cambiar permisos a 660.Haga una breve
+revisión en sus archivos de registro y decida muy cuidadosamente
+cuales logfile deben tener permiso de lectura y escritura para un
+usuario con UID distinto a 0 y un grupo aparte de 'adm' o 'root'.
+
+<p> Quiero enfatizar que los permisos del archivo de registro apache
+son realmente malos debido al hecho de que el usuario apache tiene los
+registros del archivo apache. Si un ususario obtiene un interfaz de
+comandos con una puerta trasera de apache, ellos pueden eliminar
+fácilmente los archivos de registro.
+
+<!--
+# This is quite personal, IMHO, since this is due to the fact that
+# root priviledges are dropped on startup. I prefer an attacker to
+# erase a service's logfiles than to erase all of my system's logs.
+# Anyhow, this can be improved by changing user permissions after
+# rotation
+-->
+
+
+<sect id="chroot">Uso del cambio de directorio raíz
+
+<p><prgn>chroot</prgn> es una de las posibilidades más poderosas para
+restringir un demonio, un ususario u otro servicio. Sólo imagine una
+cárcel alrededor de su objetivo, del cual no puede escapar
+(normalmente, hay sin embargo muchas condiciones que permiten un
+escape fuera de su cárcel). Si usted no confía en un usuario, puede
+crear un cambio en el ambiente. Ésto puede usar un pequeño espacio
+adicional de disco, puesto que se necesita copiar todos los
+ejecutables necesarios, así como las biblioteca dentro de la cárcel.
+Aún si el usuario hace algo malicioso, el alcance de un daño es
+limitado al aseguramiento. 
+
+<p>Un buen ejemplo de este caso,es,si usted no autentica en contra de
+<file>/etc/passwd</file>puede usar LDAP o MySQL. Así que su demonio
+ftp únicamente necesita un binario y quizá un poco de biblioteca. Un
+cambio de directorio raíz seria un excelente seguro del mejoramiento
+de condiciones externas; si una nueva vulneración es conocida para
+este demonio ftp, entonces solamente el atacante puede vulnerar el UID
+del usuario de demonio ftp y nada más. 
+
+<p>Por supuesto, muchos otros demonio también podrán beneficiarse
+desde este modo de arranque.
+
+<p>Sin embargo, esté prevenido que el seguro <prgn>chroot</prgn> puede
+estar dañado si el usuario entra en éste es el superusuario. Así que
+usted necesita que el servicio corra como un usuario no privilegiado.
+Límitando su ambien usted está límitando la palabra leíbles que el
+servicio de archivos ejecutables puede acceder, así, usted límita las
+posibilidades de una subida del privilegio por el uso de
+vulnerabilidades de seguridad de los sistemas locales. Incluso en
+ésta situación usted no puede estar copmpletamente seguro de que no
+hay ninguna manera para que un atacante hábil se escape de algún modo
+del aseguramiento. Usando solamente un servidor de programa, el cual
+tiene una reputación de medida de aseguramiento que es buena. Incluso
+la cavidad minusiosa de archivos manuales puede ser abierta por un
+atacante hábil interrumpiendo el sistema por dentro. Despues de todo,
+<prgn>chroot</prgn> no fue diseñado como una herramienta de
+comprobación.
+
+<!-- ARREGLAME: this information should be checked when woody gets
+released -->
+
+<p>Como una nota adicional, Demonios omite BIND (Internet nombra el
+servicio) esto no viene con un cambio de directorio raíz, de hecho
+demonios no viene con un cambio de directorio raíz. Éste debe cambiar
+en el woody (3.0) release.
+
+<p>También hay algún software (no actualmente en Demonios pero el
+cual podría estar disponible en el futuro) que puede ayudar al arreglo
+del ambiente del cambio de directorio raíz. Por ejemplo,
+<prgn>makejail</prgn> puede crear y poner al día un aseguramiento del
+cambio de directorio raíz con la canfiguración de pequeños archivos.
+También intenta suponer e instalar dentro del aseguramiento todos los
+archivos requeridos por demonios. Más información en <url
+id="http://www.floc.net/makejail/"> <prgn>Jailer</prgn>. Es una
+herramienta similar la cual puede ser cobrada desde <url
+id="http://www.balabit.hu/downloads/jailer/">.
+
+<sect1>Configuarción Kernel 
+
+<sect1 id="kernel-conf">Características de la red configurando kernel 
+<p>ARREGLAME: Content missing
+
+<p>Muchas características de kernel pueden ser modificadas ya que
+actualmente se repiten algunas cosas dentro del sistema del arhivo
+<file>/proc</file> o usando el sistema ctl. Pra ingresar a <tt>sysctl
+-A</tt> puede mirar que debe configurar y que otras opciones hay.
+Solamente en algunas cosas usted necesita editar algunas cosas aquí,
+pero usted puede aumentar la seguridad que es un buen camino.
+
+ 
+<!-- ARREGLAME: Should the prefix on all of these be /proc/sys/? era -->
+
+<example>
+net/ipv4/icmp_echo_ignore_broadcasts = 1
+</example>
+
+Este es un 'emulador de windows' porque éste funciona como windows
+para que emita el sonido si uno de estos es establecido para 1. <!--
+Which means what exactly? Simply that it ignores broadcasts? ARREGLAME -->
+De otro modo, ésto no hace nada.
+
+<example>
+net/ipv4/icmp_echo_ignore_all = 0
+</example>
+
+<p>Si usted no quiere bloquear ICMP sobre su cortafuego, permira ésto.
+<!--
+Does this mean, if you want to block ICMP but not in your firewall? ARREGLAME
+-->
+
+<example>
+net/ipv4/tcp_syncookies = 1
+</example>
+
+<p>Ésta opción es una espada de doble filo. Por otra parte su sistema
+está protegido contra la inundación de syn; por otra parte viola las
+normas definidas (RFCs). Esta opción es totalmente muda, como cuando
+usted inunda otro lado que está iniudado, así que el otro lado también
+está ocopado. Si usted quiere cambiar está opción usted también puede
+cambiar ésto dentro de <tt>/etc/network/options</tt> para colocar
+<tt>syncookies=yes</tt>.
+
+<example>
+/proc/sys/net/ipv4/conf/all/log_martians = 1
+</example>
+
+<p>Los paquetes con direcciones imposibles (debido a las rutas
+incorectas) sobre el registro que obtuvo su red.
+
+<p> Este es un ejemplo del ajuste en otro material útil. Usted debería
+añadir ésta información dentro de la escritura de
+<file>/etc/network/interface-secure</file> (el nombre dado como un
+ejemplo) y es llamado desde <file>/etc/network/interfaces</file> como
+éste:
+
+<example>
+auto eth0
+iface eth0 inet static
+ address xxx.xxx.xxx.xxx
+ netmask 255.255.255.xxx
+ broadcast xxx.xxx.xxx.xxx
+ gateway xxx.xxx.xxx.xxx
+ pre-up /etc/network/interface-secure
+
+</example>
+
+<example>
+# Script-name: /etc/network/interface-secure
+# Modifies some default behaviour in order to secure against 
+# some TCP/IP spoofing & attacks
+#
+# Contributed by Dariusz Puchalak 
+#
+echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
+ # broadcast echo protection enabled
+echo 0 > /proc/sys/net/ipv4/ip_forward # ip forwarding disabled
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies # TCP syn cookie protection enabled
+echo 1 >/proc/sys/net/ipv4/conf/all/log_martians 
+ # Log packets with impossible 
+addresses # but be careful with this on heavy loaded web 
+serversecho 1 > /proc/sys/net/ipv4/ip_always_defrag 
+ # defragging protection always 
+enabledecho 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses 
+ # bad error message protection 
+enabled
+# now ip spoofing protection
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do
+ echo 1 > $f
+done
+
+# and finally some more things:
+# Disable ICMP Redirect Acceptance
+for f in /proc/sys/net/ipv4/conf/*/accept_redirects; do
+ echo 0 > $f
+done
+
+for f in /proc/sys/net/ipv4/conf/*/send_redirects; do
+ echo 0 > $f
+done
+
+# Disable Source Routed Packets
+for f in /proc/sys/net/ipv4/conf/*/accept_source_route; do
+ echo 0 > $f
+done
+
+# Log Spoofed Packets, Source Routed Packets, Redirect Packets
+for f in /proc/sys/net/ipv4/conf/*/log_martians; do
+ echo 1 > $f
+done
+</example>
+
+<sect1 id="kernel-fw">Configuarción de las características de los cortafuegos
+
+<p>Para tener la capacidad del cortafuego, para proteger el sistema
+local u otros <em>detrás</em> de este, el kernel necesita estar
+compidalo con las capacidades del cortefuego. El Debian normal 2.2
+kernel (también 2.2) susmistra el paquete de filtro del cortafuego
+<prgn>ipchains</prgn>, el kernel normal de Debian 3.0 (kernel 2.4)
+suministra el <em>poderoso</em> paquete de filtros de cortafuegos
+<prgn>iptables</prgn> (filtro de la red). Las distribucines más viejas
+de Debian necesitan el parche apropiado del kernel (Debian 2.1 usa el
+kernel 2.0.34).
+
+<p>En todo caso, es bastante fácil usar un kernel diferente al
+suministrado por Debian. Usted puede encontrar paquetes de kernel
+pre-compilados que puede instalar fácilmente en el sistemas de Debian.
+Usted tambiém puede obtener las fuentes del kernel usando
+<package>kernel-source-X</package> y armar paquetes de kernel
+personalizados con <package>make-kpkg</package>.
+
+<p>Configurando los cortafuegos en Debian se discute más a fondo en <ref
+id="firewall-setup">.
+
+<sect id="kernel-patch"> Añadiendo parches al kernel 
+
+ARREGLAME: More content
+
+<p>Debian GNU/Linux suministra algunos de los parches para el kernel
+de Linux que aumentan su aseguramiento. Estos incluyen: <list>
+
+<item> Detección de Intrusos en Linux (dentro del paquete 
+<package>lids-2.2.19</package>)
+<item>Capacidades de Linux (dentro del paquete <package>lcap</package>)
+
+<item>Confianza en Linux (dentro del paquete <package>trustees</package>)
+
+<item> Linux Aumentando con NSA (dentro del paquete
+<package>selinux</package> también disponible desde <url
+id="http://www.coker.com.au/selinux/" name="the developer's
+website">)
+
+<item><url name="kernel-patch-2.2.18-openwall"
+id="http://packages.debian.org/kernel-patch-2.2.18-openwall">
+
+<item><package>kernel-patch-2.2.19-harden</package>
+
+<item>Capacidades de Linux (dentro del paquete <package>lcap</package>
+
+<item>soporte IPSEC en el kernel (dentro del paquete
+<package>kernel-patch-freeswan</package>)
+
+<item><package>kernel-patch-int</package>
+
+</list>
+
+
+<sect>Transferencia segura de archivos
+
+<p> Copiar los archivos de una manera segura desde un computador a
+otros puede ser logrados usando 'scp' que está incluido en el paquete
+ssh. Esto funciona como rcp pero es completamente encriptado, así los
+tipos malos ni siquiera pueden averiguar QUE copia usted.
+
+<sect>Límites y control de los sistemas de archivos
+
+<sect1>Uso de Quotas
+
+<p>Tener una buena política de quotas es importante, esto abstiene a
+los usuarios de llenar el disco duro. <p> Usted puede usar dos
+sistemas diferentes de quotas: quota de usuario y quota de grupo. Como
+usted provablemente dedujo, la quota del usuario límita la cantidad de
+espacio del que un usuario puede disponer, la quota del grupo hace lo
+equivalente para los grupos. Tenga en cuenta ésto cuando esté
+organizando el tamaño de quotas.
+
+<p>Hay algunos puntos importantes para considerar acerca de la
+configuración del sistema de quotas:
+
+<list>
+<item>Mantener las quotas suficientemente pequeñas, para que los
+usuarios no ocupen el espacio de su disco.
+<item>Mantener las quotas lo suficientemente grandes, para que los
+usuarios no se quejen o su quota de correo les impida aceptar un
+correo por un periodo de tiempo largo.
+<item>Use las quotas para todas las áreas en las que los usuarios
+puedan escribir, en <file>/home</file> como también en
+<file>/tmp</file>.
+</list>
+
+<p>Cada partición/directorio al que los usuarios tienen acceso
+completo de escritura deberían permitir el uso de quotas. Encuentre
+esas divisiones y directorios y calcule un tamaño de quota trabajable,
+que combine el uso y la seguridad.
+
+<p>Ahora que usted quiere usar quotas. Primero que todo usted necesita
+revisar que habilito el uso de quotas en el kernel. Si no, usted
+necesitará recompilarla. <!-- ARREGLAME: how to check for quota support?
+What to tweak when recompiling? --> Después de ésto dése cuenta que
+el paquete 'quota' esté instalado. Si no está usted necesitará este.
+
+<p> Habilitar la quota para los respectivos sistemas de archivos es
+tan fácil como modificar la configuración <tt>inicial</tt> ajustándola
+a <tt>defaults,usrquota</tt> en su archivo <file>/etc/fstab</file> .
+Si usted necesita un quota para grupos, sustituya <tt>usrquota</tt>
+por <tt>grpquota</tt>. Puede usar ambos. Luego cree unos archivos
+quota.user y quota.group vacios en la raíz de los sistemas de
+archivos en los que usted quiera usar quotas (Ej. con <tt>touch
+/home/quota.user /home/quota.group</tt> para el sistema de archivos
+<file>/home</file>).
+
+<p> Reinicie la quota haciendo <tt>/etc/init.d/quota
+stop;/etc/init.d/quota start</tt>. Ahora la quota debería estar
+ejecuténdose, y los tamaños de las quoatas pueden establecerse.
+
+<p> Modificar quotas para un usuario específico (digamos 'ref')
+puede hacerse con <tt>edquota -u ref</tt>. Los grupos de quotas se
+pueden modificar con <tt>edquota -g &lt;group&gt;</tt>. Después
+establezca el límite suave y duro para las quotas y/o quotas de
+i-nodos cuando sea necesario.
+
+<p> Para más información acerca de las quotas, lea el manual de
+páginas sobre las quotas, y el
+mini-howto (<file>/usr/share/doc/HOWTO/en-html/mini/Quota.html</file>).
+
+<p>Usted puede o no gustar de <package>lshell</package>, el cual viola
+el FHS. También debe tener un cuenta que pam_limits. puede suministrar
+la misma funcionalidad que <package>lshell</package> el cual es
+huérfano actualmente. <url id="http://bugs.debian.org/93894"
+name="orphaned"> <!-- Duplicated section "Logfile permissions" removed
+(era) --> <!-- Duplicated section "Setting up setuid check" removed
+(era) -->
+
+<sect1>chattr/lsattr
+
+<p> Estos dos comandos son muy útiles, pero solo funcionan con el
+sistema de archivos ext2. Con 'lsattr' puede listar los atributos de
+un campo, y con 'chattr' puede cambiarlos. Note que los atributos no
+son l amisma cosa que los permisos. Hay muchos atributos, pero
+solamente menciono los más importantes para incrementar la seguridad.
+Hay dos flags los cuales solamente los puede establecer el
+superusuario.
+
+<p> En primer lugar está flag 'a'. Si se establece un archivo, este
+archivo puede ser abierto solamente para añadir. Este atributo es útil
+para algunos archivos en <file>/var/log/</file>,aunque se podría
+considerar que fuesen quitados algunas veces debido a la rotación de
+scripts de registro.
+
+<p> La segunda flag es 'i', en corto immutable. Si se establece un
+archivo, no puede ser modificado ni borrado o renombrado y no se
+creará ningún link hacia él. Si no quiere que los usuarios miren en
+sus archivos la configuración puede establecer este flag y quitar el
+permiso de lectura. Más aun, ésto puede darle un poco más de seguridad
+contra los atacantes, porque el cracker puede confundirse al no ser
+capaz de borrar un un archivo. De todos modos, nunca debería asumir
+que el cracker es ciego. Despeés de toso ha entrado en su sistema.
+
+<p>Note que lsattr y chattr estan disponibles solamente en los
+sistemas de archivos ext2.
+
+<sect1 id="check-integ">Integridad de su sistema de archivos
+
+<p>¿Está usted seguro de que el <file>/bin/login</file> en su disco
+duro es todavía el binario que instaló allí hace unos meses? ¿Qué
+pasaría si es una versión hackeada, que guarda la contraseña
+introducida en un archivo oculto o la envía por un correo claro pro
+todoel internet?
+
+<p> El único método para tener alguna protección es comprobar sus
+archivos cada día/hora/mes (yo prefiero cada día) comparando la vieja
+md5sum y la actual. Dos archivos no pueden tener la misma md5sum, de
+modo que anda sobre seguro aquí, excepto alquien que hackeó el
+algoroitmo para crear md5sums un la máquina. Esto es bueno,
+extremadamente difícil y muy improbable. Realmente usted debería
+considerar que auditar sus binarios es muy importante, ya que es un
+modo fácil para reconocer los cambios en sus binarios. Las
+herramientas que comúnmente se uaan para ésto son
+<package>sXid</package>, <package>AIDE</package> (Ambientación
+Avanzada de Detección de Intrusos), <package>TripWire</package> (no es
+libre; la nueva versió será GPL), <package>integrit</package> y
+<package>samhain</package>.
+
+<p>Instalando <tt>debsums</tt> ayudará a revisar la integración de los
+archivos del sistema para comparar el md5sums de todos los archivos en
+contra de md5sums usado en el paquete del archivo Debian. Tenga
+cuidado con algunos archivos porque pueden ser fácilmente cambiados.
+
+<p>Además puede reemplazar <package>locate</package> por
+<package>slocate</package>. slocate es una versión mejorada para la
+seguridad de local de GNU. Cuando usa slocate el usuario solomante ve
+los archivos a los que el tiene acceso y puede excluir cualquier
+archivo o directorio del sistema.
+
+
+<sect1>Configuración de revisión de setuid 
+
+<p> Debian sumunistra un trabajo cron que diariamente corre en
+<file>/etc/cron.daily/standard</file>. Este trabajo cron ejecutará el
+script <prgn>/usr/sbin/checksecurity</prgn> que almacenará la
+información de estos cambios.
+
+<!-- ARREGLAME: What is the defaul for this in cron package? jfs -->
+
+<p>Para que este chequeo sea hecho usted debe colocar
+<tt>CHECKSECURITY_DISABLE="FALSE"</tt> dentro de
+<file>/etc/checksecurity.conf</file>. Note, que este es el
+predeterminado, a menos de que usted haya cambiado algo, esta opción
+será colocada como "FALSE".
+
+<p>El comportamiento por defecto no manda la información al
+superusuario, pero en cambio guarda diariamente copias de los cambios
+dentro de <file>/var/log/setuid.changes</file>. Usted debe colocar el
+CHECKSECURITY_EMAIL (dentro de <file>/etc/checksecurity.conf</file>)
+a 'root'. Mire <manref name="checksecurity" section="8"> para mas
+información de configuración.
+
+<sect>Otras recomendaciones
+<sect1>No use software que dependa de svgalib
+
+<p> SVGAlib es muy bueno para los amantes de la consola como yo, pero
+durante mucho tiempo se ha comprobado que esto ha sido muy inseguro.
+Han sido liberadas fallas en contra de <prgn>zgv</prgn> y era sencillo
+convertirse en root. Intente evitar el uso de programas que usen
+SVGAlib siempre que sea posible. 
+
+<!-- ARREGLAME: move this to policy section if there ever is one? -->

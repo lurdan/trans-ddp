@@ -1,0 +1,1071 @@
+
+<appendix id="harden-step">Der Abhärtungs-Prozess Schritt für
+Schritt
+
+<!--
+# I took the liberty to change this from "checklist" to
+# "process step by step" because this doesn't really have the
+# form of a checklist, and I had added a different sort of
+# checklist. The renaming is more to avoid confusion than
+# anything else. // era
+-->
+
+<p>Eine Prozedur ist immer nützlich, da Sie Ihnen erlaubt, den
+gesamten Prozess des Abhärtens eines Systems zu betrachten und Ihnen
+erlaubt Entscheidungen zu treffen. Ein möglicher Versuch für
+eine solche Prozedur für Debian 2.2 GNU/Linux ist unten
+aufgeführt. Es ist eine Nach-Installations Prozedur. Eine
+Checkliste von Maßnahmen, die Sie schritt für Schritt während
+der Konfiguration durchführen finden Sie unter <ref id="checklist">.
+Außerdem ist diese Prozedur (im Augenblick) eher am Absichern von
+Netzwerk-Diensten orientiert.
+
+<list>
+
+<item>Führen Sie eine Installation auf dem System durch (beachten
+Sie dabei die Informationen dieser HowTo bezügliche
+Partitionierung). Nach der Basis-Installation nehmen Sie eine angepasste
+Installation vor, wählen Sie keine Task-Pakete aus, aber aktivieren
+Sie shadow passwords.
+
+<item>Gehen Sie durch <prgn>dselect</prgn> und entfernen Sie alle nicht
+benötigten aber ausgewählten Pakete bevor Sie [I]nstallation
+wählen. Lassen Sie nur absolut notwendige Software auf dem Server.
+
+<item>Aktualisieren Sie alle Software von den aktuellen Paketen auf
+security.debian.org wie bereits unter <ref id="update"> beschrieben.
+
+<item>Implementieren Sie die in dieser Anleitung vorgeschlagenen
+Maßnahmen über User Quota, Login Definitionen und Lilo.
+
+<item>Um das Abhärten aller Dienste vorzubereiten, machen Sie eine
+Liste von allen Diensten, die derzeit auf Ihrem System arbeiten.
+<example>
+$ ps -aux
+$ netstat -pn -l -A inet 
+# /usr/sbin/lsof -i | grep LISTEN
+</example>
+
+Damit das dritte Kommando funktioniert werden Sie
+<package>lsof-2.2</package> installieren müssen (uns es als root
+laufen lassen). Beachten Sie, dass lsof das Wort LISTEN passend zu Ihrer
+Lokalisation übersetzen kann.
+
+<item>Um unnötige Dienste zu entfernen, stellen Sie zunächst
+fest, wie er gestartet wird, und welches Paket ihn zur Verfügung
+stellt. Sie können dies ganz einfach machen, indem Sie das Programm
+prüfen, dass auf einen Socket achtet. Das nachfolgende Beispiel wird
+Ihnen zeigen, wie man diese Tools und <prgn>dpkg</prgn> dazu benutzt:
+
+<example>
+#!/bin/sh
+# FIXME: Dies ist nur auf die Schnelle und einfach zusammen gehackt, und
+# sollte durch einen robusteren Skript-Schnippel ersetzt werden
+for i in `sudo lsof -i | grep LISTEN | cut -d " " -f 1 |sort -u` ; do
+        pack=`dpkg -S $i |grep bin |cut -f 1 -d : | uniq`
+        echo "Dienst $i ist durch $pack installiert";
+        init=`dpkg -L $pack |grep init.d/ `
+        if [ ! -z "$init" ]; then
+                 echo "und wird durch $init gestartet"
+        fi
+done
+</example>
+
+<item>Wenn Sie ungewünschte Dienste finden, entfernen Sie das Paket
+(mit <prgn>dpkg --purge</prgn>) oder, wenn er nützlich ist aber
+nicht beim Starten aktiviert werden soll, benutzen Sie
+<prgn>update-rc.d</prgn> (siehe <ref id="disableserv">), um ihn aus
+dem Start-Prozess zu entfernen.
+
+<item>Bei inetd Dienste (durch den Superdaemon gestartet)
+können Sie einfach die aktivierten Dienste prüfen, zum
+Beispiel mit:
+
+<example>
+$ grep -v "^#" /etc/inetd.conf | sort -u
+</example>
+
+und deaktivieren Sie diejenigen, die Sie nicht benötigen, indem Sie
+die Zeile auskommentieren, das Paket entfernen, oder indem Sie
+<prgn>update-inetd</prgn> benutzen.
+
+<item>Wenn Sie Dienste eingehüllt haben (und
+<prgn>/usr/sbin/tcpd</prgn> benutzen) prüfen Sie, ob
+<file>/etc/hosts.allow</file> und <file>/etc/hosts.deny</file> passend zu
+Ihrer Dienste-Regelung konfiguriert sind.
+
+<item>Wenn möglich, und abhängig von jedem Dienst,
+möchten Sie vielleicht die Dienste limitieren, wenn Sie mehrere
+externe Schnittstellen benutzen, damit Sie nur auf eines davon achten.
+Wenn Sie zum Beispiel internen FTP-Zugriff erlauben, lassen Sie den
+FTP-Daemon nur auf diese Schnittstelle achten, nicht auf alle (d.h.
+0.0.0.0:21).
+
+<item>Booten Sie die Maschine neu, oder wechseln Sie in den Single-User
+Modus und zurück in den Multi-User Modus mit:
+<example>
+$ init 1
+(....)
+$ init 2
+</example>
+
+<item>Prüfen Sie die nun angebotenen Dienste und wiederholen Sie
+die letzten Schritte falls nötig.
+
+<item>Installieren Sie jetzt die benötigten Dienste, falls es noch
+nicht geschehen ist, und konfigurieren Sie Sie passend.
+
+<item>Prüfen Sie, welche User benutzt werden, um angebotenen
+Dienste zu starten, zum Biespiel mit:
+
+<example>
+$ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`; do
+user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; echo "Dienst $i
+laeuft als Benutzer $user"; done
+</example>
+
+und überlegen Sie, ob Sie diese Dienst zu einem bestimmten User /
+einer bestimmten Gruppe ändern wollen und Sie vielleicht auch in
+eine chroot-Umgebung packer wollen, um die Sicherheit zu erhöhen.
+Sie können dies tun, indem Sie die <file>/etc/init.d</file> Skripte
+ändern, die den Dienst starten. Die meisten Dienste benutzen unter
+Debian <prgn>start-stop-daemon</prgn>, so dass Sie einfach die
+--change-uid und --chroot Optionen benutzen können, um diese
+Dienst aufzusetzen. Das einpacken eines Dienstes in eine
+Chroot-Umgebung würde den Rahmen dieses Dokumentes sprengen, aber
+ein paar warnende Worte sind nötig: Sie werden wahrscheinlich alle
+Dateien, die durch das Paket des Dienstes installiert wurden, unter
+Benutzung von dpkg -L und der Pakete, von denen es abhängt, in die
+Chroot-Umgebung legen müssen.
+
+<item>Wiederholen Sie die oberen Schritte, um zu prüfen, ob nur die
+gewünschten Dienste laufen und ob Sie unter der gewünschten
+User/Gruppen Kombination laufen.
+
+<item>Testen Sie die installieren Dienste, um zu festzustellen, ob Sie
+wie erwartet arbeiten.
+
+<item>Checken Sie das System, indem Sie einen
+Verwundbarkeits-Abschätzungs-Scanner (zum Beispiel
+<package>nessus</package>) benutzen, um Angriffmöglichkeiten
+(Fehlkonfigurationen, alte oder nicht benötigte Dienste) zu finden.
+
+<item>Installieren Sie Netzwerk-Eindringlings-Massnahmen und
+Host-Eindringlings-Massnahmen (wie <package>snort</package> und
+<package>logsentry</package>).
+
+<item>Wiederholen Sie den Netzwerk-Scan und prüfen Sie, ob das
+Eindringslings-Erkennungs-System funktioniert.
+
+</list>
+
+Dir richtig Paranoiden überlegen sich auch das folgende:
+
+<list>
+
+<item>fügen Sie dem Systen Firewall Fähigkeiten hinzu, die
+eingehende Verbindungen nur zu angebotenen Diensten erlauben und
+ausgehende Verbindungen auf authorisierte beschränkt.
+
+<item>Überprüfen Sie erneut die Installation auf Angriffspunkte
+mit einem Netzwerk Scanner.
+
+<item>Prüfen Sie ausgehende Verbindungen vom System zu Hosts
+außerhalb mit einem Netzwerk-Scanner, um sicherzustellen, dass
+ungewollte Verbindungen keinen Weg nach draußen finden.
+
+</list>
+
+<p>FIXME: this procedure considers service hardening but not system
+hardening at the user level, include information regarding checking
+user permissions, setuid files and freezing changes in the system
+using the ext2 filesystem.
+
+<appendix id="checklist">Konfigurations Checkliste
+
+<p>Dieser Anhang Anhang wiederholt kurz Punkte aus anderen Abschnitten
+dieser Anleitung in einem verdichteten Checklisten Format. Er ist als
+schnelle Zusammenfassung für Leute gedacht, die bereits diese
+Anleitung gelesen haben. Es gibt auch andere Checklisten, Kurt Seifried
+hat eine basierend auf dem Kurs <url
+id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.html"
+name="Securing Linux Step by Step"> aufgesetzt.
+
+
+<!-- FIXME: Add pointer to Unix Security Checklist (CERT) -->
+
+<!-- Order is slightly different from body text. Consider changing text? -->
+<!-- (FIXME) -->
+
+<p>FIXME: This is based on v1.4 of the manual and might need to be updated.
+
+<list>
+	  <item>Schränkgen Sie physischen Zugriff und
+	  Boot-Fähigkeiten ein.
+	      <list>
+		<item>Setzen Sie ein BIOS-Passwort
+		<item>Schalten Sie das Booten von Diskette, CD-ROM, ...
+		ab
+		<item>Setzen Sie ein LILO bzw. GRUB Passwort
+		(<file>/etc/lilo.conf</file> bzw.
+		<file>/boot/grub/menu.lst</file>); prüfen Sie, dass
+		die LILO oder GRUB Konfigurationen nicht einsehbar ist
+		<item>Verhindern Sie die Hintertür des Bootens von
+		Diskette durch den MBR, indem Sie den MBR
+		überschreiben (vielleicht nicht?)
+		<!-- TODO: Ich kenne diese back door nicht, und habe das
+		vielleicht falsch uebersetzt:
+		Disallow MBR floppy booting back door by
+		    overwriting the MBR (maybe not?) -->
+
+	      </list>
+	      
+	  <item>Parttionierung
+	      <list>
+		<item>Separieren Sie User-schreibbare Daten, nicht-System
+		Daten und sich ständig ändernde Laufzeit Daten
+		auf Ihre eigenen Partitionen
+		<item>Setzen Sie <tt>nosuid,noexec,nodev</tt>
+		Mount-Optionen in die <file>/etc/fstab</file> bei
+		ext2-Partitionen, wie zum Beispiel <file>/tmp</file>.
+	      </list>
+	      
+	  <item>Passwort-Hygiene und Login-Sicherheit
+	      <list>
+		<item>Setzen Sie ein gutes Root-Passwort
+		<item>Benutzen Sie Shadow- und MD5-Passwords
+		<item>Installieren und benutzen Sie PAM
+		    <list>
+		      <item>Fügen Sie PAM MD5 Support hinzu, und
+		      stellen Sie sicher (allgemein gesprochen) dass die
+		      Einträge in den <file>/etc/pam.d/</file>
+		      Dateien, die Zugriff auf die Maschine
+		      gewähren, das zweite Feld <!-- or is it third?
+		      (FIXME: check) --> in der pam.d-Datei auf
+		      "requisite" oder "required" gesetzt haben.
+		      <item>Ändern Sie
+		      <file>/etc/pam.d/login</file>, so dass es nur
+		      lokale Root-Logins erlaubt.
+		      <item>Markieren Sie ausßerdem authorisierte ttys in
+		      <file>/etc/security/access.conf</file> und setzen
+		      Sie diese Datei überhaupt so auf, dass
+		      Root-Logins so weit wie möglich
+		      eingeschränkt werden.
+		      <item>Fügen Sie pam_limits.sp hinzu, wenn Sie
+		      pro User Einschränkungen vornehmen wollen.
+		      <item>Ändern Sie
+		      <file>/etc/pam.d/passwd</file>: Setzen Sie die
+		      minimum Länge von Passworten hoch (vielleicht
+		      sechs Zeichen) und schalten Sie md5 ein.
+		      <item>Wenn Sie es wünschen, fügen Sie
+		      <file>/etc/group</file> die Gruppe wheel hinzu;
+		      fügen Sie <file>/etc/pam.d/su</file>
+		      pam_whell.so group=wheel hinzu.
+		      <item>For angepasste pro-User Kontrollen, benutzen
+		      Sie pam_listfile.so Einträge, wo es passt.
+		      <item>Erstellen Sie eine Datei
+		      <file>/etc/pam.d/other</file> und setzen Sie sie
+		      mit strenger Sicherheit auf.
+		    </list>
+		<item>Setzen Sie in
+		<file>/etc/security/limits.conf</file> Schranken
+		(beachten Sie, dass <file>/etc/limits</file> nicht
+		benutzt wird, wenn Sie PAM benutzen).
+		<item>Festigen Sie <file>/etc/login.defs</file>; wenn Sie
+		MD5 und/oder PAM einschalten machen Sie auch hier
+		ebenfalls die gleichbedeutenden Änderungen.
+		<item>Schalten Sie root FTP-Zugriff in
+		<file>/etc/ftpusers</file> ab.
+		<item>Schalten Sie Root-Login übers Netzwerk ab;
+		benutzen Sie <manref name="su" section="1"> oder <manref
+		name="sudo" section="1"> (überlegen Sie die
+		Installation von <package>sudo</package>).
+		<item>Benutzen Sie PAM, um zusätzliche Auflagen auf
+		Logins zu ermöglichen.
+	      </list>
+
+	  <item>Andere Lokale Sicherheits Sachen:
+	      <list>
+		<item>Kernel Tweaks
+		    (siehe <ref id="kernel-conf">)
+		    
+		<item>Kernel Patches
+		    (siehe <ref id="kernel-patches">)
+		    
+		<item>Festigen der Zugriffsrechte auf Log-Dateien
+		    (<file>/var/log/{last,fail}log</file>, Apache Logs)
+		    
+		<item>Verifizieren Sie, dass in
+		<file>/etc/checksecurity.conf</file> setuid Checks
+		eingeschaltet sind.
+		<item>Überlegen Sie sich, an Log-Dateien nur
+		anhängen zu lassen (append-only) und
+		Konfigurationsdateien unveränderbar (immutable) zu
+		machen, indem Sie chattr benutzen (nur ext2 Dateisystem)
+		<item>Setzen Sie Datei-Integritäts-Test aus (siehe <ref
+		id="check-integ">). Installieren Sie
+		<package>debsums</package>.
+		<item>Überlegen Sie, locate durch slocate zu
+		ersetzen.
+		<item>Alles auf einem lokalen Drucker mitloggen?
+		<item>Brennen Ihrer Konfiguration auf eine bootbare CD und
+		hier von booten?
+		<item>Abschalten von Kernel-Modulen?
+	      </list>
+	      
+	  <item>Beschränken von Netzwerk Zugriff
+	      <list>
+		<item>Installieren und konfigurieren Sie <prgn>ssh</prgn>
+		    (Vorschlag: PermitRootLogin No in <file>/etc/ssh/sshd_config</file>,
+		    PermitEmptyPasswords No; beachten Sie auch die
+		    anderen Vorschläge im Text).
+		<item>Überlegen Sie, ob Sie telnetd abschalten (in
+		<file>/etc/inetd.conf</file>, benutzen Sie <tt>update-inetd
+		      --disable</tt> (oder schalten Sie inetd ganz ab,
+		      oder benutzen Sie einen Ersatz wie xinetd oder
+		      rlinetd)) oder entfernen.
+		<item>Schalten Sie andere überflüssig Netzwerk
+		Dienste ab; mail, ftp, DNS, www usw. sollten nicht
+		laufen, wenm Sie Sie nicht brauchen und nicht
+		regelmässig überwachen.
+		<item>Installieren Sie von den Diensten die Sie brauchen
+		nicht einfach die weitverbreitesten Programme, sondern
+		schauen Sie für sicherere Versionen, die Debian
+		liefert (oder aus anderen Quellen). Was auch immer Sie
+		schließlich benutzen: Gehen Sie sicher, dass Sie die
+		Risiken verstanden haben.
+		<item>Setzen Sie Chroot-Umgebungen für
+		äusswärtige User und Daemonen auf
+		<item>Konfigurieren Sie Firewall und tcp-Wrapper (d.h.
+		<manref name="hosts_access" section="5">); beachten Sie
+		den Trick für <file>/etc/hosts.deny</file> im Text.
+		<item>Wenn Sie FTP laufen lassen, setzen Sie den
+		ftpd-Server so auf, dass er immer als chroot im
+		Heimat-Verzeichnis des Users läuft.
+		<item>Wenn Sie X laufen lasen, schalten Sie xhost
+		authentifizierung ab und benutzen Sie stattdessen ssh;
+		oder noch besser. Ignorieren Sie weitergeleitete X
+		komplett, wenn Sie können (hinzufügen von
+		-nolisten tcp zu der X Kommando-Zeile und schalten Sie
+		XDMCP in <file>/etc/X11/xdm/xdm-config</file> ab, indem
+		Sie den requestPort auf 0 setzen)
+		<item>Schalten Sie Zugriff von Außerhalb auf den Drucker
+		ab
+		<item>Tunneln Sie alle IMAP Oder POP Sitzungen durch SSL
+		oder SSH; installieren Sie stunnel, wenn Sie diesen
+		Dienst anderen Mail-Usern anbieten wollen
+		<item>Setzen Sie einen Log-Host auf, und konfigurieren
+		Sie andere Maschinen, ihre Logs an diesen Host zu senden
+		(<file>/etc/syslog.conf</file>)
+		<item>Sichern Sie BIND, Sendmail und andere komplexe
+		Daemonen (starten in einer chroot-Umgebung; starten als
+		nicht-Root pseudo-User)
+		<item>Installieren Sie snort oder ein ähnliches
+		Überwachungs Tools)
+		<item>Verzichten Sie, falls möglich, auf NIS Und RPC
+		(abschalten von portmap).
+	      </list>
+
+	  <item>Policy Angelegenheiten
+	      <list>
+		<item>Klären Sie die User über das Warum und
+		Wie Ihrer Regelungen auf. Wenn Sie etwas verboten haben,
+		dass auf anderen Systemen normalerweise verfügbar
+		ist, stellen Sie Dokumentation bereit, die erklärt,
+		wie man gleiche Resultate erreicht, indem man andere,
+		sichere Mittel anwendet.
+		<item>Verbieten Sie die Nutzung von Protokollen, die
+		Klartext Passwörtet benutzen (telnet, rsh und
+		Freunde, ftp, imap, pop, http, ...).
+		<item>Verbieten Sie Programme, die SVGAlib benutzen.
+		<item>Benutzen Sie Disk-Quotas.
+	      </list>
+	      
+	  <item>Bleiben Sie über Sicherheits Angelegenheiten
+	  informiert
+	      <list>
+		<item>Abonieren Sie sicherheits relevante Mailing-Listen
+		<item>Abonieren Sie sicherheits Updates -- fügen Sie
+		<file>/etc/apt/sources.list</file> einen Eintrag (oder
+		Einträge) für
+		http://security.debian.org/debian-security
+		<item>Erinnern Sie sich auch regelmässig
+		<prgn>apt-get update ; apt-get upgrade</prgn> (vielleicht
+		per Cron-Job?) wie unter <ref id="update"> beschrieben
+		laufen zu lassen.
+	      </list>
+	</list>
+
+<appendix id="snort-box">Aufsetzen eines autonomen IDS
+
+<p>Sie können sehr leicht eine Debian-Box als eigenständiges
+Eindringlings-Erkennungs-System (Intrusion Detection System, IDS)
+aufsetzen, wen Sie <package>snort</package> benutzen.
+
+<p>Ein paar Richtlinien:
+
+<list>
+<item>Installieren Sie ein Debian Basis-System ohne zusätzliche
+Pakete.
+
+<item>Laden Sie notwendige Pakete (siehe die Liste der installierten
+Pakete weiter unten) manuell herunter und installieren Sie
+Sie (mit dpkg)
+
+<item>Laden Sie ACID (Analysis Console for Intrusion Databases, Analyse
+Konsole für Eindringling Datenbanken) herunter und installieren Sie
+es
+</list>
+
+<p>ACID wird derzeit mit <package>acidlab</package> für Debian
+paketiert, und stellt eine graphische WWW Schnittstelle zur Ausgabe von
+Snort zur verfügung.
+Es kann von <url id="http://www.cert.org/kb/acid/">, <url
+id="http://acidlab.sourceforge.net"> oder <url
+id="http://www.andrew.cmu.edu/~rdanyliw/snort/"> heruntergeladen werden.
+Sie möchten vielleicht die <url
+id="http://www.linuxdoc.org/HOWTO/Snort-Statistics-HOWTO/index.html"
+name="Snort Statistics HOWTO"> lesen.
+
+<p>Dieses System sollte mit wenigstens Zwei Netzwerk-Schnittstellen
+ausgestatten sein: Eine mit dem Verwaltungs-LAN verbunden (um die
+Resultate abzufragen und das System zu verwalten), und eines ohne
+ip-Adresse, das an mit dem zu beobachtenden  Netzwerk-Segment verbunden
+ist.
+
+<p>Sie können normalerweise nicht die standard Debian Datei
+<file>/etc/network/interfaces</file> benutzen, um die Netzwerk-Karten zu
+konfigurieren, da <prgn>ifup</prgn> und <prgn>ifdown</prgn> mehr
+Informationen erwarten, als benötigt werden. Benutzen Sie einfach
+<tt>ifconfig ethX up</tt>.
+
+<p>Abgesehen von der standard Debian installation benötigen Sie
+Apache, MySQL und PHP4 damit ACID funktioniert. Laden Sie die Pakete
+herunter (Beachten Sie: Die Versionen können abhängig von der
+verwendeten Debian Distribution variieren, diese sind von Debian
+<em>Woody</em> September 2001):
+
+<example>
+ACID-0.9.5b9.tar.gz
+adduser_3.39_all.deb
+apache-common_1.3.20-1_i386.deb
+apache_1.3.20-1_i386.deb
+debconf_0.9.77_all.deb
+dialog_0.9a-20010527-1_i386.deb
+fileutils_4.1-2_i386.deb
+klogd_1.4.1-2_i386.deb
+libbz2-1.0_1.0.1-10_i386.deb
+libc6_2.2.3-6_i386.deb
+libdb2_2.7.7-8_i386.deb
+libdbd-mysql-perl_1.2216-2_i386.deb
+libdbi-perl_1.18-1_i386.deb
+libexpat1_1.95.1-5_i386.deb
+libgdbmg1_1.7.3-27_i386.deb
+libmm11_1.1.3-4_i386.deb
+libmysqlclient10_3.23.39-3_i386.deb
+libncurses5_5.2.20010318-2_i386.deb
+libpcap0_0.6.2-1_i386.deb
+libpcre3_3.4-1_i386.deb
+libreadline4_4.2-3_i386.deb 
+libstdc++2.10-glibc2.2_2.95.4-0.010703_i386.deb
+logrotate_3.5.4-2_i386.deb
+mime-support_3.11-1_all.deb
+mysql-client_3.23.39-3_i386.deb
+mysql-common_3.23.39-3.1_all.deb
+mysql-server_3.23.39-3_i386.deb
+perl-base_5.6.1-5_i386.deb
+perl-modules_5.6.1-5_all.deb
+perl_5.6.1-5_i386.deb
+php4-mysql_4.0.6-4_i386.deb
+php4_4.0.6-1_i386.deb
+php4_4.0.6-4_i386.deb
+snort_1.7-9_i386.deb
+sysklogd_1.4.1-2_i386.deb
+zlib1g_1.1.3-15_i386.deb
+</example>
+
+<p>Installierte Pakete (dpkg -l):
+<example>
+ii  adduser        3.39
+ii  ae             962-26
+ii  apache         1.3.20-1
+ii  apache-common  1.3.20-1
+ii  apt            0.3.19
+ii  base-config    0.33.2
+ii  base-files     2.2.0
+ii  base-passwd    3.1.10
+ii  bash           2.03-6
+ii  bsdutils       2.10f-5.1
+ii  console-data   1999.08.29-11.
+ii  console-tools  0.2.3-10.3
+ii  console-tools- 0.2.3-10.3
+ii  cron           3.0pl1-57.2
+ii  debconf        0.9.77
+ii  debianutils    1.13.3
+ii  dialog         0.9a-20010527-
+ii  diff           2.7-21
+ii  dpkg           1.6.15
+ii  e2fsprogs      1.18-3.0
+ii  elvis-tiny     1.4-11
+ii  fbset          2.1-6
+ii  fdflush        1.0.1-5
+ii  fdutils        5.3-3   
+ii  fileutils      4.1-2   
+ii  findutils      4.1-40
+ii  ftp            0.10-3.1
+ii  gettext-base   0.10.35-13
+ii  grep           2.4.2-1
+ii  gzip           1.2.4-33
+ii  hostname       2.07
+ii  isapnptools    1.21-2
+ii  joe            2.8-15.2  
+ii  klogd          1.4.1-2   
+ii  ldso           1.9.11-9   
+ii  libbz2-1.0     1.0.1-10
+ii  libc6          2.2.3-6
+ii  libdb2         2.7.7-8
+ii  libdbd-mysql-p 1.2216-2
+ii  libdbi-perl    1.18-1
+ii  libexpat1      1.95.1-5
+ii  libgdbmg1      1.7.3-27
+ii  libmm11        1.1.3-4
+ii  libmysqlclient 3.23.39-3
+ii  libncurses5    5.2.20010318-2
+ii  libnewt0       0.50-7  
+ii  libpam-modules 0.72-9
+ii  libpam-runtime 0.72-9  
+ii  libpam0g       0.72-9
+ii  libpcap0       0.6.2-1
+ii  libpcre3       3.4-1   
+ii  libpopt0       1.4-1.1
+ii  libreadline4   4.2-3 
+ii  libssl09       0.9.4-5   
+ii  libstdc++2.10  2.95.2-13 
+ii  libstdc++2.10- 2.95.4-0.01070
+ii  libwrap0       7.6-4   
+ii  lilo           21.4.3-2
+ii  locales        2.1.3-18
+ii  login          19990827-20
+ii  makedev        2.3.1-46.2
+ii  mawk           1.3.3-5
+ii  mbr            1.1.2-1 
+ii  mime-support   3.11-1 
+ii  modutils       2.3.11-13.1
+ii  mount          2.10f-5.1
+ii  mysql-client   3.23.39-3
+ii  mysql-common   3.23.39-3.1
+ii  mysql-server   3.23.39-3
+ii  ncurses-base   5.0-6.0potato1
+ii  ncurses-bin    5.0-6.0potato1
+ii  netbase        3.18-4  
+ii  passwd         19990827-20
+ii  pciutils       2.1.2-2
+ii  perl           5.6.1-5   
+ii  perl-base      5.6.1-5   
+ii  perl-modules   5.6.1-5
+ii  php4           4.0.6-4   
+ii  php4-mysql     4.0.6-4 
+ii  ppp            2.3.11-1.4
+ii  pppconfig      2.0.5
+ii  procps         2.0.6-5   
+ii  psmisc         19-2   
+ii  pump           0.7.3-2 
+ii  sed            3.02-5 
+ii  setserial      2.17-16
+ii  shellutils     2.0-7
+ii  slang1         1.3.9-1  
+ii  snort          1.7-9
+ii  ssh            1.2.3-9.3
+ii  sysklogd       1.4.1-2
+ii  syslinux       1.48-2
+ii  sysvinit       2.78-4  
+ii  tar            1.13.17-2  
+ii  tasksel        1.0-10 
+ii  tcpd           7.6-4     
+ii  telnet         0.16-4potato.1
+ii  textutils      2.0-2  
+ii  update         2.11-1    
+ii  util-linux     2.10f-5.1
+ii  zlib1g         1.1.3-15  
+</example>
+
+<appendix id="bridge-fw">Aufsetzen einer Überbrückenden <!--
+AUA! Wie waers mit weiterleitend? --> Firewall (bridge Firewall)
+
+<p>Diese Informationen trug Francois Bayart bei, um User zu helfen, eine
+Linux Bridge / Firewall mit 2.4.x Kernel und <package>iptables</package>
+aufzusetzen. Es wird lediglich noch der Bridge-Firewall-Patch
+benötigt, den Sie auf der <url name="sourceforge download page"
+id="http://bridge.sourceforge.net/download.html"> finden.
+
+<p>Wenn Sie zum Beispiel einen 2.4.18er Kernel benutzen, müsen Sie
+den entsprechenden <url name="patch"
+id="http://bridge.sourceforge.net/devel/bridge-nf/bridge-nf-0.0.6-against-2.4.18.diff">
+herunterladen und anschliessend auf die installierten Kernel-Quellen
+anwenden:
+
+<example>
+Zipowz:/usr/src# apt-get install kernel-source-2.4.18
+Zipowz:/usr/src# cd kernel-source-2.4.18
+Zipowz:/usr/src/kernel-source-2.4.18# patch -p1 < ../bridge-nf-0.0.6-against-2.4.18.diff 
+patching file include/linux/netfilter.h
+patching file include/linux/netfilter_ipv4.h
+patching file include/linux/skbuff.h
+patching file net/bridge/br.c
+patching file net/bridge/br_forward.c
+patching file net/bridge/br_input.c
+patching file net/bridge/br_netfilter.c
+patching file net/bridge/br_private.h
+patching file net/bridge/Makefile
+patching file net/Config.in
+patching file net/core/netfilter.c
+patching file net/core/skbuff.c
+patching file net/ipv4/ip_output.c
+patching file net/ipv4/netfilter/ip_tables.c
+patching file net/ipv4/netfilter/ipt_LOG.c
+</example>
+
+<p>Jetzt rufen Sie die Kernel-Konfiguration auf (mit Ihrer lieblings
+Methode: make menuconfig, make xconfig, ...). Aktivieren Sie diese
+Optionen unter <em>Networking option</em>:
+
+<example>
+[*] Network packet filtering (replaces ipchains)
+[ ]   Network packet filtering debugging (NEW)
+<*> 802.1d Ethernet Bridging
+[*]   netfilter (firewalling) support (NEW)
+</example>
+
+<p>Passen Sie auf, dass Sie dieses hier deaktiviert haben, wenn Sie
+Firewall-Regeln anwenden wollen, oder iptables funktioniert nicht.
+
+<example>
+[ ]   Network packet filtering debugging (NEW)
+</example>
+
+<p>Anschliessend müssen Sie die korrekten Optionen im Abschnitt
+<em>IP: Netfilter Configuration</em>setzen. Dann kompilieren und
+installieren Sie den Kernel. Wenn Sie dies auf die <em>Debian Art</em>
+machen wollen, installieren Sie <package>kernel-package</package> und
+benutzen Sie <prgn>make-kpkg</prgn> um ein neues Debian Paket zu
+erstellen, das Sie auf Ihrem Server installieren können (oder auf
+einem anderen System benutzen können). Sobald der neue Kernel
+kompiliert und installiert ist, müssen Sie die
+<package>bridge-utils</package> installieren.
+
+<p>Jetzt können Sie zwei verschiedene Konfigurationen betrachten,
+die Ihnen zeigen, wie Sie das konfigurieren können, sobald diese
+Schritte erledigt sind. Beide Konfigurationen sind mit einer
+Netzwerk-Karte und den notwendigen Kommandos zur konfiguration der Bridge
+aufgeführt.
+
+<sect>Eine Bridge mit NAT- und Firewall-Fähigkeiten
+
+<p>Die erste benutzt eine Bridge als Firewall mit Network Address
+Translation (NAT),  die einen Server und interne LAN-Clienten
+schützt.
+
+<example>
+Internet ----- router ( 62.3.3.25 ) ----- bridge ( 62.3.3.26 gw 62.3.3.25 / 192.168.0.1 )
+                                            |
+                                            |
+                                            |---- WWW-Server ( 62.3.3.27 gw 62.3.3.25 )
+                                            |
+                                            |
+                                           LAN --- Zipowz ( 192.168.0.2 gw 192.168.0.1 )
+</example>
+
+<p>Diese Kommandos zeigen, wie die Bridge konfiguriert werden kann:
+<example>
+# So wird die Schnittstelle br0 erstellt:
+/usr/sbin/brctl addbr br0
+
+# Hinzufügen der Ethernet-Schnittstellen, die die Bridge benutzen
+# soll
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Die Schnittstellen einfach starten
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Konfigurieren der Ethernet-Bridge
+# Die Bridge wird korrekt und unsichtbar (transparente Firewall) sein.
+# In einem traceroute ist Sie versteckt, und Sie behalten Ihr echtes
+# Gateway auf Ihren anderen Computern. Jetzt können Sie ein Gateway
+# auf Ihrer Bridge konfigurieren und es auf Ihren anderen Computern als
+# neues Gateway einsetzen
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+
+# Ich habe benutze diese internen IPs für mein NAT
+ip addr add 192.168.0.1/24 dev br0
+/sbin/route add default gw 62.3.3.25
+</example>
+
+<sect>Eine Bridge mit Firewall Fähigkeiten
+
+<p>Dieses System ist als transparente Firewall für ein LAN mit
+öffentlichen IP-Addressen aufgesetzt.
+
+<example>
+Internet ----- router ( 62.3.3.25 ) ----- bridge ( 62.3.3.26 )
+                                            |
+                                            |
+                                            |---- WWW Server ( 62.3.3.28 gw 62.3.3.25 )
+                                            |
+                                            |
+                                            |---- Mail Server ( 62.3.3.27 gw 62.3.3.25 )
+</example>
+
+<p>Diese Kommandos zeigen, wie die Bridge konfiguriert werden kann:
+<example>
+# So wird die Schnittstelle br0 erstellt:
+/usr/sbin/brctl addbr br0
+
+# Hinzufügen der Ethernet-Schnittstellen, die die Bridge benutzen
+# soll
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Die Schnittstellen einfach starten
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Konfigurieren der Ethernet-Bridge
+# Die Bridge wird korrekt und unsichtbar (transparente Firewall) sein.
+# In einem traceroute ist Sie versteckt, und Sie behalten Ihr echtes
+# Gateway auf Ihren anderen Computern. Jetzt können Sie ein Gateway
+# auf Ihrer Bridge konfigurieren und es auf Ihren anderen Computern als
+# neues Gateway einsetzen
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+</example>
+
+<p>Wenn Sie traceroute auf den Linux-Mail-Server schicken, sehen Sie die
+Bridge nicht, wenn Sie mit ssh auf die Bridge zugreifen wollen,
+müssen Sie ein Gateway haben, oder erst auf einen anderen Server,
+wie den "Mail Server", zugreifen um dann über die interne
+Netzwerkkarte auf die Bridge zuzugreifen.
+
+<sect>grundlegende Iptables-Regeln
+
+<p>Dies ist ein Beispiel für grundlegende Regeln, die für beide
+Beispiele benutzt werden könnten:
+
+<example>
+iptables -F FORWARD
+iptables -P FORWARD DROP
+iptables -A FORWARD -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 -m state --state INVALID -j DROP
+iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Zwei lustige Regeln, aber nicht bei klassischen Iptables. Sorry ...
+# Limit ICMP 
+# iptables -A FORWARD -p icmp -m limit --limit 4/s -j ACCEPT
+# Uebereinstimmende Strings, eine gute, einfache Methode, um Viren sehr
+# schnell abzublocken
+# iptables -I FORWARD -j DROP -p tcp -s 0.0.0.0/0 -m string --string "cmd.exe"
+
+# Abblocken aller MySQL Verbindingen, nur um ganz sicher zu gehen
+iptables -A FORWARD -p tcp -s 0/0 -d 62.3.3.0/24 --dport 3306 -j DROP
+
+# Regeln für den Linux Mail Server
+#
+
+# Erlaube FTP-DATA ( 20 ) , FTP ( 21 ) , SSH ( 22 ) 
+iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.27/32 --dport 20:22 -j ACCEPT
+
+# Dem Mail-Server erlauben, sich mit der Außenwelt zu verbinden
+# Beachten Sie: Dies ist *nicht* fuer die vorherigen Verbindungen
+# notwendig (Erinnern Sie sich: stateful filtering) und koennte entfernt
+# werden:
+iptables -A FORWARD -p tcp -s 62.3.3.27/32 -d 0/0 -j ACCEPT
+
+# Regeln fuer den WWW-Server
+#
+
+# Erlaube HTTP ( 80 ) Verbindungen mit dem WWW-server
+iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 80 -j ACCEPT
+
+# Erlaube HTTPS ( 443 ) Verbindungen mit dem WWW-server
+iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 443 -j ACCEPT
+
+# Dem WWW-Server erlauben, sich mit der Außenwelt zu verbinden
+# Beachten Sie: Dies ist *nicht* fuer die vorherigen Verbindungen
+# notwendig (Erinnern Sie sich: stateful filtering) und koennte entfernt
+# werden:
+iptables -A FORWARD -p tcp -s 62.3.3.28/32 -d 0/0 -j ACCEPT
+</example>
+
+<appendix id="bind-chuser">Beispiel Skript, um die standard Installation
+von Bind zu ändern
+
+<p>Dieses Skript automatisiert die Prozedur, die standard Installation
+des Name-Server zu ändern, so dass er <em>nicht</em> als Superuser
+läuft. Benutzen Sie es vorsichtig, da es nicht ausreichend getestet
+wurde. Dieses Skript wird auch den User und die Gruppe für den
+Name-Server erstellen.
+
+<example>
+#!/bin/sh
+# Change the default Debian bind configuration to have it run
+# with a non-root user and group.
+#
+# WARN: This script has not been tested throughly, please
+# verify the changes made to the INITD script
+
+# (c) 2002 Javier Fernandez-Sanguino Peña
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 1, or (at your option)
+#    any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#     Please see the file `COPYING' for the complete copyright notice.
+#
+
+restore() {
+# Just in case, restore the system if the changes fail
+	echo "WARN: Restoring to the previous setup since I'm unable to properly change it."
+	echo "WARN: Please check the $INITDERR script."
+	mv $INITD $INITDERR
+	cp $INITDBAK $INITD
+}
+
+
+USER=named
+GROUP=named
+INITD=/etc/init.d/bind
+INITDBAK=$INITD.preuserchange
+INITDERR=$INITD.changeerror
+START="start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g $GROUP -u $USER"
+AWKS="awk ' /start-stop-daemon --start/ { print \"$START\"; noprint = 1; }; /\/usr\/sbin\/ndc reload/ { print \"stop; sleep 2; start;\"; noprint = 1; } /\\\\$/ { if ( noprint != 0 ) { noprint = noprint + 1;} } /^.*$/ { if ( noprint != 0 ) { noprint = noprint - 1; } else { print \$0; } } '"
+
+[ `id -u` -ne 0 ] && {
+	echo "This program must be run by the root user"
+	exit 1
+}
+
+RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+if [ "$RUNUSER" = "$USER" ] 
+then
+	echo "WARN: The name server running daemon is already running as $USER"
+	echo "ERR:  This script will not many any changes to your setup."
+	exit 1
+fi
+if [ ! -f $INITD ]
+then
+        echo "ERR:  This system does not have $INITD (which this script tries to change)"
+        RUNNING=`ps -eo fname |grep named`
+         [ -z "$RUNNING" ] && \
+	    echo "ERR:  In fact the name server daemon is not even running (is it installed?)"
+         echo "ERR:  No changes will be made to your system"
+	exit 1
+fi
+
+# Check if named group exists
+if [ -z "`grep $GROUP /etc/group`" ] 
+then
+	echo "Creating group $GROUP:"
+	addgroup $GROUP
+else
+	echo "WARN: Group $GROUP already exists. Will not create it"
+fi
+# Same for the user
+if [ -z "`grep $USER /etc/passwd`" ] 
+then
+	echo "Creating user $USER:"
+	adduser --system --home /home/$USER \
+	--no-create-home --ingroup $GROUP \
+	--disabled-password --disabled-login $USER
+else
+	echo "WARN: The user $USER already exists. Will not create it"
+fi
+
+# Change the init.d script
+
+# First make a backup (check that there is not already
+# one there first)
+if [ ! -f $INITDBAK ] 
+then
+	cp $INITD $INITDBAK
+fi
+
+# Then use it to change it
+cat $INITDBAK |
+eval $AWKS > $INITD
+
+echo "WARN: The script $INITD has been changed, trying to test the changes."
+echo "Restarting the named daemon (check for errors here)."
+
+$INITD restart
+if [ $? -ne 0 ] 
+then
+	echo "ERR:  Failed to restart the daemon."
+	restore
+	exit 1
+fi
+
+RUNNING=`ps -eo fname |grep named`
+if [ -z "$RUNNING" ] 
+then
+	echo "ERR:  Named is not running, probably due to a problem with the changes."
+	restore
+	exit 1
+fi
+
+# Check if it's running as expected
+RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+if [ "$RUNUSER" = "$USER" ] 
+then
+	echo "All has gone well, named seems to be running now as $USER."
+else
+	echo "ERR:  The script failed to automatically change the system."
+	echo "ERR:  Named is currently running as $RUNUSER."
+	restore
+	exit 1
+fi
+
+exit 0
+</example>
+
+<p>Dieses Skript, angesetzt auf Woodys (Debian 3.0) angepassten Bind
+wird die folgende initd-Datei erstellen, nachdem der User und die Gruppe
+"named" erstellt wurde:
+
+<example>
+#!/bin/sh
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+test -x /usr/sbin/named || exit 0
+
+start () {
+	echo -n "Starting domain name service: named"
+	start-stop-daemon --start --quiet \
+	    --pidfile /var/run/named.pid --exec /usr/sbin/named 
+	echo "."	
+}
+
+stop () {
+	echo -n "Stopping domain name service: named"
+	# --exec doesn't catch daemons running deleted instances of named,
+	# as in an upgrade.  Fortunately, --pidfile is only going to hit
+	# things from the pidfile.
+	start-stop-daemon --stop --quiet  \
+	    --pidfile /var/run/named.pid --name named
+	echo "."	
+}
+
+case "$1" in
+    start)
+	start
+    ;;
+
+    stop)
+	stop
+    ;;
+
+    restart|force-reload)
+	stop
+	sleep 2
+	start
+    ;;
+    
+    reload)
+	/usr/sbin/ndc reload
+    ;;
+
+    *)
+	echo "Usage: /etc/init.d/bind {start|stop|reload|restart|force-reload}" >&2
+	exit 1
+    ;;
+esac
+
+exit 0
+</example>
+
+<appendix id="fw-security-update">Sicherheits-Update geschützt durch
+eine Firewall
+
+<p>Nachdem Sie eine standard Installation auf ein System gebracht haben,
+könnten immer noch Sicherheits-Lücken vorhanden sein, falls dem
+so ist könnte es Updates von Debian für die Release geben.
+Jedoch können Sie die Pakete jedoch nicht auf einem anderen System
+herunterladen können (oder security.debian.org zu lokalen Zwecken
+spiegeln können), müssen Sie es mit dem Internet verbinden, um
+ein Sicherheits Update zu durchzuführen.
+
+<p>Wenn Sie sich jedoch mit dem Internet verbinden, setzen Sie sich
+selbst Gefahr aus. Wenn einer Ihrer lokalen Diensten angreifbar ist,
+könnten Sie kompromittiert werden, noch bevor das Update beendet ist!
+Sie mögen dies paranoid finden, aber eine Analyse vom <url
+id="http://www.honeynet.org" name="Honeynet Project"> zeigt
+tatsächlich, dass ein System in weniger als drei Tagen kompromittiert
+werden sogar, sogar wenn das System gar nicht der Öffentlichkeit
+bekannt ist (d.h. nicht in DNS-Einträgen auftaucht).
+
+<p>Wenn Sie ein update auf dem System durchführen, das nicht von
+einem externen System (einer Firewall) geschützt ist, können
+Sie trotzdem eine lokale Firewall so konfigurieren, dass Sie nur das
+Sicherheits-Update selbst erlaubt. Schauen Sie sich das Beispiel unter
+an, um zu sehen, wie die lokalen Firewall Fähigkeiten aufgesetzt
+werden, um ein eingeschränktes Setup zu erreichen, in dem nur
+Verbindungen zu security.debian.org erlaubt werden, während der Rest
+geloggt wird.
+
+
+<p>FIXME: add IP address for security.debian.org (since otherwise you
+need DNS up to work) on /etc/hosts.
+
+<p>FIXME: test this setup to see if it works properly
+
+<p>FIXME: this will only work with http urls since ftp might need 
+the ip_conntrack_ftp module, or use passive mode.
+
+<!-- FIXME: this is probably not needed, after all it is a 
+packet inspection fw:
+# iptables -A INPUT -s security.debian.org -p 80 -j ACCEPT
+-->
+
+<example>
+# iptables -F
+# iptables -L
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination
+
+Chain FORWARD (policy ACCEPT)
+target     prot opt source               destination
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination
+# iptables -P INPUT DROP
+# iptables -P FORWARD DROP
+# iptables -P OUTPUT DROP
+# iptables -A OUTPUT -d security.debian.org -p 80 -j ACCEPT
+# iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+# iptables -A INPUT -p icmp -j ACCEPT
+# iptables -A INPUT -j LOG
+# iptables -A OUTPUT -j LOG
+# iptables -L
+Chain INPUT (policy DROP)
+target     prot opt source               destination
+ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0          state RELATED,ESTABLISHED
+ACCEPT     icmp --  0.0.0.0/0            0.0.0.0/0
+LOG        all  --  anywhere             anywhere           LOG level warning
+
+Chain FORWARD (policy DROP)
+target     prot opt source               destination
+
+Chain OUTPUT (policy DROP)
+target     prot opt source               destination
+ACCEPT     80   --  anywhere             security.debian.org
+LOG        all  --  anywhere             anywhere           LOG level warning
+</example>

@@ -1,0 +1,340 @@
+
+<chapt>Firma de paquete en Debian
+
+<p>Este capítulo también podría ser titulado "como categotizar/
+actualizar con seguridad a sus sitema Debian GNU/Linux" y este merece
+su propio capítulo básicamente porque no será acorde a algún otro
+capítulo.
+
+<p>A partir de hoy (diciembre 2001) Debian no proporciona paquetes
+firmados en cuanto a la distribución de y la publicación de woody (3.0)
+no integrará este artículo. Existe una solución para paquetes firmados
+que, según se espera, serán proporcionados en la próxima publicación.
+
+<sect> El esquema propuesto para revisiones de firma de paquete
+
+<p>El esquema corriente (no implementado)para firma de paquete usando
+apt es:
+
+<list>
+
+<item> el archivo de publicación incluye el md5sum de Paquetes.gz (este
+contiene el md5sums de paquetes) y será firmado. La firma es algo que
+pertenece a una fuente de confianza.
+
+<item>Este archivo de publicación firmado se baja por 'apt-get update'
+y almacenado en todo el HD con paquetes.gz.
+
+<item>Cuando un paquete va a ser instalado, primero se baja, luego el
+md5sum es generado.
+
+<item>El archivo de publicación firmado es revisado (firma correcta) y
+este se extrae del md5sum para el archivo Paquetes.gz, el número de
+comprobación de Paquetes.gz es generado y (si es correcto) el md5sum
+del paquete que se bajó es extraido de este.
+
+<item>Si el md5sum del paquete que se bajó es el mismo que el del
+archivo Paquetes.gz, el paquete será instalado o de lo contrario el
+administrador será alertado y el paquete será dejado en cache (asi el
+administrador puede decidir si se instala o no). Si el paquete no está
+en los Paquetes.gz y el administrador ha configurado el sistema para
+instalar únicamente los paquetes revisados, éste tampoco será
+instalado. </list>
+
+<p>Adicional a esto, la cadena de Sums MD5 <prgn>apt</prgn> es capaz
+de verificar si un paquete se origina desde una publicación
+específica. Este es menos flexible que firmar paquete por paquete,
+pero puede ser combinado con este esquema también (véase más abajo).
+
+<p>La firma de un paquete ha sido discutida en Debian de vez en
+cuando, para mayor información usted puede leer:
+http://www.debian.org/News/weekly/2001/8/ y
+http://www.debian.org/News/weekly/2001/11/. <url
+id="http://www.debian.org/News/weekly/2001/8/">y<url
+id="http://www.debian.org/News/weekly/2000/11/">.
+
+<sect> Alternativa firmar esquema por paquete
+
+<p>El esquema adicional de firmar cada uno y todos los paquetes,
+permite que estos sean revisados cuando no son tan referenciados por
+un archivo de Paquetes existentes, además, los paquetes
+tercera-persona donde nunca existieron Paquetes para que estos
+también puedan ser usados en Debian, sin embargo, no serán un esquema
+por defecto.
+
+
+<p>Este esquema de firma de paquetes puede ser implementado utilizando
+<package>debsig-verify</package>y <package>debsigs</package>. Estos
+dos paquetes pueden firmar y verificar firmas implantadas en el
+deb-itself. Debian ya tiene la capacidad de hacer esto ahora, pero el
+implementar esta política y las herramientas no será iniciado hasta
+después de la publicación de Woody (así como no retrasa su ciclo de
+publicación).
+
+<p>NOTA: Normalmente <file> /etc/dpkg/dpkg.cfg</file> se desmonta con
+"no-debsig" como por defecto.
+
+<sect> Revisar publicaciones de paquete
+
+<p>En caso que usted desee implementar seguridad adicional, revise que
+pueda usar el script inferior, proporcionado por Anthony Thown. Este
+script puede hacer nuevas revisiones de seguridad automáticamente,
+para permitir al usuario, estar seguro que el software que él/ella
+está bajando une el software de distribución de Debian. Esto abstiene
+a los ralizadores de Debian de producir daños en el sistema de alguien
+sin la responsabilidad proporcionada cargando el archivo principal, o
+espejos reflejando algo casi, pero no del todo parecido a Debian, o
+espejos proporcionando copias atrasadas inestables con problemas de
+seguridad conocidos. <p>Esta muestra de código renombrada como
+<prgn>apt-release-check</prgn>, debería ser usada de la siguiente
+manera:
+
+<example>
+# apt-get update
+# apt-release-check
+(...resultados...)
+# apt-get dist-upgrade
+</example>
+
+<p>Primero usted necesita:
+
+<list>
+
+<item>pulsar las teclas de archivo software que suele firmar archivos
+de Publicaciones, <url
+id="http://ftp-master.debian.org/ziyi_key_2002.asc"> y las adiciona a
+<file>~/.gnupg/trustedkeys.gpg</file> (lo ucal es lo que
+<prgn>gpgv</prgn> se usa por defecto)
+
+<item>remover algunas <file>/etc/apt/sources.list</file> líneas que no
+utilizanla estructura normal de distribuciones, o cambie el script de
+modo que este trabaje con ellas.
+
+<item>estar preparado para ignorar que las actualizaciones de
+seguridad Debian no hayan firmado archivos de publicaciones, y que los
+archivos de Fuente no tengan la suma de comprobaciones en el archivo
+de Publicación (aun).
+
+<item>prepárese para verificar que las fuentes apropiadas son firmadas
+con las llaves propicias.
+
+</list>
+
+<example>
+#!/bin/bash
+# This script is copyright (c) 2001, Anthony Towns
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+rm -rf /tmp/apt-release-check
+mkdir /tmp/apt-release-check || exit 1
+cd /tmp/apt-release-check
+
+>OK
+>MISSING
+>NOCHECK
+>BAD
+
+arch=`dpkg --print-installation-architecture`
+
+am_root () {
+ [ `id -u` -eq 0 ]
+}
+
+get_md5sumsize () {
+ cat "$1" | awk '/^MD5Sum:/,/^SHA1:/' | 
+ MYARG="$2" perl -ne '@f = split /\s+/; if ($f[3] eq $ENV{"MYARG"}) { 
+print "$f[1] $f[2]\n"; exit(0); }'}
+checkit () {
+ local FILE="$1"
+ local LOOKUP="$2"
+
+ Y="`get_md5sumsize Release "$LOOKUP"`"
+ Y="`echo "$Y" | sed 's/^ *//;s/ */ /g'`"
+
+ if [ ! -e "/var/lib/apt/lists/$FILE" ]; then
+ if [ "$Y" = "" ]; then
+ # No file, but not needed anyway
+ echo "OK"
+ return
+ fi
+ echo "$FILE" >>MISSING
+ echo "MISSING $Y"
+ return
+ fi
+ if [ "$Y" = "" ]; then
+ echo "$FILE" >>NOCHECK
+ echo "NOCHECK"
+ return
+ fi
+ X="`md5sum < /var/lib/apt/lists/$FILE` `wc -c < 
+/var/lib/apt/lists/$FILE`" X="`echo "$X" | sed 's/^ *//;s/ */ /g'`"
+ if [ "$X" != "$Y" ]; then
+ echo "$FILE" >>BAD
+ echo "BAD"
+ return
+ fi
+ echo "$FILE" >>OK
+ echo "OK"
+}
+
+echo
+echo "Checking sources in /etc/apt/sources.list:"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo
+(echo "You should take care to ensure that the distributions you're downloading"
+echo "are the ones you think you are downloading, and that they are as up to"
+echo "date as you would expect (testing and unstable should be no more than"
+echo "two or three days out of date, stable-updates no more than a few weeks"
+echo "or a month)."
+) | fmt
+echo
+
+cat /etc/apt/sources.list | 
+ sed 's/^ *//' | grep '^[^#]' |
+ while read ty url dist comps; do
+ if [ "${url%%:*}" = "http" -o "${url%%:*}" = "ftp" ]; then
+ baseurl="${url#*://}"
+ else
+ continue
+ fi
+ echo "Source: ${ty} ${url} ${dist} ${comps}"
+ 
+ rm -f Release Release.gpg
+ wget -q -O Release "${url}/dists/${dist}/Release"
+
+ if ! grep -q '^' Release; then
+ echo " * NO TOP-LEVEL Release FILE"
+ else
+ origline=`sed -n 's/^Origin: *//p' Release | head -1`
+ lablline=`sed -n 's/^Label: *//p' Release | head -1`
+ suitline=`sed -n 's/^Suite: *//p' Release | head -1`
+ codeline=`sed -n 's/^Codename: *//p' Release | head -1`
+ dateline=`grep "^Date:" Release | head -1`
+ dscrline=`grep "^Description:" Release | head -1`
+ echo " o Origin: $origline/$lablline"
+ echo " o Suite: $suitline/$codeline"
+ echo " o $dateline"
+ echo " o $dscrline"
+
+ if [ "${dist%%/*}" != "$suitline" -a "${dist%%/*}" != 
+"$codeline" ]; then echo " * WARNING: asked for $dist, 
+got $suitline/$codeline" fi
+
+ wget -q -O Release.gpg "${url}/dists/${dist}/Release.gpg"
+ sigline="`gpgv --status-fd 3 Release.gpg Release 3>&1 >/dev/null 
+2>&1 | sed -n "s/^\[GNUPG:\] GOODSIG [0-9A-Fa-f]* //p"`" if [ 
+"$sigline" ]; then echo " o Signed by: $sigline"
+ else
+ echo " * NO VALID SIGNATURE"
+ >Release
+ fi
+ fi
+ okaycomps=""
+ for comp in $comps; do
+ if [ "$ty" = "deb" ]; then
+ X=$(checkit "`echo 
+"${baseurl}/dists/${dist}/${comp}/binary-${arch}/Release" | sed 's,//*,_,g'`" 
+"${comp}/binary-${arch}/Release") Y=$(checkit "`echo 
+"${baseurl}/dists/${dist}/${comp}/binary-${arch}/Packages" | sed 's,//*,_,g'`" 
+"${comp}/binary-${arch}/Packages") if [ "$X $Y" = "OK OK" 
+]; then okaycomps="$okaycomps $comp" 
+ else echo " * PROBLEMS WITH $comp ($X, 
+$Y)" fi elif [ "$ty" = "deb-src" ]; then
+ X=$(checkit "`echo 
+"${baseurl}/dists/${dist}/${comp}/source/Release" | sed 's,//*,_,g'`" 
+"${comp}/source/Release") Y=$(checkit "`echo 
+"${baseurl}/dists/${dist}/${comp}/source/Sources" | sed 's,//*,_,g'`" 
+"${comp}/source/Sources") if [ "$X $Y" = "OK OK" ]; then 
+ okaycomps="$okaycomps $comp" 
+ else echo " * PROBLEMS WITH component $comp 
+($X, $Y)" fi fi
+ done
+ [ "$okaycomps" = "" ] || echo " o Okay:$okaycomps"
+ echo
+ done
+
+echo "Results"
+echo "~~~~~~~"
+echo
+
+allokay=true
+
+cd /tmp/apt-release-check
+diff <(cat BAD MISSING NOCHECK OK | sort) <(cd /var/lib/apt/lists && find . 
+-type f -maxdepth 1 | sed 's,^\./,,g' | grep '_' | sort) | sed -n 's/^> //p' 
+>UNVALIDATEDcd /tmp/apt-release-check
+if grep -q ^ UNVALIDATED; then
+ allokay=false
+ (echo "The following files in /var/lib/apt/lists have not been validated."
+ echo "This could turn out to be a harmless indication that this script"
+ echo "is buggy or out of date, or it could let trojaned packages get onto"
+ echo "your system."
+ ) | fmt
+ echo
+ sed 's/^/ /' < UNVALIDATED
+ echo
+fi
+
+if grep -q ^ BAD; then
+ allokay=false
+ (echo "The contents of the following files in /var/lib/apt/lists does not"
+ echo "match what was expected. This may mean these sources are out of date,"
+ echo "that the archive is having problems, or that someone is actively"
+ echo "using your mirror to distribute trojans."
+ if am_root; then 
+ echo "The files have been renamed to have the extension .FAILED and"
+ echo "will be ignored by apt."
+ cat BAD | while read a; do
+ mv /var/lib/apt/lists/$a /var/lib/apt/lists/${a}.FAILED
+ done
+ fi) | fmt
+ echo
+ sed 's/^/ /' < BAD
+ echo
+fi
+
+if grep -q ^ MISSING; then
+ allokay=false
+ (echo "The following files from /var/lib/apt/lists were missing. This"
+ echo "may cause you to miss out on updates to some vulnerable packages."
+ ) | fmt
+ echo
+ sed 's/^/ /' < MISSING
+ echo
+fi
+
+if grep -q ^ NOCHECK; then
+ allokay=false
+ (echo "The contents of the following files in /var/lib/apt/lists could not"
+ echo "be validated due to the lack of a signed Release file, or the lack"
+ echo "of an appropriate entry in a signed Release file. This probably"
+ echo "means that the maintainers of these sources are slack, but may mean"
+ echo "these sources are being actively used to distribute trojans."
+ if am_root; then 
+ echo "The files have been renamed to have the extension .FAILED and"
+ echo "will be ignored by apt."
+ cat NOCHECK | while read a; do
+ mv /var/lib/apt/lists/$a /var/lib/apt/lists/${a}.FAILED
+ done
+ fi) | fmt
+ echo
+ sed 's/^/ /' < NOCHECK
+ echo
+fi
+
+if $allokay; then
+ echo 'Everything seems okay!'
+ echo
+fi
+
+rm -rf /tmp/apt-release-check
+</example>

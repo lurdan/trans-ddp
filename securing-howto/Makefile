@@ -1,188 +1,219 @@
 #
-# Makefile for the Securing Debian HOWTO (copied from Makefile.intln)
+# Based  Makefile Template from Osamu Aoki
+#
+#  Build html(multi-page), txt, ps, pdf, and other formats.
 #
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for the package build.
+# ------------------------------------------------------------------- #
+#                          WARNING                                    #
+#         Use with caution, aimed at Woody system                     #
+#   "ps" and "pdf" tends to break in some ill-configured systems      #
+# ------------------------------------------------------------------- #
+# Read local texmf.cnf file
 
-##### CONF PART 
-# this can and will be overriden by a higher level makefile
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+export TEXMFCNF=texmf:
 
-# Darn, I should have named dir and file the same way
-#MANUAL = $(notdir $(shell pwd))
-MANUAL = securing-debian-howto
+# Following default shall be edited by the coordinator for the entire
+# set of languages.  If a subsection owner wishes to override settings,
+# they can be overridden by running make with "make 'LANGS1=fi'" etc.. 
 
-LNPUBDIRMAN=$(PUBLISHDIR)/$(MANUAL)/
+# =================================================================== #
+#                 Default configuration part: Customize               #
+# =================================================================== #
 
-# The cannonical language, in which the original document is
-ORIG_LANG=en
-# list of langs (above the canonical one)
-# LANGS=$(shell ls $(MANUAL).*.sgml|sed 's/.*$(MANUAL)\.\([^.]*\)\.sgml/\1/')
-#
-# Since portuguese is not yet in debiandoc format we cannot publish it until it is
-#
-LANGS = es ja ru it de fr
+# The directory in which this makefile resides must also contain a file
+# called <directoryname>.[<language>.]sgml, which is the top-level file
+# for the manual in this directory.
 
-EXTS=txt info
-##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
+# Basename for language-dependent SGML (DDP default, generated)
+MANUAL := securing-debian-howto
 
-# what will be built
-HTMLDIRS=$(MANUAL).html $(foreach lang,$(LANGS),$(MANUAL).$(lang).html)
-ALLFILES=$(foreach ext,$(EXTS),\
-	    $(MANUAL).$(ORIG_LANG).$(ext)\
-	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
-	  )
+# Basename for language-independent SGML-template.
+MANUAL0 := $(MANUAL)
 
+# Build type: Possible values are BUILD_TYPE = web|package
+BUILD_TYPE  := web
 
-#====[ build rules ]===========================================================
-# generate anything some dirs want version.ent to be builded, some not
+# Publish directory
+# This can and will be overridden by a higher level makefile
+PUBLISHDIR := ~/public_html/manuals.html
 
-DEBIAN=$(wildcard debian)
-ifeq ($(DEBIAN),"debian")
-all: version.ent $(HTMLDIRS) $(ALLFILES)
-else
-all: $(HTMLDIRS) $(ALLFILES)
-endif
-
-version.ent: debian/changelog
-	./debian/rules $@
-
-#----[ generating HTML ]-------------------------------------------------------
-# for orig_lang
-$(MANUAL).html: $(MANUAL).sgml
-	debiandoc2html -l $(ORIG_LANG) -c $<
-
-# for translated languages
-# FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
-#        which should be reverted to have the content negociation working.
-#   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml
-	debiandoc2html -l $* -c $<
-	@echo "cleaning up file extensions";\
-	for file in `ls $(MANUAL).$*.html/*` ; do\
-	 newfile=`echo $$file|\
-	          sed 's/$(shell echo $*|\
-	      sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
-	                  )\.html/$*\.html/'`;\
-	 if [ $$file != $$newfile ] ; then\
-	   mv $$file $$newfile;\
-	 fi\
-	done;   
+# List of languages built for "distclean" target for DDP:
+LANGSALL := en de fr es it ru ja
+# List of languages built for "publish" target for DDP
+LANGS := en de fr es it ru ja
 
 
-#----[ generating plain text ]-------------------------------------------------
-# for orig_lang
-$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).sgml
-	debiandoc2text -l $(ORIG_LANG) -c $<
+# Files which affect SGML generation (excluding *.sgml)
+SGMLENTS := custom.ent default.ent
 
-# for translated languages
-$(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $* $<
+# All SGML source files
+SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
+	    $(foreach lang, $(LANGS), $(wildcard $(lang)/*.sgml ) ) \
+	    $(SGMLENTS)
 
-#----[ generating tov ]--------------------------------------------------------
-# for orig_lang
-$(MANUAL).$(ORIG_LANG).tov: $(MANUAL).sgml
-	debiandoc2textov -l $(ORIG_LANG) -c $<
+# =================================================================== #
+#                 Build target default part: Routine                  #
+# =================================================================== #
+# If some languages have problems building, filter-out in here.
 
-# for translated languages
-$(MANUAL).%.tov: $(MANUAL).%.sgml
-	debiandoc2textov -l $* $<
+### Full guide
 
-#----[ generating info ]-------------------------------------------------------
-# for orig_lang
-$(MANUAL).$(ORIG_LANG).info: $(MANUAL).sgml
-	debiandoc2info -l $(ORIG_LANG) -c $<
+# List of html stamp files to be built
+HTMLS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html.stamp)
 
-# for translated languages
-$(MANUAL).%.info: $(MANUAL).%.sgml
-	debiandoc2info -l $* $<
+# List of pdf to be built
+TXTS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).txt)
 
-#----[ generating PostScript ]-------------------------------------------------
-# for orig_lang
-$(MANUAL).$(ORIG_LANG).ps: $(MANUAL).sgml
-	debiandoc2latexps -l $(ORIG_LANG) -c $<
+# List of ps to be built
+PSS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).ps)
 
-# for translated languages
-$(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $* $<
+# List of pdf to be built
+PDFS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).pdf)
 
-#----[ generating PDF ]--------------------------------------------------------
-# for orig_lang
-$(MANUAL).$(ORIG_LANG).pdf: $(MANUAL).sgml
-	debiandoc2latexpdf -l $(ORIG_LANG) -c $<
 
-# for translated languages
-$(MANUAL).%.pdf: $(MANUAL).%.sgml
+# =================================================================== #
+#                 Build target part: Customize                        #
+# =================================================================== #
+# If some languages have problems building, filter-out in here.
+
+all: html txt ps pdf
+html: $(HTMLS)
+text txt:  $(TXTS)
+ps:   $(PSS)
+pdf:  $(PDFS)
+
+publish: publish-html publish-txt publish-ps publish-pdf
+# NOTE: PS and PDF generation might not work OK for all 
+# languages (notably Japanese), consider using this instead:
+#publish: publish-html publish-txt 
+
+# =================================================================== #
+#                 Build rule part: If not package build               #
+# =================================================================== #
+
+$(MANUAL).%.ent:
+	echo "<!ENTITY language \"$*\">"                 > $@
+	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
+	echo "<!ENTITY docdate \"`LC_ALL=C date -R`\">" >> $@
+	echo "<!ENTITY docversion \"CVS\">"             >> $@
+
+
+# =================================================================== #
+#                 Build rule part: Routine                            #
+# =================================================================== #
+
+# SGML
+
+# Create starting SGML for each language from the template.  Actual
+# contents reside in language-segregated subdirectories.
+
+$(MANUAL).%.sgml: $(MANUAL0).sgml
+	sed -e "s/@@LANGS@@/$*/g" \
+	    -e "s/@@DIRS@@/$*/g" \
+	    -e "s/@@NAME@@/$(MANUAL)/g" \
+	        $< > $(MANUAL).$*.sgml
+
+# HTML
+
+$(MANUAL).%.html.stamp: $(MANUAL).%.sgml  $(MANUAL).%.ent $(wildcard %/*.sgml)
+	debiandoc2html -t$(MANUAL) -l $* -c $<
+# since $(MANUAL).%.html/index.%.html cannot be a target file
+	@for file in `ls $(MANUAL).$*.html/*` ; do\
+	newfile=`echo $$file|\
+	    sed 's/$(shell echo $*|\
+		sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
+		)\.html/$*\.html/'`;\
+	if [ $$file != $$newfile ] ; then\
+		mv $$file $$newfile;\
+		echo "Rename $$file --> $$newfile";\
+	fi\
+	done
+	touch $(MANUAL).$*.html.stamp
+
+# TXT
+
+$(MANUAL).%.txt: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
+	debiandoc2text -l     $* $<
+
+
+# PS
+
+$(MANUAL).%.ps: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
+	debiandoc2latexps -l  $(subst pt-br,pt_BR,$*) $<
+
+# PDF
+
+$(MANUAL).%.pdf: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 	debiandoc2latexpdf -l $* $<
 
-#====[ publishing to the DDP web pages ]=======================================
-publish: publish-html publish-files
 
-#----[ publish html ]----------------------------------------------------------
-publish-html: $(HTMLDIRS)
+# =================================================================== #
+#                 Build rule part: Web publish                        #
+# =================================================================== #
+
+publish-html: html
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	 # install any translated html
-	$(foreach lang,$(LANGS),\
-	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
-	 # install original html
-	 install -p -m 644 $(MANUAL).html/*.html \
-	                   $(PUBLISHDIR)/$(MANUAL)/
-	 # make the symlinks for html files
-	 @$(foreach file,$(wildcard  $(MANUAL).html/*.html),\
-	  name=`echo $(file) | sed 's/$(MANUAL).html\///'`; \
-	  link=`echo $$name|sed 's/.$(ORIG_LANG).html$$/.html/'`;\
-	  echo "$$link -> $$name";\
-	  ln -sf $$name\
-	        $(PUBLISHDIR)/$(MANUAL)/$$link;\
-	 )
-
-#----[ publish the files ]-----------------------------------------------------
-publish-files: $(ALLFILES)
+	# install all html
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL).$(lang).html/*.html \
+	          $(PUBLISHDIR)/$(MANUAL)/ ;\
+	)
+publish-txt:  txt
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	$(foreach ext,$(EXTS),\
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(ext);\
-	 \
-	 $(foreach lang,$(LANGS),\
-	  install -p -m 644 $(MANUAL).$(lang).$(ext)\
-	                    $(PUBLISHDIR)/$(MANUAL)/;)\
-	 \
-	 install -p -m 644 $(MANUAL).$(ORIG_LANG).$(ext)\
-	                   $(PUBLISHDIR)/$(MANUAL)/;\
-	 \
-	 ln -sf $(MANUAL).$(ORIG_LANG).$(ext)\
-               $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.txt
+	# install all txt
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL).$(lang).txt \
+	          $(PUBLISHDIR)/$(MANUAL)/ ;\
 	)
 
-
-#----[ publish the ps ]--------------------------------------------------------
-publish-ps: ps
+publish-ps:  ps
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.ps
-	 # install any translated ps
-	$(foreach lang,$(LANGS),\
-	  install -p -m 644 $(MANUAL).$(lang).ps \
-	                    $(PUBLISHDIR)/$(MANUAL)/ ;)
-	 # install original ps
-	 install -p -m 644 $(MANUAL).$(ORIG_LANG).ps\
-	                   $(PUBLISHDIR)/$(MANUAL)/
-	 # make the symlinks for ps
-	 ln -sf $(MANUAL).$(ORIG_LANG).ps\
-               $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
+	# install all ps
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL).$(lang).ps \
+	          $(PUBLISHDIR)/$(MANUAL)/ ;\
+	)
+
+
+publish-pdf:  pdf
+	test -d $(PUBLISHDIR)/$(MANUAL) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+	rm -f $(PUBLISHDIR)/$(MANUAL)/*.pdf
+	# install all pdf1
+	@$(foreach lang,$(LANGS),\
+	 install -p -m 644 $(MANUAL).$(lang).pdf \
+	          $(PUBLISHDIR)/$(MANUAL)/ ;\
+	)
 
 
 #====[ validating SGML ]=======================================================
 validate:
-	set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
+	set -x; for i in $(LANGS); do $(MAKE) validate1-$$i ; done
+
+validate1-%: $(SGMLSRCS) $(MANUAL)-%.ent 
+	nsgmls -gues -wall $(MANUAL)-$*.sgml
+
 
 #====[ cleaning up ]===========================================================
-clean distclean:
-	rm -f securing-debian-howto*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,tpt,sasp*} *~
-	rm -rf securing-debian-howto*.html
+distclean: clean
+	rm -Rf $(PUBLISHDIR)/$(MANUAL)
+	rm -f *.error $(MANUAL).*.sgml
 
-.PHONY: all html txt ps\
-	publish publish-html publish-txt publish-ps\
+clean:
+	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
+	rm -f *~ prior.aux pprior.aux tar.gz.log
+	rm -f *.error $(MANUAL).*.ent date.ent $(MANUAL).*.tpt
+	rm -rf $(MANUAL)*.html *stamp
+
+.PHONY: all html text txt ps pdf \
+	publish publish-html publish-tst publish-ps publish-pdf \
 	clean distclean validate
+
