@@ -8,7 +8,7 @@ SOURCES		:= $(wildcard *.sgml)
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		     $(filter-out developers-reference.ja.pdf, \
 		       $(foreach langext,.ja .fr, \
-		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
+		         $(foreach fmt,html txt,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
 DEBIANDOC2HTML	:= debiandoc2html -c
