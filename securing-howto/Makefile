@@ -86,10 +86,7 @@ text txt:  $(TXTS)
 ps:   $(PSS)
 pdf:  $(PDFS)
 
-# NOTE: PS and PDF generation might not work OK for all 
-# languages (notably Japanese)
-# publish: publish-html publish-txt publish-ps publish-pdf
-publish: publish-html publish-txt 
+publish: publish-html publish-txt publish-ps publish-pdf
 
 # =================================================================== #
 #                 Build rule part: If not package build               #
