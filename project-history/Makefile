@@ -1,5 +1,5 @@
 #
-# Makefile for the Debian New Maintainers' Guide
+# Makefile for the Debian History
 #
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
