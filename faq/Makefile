@@ -46,8 +46,8 @@ info debian-faq.info: $(SRCS)
 	debiandoc2info $<
 
 clean distclean:
-	rm -f debian-faq.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*} *~ .*~ core tsa*
 	rm -rf debian-faq.html
-	test -f ../debian/changelog || rm -f faqdynamic.ent
+	rm -f debian-faq.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
+	rm -f faqdynamic.ent *~ .*~ core tsa*
 
 .PHONY: all publish clean distclean validate
