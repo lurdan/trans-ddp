@@ -173,7 +173,6 @@ $(MANUAL).%.texinfo: $(MANUAL).%.sgml date.ent dynamic.%.ent
 
 # Buggy, Top must be moved manually
 
-
 #----[ generating info ]-------------------------------------------------------
 # for orig_lang
 #$(MANUAL).$(ORIG_LANG).info: $(MANUAL).$(ORIG_LANG).sgml
@@ -183,8 +182,10 @@ $(MANUAL).%.texinfo: $(MANUAL).%.sgml date.ent dynamic.%.ent
 #$(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 #	debiandoc2info -l $* $<
 
+# for now we avoid problem
 $(MANUAL).%.info: $(MANUAL).%.texinfo
-	makeinfo -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
+	@#makeinfo -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
+	makeinfo --force -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 
 
 #----[ generating teTeX ]------------------------------------------------------
