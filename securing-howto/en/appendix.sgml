@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.10 $"  -->
+<!-- CVS revision of this document "$Revision: 1.11 $"  -->
 
 <appendix id="harden-step">The hardening process step by step
 
@@ -1065,6 +1065,55 @@ start the <prgn>ssh</prgn> server <prgn>chroot</prgn>'ed with this command:
   # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
 </example>
 
+<sect>Using <package>pam_chroot</package>
+
+<p>Probably the easiest way is to use the <package>pam_chroot</package>
+package provided in Debian. Once you install it you need to
+
+<list>
+<item>Modify <file>/etc/pam.d/ssh</file> to use this PAM module, add
+as its last line:
+<example>
+session    required   pam_chroot.so
+</example>
+
+<item>set a proper chroot environment. You can either review
+<file>/usr/share/doc/libpam-chroot/examples/</file>, use 
+<package>makejail</package> or setup a minimum Debian environment with
+<package>debootstrap</package>. Make sure the environment includes
+the needed <file>/dev/ptmx</file> and <file>/dev/pty*</file> devices
+and the <file>/dev/pts/</file> subdirectory (running MAKEDEV in the 
+<file>/dev</file> directory of the chrooted environment should be sufficient).
+
+
+<item>Configure <file>/etc/security/chroot.conf</file>
+so that the users you determine are chrooted to the directory you setup
+previously. You might want to have independent directories for 
+different users so that they will not be able to see neither the whole 
+system nor each other's.
+
+<item>Configure SSH: If you are running a newer (post-3.4) version of 
+OpenSSH that uses Privilege Separation you need to disable it:  
+<example>
+UsePrivilegeSeparation no
+</example>
+<p>Notice that this will lower the security of your system since the
+OpenSSH server will then run as <em>root</em> user. 
+This means that if a remote attack is found against OpenSSH an attacker
+will get <em>root</em> privileges instead of <em>sshd</em>,
+thus compromising the whole system.
+<footnote>
+If you are using a kernel that implements Mandatory Access Control
+(RSBAC/SElinux) you can avoid changing this configuration just by
+granting the <em>sshd</em> user privileges to make the chroot() system call.
+</footnote>
+
+</list>
+
+<p>Note: This information is also available (and maybe more up
+to date) in <file>/usr/share/doc/libpam-chroot/README.Debian.gz</file>),
+please review it for updated information before taking the above steps.
+
 <sect>Automatically making the environment (the easy way)
 
 <p>You can easily create a restricted environment with the
@@ -1292,10 +1341,13 @@ through the server, since it lacks the <prgn>chroot</prgn> function that the
 commercial program <prgn>sshd2</prgn> includes (using 'ChrootGroups' or 
 'ChrootUsers', see <manref name="sshd2_config" section="5">). However, there 
 is a patch available to add this functionality available from 
-<url id="http://bugs.debian.org/139047" name="Bug report 139047">
+<url id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> 
+(requested in <url id="http://bugs.debian.org/139047" name="Bug #139047">
+in Debian).
 The patch may be included in future releases of the OpenSSH package.
 Emmanuel Lacour has <prgn>ssh</prgn> deb
-packages with this feature at <url id="http://debian.home-dn.net/woody/ssh/">. 
+packages with this feature at <url id="http://debian.home-dn.net/woody/ssh/">
+but these might not be up-to-date.
 Completing the compilation step is recommended, though.
 
 <p>A description of all the necessary steps can be found at <url
