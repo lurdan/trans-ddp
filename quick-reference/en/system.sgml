@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.44 $"  -->
+<!-- CVS revision of this document "$Revision: 1.45 $"  -->
 <chapt id="system">Debian fundamentals
 
 <!-- 
@@ -198,7 +198,7 @@ sites:
 are recorded into the <file>unstable</file> (symlink to <file>sid/</file>) directory after
 they are uploaded to the Debian archive and stay here until they are moved to
 <file>testing/</file>.  New physical packages are located under the <file>pool</file> directory
-(<ref id="pools">).  There are also <file>main</file>, <file>contrib</file> and
+(<ref id="pools">).  There are also <file>main</file>, <file>contrib</file>, and
 <file>non-free</file> subdirectories in <file>unstable/</file>, which serve the same
 functions as in <file>stable/</file>.
 
@@ -710,7 +710,9 @@ one should therefore satisfy any dependency of a program that requires a news
 reader on a system in order to work or to be useful. They are therefore both
 said to provide the "virtual package" called <package>news-reader</package>.
 
-<p>Similarly, <prgn>exim</prgn> and <prgn>sendmail</prgn> both provide the
+<p>Similarly, many packages such as <package>exim</package>, 
+<package>exim4</package>, <package>sendmail</package>, and 
+<package>postfix</package>, provide the
 functionality of a mail transport agent.  They are therefore said to
 provide the virtual package <package>mail-transport-agent</package>.
 If either one is installed, then any program depending on the
@@ -873,7 +875,7 @@ to set up APT for doing that).
 <sect1 id="sourcebuild">Building binary packages from a source package
 
 <p>For a package <tt><var>foo</var></tt>, you will need all of <file><var>foo_*</var>.dsc</file>,
-<file><var>foo_*</var>.tar.gz</file> and <file><var>foo_*.diff</var>.gz</file> to compile the source
+<file><var>foo_*</var>.tar.gz</file>, and <file><var>foo_*.diff</var>.gz</file> to compile the source
 (note: there is no <tt>.diff.gz</tt> for a Debian native package).
 
 <p>Once you have them, if you have the <package/dpkg-dev/ package installed,
@@ -1029,7 +1031,7 @@ by the introduction of the APT system.
 <p>APT (the Advanced Packaging Tool) is an advanced interface to the Debian
 packaging system consisting of several programs whose names typically begin
 with "apt-". 
-<prgn>apt-get</prgn>, <prgn>apt-cache</prgn> and <prgn>apt-cdrom</prgn> 
+<prgn>apt-get</prgn>, <prgn>apt-cache</prgn>, and <prgn>apt-cdrom</prgn> 
 are the command-line tools for handling packages.  These also function 
 as the user's "back end" programs to other tools, such as <prgn/dselect/ 
 and <prgn/aptitude/.
@@ -1135,93 +1137,91 @@ sessions within the <manref name="script" section="1"> program.
 <p>Like all Unices, Debian boots up by executing the program <prgn>init</prgn>.
 The configuration file for <prgn>init</prgn> (which is <file>/etc/inittab</file>)
 specifies that the first script to be executed should be
-<file>/etc/init.d/rcS</file>.  This script runs all of the scripts in
-<file>/etc/rcS.d/</file> by sourcing or forking a subprocess depending on their
-file extension to perform initialization such as checking and mounting file
-systems, loading modules, starting the network services, setting the clock,
-etc.  Then, for compatibility, it also runs
-the files (except those with a `.' in the filename) in <file>/etc/rc.boot/</file>.
-Any scripts in the latter directory are usually reserved for system
-administrator use, and using them in packages is deprecated.  See <ref
-id="init-hints"> and <url id="&sysvinit;" 
-name="System run levels and init.d scripts"> in the Debian Policy Manual
-for more info.
+<file>/etc/init.d/rcS</file>.
+<p>
+What happens next depends on whether the <package>sysv-rc</package>
+package or the <package>file-rc</package> package is installed.
+The following assumes that the <package>sysv-rc</package> package
+is installed.  (<package>file-rc</package> contains its own
+<file>/etc/init.d/rcS</file> script and uses a file instead of
+symlinks in rc directories to control which services are started
+in which runlevels.)
+<p>
+The <file>/etc/init.d/rcS</file> file from the <package>sysv-rc</package>
+package runs all of the scripts in <file>/etc/rcS.d/</file> in order
+to perform initialization such as checking and mounting file
+systems, loading modules, starting the network services,
+setting the clock, and so on.
+Then, for compatibility, it also runs all the files
+(except those with a `.' in the filename)
+in <file>/etc/rc.boot/</file>.
+The latter directory is reserved for system administrator use,
+and using it is deprecated.
+See <ref id="init-hints"> and
+<url id="&sysvinit;" name="System run levels and init.d scripts">
+in the Debian Policy Manual for more info.
+<p>
+Debian does not use a BSD-style <tt>rc.local</tt> directory.
 
 <sect1 id="runlevels">Runlevels
 
-<p>After completing the boot process, <prgn>init</prgn> executes all start
-scripts in a directory specified by the default runlevel (this runlevel
-is given by the entry for <tt>id</tt> in <file>/etc/inittab</file>).
-Like most <!-- all? SGK --> System V compatible Unices, Linux has 7 runlevels:
+<p>After completing the boot process, <prgn>init</prgn> starts all
+services that are configured to run in the default runlevel.
+The default runlevel is given by the entry for <tt>id</tt> in
+<file>/etc/inittab</file>.
+Debian ships with <tt>id=2</tt>.
+<p>
+Debian uses 7 runlevels:
 <list compact>
   <item>0 (halt the system),
   <item>1 (single-user mode),
   <item>2 through 5 (various multiuser modes), and
   <item>6 (reboot the system).
 </list>
+Runlevels 7, 8, and 9 can also be used but their rc directories are
+not populated when packages are installed.
 <p>
-Debian systems come with <tt>id=2</tt>, which indicates that the default
-runlevel will be 2 when the multiuser state is entered, and the
-scripts in <file>/etc/rc2.d/</file> will be run.
+Switch runlevels using the <prgn>telinit</prgn> command.
+<p>
+If the <package>sysv-rc</package> package is installed
+then in order to enter the default runlevel
+all start scripts in <file>/etc/rc<var>runlevel</var>.d/</file>
+(where <var>runlevel</var> is the default runlevel)
+are executed.
+The scripts in <file>/etc/rc<var>runlevel</var>.d</file> are in fact
+just symbolic links back to scripts in <file>/etc/init.d/</file>.
+However, the first letter in the name of the symbolic link
+determines the <strong>way</strong> in which the script in
+<file>/etc/init.d/</file> is run.
+Specifically, before entering any runlevel,
+all the scripts beginning with `K' are run; these scripts stop services.
+Then all the scripts beginning with `S' are run;
+these scripts start services.
+The two-digit numbers following the `K' or `S' determine
+the order in which the scripts are run:
+lower-numbered scripts are executed first.
 
-<p>In fact, the scripts in any of the directories <file>/etc/rc<var>N</var>.d</file>
-are just symbolic links back to scripts in <file>/etc/init.d/</file>.  However,
-the <strong>names</strong> of the files in each of the <file>/etc/rc<var>N</var>.d</file>
-directories are selected to indicate the <strong>way</strong> the scripts in
-<file>/etc/init.d/</file> will be run.  Specifically, before entering any
-runlevel, all the scripts beginning with `K' are run; these scripts kill
-services.  Then all the scripts beginning with `S' are run; these scripts
-start services.  The two-digit number following the `K' or `S' indicates
-the order in which the script is run.  Lower-numbered scripts are executed
-first.
+<p>This approach works because each script in <file>/etc/init.d/</file>
+takes a "start" or a "stop" argument and acts appropriately.
+Each script also accepts "restart" and "force-reload";
+these methods can be used after a system has been booted
+in order to restart services
+or force them to reload their configuration files.
 
-<p>This approach works because the scripts in <file>/etc/init.d/</file> all
-take an argument which can be either "start", "stop", "reload", "restart"
-or "force-reload" and will then do the task indicated by the argument.
-These scripts can be used even after a system has been booted, to control
-various processes.
-
-<p>For example, with the argument "reload" the command
+<p>For example:
 <example>
-# /etc/init.d/sendmail reload
+# /etc/init.d/sendmail force-reload
 </example>
-sends the sendmail daemon a signal to reread its configuration file.
 
 <sect1 id="custombootscripts">Customizing the boot process
 <p>
-Debian does not use a BSD-style
-<tt>rc.local</tt> directory to customize the boot process; instead it provides
-the following mechanism for customization.
-
-<p>Suppose a system needs to execute script <tt>foo</tt> on startup,
-or on entry to a particular (System V) runlevel.  Then the system
-administrator should:
+Suppose you want to add service <tt>foo</tt> to the set of those
+services started after boot.
+Take the following steps:
 <enumlist>
-  <item>Enter the script <tt>foo</tt> into the directory
-    <file>/etc/init.d/</file>.
-  <item>Run the Debian command <prgn>update-rc.d</prgn> with appropriate
-    arguments, to set up links between the (command-line-specified)
-    directories <tt>rc<var>?</var>.d</tt> and <file>/etc/init.d/foo</file>.
-    Here, <var>?</var> is a number from 0 through 6 that corresponds to one of
-    the System V runlevels.
-  <item>Reboot the system.
+  <item>Install initscript <file>/etc/init.d/foo</file>.
+  <item>Execute <prgn>update-rc.d</prgn> with appropriate arguments.
 </enumlist>
-
-<p>The command <prgn>update-rc.d</prgn> will set up links between files in the
-directories <tt>rc<var>?</var>.d</tt> and the script in
-<file>/etc/init.d/</file>.  Each link will begin with an `S' or a `K',
-followed by a number, followed by the name of the script.  When the system
-enters a runlevel <var>N</var>, scripts beginning with `K' in
-<file>/etc/rc<var>N</var>.d/</file> are executed with <tt>stop</tt> as
-their argument, followed by those beginning with `S' in
-<file>/etc/rc<var>N</var>.d/</file>  with <tt>start</tt> as their argument.
-
-<p>One might, for example, cause the script <tt>foo</tt> to execute at
-boot-up, by putting it in <file>/etc/init.d/</file> and installing the links
-with <tt>update-rc.d foo defaults 19</tt>.  The argument <tt>defaults</tt>
-refers to the default runlevels, which are 2 through 5.  The argument
-<tt>19</tt> ensures that <tt>foo</tt> is called before any scripts containing
-numbers 20 or larger.
 
 <sect id="diverse">Supporting diversity
 <p>
@@ -1317,11 +1317,11 @@ other locations (e.g., to <file>/boot/grub</file> or to an MS-DOS partition).
 
 <sect1 id="custombootdisk">Custom boot floppies
 
-<p>The task of making a custom boot floppy is greatly aided by the Debian
+<p>The task of making a custom boot floppy was greatly aided by the Debian
 <!-- FIXME: boot-floppies is no package in Woody but an installation program
  Is this Potato specific? -->
-package <package/boot-floppies/, normally found in the <tt>admin</tt> section
-of the Debian FTP archive.  Shell scripts in this package produce boot
+package <package/boot-floppies/, used to be found in the <tt>admin</tt> section
+of the Debian FTP archive for Potato and older. Shell scripts in this package produce boot
 floppies in <prgn>syslinux</prgn> format.  These are MS-DOS formatted floppies
 whose master boot records have been altered so that they directly boot Linux 
 (or whatever other operating system has been defined in the

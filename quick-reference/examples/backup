@@ -1,99 +1,34 @@
-#!/bin/bash
-# This is just a simple home user script.
-# I think back up really depends on what you want.
-# You need to assess benefits (ease, assurance)  vs. risks (cost, time)
+#!/bin/sh
+# Osamu's simple backup script for home Linux user.  (Version 2)
+#  Feature: multiple cd, data redundancy
+#  License: GPL 2.0 or later.
+#  Depends: afio ras gzip cdrecord mkisofs sudo
+#  Author:  Osamu Aoki <osamu@debian.org>
 #
-# /etc/*
-# /home/*
-# /var/lib/dpkg/* /var/backups/* 
-# /var/cvs
+# Place "afioiso" and this script in your path as executable.
+# "afioiso" is also located in Debian Reference examples.
+# "afiocd" is a generic part of cd backup script.
+# This can backup to multiple cds with redundancies to handle 
+# larger tasks.
 #
-# will be backed up
-#
-echo "====== Osamu's Simple System Back-up Script =====" 
-# set volume label
-date=$(date --utc +"%Y%m%d%H%M")
-cdtemp=${1:-/mnt/backup/data}
-install -d $cdtemp
-shift
-echo    ">>> Directory contents"
-ls $cdtemp
-echo    '-----------------------------------------------'
-echo -n "Do you want to clean up all $cdtemp contents? (y/n)"
-read CNF
-if [ "$CNF" = "y" ]; then
-	echo "Clean up $cdtemp"
-	rm -vrf $cdtemp/*
-fi
-install -d $cdtemp/$date
-cdimage=${1:-/mnt/backup/cd$date.img}
-shift
-echo    '-----------------------------------------------'
-echo    "Backup to directory  (d) at $cdtemp/$date"
-echo    "          image file (i) at $cdimage"
-echo    '          CD-R       (r) or'
-echo -n '          CD-RW      (w)     Enter d/i/r/w: '
-read YN
-echo    '-----------------------------------------------'
-if [ "$YN" = "d" -o "$YN" = "i" -o "$YN" = "w" -o "$YN" = "w" ];  then
-    echo "  Entered $YN"
-else
-    echo ... Oops! Stop here ; exit 1
-fi
-echo -n "Are you sure ? (y/n)"
-read CNF
-if [ ! "$CNF" = "y" ]; then
-    exit 1
-fi
-echo ">>> Start backup:"
-echo ">>> Save package selection:"
-#dpkg --get-selections  | gzip >$cdtemp/dpkg-list.gz
-dpkg --get-selections \*  | gzip >$cdtemp/$date/dpkg-list.gz
-echo ">>> Save directories:"
-# create tar file for directory limited within each file system (-l)
-tar -cvzl -f ${cdtemp}/$date/ETC.tar.gz /etc
-tar -cvzl -f ${cdtemp}/$date/ROOT.tar.gz \
-	--exclude='.netscape' \
-	--exclude='.mozilla' \
-	--exclude='.galeon' \
-	--exclude='.w3m' \
-	--exclude='.links' \
-	--exclude='Mail' \
-	--exclude='public_html' \
-	/root
-tar -cvzl -f ${cdtemp}/$date/HOME.tar.gz \
-	--exclude='.netscape' \
-	--exclude='.mozilla' \
-	--exclude='.galeon' \
-	--exclude='.w3m' \
-	--exclude='.links' \
-	--exclude='Mail' \
-	--exclude='public_html' \
-	/home
-tar -cvzl -f ${cdtemp}/$date/VL_DPKG.tar.gz /var/lib/dpkg
-#tar -cvzl -f ${cdtemp}/$date/VAR_BACKUPS.tar.gz /var/backups
-tar -cvzl -f ${cdtemp}/$date/VL_CVS.tar.gz /var/lib/cvs
+# These are still very alpha stage script.  Use this only as an example.
+# Use at your own risk and read script and its comment in advance.
 
-[ $YN = "d" ] && exit 1
+DATE=$(date --utc +"%Y%m%d-%H%M")
+[ -d /var/backups ] || mkdir -p /var/backups
 
-echo 
-echo "Start making CD image $cdimage from $cdtemp"
-echo
+# Make package selection backed up
+sudo dpkg --get-selections \*  >/var/backups/dpkg-selections.${DATE}.log
 
-# create cd image no more -J
+# define files to back up and feed their names to the stdin of afioiso
+sudo find /etc /home /var/lib/dpkg /var/backups /var/lib/cvs \
+     -xdev \
+     -path '*/Cache' -prune -o \
+     -path '*/Mail' -prune -o \
+     -path '*/public_html' -prune -o \
+     -print0 | afioiso
+sudo touch /last-backup.stamp
 
-mkisofs -v -R -V "BU$date" -o $cdimage  $cdtemp
-
-[ $YN = "i" ] && exit 1
-
-echo
-echo Start CD recording ...
-echo
-
-if [ $YN = 'w' ]; then
-    OPTN="blank=fast"; echo Rewritable!
-else
-    OPTN=""; echo Recordable!   
-fi
-echo
-exec nice --10 cdrecord -v -eject $OPTN speed=2 dev=0,0  $cdimage
+# You may edit above to do incremental backup.
+# use touch to create a file after back up
+# use "-cnewer /last-backup.stamp" to narrow down back up.
