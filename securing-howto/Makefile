@@ -44,7 +44,7 @@ PUBLISHDIR := ~/public_html/manuals.html
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en de fr es it ru ja
 # List of languages built for "publish" target for DDP
-LANGS := en de fr es it ru ja
+LANGS := en de fr es it ru
 
 
 # Files which affect SGML generation (excluding *.sgml)
@@ -209,7 +209,7 @@ distclean: clean
 clean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
 	rm -f *~ prior.aux pprior.aux tar.gz.log
-	rm -f *.error $(MANUAL).*.ent date.ent $(MANUAL).*.tpt
+	rm -f *.error $(MANUAL).*.ent $(MANUAL).*.sgml date.ent $(MANUAL).*.tpt
 	rm -rf $(MANUAL)*.html *stamp
 
 .PHONY: all html text txt ps pdf \
