@@ -48,9 +48,9 @@ endif
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en fr it es fi pt-br de
 # List of languages built for "publish" target for DDP: pt_BR
-LANGS1 := en fr it es de
+LANGS1 := en fr it es de pt-br
 # subset which has Quick Reference subset document
-LANGS2 := en fr de
+LANGS2 := en fr de pt-br
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -206,6 +206,14 @@ $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	debiandoc2latexpdf -l $(subst pt-br,pt_BR,$*) $<
+
+# TEX
+
+$(MANUAL1).%.tex: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
+	debiandoc2latex -l $(subst pt-br,pt_BR,$*) $<
+
+$(MANUAL2).%.tex: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
+	debiandoc2latex -l $(subst pt-br,pt_BR,$*) $<
 
 # TAR
 
@@ -397,7 +405,7 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr de"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr es fi de pt-br" "LANGS2=en fr de pt-br"
 
 sf-test:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" txt
@@ -405,9 +413,11 @@ sf-test:
 sf-clean:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" distclean 
 
-scp: publish-all
+scp: publish-all scp0
+
+scp0:
 	echo SCP strat
-	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
+#	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/
 
 	echo SCP README
@@ -439,6 +449,10 @@ validate2-%: $(SGMLSRCS) $(MANUAL2)-%.ent
 
 #====[ cleaning up ]===========================================================
 distclean: clean
+	make "PUBLISHDIR=~/public_html/" publish-clean
+	make publish-clean
+
+publish-clean:
 	rm -f  $(PUBLISHDIR)/$(MANUAL0).tar.gz
 	rm -Rf $(PUBLISHDIR)/$(MANUAL1)
 	rm -Rf $(PUBLISHDIR)/$(MANUAL2)
