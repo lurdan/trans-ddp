@@ -20,14 +20,22 @@
 (define biblio-number
   ;; Enumerate bibliography entries
   #t)
-;;(define %generate-legalnotice-link%
+
+; TODO: does not work
+;(define %generate-legalnotice-link%
   ;; Should legal notices be a link to a separate file?
-;;  #t)
+;  #t)
+
 (define %body-attr% 
   ;; What attributes should be hung off of BODY?
   (list
    (list "BGCOLOR" "#FFFFFF")
    (list "TEXT" "#000000")))
+
+; TODO: find a way to display the legalnotice.
+;(element (artheader legalnotice) (literal "FooBar"))
+;(element (legalnotice para) (process-children))
+;(element legalnotice  (literal "FooBar"))
 
 (define dir-prefix 
   (if FHS
