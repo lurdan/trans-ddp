@@ -50,7 +50,7 @@ LANGSALL := en fr it es fi pt-br de
 # List of languages built for "publish" target for DDP: pt_BR
 LANGS1 := en fr it es de pt-br
 # subset which has Quick Reference subset document
-LANGS2 := en fr it de pt-br
+LANGS2 := en fr it es de pt-br
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -314,6 +314,10 @@ publish-examples: $(EXAMPLES)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)
 	@install -p -m 644  --preserve-timestamps \
 	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/
+# these were for linda but lintian complains. so disabled
+#	chmod 700 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/go-woody
+#	chmod 700 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/fetchmail
+#	chmod 775 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/backup
 
 # No more example for short document
 #	test -d $(PUBLISHDIR)/$(MANUAL2) \
@@ -405,13 +409,13 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de"
 
 sf-test:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br" txt
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de" txt
 
 sf-clean:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br" distclean 
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de" distclean 
 
 scp: publish-all scp0
 
