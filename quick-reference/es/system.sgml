@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.59"  -->
+<!-- CVS revision of original english document "1.66"  -->
 <chapt id="system">Fundamentos de Debian
 
 <!-- 
@@ -298,7 +298,7 @@ Pixar.
 </list>
 
 <!--
-  more info in http://www.pixar.com/feature/toystory/toystory.html 
+  more info in http://www.pixar.com/featurefilms/ts/index.html 
   or better yet http://us.imdb.com/M/title-exact?Toy&percnt;20Story&percnt;20(1995)
   or actually:
     http://us.imdb.com/Title?0114709 for TS1
@@ -772,8 +772,9 @@ noticias a fin de que éste funcione correctamente o resulte útil.  Se
 dice que ambos proporcionan el "paquete virtual" llamado
 <package>news-reader</package>.
 
-<p>De manera similar, <prgn>exim</prgn> y <prgn>sendmail</prgn> proporcionan
-ambos la funcionalidad de un agente de transporte de correo.  Por lo
+<p>De manera similar, muchos paquetes tales como <package>exim</package>,
+<package>exim4</package>, <package>sendmail</package> y <package>postfix</package>
+proporcionan la funcionalidad de un agente de transporte de correo.  Por lo
 tanto, se dice que proporcionan el mismo paquete virtual <package>mail transport
 agent</package>.  Si se instala alguno de los dos, cualquier programa que dependa
 de la instalación de un agente de transporte de correo se
@@ -1225,105 +1226,91 @@ section="1">.
 <p>Al igual que todos los sistemas Unix, Debian arranca ejecutando el programa
 <prgn>init</prgn>.  El archivo de configuración de <prgn>init</prgn> (que es
 el <file>/etc/inittab</file>) indica que el primer script que se debe ejecutar
-es el <file>/etc/init.d/rcS</file>.  Este script ejecuta todos los scripts
-situados en <file>/etc/rcS.d/</file> generando o bifurcando subprocesos
-dependiendo de su extensión de archivo para realizar el proceso de
-inicialización: verificar y montar el sistema de archivos, cargar módulos,
-iniciar los servicios de red, configurar el reloj, etc.  Luego, por
-compatibilidad, también ejecuta los archivos situados en
-<file>/etc/rc.boot/</file> (salvo aquellos con `.' en el nombre). Los scripts
-en este último directorio generalmente están reservados para uso del
-administrador del sistema y su utilización en paquetes cayó en desuso.  Véase
-<ref id="init-hints"> y <url id="&sysvinit;" name="Los niveles de ejecución
-del sistema y los scripts init.d"> para más información.
+es el <file>/etc/init.d/rcS</file>.
+<p>
+Lo que ocurre a continuación depende de si se encuentra instalado el paquete
+<package>sysv-rc</package> o el <package>file-rc</package>.
+A continuación, supondremos que se encuentra instalado el paquete
+<package>sysv-rc</package> (<package>file-rc</package> contiene su propio
+script <file>/etc/init.d/rcS</file> y utiliza un archivo en vez de enlaces
+simbólicos en los directorios rc para controlar qué servicios se inician 
+en los diferentes niveles de ejecución)
+<p>
+El archivo <file>/etc/init.d/rcS</file> del paquete <package>sysv-rc</package>
+ejecuta todos los scripts situados en <file>/etc/rcS.d/</file> para realizar
+inicializaciones tales como la comprobación y montaje de los sistemas de
+archivos, la carga de módulos, la inicialización de los servicios de red,
+la configuración del reloj, etc. Luego, y por compatibilidad, también ejecuta
+todos los archivos (excepto aquellos con un `.' en su nombre) situados en
+<file>/etc/rc.boot/</file>.
+Este último directorio está reservado para el administrador del sistema
+y su utilización ha caído en desuso.
+Véase <ref id="init-hints"> y el
+<url id="&sysvinit;" name="Sistema de niveles de ejecución y scripts init.d">
+en el Manual de Normativa de Debian para más información.
+<p>
+Debian no utiliza el directorio <tt>rc.local</tt> del tipo BSD.
 
 <sect1 id="runlevels">Niveles de ejecución
 
-<p>Luego de completar el proceso de arranque, <prgn>init</prgn> ejecuta
-todos los scripts de arranque situados en el directorio especificado por
-el nivel de ejecución predeterminado (este nivel de ejecución viene dado
-por una entrada <tt>id</tt> en el <file>/etc/inittab</file>).  Como la
-mayoría de los sistemas Unix <!-- all? SGK --> compatibles con el System
-V, Linux tiene 7 niveles de ejecución:
+<p>Luego de completar el proceso de arranque, <prgn>init</prgn> inicia todos
+los servicios que han sido configurados para ejecutarse en el nivel de
+ejecución predeterminado. Este último viene indicado por una entrada
+<tt>id</tt> en el <file>/etc/inittab</file>.
+Debian viene con <tt>id=2</tt>.
+
+<p>
+Debian utiliza 7 niveles de ejecución:
 <list compact>
   <item>0 (apagar el sistema),
   <item>1 (modo monousuario),
   <item>2 al 5 (diversos modos multiusuario) y
   <item>6 (reiniciar el sistema).
 </list>
+Tambien puede utilizarse los niveles de ejecución 7, 8 y 9 pero sus
+directorios rc no se van llenando a medida que son instalados los paquetes.
 <p>
-Los sistemas Debian vienen con el <tt>id=2</tt>, que indica que el nivel
-de ejecución predeterminado cuando se entre al estado multiusuario será
-el 2 y que se ejecutarán los scripts del directorio
-<file>/etc/rc2.d/</file>.
+Cambie los niveles de ejecución utilizando el comando <prgn>telinit</prgn>.
 
-<p>De hecho, los scripts situados en cualquiera de los directorios
-<file>/etc/rc<var>N</var>.d/</file> son simplemente enlaces simbólicos
-hacia los scripts situados en <file>/etc/init.d/</file>.  No obstante,
-los <strong>nombres</strong> de los archivos situados en cada uno de los
-directorios <file>/etc/rc<var>N</var>.d/</file> fueron seleccionados
-para indicar la <strong>manera</strong> en que se ejecutarán los scripts
-situados en <file>/etc/init.d/</file>.  Para ser más específicos, antes
-de entrar a cualquier nivel de ejecución, se ejecutan todos los scripts
-que comienzan con la letra `K'; estos scripts permiten matar los
-servicios.  A continuación se ejecutan todos los scripts que comienzan
-con `S'; estos scripts permiten arrancar servicios.  Los números de dos
-dígitos a continuación de la `K' o de la `S' indican el orden en que se
-ejecutará el script.  Los scripts que tengan los números más pequeños se
-ejecutarán primero.
+<p>
+Si está instalado el paquete <package>sysv-rc</package> entonces para entrar
+al nivel de ejecución predeterminado se ejecutan todos los scripts de inicio
+situados en <file>/etc/rc<var>nivel_de_ejecución</var>.d/</file> (donde
+<var>nivel_de_ejecución</var> es el nivel de ejecución predeterminado).  Los
+scripts situados en <file>/etc/rc<var>nivel_de_ejecución</var>.d</file> son,
+de hecho, enlaces simbólicos que apuntan a los scripts ubicados en
+<file>/etc/init.d/</file>.  No obstante, la primera letra del nombre del
+enlace simbólico determina la <strong>manera</strong> en que se ejecuta el
+script de <file>/etc/init.d/</file>.  Para ser más precisos, antes de entrar a
+cualquier nivel de ejecución, se ejecutan todos los scripts que comienzan con
+`K'; estos scripts detienen servicios. Luego se ejecutan todos los scripts que
+comienzan con `S'; estos scripts inician servicios.  Los números de dos
+dígitos que preceden a `K' o a `S' determinan el orden en que se ejecutarán
+los scripts: aquellos con las numeraciones más bajas se ejecutarán primero.
 
-<p>Este enfoque funciona porque los scripts situados en
-<file>/etc/init.d/</file> toman todos un argumento que puede ser "start"
-(arrancar), "stop" (detener), "reload" (volver a cargar), "restart"
-(volver a arrancar) o "force-reload" (forzar carga) y ejecutarán las
-tareas indicadas mediante el argumento.  Estos scripts se pueden usar
-incluso después que el sistema haya arrancado para controlar diversos
-procesos.
+<p>Este enfoque funciona porque cada script de <file>/etc/init.d/</file>
+toma un argumento "start" o "stop" y actúa en consecuencia.
+Cada script también acepta "restart" y "force-reload";
+estos métodos se pueden utilizar para reiniciar los servicios una vez que haya
+sido arrancado el sistema o forzarlos para que vuelvan a cargar sus archivos
+de configuración.
 
-<p>Por ejemplo, con el argumento "reload" el comando
+
+<p>Por ejemplo:
 <example>
-# /etc/init.d/sendmail reload
+# /etc/init.d/sendmail force-reload
 </example>
-envía al demonio sendmail un señal para volver a leer su archivo de
-configuración.
 
-<sect1 id="custombootscripts">Personalizando el proceso de arranque <p>
-Debian no utiliza el directorio <tt>rc.local</tt> como lo hace BSD para
-personalizar el proceso de arranque; en cambio, proporciona el siguiente
-mecanismo para la personalización.
+<sect1 id="custombootscripts">Personalizando el proceso de arranque
+<p>
+Supongamos que desea añadir el servicio <tt>loquesea</tt> al conjunto de
+aquellos servicios que fueron iniciados tras el arranque.
+Siga los siguientes pasos:
 
-<p>Supongamos que un sistema necesita ejecutar el script
-<tt>loquesea</tt> al arrancar o al comenzar un nivel de ejecución
-determinado (System V).  Entonces el administrador del sistema debe:
 <enumlist>
-  <item>Ubicar el script <tt>loquesea</tt> en el directorio
-    <file>/etc/init.d/</file>.
-  <item>Ejecutar el comando <prgn>update-rc.d</prgn> de Debian con los
-  argumentos apropiados para configurar los enlaces entre los
-  directorios (especificados a través de la línea de comando)
-  <tt>rc<var>?</var>.d</tt> y <file>/etc/init.d/loquesea</file>.  Aquí,
-  <var>?</var> es un número entre 0 y 6 que corresponde a uno de los
-  niveles de ejecución del System V.
-  <item>Reiniciar el sistema.
+  <item>Instale el script init <file>/etc/init.d/loquesea</file>.
+  <item>Ejecute <prgn>update-rc.d</prgn> con los argumentos adecuados.
 </enumlist>
-
-<p>El comando <prgn>update-rc.d</prgn> configurará los enlaces entre los
-archivos de los directorios <tt>rc<var>?</var>.d</tt> y el script situado en
-<file>/etc/init.d/</file>.  Cada enlace comenzará con una `S' o una `K',
-seguido por un número y a continuación el nombre del script.  Al entrar al
-nivel de ejecución <var>N</var>, los scripts en
-<file>/etc/rc<var>N</var>.d/</file> que comienzan con una 'K' se ejecutan con
-el argumento <tt>stop</tt> seguidos por los que comienzan con una 'S' que se
-ejecutan con el argumento <tt>start</tt>.
-
-<p>Uno podría, por ejemplo, hacer que el script <tt>loquesea</tt> se ejecute
-en el arranque, poniéndolo en el directorio <file>/etc/init.d/</file> y
-creando los enlaces con <tt>update-rc.d loquesea defaults 19</tt>.  El
-argumento <tt>defaults</tt> corresponde a los niveles de ejecución
-predeterminados, que van del 2 al 5.  El argumento <tt>19</tt> asegura que
-<tt>loquesea</tt> sea llamado antes de cualquier script que contenga un número
-20 o cualquier valor mayor.
-
 <sect id="diverse">En apoyo a la diversidad
 <p>
 Debian ofrece diversas alternativas para satisfacer los deseos del
@@ -1336,11 +1323,11 @@ administrador del sistema sin dañar al sistema.
       Véase <manref name="make-kpkg" section="1">.
 </list>
 Cualquier archivo situado en <file>/usr/local/</file> pertenece al
-administrador del sistema y &debian; no los va a tocar. La mayoría (o
-todos) los archivos situados en <file>/etc</file> son <tt>conffiles</tt>
-(archivos de configuración) y &debian; no los sobreescribirá durante una
-actualización salvo que el administrador del sistema los solicite en
-forma explícita.
+administrador del sistema y &debian; no los va a tocar. La mayoría los
+archivos situados en <file>/etc/</file> <!-- mtab es una excepción --> son
+<tt>conffiles</tt> (archivos de configuración) y &debian; no los
+sobreescribirá durante una actualización salvo que el administrador del
+sistema los solicite en forma explícita.
 
 <sect id="i18n">Internacionalización
 <p>
@@ -1426,17 +1413,17 @@ o <package/loadlin/, copie el kernel de Linux compilado
 
 <sect1 id="custombootdisk">Discos de arranque personalizados
 
-<p>La tarea de crear discos de arranque personalizados se ve grandemente
+<p>La tarea de crear discos de arranque personalizados se vió grandemente
 facilitada por el paquete Debian <!-- FIXME: boot-floppies is no package in
 Woody but an installation program Is this Potato specific? -->
-<package/boot-floppies/ que normalmente se encuentra en la sección
-<tt>admin</tt> de un archivo FTP Debian.  Los scripts de shell de este paquete
-crean discos de arranque en formato <prgn>syslinux</prgn>.  Se tratan de
-discos formateados en MS-DOS cuyos sectores de arranque han sido alterados de
-modo de poder arrancar Linux directamente (o cualquier otro sistema operativo
-que haya sido definido en el archivo <file>syslinux.cfg</file> del disquete).
-Otros scripts de este paquete crean discos de arranque de emergencia e incluso
-crean los discos básicos.
+<package/boot-floppies/ que solía estar en la en la sección <tt>admin</tt> del
+archivo FTP Debian para Potato y versiones anteriores.  Los scripts de shell
+de este paquete crean discos de arranque en formato <prgn>syslinux</prgn>.  Se
+tratan de discos formateados en MS-DOS cuyos sectores de arranque han sido
+alterados de modo de poder arrancar Linux directamente (o cualquier otro
+sistema operativo que haya sido definido en el archivo
+<file>syslinux.cfg</file> del disquete).  Otros scripts de este paquete crean
+discos de arranque de emergencia e incluso crean los discos básicos.
 
 <p>Encontrará más información sobre esto en el archivo
 <file>/usr/doc/boot-floppies/README</file> luego de instalar el paquete
@@ -1455,12 +1442,12 @@ diferentes módulos) gracias a los archivos <file>/etc/modutils/</file> y
 <file>/etc/modules</file> (que contiene los módulos que se deben cargar
 durante el arranque).
 
-<p>Al igual que los archivos (nuevos) <file>Configure.help</file> que ahora están
-disponibles para admitir la construcción de núcleos personalizados, el
-paquete <package/modconf/ package viene con una serie de archivos de
-ayuda (en <file>/usr/share/modconf/</file>) que proporcionan
-información detallada sobre los argumentos apropiados para cada uno de
-los módulos.  Véase <ref id="kernel-modules"> para algunos ejemplos.
+<p>Al igual que los archivos (nuevos) <file>Configure.help</file> que ahora
+están disponibles para admitir la construcción de núcleos personalizados, el
+paquete <package/modconf/ package viene con una serie de archivos de ayuda (en
+<file>/usr/share/modconf/</file>) que proporcionan información detallada sobre
+los argumentos apropiados para cada uno de los módulos.  Véase <ref
+id="kernel-modules"> para algunos ejemplos.
 
 
 <sect1 id="removeoldkernel">Desinstalando el paquete de un kernel antiguo
