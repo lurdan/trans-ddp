@@ -192,6 +192,9 @@ publish-examples: $(EXAMPLES)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/$(EXAMPLE)
 	@install -p -m 644  --preserve-timestamps \
 	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL)/$(EXAMPLE)/
+ifeq ("$(BUILD_TYPE)", "sf")
+	install -p -m 644 README $(PUBLISHDIR)/$(MANUAL)/
+endif
 
 publish-txt:  txt
 	test -d $(PUBLISHDIR)/$(MANUAL) \
