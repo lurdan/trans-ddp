@@ -23,6 +23,8 @@ SUBDIRS	:=	\
 		fr			\
 		users-guide		\
 		progeny-debian-manual
+# above wil be erased with next update
+
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
