@@ -12,19 +12,20 @@ PUBLISHDIR := ../../../public_html/manuals.html
 all: html txt ps
 
 # generating HTML
-html: $(patsubst %.sgml,%.html/index.html,$(wildcard *.sgml))
+html: $(MANUAL).en.html/index.en.html \
+  $(patsubst maint-guide.%.sgml,maint-guide.%.html/index.%.html,$(wildcard *.??.sgml))
 
-$(MANUAL).html/index.html: $(MANUAL).sgml
-	debiandoc2html $<
+$(MANUAL).en.html/index.en.html: $(MANUAL).sgml
+	debiandoc2html -c -l en $<
 
-$(MANUAL).%.html/index.html: $(MANUAL).%.sgml
+$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 	debiandoc2html -c -l $* $<
 
 # generating plain text
-txt text: $(patsubst %.sgml,%.txt,$(wildcard *.sgml))
+txt text: $(MANUAL).en.txt $(patsubst %.sgml,%.txt,$(wildcard *.??.sgml))
 
-$(MANUAL).txt: $(MANUAL).sgml
-	debiandoc2text $<
+$(MANUAL).en.txt: $(MANUAL).sgml
+	debiandoc2text -l en $<
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
@@ -40,6 +41,8 @@ publish: html
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
+	cd $(PUBLISHDIR)/$(MANUAL) && for i in *.en.html; do \
+	  file=$$i; ln -s $$i $${file/.en/}; done
 
 # validating SGML
 validate:
