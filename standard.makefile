@@ -24,10 +24,9 @@ publish:	html
 
 html:		$(wildcard *.sgml)
 		debiandoc2html $(MANUAL).sgml
-		touch htmlmade
 
 clean:	
-		rm -rf $(MANUAL).html htmlmade
+		rm -rf $(MANUAL).html
 
 distclean:	clean
 
