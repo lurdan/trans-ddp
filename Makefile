@@ -20,13 +20,12 @@ SUBDIRS	:=	\
 		securing-howto		\
 		system-administrator 	\
 		user			\
-		users-guide
+		users-guide		\
+		maint-guide		\
+		ddp-policy
 
-# documents with broken Makefiles will be moved to the bottom
+# documents with broken or newest Makefiles will be moved to the bottom
 
-# Due to the potato test(1) bug, maint-guide is built manually.
-# TODO: revert after woody is released and www-master is upgraded to it.
-#		maint-guide		
 
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
