@@ -1,0 +1,268 @@
+#!/bin/bash
+## ----------------------------------------------------------------------
+
+## ----------------------------------------------------------------------
+## exit on erroneous subcommand
+set -e
+
+## ----------------------------------------------------------------------
+## get script name
+script=$(basename ${0})
+
+## ----------------------------------------------------------------------
+## print version and usage message
+function usage_message
+{
+    cat >&2 <<'END'
+debiandoc2latexdvi version 1.1
+
+Copyright (C) 1998-2002 Ardo van Rangelrooij
+Copyright (C) 1996 Ian Jackson
+
+This is free software; see the GNU General Public Licence
+version 2 or later for copying conditions.  There is NO warranty.
+
+usage: debiandoc2latexdvi [options] <filename>.sgml
+options: -h               print this help message
+         -O               send output to stdout instead of <filename>.dvi
+         -b <basename>    basename to be used
+         -c               use content-negotiation
+         -d <declaration> SGML declaration to be used
+         -e <extension>   extension to be used
+         -k               keep intermediate files
+         -l <locale>      locale to be used
+         -n <options>     nsgmls options to be passed on
+         -p <papersize>   paper size to be used
+         -v               be verbose
+END
+    exit 0;
+}
+
+## ----------------------------------------------------------------------
+## print error message
+function usage_error
+{
+    echo >&2 "${script}: ${@}";
+    exit 2;
+}
+
+## ----------------------------------------------------------------------
+## check for presence of latex
+if ! which latex >/dev/null 2>&1
+then
+    echo >&2 "${script}: LaTeX typesetting system not found"
+    echo >&2 "${script}: please install the package 'tetex-bin'"
+    exit 2
+fi
+
+## ----------------------------------------------------------------------
+## check for presence of used latex styles
+if ! kpsewhich helvet.sty times.sty vmargin.sty fancyhdr.sty paralist.sty footmisc.sty url.sty hyperref.sty >/dev/null 2>&1
+then
+    echo >&2 "${script}: one or more used LaTeX typesetting styles not found"
+    echo >&2 "${script}: please install the package 'tetex-extra'"
+    exit 2
+fi
+
+## ----------------------------------------------------------------------
+## set default values
+basename=''
+content=''
+declaration=''
+extension=''
+keep=false
+keepopt=''
+locale=''
+nsgmls=''
+stdout=false
+verbose=false
+
+## ----------------------------------------------------------------------
+## get command line options
+options=':'
+options="${options}h"
+options="${options}O"
+options="${options}b:"
+options="${options}c"
+options="${options}d:"
+options="${options}e:"
+options="${options}k"
+options="${options}l:"
+options="${options}n:"
+options="${options}p:"
+options="${options}v"
+while getopts ${options} opt
+do
+    case ${opt}
+    in
+	h  ) usage_message
+	     ;;
+	O  ) stdout=true
+	     ;;
+	b  ) basename="-${opt} ${OPTARG}"
+	     ;;
+	c  ) content="-${opt}"
+	     ;;
+	d  ) declaration="-${opt} ${OPTARG}"
+	     ;;	
+	e  ) extension="-${opt} ${OPTARG}"
+	     ;;
+	k  ) keep=true
+	     keepopt="-${opt}"
+	     ;;
+	l  ) locale="-${opt} ${OPTARG}"
+	     ;;
+	n  ) nsgmls="-${opt} ${OPTARG} ${nsgmls}"
+	     ;;
+	p  ) PAPERCONF=${OPTARG}
+	     export PAPERCONF
+	     ;;
+	v  ) verbose=true
+	     ;;
+	\? ) usage_error "unknown option \`${OPTARG}'"
+	     ;;
+    esac
+done
+shift $((${OPTIND} - 1))
+
+## ----------------------------------------------------------------------
+## check remaining command line options
+if [ ${#} -ne 1 ]
+then
+    usage_error "need exactly one input filename"
+fi
+
+## ----------------------------------------------------------------------
+## get basename
+if [ -n "${basename}" ]
+then
+    bsn="$(echo ${basename} | cut -d' ' -f2- | cut -d'/' -f-1)"
+else
+    bsn="$(basename ${1} .sgml)"
+fi
+case "${bsn}"
+in
+    -* ) bsn="./${bsn}"
+	 ;;
+esac
+
+## ----------------------------------------------------------------------
+## get content-negotiation
+cnt=''
+if [ -n "${content}" ]
+then
+    if [ -n "${locale}" ]
+    then
+	cnt="$(echo ${locale} | cut -d' ' -f2-)"
+    elif [ -n "${LANG}" ]
+    then
+	cnt="${LANG}"
+    else
+	cnt='en'
+    fi
+    cnt=".${cnt}"
+fi
+
+## ----------------------------------------------------------------------
+## get extension
+if [ -n "${extension}" ]
+then
+    ext="$(echo ${extension} | cut -d' ' -f2-)"
+else
+    ext='dvi'
+fi
+ext=".${ext}"
+
+## ----------------------------------------------------------------------
+## what needs to be passed on to the backend
+passing_on=''
+passing_on="${passing_on} ${basename}"
+passing_on="${passing_on} ${declaration}"
+passing_on="${passing_on} ${keepopt}"
+passing_on="${passing_on} ${locale}"
+passing_on="${passing_on} ${nsgmls}"
+
+## ----------------------------------------------------------------------
+## do the actual work
+if [ -e ${bsn}.tex ]
+then
+    echo "${script}: WARNING: overwriting ${bsn}.tex"
+fi
+if ! debiandoc2latex ${passing_on} ${1}
+then
+    echo "${script}: ERROR: ${bsn}.tex could not be generated properly"
+    exit 1
+fi
+
+## ----------------------------------------------------------------------
+## fix tex
+bin/fixlatex $(echo ${locale} | cut -d' ' -f2-) ${bsn}.tex
+## ----------------------------------------------------------------------
+
+if [ -e ${bsn}.dvi ] && ( [ -n "${content}" ] || [ -n "${extension}" ] )
+then
+    echo "${script}: WARNING: overwriting ${bsn}.dvi"
+fi
+touch prior.aux pprior.aux
+MAX_LEVEL=9
+LEVEL=1
+while [ ${LEVEL} -lt ${MAX_LEVEL} ]
+do
+    if ! ( ${verbose} || exec >/dev/null;
+	   latex -interaction=nonstopmode ${bsn}.tex )
+    then
+        echo "${script}: ERROR: ${bsn}.dvi could not be generated properly"
+        if ! ${verbose}
+        then
+	    echo "${script}: rerun with the -v option to found out why"
+	    echo "${script}: or check the log file ${bsn}.log"
+        fi
+	rm -f prior.aux pprior.aux
+        exit 1
+    fi
+    if    ( ! cmp ${bsn}.aux prior.aux >/dev/null 2>&1 ) \
+       && ( ! cmp ${bsn}.aux pprior.aux >/dev/null 2>&1 )
+    then
+        cp -pf prior.aux pprior.aux
+	cp -pf ${bsn}.aux prior.aux
+	let LEVEL=LEVEL+1
+    else
+        let LEVEL=MAX_LEVEL+1
+    fi
+done
+rm -f prior.aux pprior.aux
+if [ ${LEVEL} -eq ${MAX_LEVEL} ]
+then
+    echo "${script}: ERROR: reached maximum rebuilding level (= ${MAX_LEVEL})"
+    if ! ${verbose}
+    then
+	echo "${script}: rerun with the -v option to found out why"
+	echo "${script}: or check the log file ${bsn}.log"
+    fi
+    exit 1
+fi
+if ${stdout}
+then
+    cat ${bsn}.dvi
+    if ! ${keep}
+    then
+	rm -f ${bsn}.dvi
+    fi
+else
+    if [ -n "${content}" ] || [ -n "${extension}" ]
+    then
+	mv -f ${bsn}.dvi ${bsn}${cnt}${ext}
+    fi
+fi
+
+## ----------------------------------------------------------------------
+## remove temporary files
+if ! ${keep}
+then
+    rm -f ${bsn}.tex ${bsn}.aux ${bsn}.log ${bsn}.toc
+fi
+
+## ----------------------------------------------------------------------
+exit 0
+
+## ----------------------------------------------------------------------
