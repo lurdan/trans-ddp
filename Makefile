@@ -20,13 +20,12 @@ SUBDIRS	:=	\
 		securing-howto		\
 		system-administrator 	\
 		user			\
-		users-guide		\
-# above will be erased with next update and new documents are created from CVS
-# a document with broken Makefile incident will be moved to the bottom
 
-# Since test(1) bug, maint-guide is build manually until woody release.
+# documents with broken Makefiles will be moved to the bottom
+
+# Due to the potato test(1) bug, maint-guide is built manually.
+# TODO: revert after woody is released and www-master is upgraded to it.
 #		maint-guide		
-
 
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
@@ -61,13 +60,13 @@ publish:: $(SUBDIRS-publish)
 clean: $(SUBDIRS-clean)
 
 $(SUBDIRS):
-	time -p nice -19 $(MAKE) -C $@
+	time -p $(MAKE) -C $@
 	uptime
 
 $(SUBDIRS-publish):
-	time -p nice -19 $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
+	time -p $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
 	uptime
 
 $(SUBDIRS-clean):
-	time -p nice -19 $(MAKE) -C $(subst -clean,,$@) clean
+	time -p $(MAKE) -C $(subst -clean,,$@) clean
 	uptime
