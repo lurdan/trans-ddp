@@ -95,7 +95,7 @@ $(MANUAL).%.sgml: $(SGMLMSTR)
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
 $(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
-	debiandoc2html -l $* -c $< 2>_html.$*.error
+	debiandoc2html -t$(MANUAL) -l $* -c $< 2>_html.$*.error
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
 	          sed 's/$(shell echo $*|\
