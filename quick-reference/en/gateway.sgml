@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.47 $"  -->
+<!-- CVS revision of this document "$Revision: 1.48 $"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -752,7 +752,7 @@ For more information see <manref name="interfaces" section="5">,
 <sect1 id="high-static">Configuring an interface with a static IP address
 <p>
 Suppose you want to configure an Ethernet interface such that it has
-a fixed IP address of <tt>192.168.0.123</tt>.
+a fixed IP address of <tt>192.168.0.111</tt>.
 This address begins with  <tt>192.168.0</tt> so it must be on a LAN.
 Suppose further that <tt>192.168.0.1</tt> is the address of the LAN's
 gateway to the Internet.
@@ -1399,42 +1399,61 @@ PCMCIA network interfaces (for 2.4 and 2.6 kernels).
     <list compact>
       <item><package>ifupdown</package>
       controlled by <package>hotplug</package>
+      <list compact>
+      <item>In Woody and Sarge
+	you must locally enable <package>hotplug</package>'s
+	control of <package>ifupdown</package> by adding a mapping
+	stanza to <file>/etc/network/interfaces</file> as described
+	in <ref id="trigger-hotplug">.
+      </list>
    </list>
 <item>For 16 bit ISA PCMCIA network cards:
   <list compact>
     <item><package>ifupdown</package>
       controlled by <package>hotplug</package>
-      with <package>pcmcia-cs</package> 
-      (recommended).
+      with <package>pcmcia-cs</package> confined to loading modules
       <list compact>
+      <item><strong>Recommended</strong>
 <!--
       <item>For post-Sarge <package>pcmcia-cs</package>: 
         You must make sure to set <tt>REFRAIN_FROM_IFUP=yes</tt> in
 	<file>/etc/default/pcmcia</file> to prevent 
 	<package>pcmcia-cs</package> from
-        interfering with <package>hotplug</package>.
+        interfering with <package>hotplug</package>
 -->
-      <item>For Woody and Sarge <package>pcmcia-cs</package>:
-        You must locally disable it by adding the line
-        <tt>exit 0</tt> to the beginning of the <tt>start</tt> method
-        in <file>/etc/pcmcia/network</file>.
+      <item>In Woody and Sarge
+        you must locally disable <package>pcmcia-cs</package>'s
+	default behavior of controlling <package>ifupdown</package>
+	by adding the line
+        <tt>exit 0</tt>
+	to the beginning of <file>/etc/pcmcia/network</file>.
+	Also,
+	you must locally enable <package>hotplug</package>'s
+	control of <package>ifupdown</package> by adding a mapping
+	stanza to <file>/etc/network/interfaces</file> as described
+	in <ref id="trigger-hotplug">.
       </list>
     <item><package>ifupdown</package>
       controlled by <package>pcmcia-cs</package>
-      with the Debian default <file>/etc/pcmcia/network</file>
-      (default for Woody and Sarge, deprecated).
+      via the default <file>/etc/pcmcia/network</file>
+      <list compact>
+      <item><strong>Deprecated</strong> but still the default for Woody and Sarge
+      </list>
     <item>low level tools
       controlled by <package>pcmcia-cs</package>
-      customized by enabling features of <file>/etc/pcmcia/network</file>
+      via special code in <file>/etc/pcmcia/network</file>
+      <list compact>
+      <item><strong>Deprecated</strong>
+      <item>In Woody and Sarge
+      the special code is enabled
       by editing <file>/etc/pcmcia/network.opts</file>
-      (deprecated).
+      </list>
   </list>
 </list>
 <p>
 The recommended approach for 16 bit cards takes advantage of
 the fact that the Linux 2.4 hotplug subsystem now supports
 PCMCIA.
-Simply follow the directions in <ref id="trigger-hotplug">.
 <footnote>
 In past releases of &debian; the standard way to configure
 PCMCIA network cards was through the <prgn>cardmgr</prgn>
@@ -1466,24 +1485,36 @@ Consequently it is deprecated.
   I do not know to what extent 2.4 kernel needs pcmcia-cs.
   But for now translate as below.  So we can chabge translation later too.
 -->
-In order to ensure PCMCIA network cards to be fully configured before
-starting network services at <file>/etc/rc?.d/S20...</file>, following
-actions are needed for 16 bit PCMCIA cards<!-- or 2.4 kernel system -->.
-<footnote>
-This is not needed for 32 bit PCMCIA cards<!-- on 2.6 kernel -->.
-</footnote>:
+PCMCIA network cards are hot pluggable.
+Accordingly, any services that require networking through a
+PCMCIA card should be so configured that they get started
+on card insertion and get stopped on card removal.
+This is usually accomplished by arranging for the service
+to start on <tt>ifup</tt> and stop on <tt>ifdown</tt>.
+Some people, however, choose to confine themselves to
+cold plugging their PCMCIA network card:
+they insert the card before booting the system
+and they start services that require networking
+through the card
+in the boot sequence.
+If you are such a person then
+in order to ensure that the card is fully
+configured before the services are started
+you should do the following:
 <list compact>
 <item>Set <tt>CARDMGR_OPTS="-f"</tt> in
- <file>/etc/default/pcmcia</file> to force <prgn>cardmgr</prgn> to run
- in the foreground.
-<item>Move default symlink from <file>/etc/rc?.d/S20pcmcia</file>
+ <file>/etc/default/pcmcia</file>
+ in order to force <prgn>cardmgr</prgn>
+ to run in the foreground.
+<item>Rename <file>/etc/rc?.d/S20pcmcia</file>
  to something like <file>/etc/rc?.d/S12pcmcia</file>.
 </list>
+This hack only works for 16 bit PCMCIA cards.
 <p>
 Note that <package>pcmcia-cs</package> is still needed
-if you use 16 bit PCMCIA cards<!-- or 2.4 kernel system -->.
-The <prgn>cardmgr</prgn> daemon that it contains is responsible
-for managing the sockets and loading driver modules.
+if you use 16 bit PCMCIA cards.
+The <prgn>cardmgr</prgn> daemon that the package contains
+is responsible for managing the sockets and loading driver modules.
 We just don't want it to call network configuration programs
 via <file>/etc/pcmcia/network</file>.
 <p>

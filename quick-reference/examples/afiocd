@@ -2,6 +2,9 @@
 #
 # This script uses afio(1), ras(1), split(1), mkisofs(8), cdrecord(1)
 #
+# For simple backup, think about using afio + mkisofs + cdrecord
+# manually before playing this script.
+#
 # POSIX script
 #######################################################################
 # Author name
@@ -25,15 +28,15 @@ DESCRIPTION
       with enough redundancy.  You may alternatively provide <filename>.
 OPTIONS
       -v, -vv  Increment verbosity
-      -1       one extra unit/disk of redundancy
-      -2       two extra units/disks of redundancy
+      -0       No redundancy
+      -1       One extra unit/disk of redundancy
+      -2       Two extra units/disks of redundancy
       -m       Always use multiple disks (>1) for backup
       -f       Create fine grained splits of files
       -t<arg>  Use <arg> as work directory (its contents wiped)
       -w       Use cdrecord with \"blank=fast\" for CD-RW
       -p0,0,0  Use scsi device 0,0,0
-      -ddd     Stop after creating the afio file
-      -dd      Stop after splitting afio files in directories
+      -ddd/-dd Stop after creating/splitting the afio file
       -d       Stop after creating the iso files
 
 FILES      /etc/${PROG}rc and \$HOME/.${PROG}rc for customization
@@ -88,8 +91,8 @@ MD5=".md5"
 ID=".id"
 # Split mode (single=auto)
 MODE=1
-# Default redundancy
-RDNX=1
+# Default redundancy (none)
+RDNX=0
 # Verbose level
 VERBOSE=0
 # Debug level
@@ -218,6 +221,7 @@ while getopts 'dvmft:w:p:kx12345678l:n:r:s:y:z:i:c:o:h?' f ; do
     p)      CDRDEV="$OPTARG";; # CDR device
     k)      RM_RF=": #";;  # Keep temp files
     x)      set -x;;       # set trace
+    0)      RDNX=0 ; N_CNK=1 ; DIV=1 ;; # no extra data
     1)      RDNX=1;;       # extra 1/8 data segment/ 1 disk
     2)      RDNX=2;;       # extra 2/8 data segment/ 2 disk
     3)      RDNX=3;;       # extra 3/8 data segment/ 3 disk
@@ -290,7 +294,7 @@ SIZE_ROUND=$(normal_size $SIZE_ROUND)
 # SIZE_DSK0: Effective storage media length (byte) $SIZE_ROUND less than full size
 SIZE_DSK0=$(($SIZE_DSK-$SIZE_ROUND))
 # 
-if [ $SIZE_DSK0 -le $(($RDNX*$BLK)) ]; then
+if [ $RDNX -gt 0 ] && [ $SIZE_DSK0 -le $(($RDNX*$BLK)) ]; then
   echo "Disk of size $SIZE_DSK0 is too small a disk."
   exit 1
 fi
