@@ -7,7 +7,7 @@ SOURCES		:= $(wildcard *.sgml)
 
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		     $(filter-out developers-reference.ja.pdf, \
-		       $(foreach langext,.ja .fr, \
+		       $(foreach langext,.ja, \
 		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
