@@ -70,7 +70,9 @@ ALLFILES=$(foreach ext,$(EXTS),\
 	    $(MANUAL).$(ORIG_LANG).$(ext)\
 	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
 	  )
-
+SGMLSRC = custom.ent default.ent qref.sgml  \
+	 ./??/*.sgml ./examples/* Makefile index.php \
+	 TODO PROJECT README ./bin/* 
 
 
 #====[ build rules ]===========================================================
@@ -266,11 +268,9 @@ validate:
 #====[ Saving SGML tar ]=======================================================
 .PHONY:	tar
 tar: $(MANUAL).tar.gz
-$(MANUAL).tar.gz:
-	tar cvzf $(MANUAL).tar.gz custom.ent default.ent $(MANUAL).sgml  \
-	         ./??/*.sgml ./examples/* Makefile index.php \
-		 TODO PROJECT README ./bin/* 
-
+$(MANUAL).tar.gz: $(SGMLSRC)
+	tar cvzf $(MANUAL).tar.gz $(SGMLSRC)
+	
 #====[ cleaning up ]===========================================================
 neat:
 	rm -f $(MANUAL)*.{dvi,log,tex,aux,toc,sasp*} *~
@@ -281,7 +281,7 @@ neat:
 clean distclean: neat
 	rm -f $(MANUAL)*.{txt,ps,pdf,info*}
 	rm -rf $(MANUAL)*.html
-	rm -f *.error
+	rm -f $(MANUAL).tar.gz
 	rm -f date.ent
 
 publishclean:
