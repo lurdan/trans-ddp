@@ -24,7 +24,7 @@ publish:	$(MANUAL).html/index.html
 			$(PUBLISHDIR)/$(MANUAL)/
 
 $(MANUAL).html/index.html:	$(wildcard *.sgml)
-		debiandoc2html $(MANUAL).sgml
+		debiandoc2html -l fr $(MANUAL).sgml
 
 # ensure our SGML is valid
 #   (add this to $(MANUAL).html rule to prevent building if not)
