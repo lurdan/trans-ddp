@@ -1131,17 +1131,21 @@ be biased to Japanese.
 <P>
 Softwares running on the console are not responsible for displaying.
 The console itself is responsible.  There are terminal emulators
-which can display non-English languages such as <prgn>kterm</prgn> (Japanese),
+which can display non-English languages such as <prgn>kterm</prgn> 
+(EUC-JP, Shift JIS Japanese, ISO 2022 international),
 <prgn>krxvt</prgn>, <prgn>grxvt</prgn>, and <prgn>crxvt</prgn> 
 (Japanese, Greek, and Chinese, included
 in <package>rxvt-ml</package> package), <prgn>cxterm</prgn> 
-(Chinese, Korean, and Japanese, non-free),
+(Chinese, Korean, and Japanese, non-free), <prgn>hanterm</prgn>
+(Korean)
 and so on and softwares with which non-English characters can be 
-displayed on console such as <package>kon2</package> (Japanese).
+displayed on console such as <package>kon2</package> (Japanese)
+and <package>jfbterm</package> (EUC-based codesets and
+ISO2022-based codesets).
 </P>
 
 <P>
-All what a software on console (including terminal emulator and so on) 
+All what a software on console/terminal-emulators
 has to do is that output a correct code to the console. 
 </P>
 
@@ -1195,12 +1199,14 @@ the shell mode of Emacs, because it is a dumb terminal.
 There are no standards for number of columns a character occupies.
 This can be a large problem for softwares with <tt>ncurses</tt>.
 There is no 'right' way to solve this.  Each software has to
-have an information for each character set.  Consult section 2.6
+have an information for each character set.  Consult section 
+<ref id="languages">
 for each language.  Take care of the distinction between number 
 of columns, bytes, and characters.  For subset of EUC-JP
 (ASCII alphabets and JIS X 0208 kanji), number of bytes and columns 
 are equal (1-byte character occupy 1 column and 2-byte character
-occupy 2 columns).
+occupy 2 columns).  Note that cursor-moving control characters
+such as 'BS' (0x08) moves cursor one COLUMN, not one CHARACTER.
 </P>
 
 <P>
@@ -1273,13 +1279,16 @@ athena, GTK+, Qt, and so on.
 
 <P>
 I18N of display is a prerequisite for I18N of input from keyboard.
-I18N is not necessary only for answering Yes/No.  Most 
+I18N is sometimes not necessary for answering Yes/No.  For example, most
 Japanese-speaking people regard it is too troublesome only for 
 answer Y/N to invoke the input method, input alphabetical 
 representation of Japanese, and convert to Japanese character. 
 This would be true for Korean and Chinese.  On the other hand
 softwares such as text editor, word processor, terminal emulator,
-and shell should have I18N-ed input support.
+and shell should have I18N-ed input support, though I recommend
+M17N than I18N for word processors.  (I can write Japanese-Korean
+dictionary with a M17N-ed word processor but I cannot do with
+an I18N-ed one.)
 </P>
 
 
@@ -1289,7 +1298,8 @@ and shell should have I18N-ed input support.
 <sect1 id="input-console-console"><heading>Invoked in the Console and Kon</heading>
 
 <P>
-Canna and Wnn is client/server type Japanese input methods.
+These are no standards for international input in console environment.
+For example, Canna and Wnn are client/server type Japanese input methods.
 Wnn has its variants for Korean and Chinese.
 They have their own protocols and there are no standards.
 There are softwares to add a faculty of inputting Japanese
@@ -1326,7 +1336,9 @@ when 'BS' key is pushed.
 <sect1 id="input-console-x"><heading>Invoked in an X Terminal Emulator</heading>
 
 <P>
-X has a standard to input various languages.  That is XIM.
+X has a standard to input various languages.  That is XIM,
+which is standardized at X11R6.  X11R5 standards (Xsi and Ximp)
+are not recommended.
 Kinput2 is a software to connect Canna and/or Wnn and XIM protocol.
 And more, terminal emulators such as kterm and krxvt have a
 faculty to connect to XIM.  So the way to input various languages
@@ -1346,18 +1358,16 @@ and they accept non-ASCII characters.
 </P>
 
 <P>
-However, since these softwares aren't conscious of multibyte 
-characters, editing the inputed line is a bit hard. For example,
-we have to push Backspace key twice to erase a 2byte character.
-If we make a mistake, the inputed string will be broken.
-For stateful codesets or a character whose bytes and columns are different,
-editing would be much more difficult.
-(Fortunately, most of Japanese and Korean characters are expressed in 
-2 bytes and occupies 2 columns.  That is, number of bytes and columns 
-are identical.)
-Thus the softwares should be conscious of multibyte codesets.
+However, many softwares (including libreadline) aren't conscious of
+multibyte and combined characters.  It is a bit hard to edit inputed
+strings including multibyte/combined characters on these softwares.
+Assume you pushed 'BackSpace' key.  If the character before the cursor
+is a multibyte character, the software should delete two or more bytes
+from the internal buffer.  If the character before the cursor occupies
+two or more columns, the software has to send two or more backspace
+codes to the terminal.  Thus you can hardly edit strings written in
+Japanese, Korean, Chinese, Thai, Unicode, and so on.
 </P>
-
 
 
 
@@ -1388,15 +1398,26 @@ which kind of internal code is used in the software.
 </P>
 
 <P>
-From a programmer's point of view, he/she
+It is recommended to use wide character (<tt>wchar_t</tt>) as an
+internal code.  The strings obtained from file, keyboard, and so on
+are to be converted into wide characters using <tt>mbstowcs</tt> and
+so on and then to be processed.  When the string is to be outputed,
+the string is to be converted into multibyte characters using
+<tt>wcstombs</tt> and so on in advance.  The advantages of this
+approach are:
 <list>
-  <item>can count number of <em>character</em> (not <em>bytes</em> or
-        <em>columns</em>) correctly,
-  <item>cannot split a multibyte character, and
-  <item>don't have to be careful in shift state
+  <item>The programmer don't need to know the detail of 
+        international and local codesets.
 </list>
-without knowledge on specific codesets, by using
-wide character in C, kinds of Unicode, and so on.
+However, there are a few disadvantages:
+<list>
+  <item>C functions related to wide / multibyte characters are
+        bound to LC_CTYPE locale category.  This means these functions
+        cannot handle two languages at the same time.  Thus 
+        M17N is never achieved.
+  <item>The software will not work well on OSes with poor locale
+        support.
+</list>
 </P>
 
 <P>
@@ -1406,6 +1427,184 @@ you cannot do anything more than the library prepares,
 for example, obtain number of columns a character occupies.
 </P>
 
+<sect id="internal-length"><heading>Length of String</heading>
+
+<P>
+The following is a sample program to obtain the length of the
+inputed string.  Note that number of bytes and number of characters
+are not distinguished.
+<example>
+/* length.c
+ *
+ * a sample program to obtain the length of the inputed string
+ * NOT INTERNATIONALIZED
+ */
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv)
+{
+	int len;
+
+	if (argc &lt; 2) {
+		printf("Usage: %s [string]\n", argv[0]);
+		return 0;
+	}
+	
+	printf("Your string is: \"%s\".\n", argv[1]);
+
+	len = strlen(argv[1]);
+	printf("Length of your string is: %d bytes.\n", len);
+	printf("Length of your string is: %d characters.\n", len);
+	return 0;
+}
+</example>
+</P>
+
+<P>
+The following is a internationalized version of the program
+using wide characters.
+<example>
+/* length-i.c
+ *
+ * a sample program to obtain the length of the inputed string
+ * INTERNATIONALIZED
+ */
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;locale.h&gt;
+
+int main(int argc, char **argv)
+{
+	int len, n;
+	wchar_t *wp;
+
+	/* All softwares using locale should write this line */
+	setlocale(LC_ALL, "");
+
+	if (argc &lt; 2) {
+		printf("Usage: %s [string]\n", argv[0]);
+		return 0;
+	}
+	
+	printf("Your string is: \"%s\".\n", argv[1]);
+
+	/* The concept of 'byte' is universal. */
+	len = strlen(argv[1]);
+	printf("Length of your string is: %d bytes.\n", len);
+
+	/* To obtain number of characters, it is the easiest way */
+	/* to convert the string into wide string.  The number of */
+	/* characters is equal to the number of wide characters. */
+	/* It does not exceed the number of bytes. */
+	n = strlen(argv[1]) * sizeof(wchar_t);
+	wp = (wchar_t *)malloc(n);
+	len = mbstowcs(wp, argv[1], n);
+	printf("Length of your string is: %d characters\n", len);
+
+	return 0;
+}
+</example>
+</P>
+
+<P>
+This program can count multibyte characters correctly.
+Of course the user has to set LANG variable properly.
+</P>
+
+<sect id="internal-extract"><heading>Extraction of Characters</heading>
+
+<P>
+The following program extracts all characters contained in the given
+string.
+<example>
+/* extract.c
+ *
+ * a sample program to extract each character contained in the string
+ * not internationalized
+ */
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv)
+{
+	char *p;
+	int c;
+
+	if (argc &lt; 2) {
+		printf("Usage: %s [string]\n", argv[0]);
+		return 0;
+	}
+	
+	printf("Your string is: \"%s\".\n", argv[1]);
+
+	c = 0;
+	for (p=argv[1] ; *p ; p++) {
+		printf("Character #%d is \"%c\".\n", ++c, *p);
+	}
+	return 0;
+}
+</example>
+</P>
+
+<P>
+Using wide characters, the program can be rewritten as following.
+<example>
+/* extract-i.c
+ *
+ * a sample program to extract each character contained in the string
+ * INTERNATIONALIZED
+ */
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char **argv)
+{
+	wchar_t *wp;
+	char p[MB_CUR_MAX+1];
+	int c, n, len;
+
+	/* Don't forget. */
+	setlocale(LC_ALL, "");
+
+	if (argc &lt; 2) {
+		printf("Usage: %s [string]\n", argv[0]);
+		return 0;
+	}
+	
+	printf("Your string is: \"%s\".\n", argv[1]);
+
+	/* To obtain each character of the string, it is easy to convert */
+	/* the string into wide string and re-convert each of the wide */
+	/* string into multibyte characters. */
+	n = strlen(argv[1]) * sizeof(wchar_t);
+	wp = (wchar_t *)malloc(n);
+	len = mbstowcs(wp, argv[1], n);
+	for (c=0; c&lt;len; c++) {
+		/* re-convert from wide character to multibyte character */
+		int x;
+		x = wctomb(p, wp[c]);
+		/* One multibyte character may be two or more bytes. */
+		/* Thus "%s" is used instead of "%c". */
+		if (x&gt;0) p[x]=0;
+		printf("Character #%d is \"%s\" (%d byte(s)) \n", c, p, x);
+	}
+
+	return 0;
+}
+</example>
+</P>
+
+<P>
+Note that this program doesn't work well if the multibyte character
+is stateful.
+</P>
 
 <chapt id="other"><heading>Other Special Topics</heading>
 
@@ -1413,7 +1612,6 @@ for example, obtain number of columns a character occupies.
 
 <P>
 Locale is the main faculty for I18N of C language.
-The easiest way to use locale is to call <tt>setlocale(LC_ALL, "")</tt>.
 </P>
 
 <P>
@@ -1422,9 +1620,11 @@ according to its language environment.  The environment can be
 set independently for six categories of
 LC_COLLATE, LC_CTYPE, LC_MESSAGES, LC_MONETARY, LC_NUMERIC,
 and LC_TIME.
-For example, a message can be written in proper language
-and a proper format for date/time expression is used if
-properly implemented.
+C library supplies a set of functions which changes their
+behaviors according to one of the six locale categories.
+To internationalize a software, use these functions.
+Don't forget to call <tt>setlocale</tt> function at first
+or these functions would not change their behavior.
 </P>
 
 <P>
@@ -1440,39 +1640,63 @@ is used.
 <P>
 Though valid values for these environmental variables (locale names) 
 depend on the kind and set-up of the OS, the format of locale names
-is usually like <tt>ja_JP.ujis</tt>, where two lowercase characters
+is usually like <tt>ja_JP.eucJP</tt>, where two lowercase characters
 mean language (<tt>ja</tt> = Japanese), two capital characters 
 mean country (<tt>JP</tt> = Japan), and characters after dot mean 
-codeset (<tt>ujis</tt> = EUC-JP).  Type <tt>locale -a</tt> to display
-all valid locale names.
+codeset (<tt>eucJP</tt> = EUC-JP).  Type <tt>locale -a</tt> to display
+all valid locale names.  However, it is users' responsibility to
+set proper value to LANG variable and the developers don't need to
+be aware of the value of the LANG variable.
 </P>
 
 <P>
-Note that m17n is not achieved by locale model at all,
-because a user has to choose only one language for one category.
-Sometimes locale model is even insufficient for i18n.
-For example, there are many languages where multiple codesets
-are used at the same time and sometimes code conversion or
-code distinction is needed.
+Many people tend to think that I18N means <tt>gettext</tt>ization 
+and translation of messages.  However, it is mere one category
+(LC_MESSAGES) out of six categories.  The most important category
+is LC_CTYPE.
+</P>
+
+<P>
+However, note that M17N is not achieved by locale mechanism,
+especially LC_CTYPE.  You have to use international
+codeset such as ISO2022 and Unicode instead of LC_CTYPE mechanism
+to write M17N-ed software.  Moreover, LC_CTYPE mechanism is
+sometimes insufficient even for I18N.  For example,
+<package>jless</package> is a text file viewer which can
+automatically distinguishes three Japanese codesets and converts
+into desirable codesets.  You cannot write such a software using
+LC_CTYPE mechanism.
 </P>
 
 <sect id="wchar"><heading>Multibyte and Wide characters in C</heading>
 
 <P>
-Multibyte character is a character which is expressed by
-two or more bytes.  Multibyte character corresponds to 
-the 'real' codeset used for input/output. The expression
-of multibyte character depends on <tt>LC_CTYPE</tt>.
+Standard C library supplies functions to handle multibyte and
+wide characters.  These functions are sensible to LC_CTYPE
+locale category.
+</P>
+
+<P>
+Multibyte character is a codeset which is used for <em>real</em>
+input/output.  In other words, <em>the codeset you usually use</em>
+is the multibyte character whatever language you speak.
+If you use ISO-8859-1, it is your multibyte character.
+If you use EUC-KR, it is your multibyte character.
+Despite the name, multibyte character may or may not be
+expressed in multiple bytes.
 </P>
 
 <P>
 Since multibyte character can be stateful (that is, can have 
 shift status) and the number of bytes a character does not
 have to be a constant, implementation using multibyte character
-can be difficult.  Thus wide character can be used.
+can be difficult.  For example, it may be difficult even to count
+the number of characters.  Thus wide character can be used.
 </P>
 
 <P>
+Wide character is a codeset supplied by the standard C library
+for easy handling of international strings.
 Wide character is stateless and the size of every wide characters
 are same.  Functions for conversion between multibyte character
 and wide character (and string of multibyte characters and
@@ -1487,7 +1711,7 @@ as a array of <tt>char</tt>.
 Thus it is convenient to input multibyte characters from a stream,
 convert them into wide characters, process, convert back into
 multibyte characters, and output them to a stream.  <tt>wchar_t</tt> is 
-used as a internal code.
+used as an internal code.
 </P>
 
 <P>
