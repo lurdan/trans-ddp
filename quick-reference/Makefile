@@ -109,7 +109,7 @@ dynamic.%.ent:
 #	Build SGML with portion marked qref-dev if LANGS=en or DOCTYPE=dev.
 	@if [ "x$(DOCTYPE)" = "xdev" ]; then \
 	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-	elif [ "x$(DOCTYPE)" = "xdefault" -a "x$(LANGS)" = "xen" ]; then \
+	elif [ "x$(DOCTYPE)" = "xdefault" -a "x$*" = "xen" ]; then \
 	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
 	else \
 	  echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
