@@ -15,7 +15,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 all: html txt ps pdf
 
 sources := $(wildcard *.??*.sgml)
-sources_noncjk := $(filter-out $(MANUAL).ko.sgml,$(sources))
+sources_noncjk := $(sources)
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
