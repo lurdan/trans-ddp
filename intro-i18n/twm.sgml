@@ -1,0 +1,522 @@
+<sect><heading>TWM -- usage of XFontSet instead of XFontStruct</heading>
+
+<P>
+The author of this section is Tomohiro KUBOTA
+(<email>kubota@debian.org</email>).
+</P>
+
+
+<sect1><heading>Introduction</heading>
+
+<P>
+TWM is Tabbed (or Tom's) Window Manager, one of the most well-known
+window managers in the world.  It is included in the XFree86 distribution.
+Since it was not internationalized, I wrote a patch for TWM included in
+XFree86 version 4.0.1.  The patch was adopted in XFree86 version 4.0.1d.
+</P>
+
+<P>
+The contents of the internationalization are:
+<list>
+  <item>Usage of <tt>XFontSet</tt>-related functions instead of 
+        <tt>XFontStruct</tt>, so that font handling will be 
+	locale-sensible.  This is the main part of the patch.
+  <item>Addition of automatic font guessing mechanism (the simplest
+        version).  This avoids lack of font caused by 
+	ISO8859-1-based font specification in configuration files.
+  <item>Usage of <tt>XGetWMName()</tt> and <tt>XmbTextPropertyToTextList()</tt>
+	instead of <tt>XFetchName()</tt>, so that Compound Text can be 
+	used for inter-client communication of window title names.  
+	This enables TWM to properly receive the internationalized 
+	window text names from X clients.
+  <item>Usage of <tt>XGetWMIconName()</tt> and 
+	<tt>XmbTextPropertyToTextList()</tt> for inter-client communication 
+	of window icon names.  This enables TWM to properly receive the 
+	internationalized window icon names from X clients.
+  <item>8bit-cleanization of the configuration file parser.  This enables
+        usage of internationalized texts for menus and so on.
+</list>
+The following will present these items.
+</P>
+
+
+<sect1><heading>Locale Setting - A Routine Work</heading>
+
+<P>
+At first, I added a small part to call <tt>setlocale()</tt> at the
+beginning of <tt>main()</tt> function.
+<example>
+    loc = setlocale(LC_ALL, "");
+    if (!loc || !strcmp(loc, "C") || !strcmp(loc, "POSIX") ||
+       !XSupportsLocale()) {
+        use_fontset = False;
+    } else {
+        use_fontset = True;
+    }
+</example>
+<tt>loc</tt> is <tt>char *</tt>-type auto (local) variable.
+<tt>use_fontset</tt> is <tt>Bool</tt>-type global variable,
+for which I wrote a declaration in <tt>twm.h</tt>.
+<example>
+extern Bool use_fontset;
+</example>
+I also added inclusion of <tt>X11/Xlocale.h</tt> header file.
+By including of this header file, locale feature of X11 will
+be used when compiled in OS without locale features.  Otherwise,
+X11/Xlocale will use locale features of the OS.  Thus, you can
+include <tt>X11/Xlocale.h</tt> regardless of whether the OS
+support locale.
+</P>
+
+<P>
+Checking of NULL, "C", and "POSIX" locales will enable TWM to work
+8bit through when the user does not configure locale properly.
+Under "C" or "POSIX" locale, or without proper configuration of locale,
+<tt>XFontSet</tt>-related functions will work under 7bit ASCII encoding 
+and these functions will regard all 8bit characters as invalid.  
+In such cases, my patch won't use <tt>XFontSet</tt>-related functions
+by checking the value of <tt>use_fontset</tt>.
+Checking of <tt>XSupportLocale()</tt> is needed for cases when
+the OS support the locale while X doesn't support the locale.
+</P>
+
+
+<sect1><heading>Font Preparation</heading>
+
+<P>
+Almost functions related to <tt>XFontStruct</tt> can be easily
+substituted by <tt>XFontSet</tt>-related functions.
+</P>
+
+<P>
+Fortunately, TWM used a tailored <tt>MyFont</tt> type for font
+handling.  Thus the amount of labor was decreased.  The original
+<tt>MyFont</tt> definition was:
+<example>
+typedef struct MyFont
+{
+    char *name;                 /* name of the font */
+    XFontStruct *font;          /* font structure */
+    int height;                 /* height of the font */
+    int y;                      /* Y coordinate to draw characters */
+} MyFont;
+</example>
+I added a few lines.
+<example>
+typedef struct MyFont
+{
+    char *name;                 /* name of the font */
+    XFontStruct *font;          /* font structure */
+    XFontSet fontset;           /* fontset structure */
+    int height;                 /* height of the font */
+    int y;                      /* Y coordinate to draw characters */
+    int ascent;
+    int descent;
+} MyFont;
+</example>
+</P>
+
+<P>
+Then one of the main part of this patch -- font preparation.
+The font preparation is done in the <tt>GetFont()</tt> function
+in <tt>util.c</tt>.  This function is almost entirely rewritten.
+<example>
+void
+GetFont(font)
+MyFont *font;
+{
+    char *deffontname = "fixed";
+    char **missing_charset_list_return;
+    int missing_charset_count_return;
+    char *def_string_return;
+    XFontSetExtents *font_extents;
+    XFontStruct **xfonts;
+    char **font_names;
+    register int i;
+    int ascent;
+    int descent;
+    int fnum;
+    char *basename2;
+
+    if (use_fontset) {
+        if (font-&gt;fontset != NULL){
+            XFreeFontSet(dpy, font-&gt;fontset);
+        }
+
+        basename2 = (char *)malloc(strlen(font-&gt;name) + 3);
+        if (basename2) sprintf(basename2, "%s,*", font-&gt;name);
+        else basename2 = font-&gt;name;
+        if( (font-&gt;fontset = XCreateFontSet(dpy, basename2,
+                                            &amp;missing_charset_list_return,
+                                            &amp;missing_charset_count_return,
+                                            &amp;def_string_return)) == NULL) {
+            fprintf (stderr, "%s:  unable to open fontset \"%s\"\n",
+                         ProgramName, font-&gt;name);
+            exit(1);
+        }
+        if (basename2 != font-&gt;name) free(basename2);
+        for(i=0; i&lt;missing_charset_count_return; i++){
+            printf("%s: warning: font for charset %s is lacking.\n",
+                   ProgramName, missing_charset_list_return[i]);
+        }
+
+        font_extents = XExtentsOfFontSet(font-&gt;fontset);
+        fnum = XFontsOfFontSet(font-&gt;fontset, &amp;xfonts, &amp;font_names);
+        for( i = 0, ascent = 0, descent = 0; i&lt;fnum; i++){
+            if (ascent &lt; (*xfonts)-&gt;ascent) ascent = (*xfonts)-&gt;ascent;
+            if (descent &lt; (*xfonts)-&gt;descent) descent = (*xfonts)-&gt;descent;
+            xfonts++;
+        }
+        font-&gt;height = font_extents-&gt;max_logical_extent.height;
+        font-&gt;y = ascent;
+        font-&gt;ascent = ascent;
+        font-&gt;descent = descent;
+        return;
+    }
+
+    if (font-&gt;font != NULL)
+        XFreeFont(dpy, font-&gt;font);
+
+    if ((font-&gt;font = XLoadQueryFont(dpy, font-&gt;name)) == NULL)
+    {
+        if (Scr-&gt;DefaultFont.name) {
+            deffontname = Scr-&gt;DefaultFont.name;
+        }
+        if ((font-&gt;font = XLoadQueryFont(dpy, deffontname)) == NULL)
+        {
+            fprintf (stderr, "%s:  unable to open fonts \"%s\" or \"%s\"\n",
+                     ProgramName, font-&gt;name, deffontname);
+            exit(1);
+        }
+
+    }
+    font-&gt;height = font-&gt;font-&gt;ascent + font-&gt;font-&gt;descent;
+    font-&gt;y = font-&gt;font-&gt;ascent;
+    font-&gt;ascent = font-&gt;font-&gt;ascent;
+    font-&gt;descent = font-&gt;font-&gt;descent;
+}
+</example>
+This function can be divided into two large parts by
+<tt>if (use_fontset)</tt>.  The part inside the <tt>if</tt> is
+for internationalized version and other part is for conventional
+version.  Conventional version is used when <tt>use_fontset</tt>
+is false, as you can see.  This part is almost the same as the
+original TWM.
+</P>
+
+<P>
+Now let's study the internationalized part of <tt>GetFont()</tt>.
+It is convenient to compare the internationalized part and conventional
+part, to study it.
+The first check and <tt>XFreeFontSet()</tt> is a replacement
+of <tt>XFreeFont()</tt>.  The next several lines is the
+<em>automatic font guessing mechanism (the simplest version)</em>,
+the second item of the whole patch.  It only adds ",*" to the
+font query string.  Then the added string is passed into
+<tt>XCreateFontSet()</tt>, the key function of font preparation.
+</P>
+
+<sect1><heading>Automatic Font Guessing</heading>
+
+<P>
+Let's imagine how this ",*" works.  Assume <tt>ja_JP.eucJP</tt> locale,
+where EUC-JP encoding is used.  In EUC-JP encoding, three fonts of
+<list>
+ <item>a font with <em>charset</em> (in XLFD meaning) of ISO8859-1 or JISX0201.1976-0,
+ <item>a font with <em>charset</em> of JISX0208.1983-0 or JISX0208.1990-0, and 
+ <item>a font with <em>charset</em> of JISX0201.1976-0
+</list>
+are used.
+<footnote>
+ Read <tt>/usr/X11R6/lib/X11/locale/ja/XLC_LOCALE</tt> for detail.
+</footnote>
+Again assume that <tt>GetFont</tt> received a string of
+"-adobe-helvetica-bold-r-normal--*-120-*-*-*-*-*-*" as
+<tt>font-&gt;name</tt>.  This string is a very likely specification
+of font.  Actually, I got the example from the default title font for TWM.
+Now review the behavior of <tt>XLoadQueryFont()</tt>.  Since it always
+gets at most one font, it can succeed or fail.  However, since
+<tt>XCreateFontSet()</tt> may get multiple fonts, it may success only
+to get a part of the set of requred fonts.  The assumed calling of 
+<tt>XCreateFontSet()</tt> with the <tt>font-&gt;name</tt> in
+<tt>ja_JP.eucJP</tt> locale goes into just such a situation.
+For usual systems, only a font for ISO8859-1 or JISX0201.1976-0 is 
+available.
+<footnote>
+In such a case, <tt>XCreateFontSet()</tt> does not fail.
+Instead, it returns informations on missing fonts.
+</footnote>
+It is easy to solve this situation.  Unlike <tt>XLoadQueryFont()</tt>,
+<tt>XCreateFontSet()</tt> can take a <em>list of patterns</em> of fonts
+with wildcards.  <tt>XCreateFontSet()</tt> chooses necessary fonts
+from the set of fonts which match the patterns.
+"*" can match all fonts.  This works for character sets for which the
+given <tt>font-&gt;name</tt> failed to match any fonts.
+</P>
+
+<P>
+There were two solutions I imagined.
+<list>
+  <item>Adding ",*" for all font specifications in the configuration
+        file.
+  <item>Adding ",*" just before calling <tt>XCreateFontSet()</tt>.
+        (the solution I took.)
+</list>
+The first solution may fail because users can rewrite the configuration
+file.  Though it is likely that a user knows necessary character sets
+for the encoding (s)he uses, the second way is safer.  And more, recent
+window managers are coming to support <em>themes</em> where a set of
+configuration is packaged and distributed, just as in 
+<url id="http://www.themes.org/">.  It is very unlikely that all
+developers of these themes know this problem and adds ",*" for every font
+specifications.  Thus, window managers which support themes must take
+the 2nd solution, though TWM does not support themes.
+</P>
+
+<P>
+Which font exactly is choosed for wild cards?  It depends on the
+configuration of X Window System.  I imagine that the first font
+in the list generated by <prgn>xlsfonts</prgn>.
+You may think the choice of the font should be cleverer.
+It would be adequate to say that ",*" mechanism is not less cleverer;
+it has entirely no intelligence.  It is not clever at all.
+Yes, though I didn't implement it to TWM, I also wrote a cleverer 
+guessing mechanism.
+<footnote>
+ I implemented cleverer mechanism to window managers such as Blackbox,
+ Sawfish, and so on where I think beauty is important than simplicity.
+ The intended algorithm is:
+ <list>
+    <item>Choose a font with similar pixel sizes.
+    <item>If availavle, choose a font with similar weight and slant.
+ </list>
+</footnote>
+</P>
+
+<sect1><heading>Font Preparation (continued)</heading>
+
+<P>
+After calling <tt>XCreateFontSet()</tt>, <tt>GetFont()</tt> builds
+a few member variables of <tt>MyFont</tt>, i.e.,
+<tt>font-&gt;height</tt>,
+<tt>font-&gt;y</tt>,
+<tt>font-&gt;ascent</tt>, and
+<tt>font-&gt;descent</tt>.  These parameters are easily get
+from members of <tt>XFontStruct</tt> structure and are actually
+often used in TWM.  Thus I had to prepare substitutions for
+<tt>XFontSet</tt> version.  These variables also build
+for <tt>XFontStruct</tt> version so that a united method can be
+used to get these parameters.
+</P>
+
+<sect1><heading>Drawing Text using <tt>MyFont</tt></heading>
+
+<P>
+To draw a text, <tt>XDrawString()</tt> and <tt>XDrawImageString()</tt>
+are used for conventional <tt>XFontStruct</tt>.  On the other hand,
+<tt>XmbDrawString()</tt>/<tt>XwcDrawString()</tt> and
+<tt>XmbDrawImageString()</tt>/<tt>XwcDrawImageString()</tt> are
+used for internationalized <tt>XFontSet</tt>.
+The difference between <tt>mb</tt> and <tt>wc</tt> versions are
+whether the text is given in <em>multibyte characters</em> or
+in <em>wide characters</em>.  Since TWM does not perform any
+text processing, I didn't use wide characters and treat strings
+as they are (in multibyte characters).
+</P>
+
+<P>
+TWM has many calls of these functions.  Thus I decided to write
+wrappers which checks <tt>use_fontset</tt> and calls proper version
+of X function.  They are <tt>MyFont_DrawString()</tt> and 
+<tt>MyFont_DrawImageString()</tt>.  Thus all calling of 
+<tt>XDrawString()</tt> and <tt>XDrawImageString()</tt> are replaced
+with the wrappers.  Since these two are almost
+identical, I will explain one of them.
+<example>
+void
+MyFont_DrawString(dpy, d, font, gc, x, y, string, len)
+    Display *dpy;
+    Drawable d;
+    MyFont *font;
+    GC gc;
+    int x,y;
+    char *string;
+    int len;
+{
+    if (use_fontset) {
+       XmbDrawString(dpy, d, font-&gt;fontset, gc, x, y, string, len);
+       return;
+    }
+    XDrawString (dpy, d, gc, x, y, string, len);
+}
+</example>
+Very simple function!  However note that the required paramaters are
+different in these two functions of conventional version and 
+internationalized version.  Font is needed for internationalized version.
+</P>
+
+<P>
+Then, is GC not used for specifying a font for internationalized version?
+Right.  This causes to increase the labor.  The original version of
+TWM use a macro of <tt>FBF</tt> to set up the GC.  Fortunately, 
+font specification is always performed just before the drawing of
+the texts.  I wrote a function <tt>MyFont_ChangeGC()</tt> for substitution.
+<example>
+void
+MyFont_ChangeGC(fix_fore, fix_back, fix_font)
+    unsigned long fix_fore, fix_back;
+    MyFont *fix_font;
+{
+    Gcv.foreground = fix_fore;
+    Gcv.background = fix_back;
+    if (use_fontset) {
+       XChangeGC(dpy, Scr-&gt;NormalGC, GCForeground|GCBackground, &amp;Gcv);
+       return;
+    }
+    Gcv.font = fix_font-&gt;font-&gt;fid;
+    XChangeGC(dpy, Scr-&gt;NormalGC, GCFont|GCForeground|GCBackground,&amp;Gcv);
+}
+</example>
+You may wonder why this is needed.  You may think just do as 
+<tt>use_fontset</tt> is false and it will work well.  No, 
+because <tt>fix_font-&gt;font</tt> is indefinite.
+</P>
+
+<P>
+I had to modify one more part related to GC in <tt>gc.c</tt>.
+</P>
+
+<sect1><heading>Geting Size of Texts</heading>
+
+<P>
+TWM calls <tt>XTextWidth()</tt> many times.  It returns
+the width in pixels for a text.  The internationalized version
+of the function is <tt>XmbTextExtent()</tt> and <tt>XwcTextExtent()</tt>,
+where the difference between <tt>mb</tt> version and <tt>wc</tt> version
+is same as <tt>XmbDrawString()</tt> and so on.
+</P>
+
+<P>
+I wrote a wrapper, as I did for other functions.
+</P>
+
+<sect1><heading>Getting Window Titles</heading>
+
+<P>
+General discussions have finished.
+The following discussions are specific to window managers.
+</P>
+
+<P>
+Window managers have to get the names for window titles
+from X clients.  <tt>XFetchName()</tt> is the function for this purpose.
+</P>
+
+<P>
+Window title names are communicated using <strong>property</strong>
+mechanism of X.  <tt>XA_STRING</tt> and <tt>XA_COMPOUND_TEXT</tt>
+are types to be used for this purpose.  <tt>XA_STRING</tt> means
+the text data is in ISO8859-1 encoding and <tt>XA_COMPOUND_TEXT</tt> 
+means the data is in compound text.  Compound text is a subset of
+ISO 2022 and can handle international text data.
+</P>
+
+<P>
+Now, <tt>XFetchName()</tt> can handle <tt>XA_STRING</tt> type only.
+Thus we should use <tt>XGetWMName()</tt>.  Since handling of
+compound text needs several lines of source codes, I wrote a
+wrapper function.
+<example>
+/*
+ * The following functions are internationalized substitutions
+ * for XFetchName and XGetIconName using XGetWMName and
+ * XGetWMIconName.  
+ *
+ * Please note that the third arguments have to be freed using free(), 
+ * not XFree().
+ */
+Status
+I18N_FetchName(dpy, w, winname)
+    Display *dpy;
+    Window w;
+    char ** winname;
+{
+    int    status;
+    XTextProperty text_prop;
+
+    status = XGetWMName(dpy, w, &amp;text_prop);
+    if (!status || !text_prop.value || !text_prop.nitems) return 0;
+    if (text_prop.encoding == XA_STRING) {
+       if (!text_prop.value) {*winname = NULL; return 0;}
+       *winname = (char *)strdup(text_prop.value);
+       XFree(text_prop.value);
+       return 1;
+    } else {
+       char **list;
+       int    num;
+       status = XmbTextPropertyToTextList(dpy, &amp;text_prop, &amp;list, &amp;num);
+       if (!num || !*list) return 0;
+       XFree(text_prop.value);
+       *winname = (char *)strdup(*list);
+       XFreeStringList(list);
+       return 1;
+    }
+}
+</example>
+</P>
+
+<sect1><heading>Getting Icon Names</heading>
+
+<P>
+Window managers need to get not only window titles but also icon names.
+</P>
+
+<P>
+TWM used <tt>XGetWindowProperty()</tt> with <tt>XA_STRING</tt> to
+get icon names.  However, internationalized function 
+<tt>XGetWMIconName()</tt> is available for this purpose and
+I rewrote using this function.  Just like <tt>XGetWMName()</tt>,
+I wrote a wrapper.
+<example>
+Status
+I18N_GetIconName(dpy, w, iconname)
+    Display *dpy;
+    Window w;
+    char ** iconname;
+{
+    int    status;
+    XTextProperty text_prop;
+       
+    status = XGetWMIconName(dpy, w, &amp;text_prop);
+    if (!status || !text_prop.value || !text_prop.nitems) return 0;
+    if (text_prop.encoding == XA_STRING) {
+       if (!text_prop.value) {*iconname = NULL; return 0;}
+       *iconname = (char *)strdup(text_prop.value);
+       XFree(text_prop.value);
+       return 1;
+    } else {
+       char **list;
+       int    num;
+       status = XmbTextPropertyToTextList(dpy, &amp;text_prop, &amp;list, &amp;num);
+       if (!num || !*list) return 0;
+       XFree(text_prop.value);
+       *iconname = (char *)strdup(*list);
+       XFreeStringList(list);
+       return 1;
+    }
+}
+</example>
+</P>
+
+<sect1><heading>Configuration File Parser</heading>
+
+<P>
+The parser for configuration file was not 8bit clean.
+I modified it.  It was a very minor change.
+In <tt>parse.c</tt>, global variables of <tt>buff[]</tt>, 
+<tt>overflowbuff[]</tt>, <tt>stringListSource</tt>, 
+and <tt>currentString</tt> and auto variable of <tt>sl</tt>
+in <tt>ParseStringList()</tt> are changed from <tt>char</tt>
+to <tt>unsigned char</tt>.
+</P>
+
