@@ -2,6 +2,8 @@
 # Makefile for the dselect beginners guide, top-level
 #
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 LANGUAGES := ca cs da de en es fr hr it ja pl pt ru sk
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))

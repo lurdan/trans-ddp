@@ -4,6 +4,8 @@
 
 arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%//)
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file 	:= install -m 2664 -p
   makedir	:= mkdir -p -m 2775
