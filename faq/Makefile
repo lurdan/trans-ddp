@@ -9,7 +9,7 @@ manual := debian-faq
 currentlang := en
 currentlangcn := $(shell echo $(currentlang) | tr A-Z a-z | tr - _)
 
-# this can and will be overriden by a higher level makefile
+# this can and will be overridden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
 
 sources := $(manual).sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
