@@ -1,10 +1,6 @@
 # Makefile for a manual in the Debian Documentation Project manuals.sgml
 # tree.
 
-# Due to policy for DOP, posting web page from this tree is terminated.
-# Despite it, i will keep this alive so any one can see where users-guide/ 
-# came from :)
-
 # The directory in which this makefile resides must also contain a file
 # called <directoryname>.sgml, which is the top-level file for the manual
 # in this directory.
@@ -28,10 +24,9 @@ publish:	$(MANUAL).html/index.html
 # 		fail if there is no PUBLISHDIR
 		[ -d $(PUBLISHDIR) ] || exit 1
 		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-# With these commented out, you will not see web page
-#		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-#		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
-#			$(PUBLISHDIR)/$(MANUAL)/
+		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
+			$(PUBLISHDIR)/$(MANUAL)/
 
 $(MANUAL).html/index.html:	$(wildcard *.sgml)
 		debiandoc2html $(MANUAL).sgml
