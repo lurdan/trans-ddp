@@ -39,7 +39,11 @@ BUILD_TYPE  := web
 
 # Publish directory
 # This can and will be overridden by a higher level makefile
+ifeq ("$(BUILD_TYPE)", "web")
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+else
+PUBLISHDIR := ~/public_html
+endif
 
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en fr it es fi pt-br de
@@ -418,8 +422,8 @@ scp: publish-all
 	scp -pr $(PUBLISHDIR)/$(MANUAL2)/ \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
 
-	echo SCP $(MANUAL1).tar.gz
-	scp -p $(PUBLISHDIR)/$(MANUAL1).tar.gz \
+	echo SCP $(MANUAL0).tar.gz
+	scp -p $(PUBLISHDIR)/$(MANUAL0).tar.gz \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
 
 #====[ validating SGML ]=======================================================
