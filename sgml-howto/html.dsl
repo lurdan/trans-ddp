@@ -21,10 +21,23 @@
   ;; Enumerate bibliography entries
   #t)
 
-; TODO: does not work
-;(define %generate-legalnotice-link%
-  ;; Should legal notices be a link to a separate file?
-;  #t)
+;; Does not work
+;; (define %generate-legalnotice-link%
+;; Should legal notices be a link to a separate file?
+;;  #t)
+
+(define (article-titlepage-recto-elements)
+  (list (normalize "title")
+        (normalize "subtitle")
+        (normalize "authorgroup")
+        (normalize "author")
+        (normalize "releaseinfo")
+        (normalize "copyright")
+        (normalize "pubdate")
+        (normalize "revhistory")
+        (normalize "legalnotice")
+        (normalize "abstract")))
+
 
 (define %body-attr% 
   ;; What attributes should be hung off of BODY?
@@ -32,14 +45,9 @@
    (list "BGCOLOR" "#FFFFFF")
    (list "TEXT" "#000000")))
 
-; TODO: find a way to display the legalnotice.
-;(element (artheader legalnotice) (literal "FooBar"))
-;(element (legalnotice para) (process-children))
-;(element legalnotice  (literal "FooBar"))
-
 (define dir-prefix 
   (if FHS
-      ;; We'll stay with /usr:doc for the moment: all packages have at
+      ;; We'll stay with /usr/doc for the moment: all packages have at
       ;; least a compatibility link in /usr/doc but not all have /usr/share/doc
       ;;"file:/usr/share/doc/"
       "file:/usr/doc/"
