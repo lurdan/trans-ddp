@@ -8,7 +8,7 @@
 <name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
 </author>
 
-<version>1.7.5 - Dezembro de 2001</version>
+<version>1.7.6 - Janeiro de 2002</version>
 
 <abstract>
 Esse documento pretende levar ao usuário um bom conhecimento
@@ -23,7 +23,7 @@ portuguesa.
 
 <copyright>
 <copyrightsummary>
-Copyright &copy; 2001 Gustavo Noronha Silva
+Copyright &copy; 2001-2002 Gustavo Noronha Silva
 </copyrightsummary>
 <p>
 Esse manual está licenciado nos termos da GNU FDL (Free Documentation
@@ -580,6 +580,35 @@ Como notamos na saída acima, o lilo tinha um novo conflito com o
 pacote <package>debconf-tiny</package>, ou seja, não podia ser
 instalado (isso também implica na atualização) sem que o debconf-tiny
 fosse removido.
+<p>
+Uma maneira de saber especificamente o que leva um pacote a ser
+mantido ou removido é:
+
+<example>
+# apt-get -o Debug::pkgProblemResolver=yes dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Starting
+Starting 2
+Investigating python1.5
+Package python1.5 has broken dep on python1.5-base
+  Considering python1.5-base 0 as a solution to python1.5 0
+  Holding Back python1.5 rather than change python1.5-base
+Investigating python1.5-dev
+Package python1.5-dev has broken dep on python1.5
+  Considering python1.5 0 as a solution to python1.5-dev 0
+  Holding Back python1.5-dev rather than change python1.5
+ Try to Re-Instate python1.5-dev
+Done
+Done
+The following packages have been kept back
+  gs python1.5-dev 
+0 packages upgraded, 0 newly installed, 0 to remove and 2  not upgraded.
+</example>
+
+Assim fica fácil perceber que o pacote python1.5-dev não pode ser
+instalado por culpa de uma dependência não satisfeita: python1.5
+
 </sect>
 
 <sect id="dselect-upgrade">Usando em conjunto com o Dselect
@@ -600,8 +629,8 @@ Para entender melhor como usar o dselect, leia a documentação do
 dselect que se encontra na página do Debian 
 <url id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">
 ou sua versão em português, encontrada na página do Debian-BR
-<url id="http://debian-br.sourceforge.net/documentacao.html" 
-name="http://debian-br.sourceforge.net/documentacao.html">.
+<url id="http://debian-br.cipsga.org.br/suporte/documentacao.html" 
+name="http://debian-br.cipsga.org.br/suporte/documentacao.html">.
 <p>
 Depois de feitas as seleções adequadas no dselect, use:
 
@@ -754,6 +783,148 @@ Origin: Debian
 Label: Debian
 Architecture: i386
 </example>
+</sect>
+</chapt>
+
+<chapt id="helpers">Ajudantes muito úteis
+<sect id="equivs">Como instalar programas compilados localmente: equivs
+<p>
+As vezes as pessoas querem usar uma versão específica para um
+programa, uma versão mais nova, só disponível em fontes, sem
+pacote Debian. Mas o sistema de empacotamento pode atrapalhar
+esses planos. Suponha que você quer compilar uma nova versão do
+seu servidor de email. Tudo vai bem, mas inúmeros pacotes no
+Debian dependem de um MTA instalado. Como você instalou algo que
+você mesmo compilou, o sistema de pacotes não sabe da presença
+dele.
+<p>
+É aí que entra o <package>equivs</package>. Para usá-lo instale
+o pacote de mesmo nome. O que ele faz é criar um pacote vazio
+que possa cumprir as dependências, fazendo o sistema de gerenciamento
+de pacotes achar que as dependências estão cumpridas.
+<p>
+Antes de continuarmos, é bom lembrar que há maneiras mais seguras
+de se compilar um programa que já está debianizado com opções
+alteradas, e que não se deve usar o equivs para substituir
+dependências se você não souber realmente o que está fazendo.
+Veja a seção <ref id="sourcehandling"> para saber mais.
+<p>
+Vamos continuar com o exemplo do MTA, você acaba de instalar
+seu novo postfix compilado e parte para a instalação do 
+<package>mutt</package>. Qual não é sua surpresa quando descobre
+que o <package>mutt</package> quer instalar um outro MTA, mas
+você já tem o seu.
+<p>
+Vá para um diretório qualquer (<file>/tmp</file>, por exemplo)
+e execute:
+
+<example>
+# equivs-control <var>nome</var>
+</example>
+
+Substitua <var>nome</var> pelo nome do arquivo de controle que você
+quer criar. O arquivo vai ser criado da seguinte forma:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;enter package name; defaults to equivs-dummy&gt;
+Version: &lt;enter version here; defaults to 1.0&gt;
+Maintainer: &lt;your name and email address; defaults to username&gt;
+Pre-Depends: &lt;packages&gt;
+Depends: &lt;packages&gt;
+Recommends: &lt;packages&gt;
+Suggests: &lt;package&gt;
+Provides: &lt;(virtual)package&gt;
+Architecture: all
+Copyright: &lt;copyright file; defaults to GPL2&gt;
+Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+Readme: &lt;README.Debian file; defaults to a generic one&gt;
+Extra-Files: &lt;additional files for the doc directory, commaseperated&gt;
+Description: &lt;short description; defaults to some wise words&gt;
+ long description and info
+ .
+ second paragraph
+</example>
+
+Basta alterar isso agora para que o que queremos seja feito.
+Observe bem o formato dos campos e as descrições deles,
+não há necessidade aqui de discorrer sobre cada um desses,
+vamos ao que é necessário:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+Sim, é só isso. O <package>mutt</package> depende de
+<tt>mail-transport-agent</tt>, que é um pacote virtual
+fornecido por todos os MTAs, eu poderia simplesmente
+chamar o pacote de <tt>mail-transport-agent</tt>, também,
+mas preferi usar o esquema do pacote virtual,usando o 
+Provides.
+<p>
+Agora basta construir o pacote:
+
+<example>
+# equivs-build <var>nome</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>nome</var>' in `../<var>nome</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+E instalar o <tt>.deb</tt> resultante.
+<p>
+Como se pode ver, há inúmeras utilidades para o <prgn>equivs</prgn>.
+Inclusive criar um pacote <tt>meus-preferidos</tt>, que dependa dos
+programas que você sempre instala, por exemplo. É soltar a imaginação,
+mas com cuidado.
+<p>
+É importante notar que há exemplos de arquivos de controle em
+<file>/usr/share/doc/equivs/examples</file>. Confira.
+</sect>
+
+<sect id="localepurge">Removendo arquivos de locale não usados: localepurge
+<p>
+Muitos usuários de Debian usam apenas um locale. Um usuário de
+Debian brasileiro, por exemplo, normalmente usa o locale
+<tt>pt_BR</tt> o tempo todo e não se importa com o <tt>es</tt>.
+<p>
+O <package>localepurge</package> é uma ferramenta muito útil
+para esses usuários. Você pode liberar muito espaço tendo apenas
+os locales que você realmente usa. Basta usar 
+<tt>apt-get install localepurge</tt>.
+<p>
+É muito fácil configurá-lo, perguntas feitas com o debconf guiam
+o usuário em uma configuração passo-a-passo. Seja cuidadoso ao
+responder a primeira questão; respostas erradas podem remover
+todos os arquivos de locale, mesmo aqueles que você usa. A única
+maneira de recuperá-los será reinstalar todos os pacotes que
+os fornecem.
 </sect>
 
 </chapt>
@@ -1091,24 +1262,6 @@ para obtê-lo.
 </sect>
 </chapt>
 
-<chapt id="distros">Quais são as distribuições que suportam o APT?
-<p>
-Aqui estão os nomes de algumas das distribuições que contam com o APT:
-<p>
-Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
-- foi para esta distribuição que o APT foi desenvolvido
-<p>
-Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
-- essa foi a primeira distribuição a portar esse software para lidar com rpm
-<p>
-Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
-<p>
-PLD (<url id="http://pld.org.pl" name="http://pld.org.pl">)
-<p>
-Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
-</chapt>
-
-
 <chapt id="erros">Como lidar com erros?
 <sect id="erros-comuns">Erros comuns
 <p>
@@ -1169,8 +1322,8 @@ nos diretórios do <tt>/usr/share/doc</tt> como o <tt>apt</tt>.
 <p>
 Se mesmo assim a dúvida persistir, consulte as listas do Debian por uma resposta.
 Você pode conseguir mais informações sobre a lista específica para usuários
-falantes da língua portuguesa em: <url id="http://debian-br.sourceforge.net"
-name="http://debian-br.sourceforge.net">, o site do projeto Debian-BR.
+falantes da língua portuguesa em: <url id="http://debian-br.cipsga.org.br"
+name="http://debian-br.cipsga.org.br">, o site do projeto Debian-BR.
 <p>
 Outras listas do Debian podem ser encontradas na página do Debian em:
 <url id="http://www.debian.org" name="http://www.debian.org">. Uma
@@ -1180,6 +1333,25 @@ Lembre-se de que essas listas e recursos devem ser usados apenas por usuários
 do Debian, usuários de outros sistemas devem encontrar um melhor suporte 
 junto à suas distribuições.
 </sect>
+</chapt>
+
+<chapt id="distros">Quais são as distribuições que suportam o APT?
+<p>
+Aqui estão os nomes de algumas das distribuições que contam com o APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- foi para esta distribuição que o APT foi desenvolvido
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- essa foi a primeira distribuição a portar esse software para lidar com rpm
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://pld.org.pl" name="http://pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
 </chapt>
 
 <chapt id="agradecimentos">Agradecimentos
@@ -1200,7 +1372,7 @@ koreano.
 Michael Bramer &lt;grisu@debian.org&gt; - pela sugestão de inclusão da
 seção sobre manter pacotes em versões definidas.
 <p>
-Bryan Stillwell &lt;bryan@bokeoa.com&gt; - pelos muitos patches e correções
+Bryan &lt;Stillwell bryan@bokeoa.com&gt; - pelos muitos patches e correções
 que ele enviou a mim para a versão em inglês.
 <p>
 Pawel Tecza &lt;pawel.tecza@poland.com&gt; - pelas várias correções enviadas
@@ -1217,17 +1389,20 @@ com o nome das distribuições que já contam com APT: Mandrake, PLD e Vine.
 <p>
 Erik Rossen &lt;rossen@freesurf.ch&gt; - pela dica sobre a variável
 COLUMNS para o dpkg -l.
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt; - pela dica sobre
+-o Debug::pkgProblemResolver=yes.
 </chapt>
 
 <chapt id="novas">Novas versões desse tutorial
 <p>
-Esse manual foi produzido para o projeto <url id="http://debian-br.sourceforge.net"
+Esse manual foi produzido para o projeto <url id="http://debian-br.cipsga.org.br"
 name="Debian-BR">, com o intuito de ajudar no uso cotidiano do sistema
 Debian.
 <p>
 Novas versões serão lançadas na página do projeto, em
-<url id="http://debian-br.sourceforge.net/documentacao.html" 
-name="http://debian-br.sourceforge.net/documentacao.html">. 
+<url id="http://debian-br.cipsga.org.br/suporte/documentacao.html" 
+name="http://debian-br.cipsga.org.br/suporte/documentacao.html">. 
 <p>
 Sugestões e críticas podem ser enviadas diretamente para mim no email
 <email>kov@debian.org</email>.

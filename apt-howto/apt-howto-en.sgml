@@ -8,7 +8,7 @@
 <name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
 </author>
 
-<version>1.7.5 - December 2001</version>
+<version>1.7.6 - January 2002</version>
 
 <abstract>
 This document intends to provide the user with a good understanding
@@ -761,6 +761,141 @@ Label: Debian
 Architecture: i386
 </example>
 </sect>
+</chapt>
+
+<chapt id="helpers">Very usefull helpers
+<sect id="equivs">How to install locally compiled packages: equivs
+<p>
+Sometimes, people want to use an specific version of a program
+available only on source code, with no Debian package. But the
+packaging system can be a trouble when doing this. Suppose
+you want to compile a new version of your email server. All
+is fine, but many packages in Debian depend on an MTA. Since
+you installed something you compiled by yourself, the packaging
+system doesn't know about it.
+<p>
+That's where <package>equivs</package> enters the scene. To use
+it, install the package with that name. What it does is creating
+and empty package that is able to fullfill dependencies, making
+the packaging system believe that the dependencies are satisfied.
+<p>
+Before we begin, it is good to remind you that there are safer
+ways of compiling a program wich is already packages for Debian
+with different options, and that one should not use equivs to
+replace dependencies if you don't know what you are doing.
+See section <ref id="sourcehandling"> for more information.
+<p>
+Let's continue with the MTA example, you just installed your
+new compiled postfix and goes on for installing <package>mutt</package>.
+Suddenly you discover that <package>mutt</package> wants to
+install another MTA. But you already have yours.
+<p>
+Go to some directory (<file>/tmp</file>, for example) and run:
+
+<example>
+# equivs-control <var>name</var>
+</example>
+
+Replace <var>name</var> for the name of the control file you
+want to create. The file will be created as follows:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;enter package name; defaults to equivs-dummy&gt;
+Version: &lt;enter version here; defaults to 1.0&gt;
+Maintainer: &lt;your name and email address; defaults to username&gt;
+Pre-Depends: &lt;packages&gt;
+Depends: &lt;packages&gt;
+Recommends: &lt;packages&gt;
+Suggests: &lt;package&gt;
+Provides: &lt;(virtual)package&gt;
+Architecture: all
+Copyright: &lt;copyright file; defaults to GPL2&gt;
+Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+Readme: &lt;README.Debian file; defaults to a generic one&gt;
+Extra-Files: &lt;additional files for the doc directory, commaseperated&gt;
+Description: &lt;short description; defaults to some wise words&gt;
+ long description and info
+ .
+ second paragraph
+</example>
+
+We just need modify this to do what we want. Have a look at
+the field's format and to their descriptions, there's no need
+to explain each one here, let's do what's required:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+Yes, that's all. <package>mutt</package> depends on
+<tt>mailt-transport-agent</tt>, that is a virtual
+package provided by all MTAs, I could simply name
+the package <tt>mail-transport-agent</tt>, but I prefered
+to use the virtual package's schema, using Provides.
+<p>
+Now you only need to build the package:
+
+<example>
+# equivs-build <var>name</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+And install the resulting <tt>.deb</tt>.
+<p>
+As one can see, there are several uses for <prgn>equivs</prgn>. One
+can even crate a <tt>my-favorites</tt> package, which depends on
+the programs you usually installs, for example. Just free your imagination,
+but be carefull.
+<p>
+It is important to note that there are example control files in
+<file>/usr/share/doc/equivs/examples</file>. Check them out.
+</sect>
+
+<sect id="localepurge">Removing unused locale files: localepurge
+<p>
+Many Debian users use only one locale. A brazillian Debian user,
+for example, usually uses the <tt>pt_BR</tt> locale all the time
+and doesn't care about the <tt>es</tt> one.
+<p>
+<package>localepurge</package> is a very useful tool for these users.
+You can free lots of space by having only the locales that you
+really use. Just <tt>apt-get install localepurge</tt>.
+<p>
+It is very easy to configure it, debconf questions guide the
+user in a step-by-step configuration. Be very careful on answering
+the first question though, wrong answers may remove all the locales
+files, even the ones you use. The only way to recover these files
+is reinstalling all the packages that provide them.
+</sect>
 
 </chapt>
 
@@ -1097,24 +1232,6 @@ separately to get it.
 </sect>
 </chapt>
 
-<chapt id="distros">What distributions support APT?
-<p>
-Here are the names of some of the distributions that use APT:
-<p>
-Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
-- it was for this distribution that APT was developed
-<p>
-Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
-- this was the first distribution to port APT for use with rpm
-<p>
-Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
-<p>
-PLD (<url id="http://www.pld.org.pl" name="http://pld.org.pl">)
-<p>
-Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
-</chapt>
-
-
 <chapt id="erros">How to deal with errors
 <sect id="erros-comuns">Common errors
 <p>
@@ -1187,6 +1304,25 @@ community resources of their own distributions.
 </sect>
 </chapt>
 
+<chapt id="distros">What distributions support APT?
+<p>
+Here are the names of some of the distributions that use APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- it was for this distribution that APT was developed
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- this was the first distribution to port APT for use with rpm
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+</chapt>
+
 <chapt id="agradecimentos">Credits
 <p>
 A big thank you goes out to my great friends in the Debian-BR project,
@@ -1224,18 +1360,21 @@ Mandrake, PLD and Vine.
 <p>
 Erik Rossen &lt;rossen@freesurf.ch&gt; - for the tip on the COLUMNS
 variable for dpkg -l.
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt; - for the tip on
+using -o Debug::pkgProblemResolver=yes.
 </chapt>
 
 <chapt id="novas">New versions of this tutorial
 <p>
-This manual was created for the <url id="http://debian-br.sourceforge.net"
+This manual was created for the <url id="http://debian-br.cipsga.org.br"
 name="Debian-BR"> project, with the goal of aiding everyday use of
 Debian.
 <p>
 New versions of this document will be made available in the project's
 page, at 
-<url id="http://debian-br.sourceforge.net/documentacao.html" 
-name="http://debian-br.sourceforge.net/documentacao.html">. 
+<url id="http://debian-br.cipsga.org.br/suporte/documentacao.html" 
+name="http://debian-br.cipsga.org.br/suporte/documentacao.html">. 
 <p>
 Comments and criticisms can be sent to me directly be email at
 <email>kov@debian.org</email>.
