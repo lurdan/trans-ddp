@@ -13,12 +13,12 @@ index.html: index.wml
 	wml -o $@ $<
 
 install:  index.html 
-	scp $< howto.db *.dsl Makefile www.debian.org:public_html/SGML-HOWTO/
+	scp $< howto.db *.dsl Makefile bortz@www.debian.org:public_html/SGML-HOWTO/
 	@for subdir in ${DEBIAN_VERSIONS}; do \
 		(cd $$subdir && ${MAKE} $@) \
 	done
 	$(MAKE) Debian-SGML.tar.gz
-	scp Debian-SGML.tar.gz www.debian.org:public_html/SGML-HOWTO/
+	scp Debian-SGML.tar.gz bortz@www.debian.org:public_html/SGML-HOWTO/
 
 Debian-SGML.tar: distclean
 	(cd ..; tar  --exclude=CVS --exclude=.wmlrc  -cvf Debian-HOWTO/$@ Debian-HOWTO)
