@@ -6,6 +6,9 @@
 
 export PATH:=../quick-reference/bin/:${PATH}
 
+# Woodys default LaTeX settings need more memory
+export TEXMFCNF:=../quick-reference/texmf/:
+
 # Basename for SGML
 MANUAL := project-history
 
