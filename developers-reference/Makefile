@@ -87,3 +87,5 @@ clean:
 	rm -f `find . -name "*~"`
 
 developers-reference$(SRCEXT).sgml: version.ent common.ent
+
+html: $(MANUAL).html
