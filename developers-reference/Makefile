@@ -4,26 +4,30 @@ MANUAL		:= $(notdir $(shell pwd))
 PUBLISHDIR	:= ../../../public_html/manuals.html
 
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
-		   $(foreach langext,.ja .fr, \
-		      $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt)))
+		   $(filter-out developers-reference.ja.pdf, \
+		      $(foreach langext,.ja .fr, \
+		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
 DEBIANDOC2HTML	:= debiandoc2html -d debiandoc.decl -c
 DEBIANDOC2TEXT	:= debiandoc2text -d debiandoc.decl
 DEBIANDOC2LATEX	:= debiandoc2latex -d debiandoc.decl
 
+make_directory	:= install -d -m 755
+install_file	:= install -m 644 -p
+
 MAX_TEX_RECURSION := 5
 
 .PHONY:	all
 all:    $(TARGETS)
 
+# hmmm, this rule may need to be revised/tested
 publish:	all
 	[ -d $(PUBLISHDIR) ] || exit 1
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	install -m 644 --preserve-timestamps $(MANUAL).html/*.html	\
+	$(make_directory) $(PUBLISHDIR)/$(MANUAL)
+	$(install_file) developers-reference*.html/*.html	\
 	   $(PUBLISHDIR)/$(MANUAL)
-
 
 developers-reference.html:	developers-reference.sgml
 	$(DEBIANDOC2HTML) -l C $<
@@ -67,7 +71,7 @@ developers-reference.%.tex:	developers-reference.%.sgml
 
 
 
-version.ent:
+version.ent:	debian/changelog
 	./debian/rules $@
 
 .PHONY: clean
