@@ -20,10 +20,10 @@ publish-html: $(HTMLDIRS)
 	# install for all language (html)
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+	rm -rf $(PUBLISHDIR)/$(MANUAL)/*
 	install -p -m 644 *.html $(PUBLISHDIR)/$(MANUAL)/
-	cd img ; install -p -m 644 *.png $(PUBLISHDIR)/$(MANUAL)/img/
-	cd $(PUBLISHDIR)/$(MANUAL)/ ; ln -sf ProgenyTOC.html index.html
+	mkdir img ; cd img ; install -p -m 644 *.png $(PUBLISHDIR)/$(MANUAL)/img/ ; cd -
+	cd $(PUBLISHDIR)/$(MANUAL)/ ; ln -sf ProgenyTOC.html index.html ; cd -
 
 #====[ cleaning up ]===========================================================
 clean distclean: 
