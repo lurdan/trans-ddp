@@ -15,7 +15,7 @@ MANUAL := $(notdir $(shell pwd))
 else
 ifeq ("$(HTDOCS)", "htdocs")
 # qref.sourceforge.net
-PUBLISHDIR := ./
+PUBLISHDIR := .
 MANUAL := qref
 else
 # default: checked out source from qref.sourceforge.net
@@ -123,7 +123,7 @@ $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 
 #----[ generating plain text ]-------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.%.ent
+$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
 	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
 
 # for translated languages
@@ -201,8 +201,9 @@ publish-files: $(ALLFILES)
 	                   $(PUBLISHDIR)/$(MANUAL)/;\
 	 \
 	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
-	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
-	       $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
+	 ( cd $(PUBLISHDIR)/$(MANUAL); \
+	 ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
+	 ) ;\
 	)
 
 
