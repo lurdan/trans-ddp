@@ -39,7 +39,8 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
 
 # generating PostScript
-texfriendly := $(filter-out $(MANUAL).ko.sgml,$(wildcard *.??*.sgml))
+#texfriendly := $(filter-out $(MANUAL).ko.sgml,$(wildcard *.??*.sgml))
+texfriendly := $(wildcard *.??*.sgml)
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
 $(MANUAL).pt-br.ps: $(MANUAL).pt-br.sgml
