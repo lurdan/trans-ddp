@@ -459,5 +459,6 @@ clean:
 	html1 text1 txt1 ps1 pdf1 files1 tar1 sf1 \
 	html2 text2 txt2 ps2 pdf2 files2 tar2 sf2 \
 	publish publish-all publish-html publish-files publish-tar \
+	publish-index1 publish-index2 \
 	clean distclean validate
 
