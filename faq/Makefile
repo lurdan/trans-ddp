@@ -72,7 +72,6 @@ $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang
 	mv $(manual).$* $(manual).$(currentlang).$*
 
 ps dvi pdf info: %: $(manual).$(currentlang).%
-	@echo foooooooooooooooooooooooooo $@
 	$(MAKE) -C ru $@
 	$(MAKE) -C pt_BR $@
 
