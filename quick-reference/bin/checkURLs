@@ -1,0 +1,24 @@
+#!/bin/sh
+awk '
+  /^<!ENTITY/ {
+    # assign entity[release]="3.0r0" for all entities
+    entity[$2]=$0
+    sub("^[^\"]*\"","",entity[$2]) # remove all chars up to first "
+    sub("\"[^\"]*$","",entity[$2]) # remove all chars after last "
+  }
+  END {
+    for (i in entity) {
+      # resolve nested entities ("&debian; &testingcodename;")
+      while (match(entity[i],"&[^;]*;")) {
+        tmp=substr(entity[i],RSTART+1,RLENGTH-2)
+        gsub("&"tmp";",entity[tmp],entity[i])
+      }
+      # check all entities starting with http:
+      if (match(entity[i],"^http:")) {
+        printf "%s", entity[i] " ... "
+        if (system("wget --spider " entity[i] " 2> /dev/null")==0) print "OK"
+        else print "Not OK"
+      }
+      # todo check all entities starting with / (filenames)
+    }
+  }' default.ent

@@ -5,10 +5,9 @@
 
 # A few remarks which may be useful for adding Chinese support to
 # debiandoc-sgml:
-# * be careful with non-CJK 8bit characters, such as umlauts "ä" and the
-#   copyright symbol "©" (sgml: &copy;), it's replaced with "©" in .tex but
-#   cannot replaced back to \copyright{}, because it is part of CJK multibyte
-#   characters and cannot be recognized.
+# * be careful with non-CJK 8bit characters, such as umlauts "ä", these can
+#   be part of CJK multibyte characters and it's impossible to recognize
+#   these in .tex.
 
 # $1 locale (normal pt_BR style)
 # $2 .tex filename
@@ -28,14 +27,14 @@ mv $file.tmp $file
 
 case $locale in
 ("de")
-	# use new German orthography (1998+) instead of old one
-	cat $file | sed '/^\\documentclass/ s/\[german/\[ngerman/' |
-	            sed '/^\\documentclass/ s/,german/,ngerman/' > $file.tmp
+	# use new German orthography (1998+) (ngerman) instead of old one
+	sed '/^\\documentclass/ s/\([^n]\)german/\1ngerman/' < $file > $file.tmp
 	mv $file.tmp $file
         ;;
 ("pl")
 	cat $file | \
-	# use double quotes ,,text'', LaTeX: "`text"'
+	# use double quotes ,,text'': LaTeX: "`text"'
+	# debiandoc2latex changes "text" to ``text'', so lets change ,, `` ''
 	# Use &apos;&apos; for '', if '' really means '' in source
 	sed -e "s/\`\`/\"\`/g" -e "s/,,/\"\`/g" -e "s/''/\"'/g" > $file.tmp
 	mv $file.tmp $file
@@ -66,26 +65,78 @@ case $locale in
 -e 's/(^\\end\{document\}$)/\\clearpage\\end\{CJK\}\n$1/g;' $file \
         ;;
 
+("ja")  
+        sed -e 's/\\usepackage{babel}//' \
+            -e 's/\\begin{document}/\\usepackage{CJK}\
+                  &\
+                  \\begin{CJK}{JIS}{song}\
+                  \\renewcommand{\\vpageref}\[1\]{on page \\pageref{\#1}}\
+                  \\def\\prefacename{½ø}\
+                  \\def\\refname{Ê¸ ¸¥}\
+                  \\def\\abstractname{³µ Í×}\
+                  \\def\\bibname{»²¹ÍÊ¸¸¥}\
+                  \\def\\chaptername{¾Ï}\
+                  \\def\\appendixname{ÉÕ Ï¿}\
+                  \\def\\contentsname{ÌÜ ¼¡}\
+                  \\def\\listfigurename{¿Þ ÌÜ ¼¡}\
+                  \\def\\listtablename{É½ ÌÜ ¼¡}\
+                  \\def\\indexname{º÷ °ú}\
+                  \\def\\figurename{¿Þ}\
+                  \\def\\tablename{É½}\
+                  \\def\\partname{Éô}\
+                  \\def\\enclname{encl}\
+                  \\def\\ccname{cc}\
+                  \\def\\headtoname{¤Ø}\
+                  \\def\\pagename{ÊÇ}\
+                  \\def\\seename{»²¾È}\
+                  \\def\\alsoname{»²¾È}\
+                  \\def\\proofname{¾ÚÌÀ}\
+                  \\def\\glossaryname{ÍÑ¸ì½¸}/' \
+            -e 's/\\end{document}/\\clearpage\
+                  \\end{CJK}\
+                  &/' $file > $file.tmp
+        mv $file.tmp $file
+        ;;
+
 (*)
 	: # do nothing
 ;;
 esac
 
-# do not use hyperref package for Chinese pdf (and for Sid ps)
-if [ $locale = "zh_CN" -o $locale = "zh_TW" ]; then
-   # the \ifpdf macro isn't used anymore, it's possible to remove it
-   sed '4 a\
-\% extracted from pdfTeX-FAQ.pdf for latex and pdflatex compatibility\
-\\newif\\ifpdf\
-\\ifx\\pdfoutput\\undefined\
-  \\pdffalse\
-\\else\
-  \\pdfoutput=1\
-  \\pdftrue\
-  \\pdfcompresslevel=9\
-\\fi\
-' $file | \
-   # do not use hyperref package (comment it out)
-   sed 's/^\\usepackage.*{hyperref}/%\\ifpdf\\else&\\fi/' > $file.tmp
+# Add CJKbookmarks option to hyperref package.
+if [ $locale = "zh_CN" -o $locale = "zh_TW" -o $locale = "ja" ]; then
+   cat $file | \
+   sed 's/^\(\\usepackage\[\)\(.*{hyperref}\)/\1CJKbookmarks,\2/' > $file.tmp
    mv $file.tmp $file
 fi
+
+# Correct words in which accents such as 'é' where replaced by 'e' to be
+# compatible with the encoding. (Let's hope that there's no linebreak in
+# the text which is to substitute, but it seems to be as in .sgml files.)
+# This is related to qref only!
+sed -e "s/Renald Casagraude/R\\\'enald Casagraude/g" \
+    -e "s/Paulo Rogerio Ormenese/Paulo Rog\\\'erio Ormenese/g" \
+    -e "s/Jose Carreiro/Jos\\\'e Carreiro/g" \
+    -e 's/Stefan Schroeder/Stefan Schr\\\"oder/g' \
+    -e "s/Bartosz Fenski/Bartosz Fe\\\\\'nski/g" \
+    -e 's/Radoslaw Grzanka/Rados\\l aw Grzanka/g' \
+    -e 's/Rafal Michaluk/Rafa\\l\\ Michaluk/g' \
+    -e 's/Tomasz Z. Napierala/Tomasz Z. Napiera\\l a/g' \
+    -e "s/Tomasz Piekos/Tomasz Pi\\\\c eko\\\\\'s/g" \
+    -e "s/Pawel Rozanski/Pawe\\\\l\\\\ R\\\\\'o\\\\.za\\\\\'nski/g" \
+    -e "s/Krzysztof Scierski/Krzysztof \\\\\'Scierski/g" \
+    -e "s/Przemyslaw Adam Smiejek/Przemys\\\\l aw Adam \\\\\'Smiejek/g"\
+    -e 's/Bartosz Zapalowski/Bartosz Zapa\\l owski/g'\
+    -e 's/pour le francais/pour le fran\\c cais/g' $file > $file.tmp
+mv $file.tmp $file
+
+# Set driver for hyperref package: hypertex (dvi), pdftex (pdf).
+# Another option (such as ps2pdf or dvips) should be used if a pdf file is
+# created via dvi->ps->pdf.
+sed 's/^\(\\usepackage\[\)\(.*{hyperref}\)/\
+\\ifx\\pdfoutput\\undefined\
+\1hypertex,\2\
+\\else\
+\1pdftex,\2\
+\\fi/' $file > $file.tmp
+mv $file.tmp $file
