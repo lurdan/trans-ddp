@@ -88,8 +88,9 @@ publish: webs
 	$(install_file) --preserve-timestamps \
 	  $(TFILE).html/*.html $(PUBLISHDIR)/$(TFILE)/
 	$(install_dir) $(PUBLISHDIR)/$(TFILE)/examples
+	# excuse me for ugly script (skip CVS)
 	$(install_file) --preserve-timestamps \
-	  * $(PUBLISHDIR)/$(TFILE)/examples/
+	  $(TFILE).html/examples/[_AIOa-z]* $(PUBLISHDIR)/$(TFILE)/examples/
 
 # web page (auto-select language)
 webs: date.ent
