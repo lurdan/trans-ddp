@@ -14,7 +14,7 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-LANGUAGES := en fr nl pt cs it da de ja fi
+LANGUAGES := en fr nl pt cs it da de ja fi sk
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
@@ -51,6 +51,8 @@ else
 	  for lang in $(LANGUAGES); do \
 	    $(install_file) $$lang/release-notes.$$lang.html/* upgrade-$$arch; \
 	    $(install_file) $$lang/release-notes.$$lang.txt upgrade-$$arch; \
+	    $(install_file) $$lang/release-notes.$$lang.pdf upgrade-$$arch; \
+	    $(install_file) $$lang/release-notes.$$lang.ps upgrade-$$arch; \
 	  done; \
 	  ln -sf index.en.html upgrade-$$arch/index.html; \
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
@@ -60,7 +62,7 @@ else
 #	for newarch in mips mipsel ia64 hppa s390; do \
 #          mv upgrade-$$newarch disks-$$newarch; \
 #        done
-	tar cjf relnotes.tar.bz2 upgrade-* disks-*
+	tar cjf relnotes.tar.bz2 upgrade-*
 	rm -rf upgrade-* disks-*
 endif
 
