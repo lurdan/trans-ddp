@@ -20,7 +20,7 @@ publish: debian-faq.html/index.html
 	install -p -m 644 debian-faq.html/*.html $(PUBLISHDIR)/debian-faq/
 
 faqdynamic.ent:
-	echo "<!entity docdate \"$(shell date +'%-d %B %Y')\">" > faqdynamic.ent
+	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
 	if [ -f ../debian/changelog ]; then \
           echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> faqdynamic.ent; \
         else \
