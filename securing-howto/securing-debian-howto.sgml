@@ -21,7 +21,7 @@
 <email>jfs@computer.org</email>
 </author>
 <version>2.5 (beta)
-<date>Fri, 30 Aug 2002 20:32:33 +0200
+<date>Mon, 19 Aug 2002 18:02:50 +0200
 
 <abstract>
 This document describes the process of securing and hardening the
@@ -36,8 +36,10 @@ as well as the work done by the Debian security team.
 <p>Copyright &copy;  2001  Alexander Reelsen, Javier Fernández-Sanguino Peña
 <p>Copyright &copy;  2000  Alexander Reelsen
 
-<p>This document is distributed under the terms of the GNU Free
-Documentation License. It is distributed in the hope that it will be
+<p>Permission is granted to copy, distribute and/or modify this document under
+the terms of the <url id="http://www.fsf.org/copyleft/fdl.html" name="GNU Free
+Documentation License, Version 1.1"> or any later version published by the
+Free Software Foundation. It is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY.
 </copyright>
 
@@ -335,6 +337,34 @@ things waiting on my inbox (as far back as february) to be included,
 so I'm going to tag this the <em>back from honeymoon</em> release :)
 
 <list>
+
+<item>Applied a patch contributed by Philipe Gaspar regarding the
+Squid which also kills a FIXME.
+
+<item>Yet another FAQ item regarding service banners taken from the
+debian-security mailing list (thread "Telnet information" started 26th
+july 2002).
+
+<item>Added a note regarding use of CVE cross references in the
+<em>How much time does the Debian security team...</em> FAQ item.
+
+
+<item>Added a new section regarding ARP attacks contributed by Arnaud
+"Arhuman" Assad.
+
+<item>New FAQ item regarding dmesg and console loggin by the kernel. 
+
+<item>Small tidbits of information to the signature-checking issues in
+packages (it seems to not have gotten past beta release).
+
+<item>New FAQ item regarding vulnerability assesment tools false
+positives.
+
+<item>Added new sections to the chapter that contains information on
+package signatures and reorganised it as a new <em>Debian Security
+Infraestructure</em> chapter.
+
+<item>New FAQ item regarding Debian vs. other Linux distributions.
 
 <item>New section on mail user agents with GPG/PGP functionality in the
 security tools chapter.
@@ -1452,89 +1482,6 @@ undocumented feature on inetd. <!-- FIXME write the information sent
 by Alexander to the debian-security mailing list -->. Or use an
 alternate inetd daemon like <prgn>xinetd</prgn>.
 
-<sect1 id="limit-bindaddr">Have services listening only on specific addresses
-
-<p>Systems with more than one interface on different networks
-can have services configured son that they will bind only to 
-a given IP address. This usually prevents services when requested
-through a given address. However, this does not mean (although
-it's a common misconception even I had) that the service is
-bound to a given <em>hardware</em> address (interface card).
-<footnote>
-To reproduce this (example provided by Felix von Leitner on the
-bugtraq mailing list):
-<example>
-   host a (eth0 connected to eth0 of host b):
-     ifconfig eth0 10.0.0.1
-     ifconfig eth1 23.0.0.1
-     tcpserver -RHl localhost 23.0.0.1 8000 echo fnord
-
-   host b:
-     ifconfig eth0 10.0.0.2
-     route add 23.0.0.1 gw 10.0.0.1
-     telnet 23.0.0.1 8000
-</example>
-<p>It seems, however, not to work with services bound to
-127.0.0.1, you might need to write the tests using raw sockets.</p>
-</footnote>
-
-<p>This is not an ARP issue and it's not an RFC violation (it's 
-called <em>weak end host</em> in RFC1122, section 3.3.4.2). 
-Remember, IP addresses have nothing to do with physical interfaces.
-
-<p>On 2.2 (and previous) kernels this can be fixed with:
-<example>
-# echo 1 > /proc/sys/net/ipv4/conf/all/hidden
-# echo 1 > /proc/sys/net/ipv4/conf/eth0/hidden
-# echo 1 > /proc/sys/net/ipv4/conf/eth1/hidden
-.....
-</example>
-<p>On later kernels this can be fixed either with:
-<list>
-<item>iptables rules.
-<item>properly configured routing.
-<footnote>
-The fact that this behaviour can be changed through routing
-was described by Matthew G. Marsh in the bugtraq thread:
-<example>
-eth0 = 1.1.1.1/24
-eth1 = 2.2.2.2/24
-
-ip rule add from 1.1.1.1/32 dev lo table 1 prio 15000
-ip rule add from 2.2.2.2/32 dev lo table 2 prio 16000
-
-ip route add default dev eth0 table 1
-ip route add default dev eth1 table 2
-</example>
-</footnote>
-<item>kernel patching.
-<footnote>
-There are some patches available for this behaviour as
-described in bugtraq's thread at
-<url id="http://www.linuxvirtualserver.org/~julian/#hidden">
-and <url id="http://www.fefe.de/linux-eth-forwarding.diff">.
-</footnote>
-</list>
-<p>Along this text there will be many ocasions in which it
-is shown how to configure some services (sshd server, apache, printer
-service...) in order to have them listening on any given
-address, the reader should take into account that, without 
-the fixes given here, the fix would not prevent accesses from 
-within the same (local) network.
-<footnote>
-An attacker might have many problems pulling the access through
-after configuring the IP-address binding if he is not on the same
-broadcast domain (same network) as the attacked host. If the attack
-goes through a router it might be quite difficult for the answers
-to return somewhere.
-</footnote>
-
-<p>FIXME: comments on bugtraq indicate there is a Linux
-specific method to bind to a given interface.
-
-<p>FIXME: Submit a bug against netbase so that the routing fix
-is standard behaviour in Debian?
-
 <sect>Install the minimum number of software required
 
 <p>Debian comes with <em>a lot</em> of software, for example the
@@ -1722,7 +1669,7 @@ id="http://www.debian.org/MailingLists/subscribe">
 will be immediately alerted of security updates for the Debian
 distribution.  This allows you to quickly download new packages with
 security bug fixes, which is very important in maintaining a secure
-system.  (See <ref id="update"> for details on how to do this.)
+system.  (See <ref id="security-update"> for details on how to do this.)
 
 
 
@@ -1738,7 +1685,7 @@ id="restrict-console-login">, and <ref id="restrict-reboots">.
 
 <p>Before connecting to any network, specially if it's a public one
 you should, at the very least: execute a security update (see 
-<ref id="update">). Optionally, you could take a snapshot of your
+<ref id="security-update">). Optionally, you could take a snapshot of your
 system (see <ref id="snapshot">).
 
 <sect id="bios-boot">Change the BIOS (again)
@@ -2043,7 +1990,7 @@ This happens mainly when you are using files during the update that
 got updated.  Annoying but not really a big deal.  Just make sure
 these are no longer used and run the Post-Invoke manually.
 
-<sect id="update">Execute a security update
+<sect id="security-update">Execute a security update
 
 <p>As soon as new security bugs are detected in packages, Debian
 maintainers and upstream authors generally patch them within days or
@@ -3091,181 +3038,7 @@ chrooted.
  might be packaged in the future) that can help setup chroot
  environments. See
 
-<sect1>Kernel configuration
-
-<sect1 id="kernel-conf">Configuring kernel network features
-<p>FIXME: Content missing
-
-<p>Many features of the kernel can be modified while running by
-echoing something into the <file>/proc</file> file system or by using
-<prgn>sysctl</prgn>. By entering <tt>/sbin/sysctl -A</tt> you can see
-what you can configure and what the options are, and it can be
-modified running <tt>/sbin/sysctl -w variable=value</tt> (see <manref
-section="8" name="sysctl">). Only in rare cases do you need to edit
-something here, but you can increase security that way as well. For
-example:
-
-<!-- FIXME: Should the prefix on all of these be /proc/sys/? era -->
-
-<example>
-net/ipv4/icmp_echo_ignore_broadcasts = 1
-</example>
-
-<p>This is a <em>Windows emulator</em> because it acts like Windows on
-broadcast ping if this option is set to 1. That is, ICMP_ECHO request
-sent to the broadcast address will be ignored. Otherwise, it does
-nothing.
-
-<p>If you want to block any ICMP echo requests on your system, enable this
-configuration option:
-
-<example>
-net/ipv4/icmp_echo_ignore_all = 0
-</example>
-
-<p>To log packets with impossible addresses (due to wrong routes) on your
-network use:
-
-<example>
-/proc/sys/net/ipv4/conf/all/log_martians = 1
-</example>
-
-<p>For more information on what things can be done with
-<file>/proc/sys/net/ipv4/*</file> read
-<file>/usr/src/linux/Documentation/filesystems/proc.txt</file>. All
-the options are describe thoroughly under
-<file>/usr/src/linux/Documentation/networking/ip-sysctl.txt</file>
-<footnote>In Debian the <package>kernel-image</package> package
-installs the sources under <file>/usr/src/kernel-souce-2.X.X</file>,
-just substitute <em>linux</em> to whatever kernel is
-installed</footnote>.
-
-<sect2 id="tcp-syncookies">Configuring Syncookies
-
-
-<p>This option is a double-edged sword. On the one hand it protects
-your system against syn flooding; on the other hand it violates
-defined standards (RFCs).
-
-<!-- What does this mean? (jfs)
-This option is quite dumb as it floods the
-other side like it floods you, so the other side is also busy. 
--->
-
-<example>
-net/ipv4/tcp_syncookies = 1
-</example>
-
-<p>If you want to change this option you each time the kernel is
-working you need to change it in <tt>/etc/network/options</tt> by
-setting <tt>syncookies=yes</tt>. This will take effect whener
-<tt>/etc/init.d/networking</tt> is run (which is done at boot time)
-whileas this will only work with the current running kernel:
-
-<example>
-echo 1 > /proc/sys/net/ipv4/tcp_syncookies 
-</example>
-
-<p>This option will only be available if the kernel is compiled with
-the <tt>CONFIG_SYNCOOKIES</tt>. All Debian kernels are compiled with
-this option builtin but you can verify it running:
-
-<example>
-$ sysctl -A |grep syncookies
-net/ipv4/tcp_syncookies = 1
-</example>
-
-<p>For more information  on TCP syncookies read
-<url id="http://cr.yp.to/syncookies.html">.
-
-<sect1 id="net-harden">Securing the network on boot-time
-
-<p>When setting configuration options for the kernel networking you need configure it so that it's loaded every time the system is restarted. The following example enables many of the previous options as well as other useful options. 
-
-<p>Create the script in <file>/etc/network/interface-secure</file>
-(the name is given as an example) and call it from
-<file>/etc/network/interfaces</file> like this:
-
-<example>
-auto eth0
-iface eth0 inet static
-        address xxx.xxx.xxx.xxx
-        netmask 255.255.255.xxx
-        broadcast xxx.xxx.xxx.xxx
-        gateway xxx.xxx.xxx.xxx
-        pre-up /etc/network/interface-secure
-
-</example>
-
-<example>
-# Script-name: /etc/network/interface-secure
-# Modifies some default behaviour in order to secure against 
-# some TCP/IP spoofing & attacks
-#
-# Contributed by Dariusz Puchalak  
-#
-echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
-                                           # broadcast echo protection enabled
-echo 0 > /proc/sys/net/ipv4/ip_forward     # ip forwarding disabled
-echo 1 > /proc/sys/net/ipv4/tcp_syncookies # TCP syn cookie protection enabled
-echo 1 >/proc/sys/net/ipv4/conf/all/log_martians 
-                                           # Log packets with impossible addresses
-                         # but be careful with this on heavy loaded web servers
-echo 1 > /proc/sys/net/ipv4/ip_always_defrag 
-                                           #  defragging protection always enabled
-echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses 
-                                           # bad error message protection enabled
-
-# now ip spoofing protection
-for f in /proc/sys/net/ipv4/conf/*/rp_filter; do
-        echo 1 > $f
-done
-
-# and finally some more things:
-# Disable ICMP Redirect Acceptance
-for f in /proc/sys/net/ipv4/conf/*/accept_redirects; do
-        echo 0 > $f
-done
-
-for f in /proc/sys/net/ipv4/conf/*/send_redirects; do
-      echo 0 > $f
-done
-
-# Disable Source Routed Packets
-for f in /proc/sys/net/ipv4/conf/*/accept_source_route; do
-        echo 0 > $f
-done
-
-# Log Spoofed Packets, Source Routed Packets, Redirect Packets
-for f in /proc/sys/net/ipv4/conf/*/log_martians; do
-        echo 1 > $f
-done
-</example>
-
-<p>You can also create a <tt>init.d</tt> script and have it run on
-bootup (using <prgn>update-rc.d</prgn> to create the appropiate
-<tt>rc.d</tt> links).
-
-<sect1 id="kernel-fw">Configuring firewall features 
-
-<p>In order to have firewall capabilities, either to protect the local
-system or others <em>behind</em> it, the kernel needs to be compiled
-with firewall capabilities. The standard Debian 2.2 kernel (also 2.2)
-provides the packet filter <prgn>ipchains</prgn> firewall, Debian 3.0
-standard kernel (kernel 2.4) provides the <em>stateful</em> packet
-filter <prgn>iptables</prgn> (netfilter) firewall. Older Debian
-distributions would need the appropiate kernel patch (Debian 2.1 uses
-kernel 2.0.34).
-
-<p>In any case, it is pretty easy to use a kernel different from the
-one provided by Debian. You can find pre-compiled kernels as packages
-you can easily install in the Debian system. You can also download the
-kernel sources using the <package>kernel-source-X</package> and build
-custom kernel packages using <package>make-kpkg</package>.
-
-<p>Setting up firewalls in Debian is discussed more thoroughly in <ref
-id="firewall-setup">.
-
+<sect>Kernel configuration
 <sect id="kernel-patch">Adding kernel patches
 <p>FIXME: More content
 
@@ -3580,6 +3353,321 @@ CHECKSECURITY_EMAIL (in <file>/etc/checksecurity.conf</file>) to 'root' to
 have this information mailed to him.  .  See <manref
 name="checksecurity" section="8"> for more configuration info.
 
+<sect id="network-secure">Securing network access
+
+<p>FIXME. More (Debian-specific) content needed
+
+
+<sect1 id="kernel-conf">Configuring kernel network features
+
+<p>FIXME: Content missing
+
+<p>Many features of the kernel can be modified while running by
+echoing something into the <file>/proc</file> file system or by using
+<prgn>sysctl</prgn>. By entering <tt>/sbin/sysctl -A</tt> you can see
+what you can configure and what the options are, and it can be
+modified running <tt>/sbin/sysctl -w variable=value</tt> (see <manref
+section="8" name="sysctl">). Only in rare cases do you need to edit
+something here, but you can increase security that way as well. For
+example:
+
+<!-- FIXME: Should the prefix on all of these be /proc/sys/? era -->
+
+<example>
+net/ipv4/icmp_echo_ignore_broadcasts = 1
+</example>
+
+<p>This is a <em>Windows emulator</em> because it acts like Windows on
+broadcast ping if this option is set to 1. That is, ICMP_ECHO request
+sent to the broadcast address will be ignored. Otherwise, it does
+nothing.
+
+<p>If you want to block any ICMP echo requests on your system, enable this
+configuration option:
+
+<example>
+net/ipv4/icmp_echo_ignore_all = 0
+</example>
+
+<p>To log packets with impossible addresses (due to wrong routes) on your
+network use:
+
+<example>
+/proc/sys/net/ipv4/conf/all/log_martians = 1
+</example>
+
+<p>For more information on what things can be done with
+<file>/proc/sys/net/ipv4/*</file> read
+<file>/usr/src/linux/Documentation/filesystems/proc.txt</file>. All
+the options are describe thoroughly under
+<file>/usr/src/linux/Documentation/networking/ip-sysctl.txt</file>
+<footnote>In Debian the <package>kernel-image</package> package
+installs the sources under <file>/usr/src/kernel-souce-2.X.X</file>,
+just substitute <em>linux</em> to whatever kernel is
+installed</footnote>.
+
+<sect2 id="tcp-syncookies">Configuring Syncookies
+
+
+<p>This option is a double-edged sword. On the one hand it protects
+your system against syn flooding; on the other hand it violates
+defined standards (RFCs).
+
+<!-- What does this mean? (jfs)
+This option is quite dumb as it floods the
+other side like it floods you, so the other side is also busy. 
+-->
+
+<example>
+net/ipv4/tcp_syncookies = 1
+</example>
+
+<p>If you want to change this option you each time the kernel is
+working you need to change it in <tt>/etc/network/options</tt> by
+setting <tt>syncookies=yes</tt>. This will take effect whener
+<tt>/etc/init.d/networking</tt> is run (which is done at boot time)
+whileas this will only work with the current running kernel:
+
+<example>
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies 
+</example>
+
+<p>This option will only be available if the kernel is compiled with
+the <tt>CONFIG_SYNCOOKIES</tt>. All Debian kernels are compiled with
+this option builtin but you can verify it running:
+
+<example>
+$ sysctl -A |grep syncookies
+net/ipv4/tcp_syncookies = 1
+</example>
+
+<p>For more information  on TCP syncookies read
+<url id="http://cr.yp.to/syncookies.html">.
+
+<sect1 id="net-harden">Securing the network on boot-time
+
+<p>When setting configuration options for the kernel networking you need configure it so that it's loaded every time the system is restarted. The following example enables many of the previous options as well as other useful options. 
+
+<p>Create the script in <file>/etc/network/interface-secure</file>
+(the name is given as an example) and call it from
+<file>/etc/network/interfaces</file> like this:
+
+<example>
+auto eth0
+iface eth0 inet static
+        address xxx.xxx.xxx.xxx
+        netmask 255.255.255.xxx
+        broadcast xxx.xxx.xxx.xxx
+        gateway xxx.xxx.xxx.xxx
+        pre-up /etc/network/interface-secure
+
+</example>
+
+<example>
+# Script-name: /etc/network/interface-secure
+# Modifies some default behaviour in order to secure against 
+# some TCP/IP spoofing & attacks
+#
+# Contributed by Dariusz Puchalak  
+#
+echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
+                                           # broadcast echo protection enabled
+echo 0 > /proc/sys/net/ipv4/ip_forward     # ip forwarding disabled
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies # TCP syn cookie protection enabled
+echo 1 >/proc/sys/net/ipv4/conf/all/log_martians 
+                                           # Log packets with impossible addresses
+                         # but be careful with this on heavy loaded web servers
+echo 1 > /proc/sys/net/ipv4/ip_always_defrag 
+                                           #  defragging protection always enabled
+echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses 
+                                           # bad error message protection enabled
+
+# now ip spoofing protection
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do
+        echo 1 > $f
+done
+
+# and finally some more things:
+# Disable ICMP Redirect Acceptance
+for f in /proc/sys/net/ipv4/conf/*/accept_redirects; do
+        echo 0 > $f
+done
+
+for f in /proc/sys/net/ipv4/conf/*/send_redirects; do
+      echo 0 > $f
+done
+
+# Disable Source Routed Packets
+for f in /proc/sys/net/ipv4/conf/*/accept_source_route; do
+        echo 0 > $f
+done
+
+# Log Spoofed Packets, Source Routed Packets, Redirect Packets
+for f in /proc/sys/net/ipv4/conf/*/log_martians; do
+        echo 1 > $f
+done
+</example>
+
+<p>You can also create a <tt>init.d</tt> script and have it run on
+bootup (using <prgn>update-rc.d</prgn> to create the appropiate
+<tt>rc.d</tt> links).
+
+<sect1 id="kernel-fw">Configuring firewall features 
+
+<p>In order to have firewall capabilities, either to protect the local
+system or others <em>behind</em> it, the kernel needs to be compiled
+with firewall capabilities. The standard Debian 2.2 kernel (also 2.2)
+provides the packet filter <prgn>ipchains</prgn> firewall, Debian 3.0
+standard kernel (kernel 2.4) provides the <em>stateful</em> packet
+filter <prgn>iptables</prgn> (netfilter) firewall. Older Debian
+distributions would need the appropiate kernel patch (Debian 2.1 uses
+kernel 2.0.34).
+
+<p>In any case, it is pretty easy to use a kernel different from the
+one provided by Debian. You can find pre-compiled kernels as packages
+you can easily install in the Debian system. You can also download the
+kernel sources using the <package>kernel-source-X</package> and build
+custom kernel packages using <package>make-kpkg</package>.
+
+<p>Setting up firewalls in Debian is discussed more thoroughly in <ref
+id="firewall-setup">.
+
+
+<sect1 id="limit-bindaddr">Disabling week-end hosts issues
+
+<p>Systems with more than one interface on different networks
+can have services configured son that they will bind only to 
+a given IP address. This usually prevents services when requested
+through a given address. However, this does not mean (although
+it's a common misconception even I had) that the service is
+bound to a given <em>hardware</em> address (interface card).
+<footnote>
+To reproduce this (example provided by Felix von Leitner on the
+bugtraq mailing list):
+<example>
+   host a (eth0 connected to eth0 of host b):
+     ifconfig eth0 10.0.0.1
+     ifconfig eth1 23.0.0.1
+     tcpserver -RHl localhost 23.0.0.1 8000 echo fnord
+
+   host b:
+     ifconfig eth0 10.0.0.2
+     route add 23.0.0.1 gw 10.0.0.1
+     telnet 23.0.0.1 8000
+</example>
+<p>It seems, however, not to work with services bound to
+127.0.0.1, you might need to write the tests using raw sockets.</p>
+</footnote>
+
+<p>This is not an ARP issue and it's not an RFC violation (it's 
+called <em>weak end host</em> in RFC1122, section 3.3.4.2). 
+Remember, IP addresses have nothing to do with physical interfaces.
+
+<p>On 2.2 (and previous) kernels this can be fixed with:
+<example>
+# echo 1 > /proc/sys/net/ipv4/conf/all/hidden
+# echo 1 > /proc/sys/net/ipv4/conf/eth0/hidden
+# echo 1 > /proc/sys/net/ipv4/conf/eth1/hidden
+.....
+</example>
+<p>On later kernels this can be fixed either with:
+<list>
+<item>iptables rules.
+<item>properly configured routing.
+<footnote>
+The fact that this behaviour can be changed through routing
+was described by Matthew G. Marsh in the bugtraq thread:
+<example>
+eth0 = 1.1.1.1/24
+eth1 = 2.2.2.2/24
+
+ip rule add from 1.1.1.1/32 dev lo table 1 prio 15000
+ip rule add from 2.2.2.2/32 dev lo table 2 prio 16000
+
+ip route add default dev eth0 table 1
+ip route add default dev eth1 table 2
+</example>
+</footnote>
+<item>kernel patching.
+<footnote>
+There are some patches available for this behaviour as
+described in bugtraq's thread at
+<url id="http://www.linuxvirtualserver.org/~julian/#hidden">
+and <url id="http://www.fefe.de/linux-eth-forwarding.diff">.
+</footnote>
+</list>
+<p>Along this text there will be many ocasions in which it
+is shown how to configure some services (sshd server, apache, printer
+service...) in order to have them listening on any given
+address, the reader should take into account that, without 
+the fixes given here, the fix would not prevent accesses from 
+within the same (local) network.
+<footnote>
+An attacker might have many problems pulling the access through
+after configuring the IP-address binding if he is not on the same
+broadcast domain (same network) as the attacked host. If the attack
+goes through a router it might be quite difficult for the answers
+to return somewhere.
+</footnote>
+
+<p>FIXME: comments on bugtraq indicate there is a Linux
+specific method to bind to a given interface.
+
+<p>FIXME: Submit a bug against netbase so that the routing fix
+is standard behaviour in Debian?
+
+
+<sect1>Protecting against ARP attacks
+
+<p>When you don't trust the other boxes on your LAN (which should
+always be the case, because it's the safest attitude) you should
+protect yourself from the various existing ARP attacks.
+
+<p>As you know the ARP protocol is used to link IP addresses to MAC
+addresses.  (see <url name="RFC826"
+id="http://www.q-linux.com/Rfc/rfc826.txt"> for all the
+details). Every time you send a packet to an IP address an arp
+resolution is done (first by looking into the local ARP cache then if
+the IP isn't present in the cache by broadcasting an arp query) to
+find the target's hardware address.  All the ARP attacks aim to fool
+your box into thinking that box B's IP address is associated to the
+intruder's box's MAC address; Then every packet that you want to send
+to the IP associated to box B will be send to the intruder's box...
+
+<p>
+Those Attacks (Cache poisonning, ARP spoofing...) allow the attacker
+to sniff the traffic even on switched networks, to easily hijack
+connections, to disconnect any host from the network...  Arp attack
+are powerful and simple to implement, several tools exists : arpspoof
+(present in package <package>dsniff</package>), <url name="arpmim"
+id="http://www.team-teso.net/releases/arpmim-0.2.tar.gz">, <url
+name="arpoison" id="http://web.syr.edu/~sabuer/arpoison/">...
+
+<p>However, there is always a solution:
+
+<list>
+
+<item>Use a static arp cache.  You can setup "static" entries in your
+arp cache :
+
+<example>
+arp -s host_name hdwr_addr </example> 
+
+<p>By setting static entries for each important host in your network
+you ensure that nobody will create/modify a (fake) entry for these
+hosts (static entries don't expire and can't be modified) and spoofed
+arp replies will be ignored.
+
+
+<item>Detect suspicious ARP traffic. You can use
+<package>arpwatch</package>, <package>karpski</package> or more
+general IDS that can also detect suspicious arp traffic
+(<package>snort</package>, <url name="prelude"
+id="http://www.mandrakelinux.com/prelude">...).
+
+<item>Implement IP traffic filtering validating the the MAC address.
+</list>
+
 
 <sect id="snapshot">Taking a snapshot of the system
 
@@ -3635,6 +3723,7 @@ read-only. You can then store it for backup or place it in the drive
 and use it to drive a cron check nightly comparing the original
 md5sums against those on the snapshot.
 
+
 <sect>Other recommendations
 <sect1>Do not use software depending on svgalib
 
@@ -3645,6 +3734,8 @@ against <prgn>zgv</prgn> were released, and it was simple to become
 root. Try to prevent using SVGAlib programs wherever possible.  
 
 <!-- FIXME: move this to policy section if there ever is one? -->
+
+
 
 <chapt id="sec-services">Securing services running on your system
 
@@ -3848,15 +3939,14 @@ programs (ala BBS). Otherwise the previous option is preferred.
 
 <p>
 Squid is one of the most popular proxy/cache server, and there are
-some security issues that should be taken into account.
-Squid's default configuration file denies all users requests. 
-You should configure
-Squid to allow access to trusted users, hosts or networks defining 
-an Access Control List on <file>/etc/squid.conf</file>, see the 
-<url
-name="Squid User's Guide"
-id="http://squid-docs.sourceforge.net/latest/html/book1.htm"> for
-more information about defining ACLs rules. 
+some security issues that should be taken into account.  Squid's
+default configuration file denies all users requests.  However the
+Debian package allows access from 'localhost', you just need to
+configure your browser properly.  You should configure Squid to allow
+access to trusted users, hosts or networks defining an Access Control
+List on <file>/etc/squid.conf</file>, see the <url name="Squid User's
+Guide" id="http://squid-docs.sourceforge.net/latest/html/book1.htm">
+for more information about defining ACLs rules.
 
 <p>Also, if not properly configured, someone may relay a mail message 
 through Squid, since the HTTP and SMTP protocols are designed similarly.
@@ -3874,10 +3964,20 @@ The following packages are available in woody (Debian 3.0):
 <list>
 <item><package>calamaris</package> - Log analyzer for Squid or Oops proxy log files.
 <item><package>modlogan</package>  - A modular logfile analyzer.
+<!-- This one is no longer available?
 <item><package>sarg</package> - Squid Analysis Report Generator.
+-->
+<item><package>squidtaild</package> - Squid log monitoring program.
 </list>
 
-<p>FIXME: Add more information about security on Squid Accelerator Mode
+<p>When using Squid in Accelerator Mode it acts as a web server
+too. Turning on this option code complexity increases, making it less
+reliable. By default Squid is not configured to act as a web server,
+so you don't need to worry about this. Note that if you want to use
+this feature be sure that it is really necessary. Too find more
+information about Accelerator Mode on Squid see the <url name="Squid
+User's Guide #Chapter9"
+id="http://squid-docs.sourceforge.net/latest/html/c2521.htm">.
 
 <sect id="ftp-secure">Securing FTP
 
@@ -5182,18 +5282,378 @@ policy (using <manref name="AutomatedBastille" section="8">)
 
 </list>
 
-<chapt>Package signing in Debian
-<p>This chapter could also be titled "how to upgrade/update safely your
-Debian GNU/Linux system" and it deserves its own chapter basically because
-it will not fit with any other chapter.
-<p>As of today (december 2001) Debian does not provide signed packages for
-the distribution and the woody release (3.0) does not integrate that
-feature. There is a solution for signed packages which will
-be, hopefully, provided in the next release (sarge).
+<chapt>Debian Security Infraestructure
 
-<sect>The proposed scheme for package signature checks
-<p>The current (unimplemented) scheme for package signature checking using
-apt is:
+<sect id="debian-sec-team">The Debian Security Team
+
+<p>Debian has a Security Team, made up of five members and two
+secretaries who handle security in the <em>stable</em>
+distribution. Handling security means they keep track of
+vulnerabilities that arise in software (watching forums such as
+bugtraq, or vuln-dev) and determine if the <em>stable</em>
+distribution is affected by it.
+
+<p>Also, the Debian Security Team, is the contact point for problems
+that are coordinated by upstream developers or organisations such as
+<url id="http://www.cert.org" name="CERT"> which might affect multiple
+vendors. That is, when problems are not Debian-specific. There are two
+contact points with the Security Team:
+
+<list>
+
+<item><url id="mailto:team@security.debian.org"
+name="team@security.debian.org"> which only the members of the
+security team read. 
+
+<item><url id="mailto:security@debian.org" name="security@debian.org">
+which is read by all Debian developers (including the security
+team). Mails sent to this list are not published in the Internet (it's
+not a public mailing list).
+
+</list>
+
+<p>Sensitive information should be sent to the first address and, in
+some cases, should be encrypted with the Debian Security Contact key
+(key ID 363CCD95).
+
+<p>Once a probable problem is received by the Security Team it will
+investigate if the <em>stable</em> distribution is affected, if it is,
+a fix is worked for the source code base. This fix will sometimes
+include backporting the patch made upstream (which usually is some
+versions ahead of the one distributed by Debian). After testing of the
+fix is done, new packages are prepared and published in the <url
+id="security.debian.org"> site so they can be retrieved through
+<prgn>apt</prgn> (see <ref id="security-update">). At the same time a
+<em>Debian Security Advisory</em> (DSA) is published on the web site
+and sent to public mailing lists including <url
+id="lists.debian.org/debian-security-announce"
+name="debian-security-announce"> and bugtraq.
+
+<p>Some other frequently asked questions on the Debian Security Team can be
+found at <ref id="debian-sec-team-faq">.
+
+
+<sect id="dsa">Debian Security Advisories
+
+<p>Debian Security Advisories are made whenever a security
+vulnerability is discovered that affects a Debian package. This
+advisories, signed by one of the Security Team members, include
+information of the versions affected as well as the location of the
+updates and their MD5sums. This information is:
+
+<list>
+<item>version number for the fix.
+<item>problem type.
+<item>wether it is remote or locally exploitable.
+<item>short description of the package.
+<item>description of the problem.
+<item>description of the exploit.
+<item>description of the fix.
+</list>
+
+
+<p>DSAs are published both in <url id="http://www.debian.org/"
+name="Debian's mainserver frontpage"> and in the <url
+id="http://www.debian.org/security/" name="Debian security
+pages">. Usually this does not happen until the website is rebuilt
+(once daily) so they might not be present inmediately, the prefered
+channel is the debian-security-announce mailing list.
+
+<p>Interested users can, however (and this is done in some
+Debian-related portals) use the RDF channel to download automatically
+the DSAs to their desktop. Some applications, such as
+<prgn>Evolution</prgn> (an email client and personal information
+assistant) and <prgn>Multiticker</prgn> (a GNOME applet), can be used
+to retrieve the advisories automatically. The RDF channel is available
+at <url id="http://www.debian.org/security/dsa.rdf">.
+
+<p>DSAs published on the website might be updated after being sent to
+the public-mailing lists. A common update is adding cross references
+to security vulnerability databases such as <url
+id="http://cve.mitre.org" name="CVE">, <url id="http://www.cert.org"
+name="CERT/CC vulnerability notes"> or <url
+id="http://www.securityfocus.com/bid/" name="Bugtraq">. This feature was added to
+the website on june 2002.
+
+<p>One of the advantages of adding cross references to these
+vulnerability databases is that:
+
+<list>
+<item>it makes Debian users easier to see and track which
+general (published) advisories have already been covered by Debian. 
+
+<item>system administrators can learn more of the vulnerability and
+its impact by following the cross references.
+
+<item>this information can be used to cross-check output from
+vulnerability scanners that include references to CVE to remove false
+positives (see <ref id="vulnasses-false-positive">).
+
+</list>
+
+<sect>Debian Security Build Infraestructure
+
+<p>Since Debian is currently supported in a large number of
+arquitectures, administrators sometimes wonder if a given arquitecture
+might take more time to receive security updates than another. As a
+matter of fact, except for rare circumstances, updates are available
+to all arquitectures at the same time.
+
+<p>While previously the task to build security updates was done by
+hand, it is currently not (as Anthony Thowns describes in a mail
+sent to the debian-devel-announce mailing list dated 8th june
+2002. FIXME: add pointer).
+
+<p>Packages uploaded by the security team (to <url
+id="security.debian.org:/org/security.debian.org/queue/unchecked"> or
+<url id="ftp://security.debian.org/pub/SecurityUploadQueue">
+with an appropiate patch are checked for signatures withing fifteen
+minutes of being uploaded, once this is done they get added to the
+list of the autobuilders (which no longer do a daily archive
+run). Thus, packages can get automatically built for <em>all</em>
+arquitectures thirty minutes or an hour or so after they're uploaded.
+However, security updates are a little more different than normal
+uploads sent by package maintainers since, in some cases, before being
+published they need to wait until they can be tested further, an
+advisory written, or need to wait for a week or more to avoid
+publicising the flaw until all vendors have had a reasonable chance to
+fix it. 
+
+<p>Thus, the security upload archive works with the following
+procedure (called 
+<em>"Accepted-Autobuilding</em>):
+
+<list>
+
+<item>Someone finds a security problem.
+     
+<item>Someone fixes the problem, and makes an upload to
+      security.debian.org's incoming (this <em>someone</em> is usually
+      a Security Team member but can be also a package maintainer with
+      an appropiate fix that has contacted the Security Team
+      previously). The Changelog includes a <em>testing-security</em>
+      or <em>stable-security</em> as target distribution.
+
+<item>The upload gets checked and processed by a Debian system and moved
+       into queue/accepted, and the buildds are notified. Files in here
+       can be accessed by the security team and (somewhat indirectly) by 
+       the buildds.
+
+<item>Security-enabled buildds pick up the source package
+       (prioritized over normal builds), build it, and send the logs to
+       the security team.
+
+<item>The security team reply to the logs, and the newly built
+       packages are uploaded to queue/unchecked, where they're processed
+       by a Debian system, and moved into queue/accepted.
+
+<item>When the security team find the source package acceptable (i.e.,
+       that it's been correctly built for all applicable architectures
+       and that it fixes the security hole and doesn't introduce new
+       problems of its own) they run a script which:
+
+<list>
+<item>installs the package into the security archive.
+
+<item>updates the Packages, Sources and Release files of
+security.debian.org in the usual way (<prgn>dpkg-scanpackages</prgn>,
+<prgn>dpkg-scansources</prgn>...)
+
+<item>sets up a template advisory that the security team can finish
+off.
+
+<item>(optionally) forwards the packages to the appropriate
+proposed-updates so that it can be included in the real archive as
+soon as possible.
+
+</list>
+
+</list>
+
+<p>This procedure, previously done by hand, was tested and put through
+during the freezing stage of Debian 3.0 woody (july 2002). Thanks to this
+infraestructure the Security Team was able to have updated packages
+ready for the apache and OpenSSH issues for all the supported (almost
+twenty) arquitectures in less than a day.
+
+<sect1>Developer's guide to security updates
+
+<p>This mail was sent by Wichert Akkerman to the <url
+id="+http://lists.debian.org/debian-devel-announce/2002/debian-devel-announce-200206/msg00004.html"
+name="Debian-devel-announce mailing list"> in order to describe Debian
+developer's behaviour for handling security problems in their
+packages. It is published here both for the benefit of developers as
+well as for users to understand better how security is handled in Debian.
+
+<sect2>Coordinating with the security team
+
+<p>If a developer learns of a security problem, either in his package
+or someone else's he should always contact the security team (at
+team@security.debian.org). They keep track of outstanding security
+problems, can help maintainers with security problems or fix them
+themselves, are responsible for sending security advisories and
+maintaining security.debian.org.
+
+<p>Please note that security advisories are only done for release
+distributions, not for testing, unstable (see <ref id="sec-unstable">)
+or older distributions (see <ref id="sec-older">).
+
+<sect2>Learning of security problems
+
+<p>There are a few ways a developer can learn of a security problem:
+
+<list>
+<item>he notices it on a public forum (mailing list, website, etc.):
+<item>someone files a bugreport (the <em>Security</em> tag should be
+used, or added by the developer)
+<item>someone informs him via private email.
+</list>
+
+<p>In the first two cases the information is public and it is important
+to have a fix as soon as possible. In the last case however it might
+not be public information. In that case there are a few possible options
+for dealing with the problem:
+
+<list>
+
+<item>if it is a trivial problem (like insecure temporary files) there is no
+  need to keep the problem a secret and a fix should be made and
+  released.
+
+<item>if the problem is severe (remote exploitable, possibility to gain root
+  privileges) it is preferable to share the information with other
+  vendors and coordinate a release. The security team keeps contacts
+  with the various organizations and individuals and can take care of
+  that.
+
+</list>
+
+<p>In all cases if the person who reports the problem asks to not
+disclose the information that should be respected, with the obvious
+exception of informing the security team (the developer should make
+sure he tells the security team that the information can not be
+disclosed).
+
+<p>Please note that if secrecy is needed the developer can also not
+upload a fix to unstable (or anywhere else), since the changelog
+information for unstable is public information.
+
+<p>There are two reasons for releasing information even though secrecy
+is requested/required: the problem has been known for too long, or
+the information becomes public.
+
+<sect2>Building a package
+
+<p>The most important guideline when making a new package that fixes a
+security problem is to make as few changes as possible. People are
+relying on the exact behaviour of a release once it is made, so any
+change made to it can possibly break someone's system. This is
+especially true of libraries: the developer must make sure he never
+changes the API or ABI, no matter how small the change.
+
+<p>This means that moving to a new upstream version is not a good solution,
+instead the relevant changes should be backported. Generally upstream
+maintainers are willing to help if needed, if not the Debian security
+team might be able to help.
+
+<p>In some cases it is not possible to backport a security fix, for
+example when large amounts of sourcecode need to be modified or
+rewritten. If that happens it might be necessary to move to a new
+upstream version, but it should always be coordinated with the security team
+beforehand.
+
+<p>Related to this is another import aspect: developers must always
+test your change. If their is an exploit the developer should try if
+it indeed succeeds on the unpatched package and fails on the fixed
+package. The developer should try normal usage as well, sometimes a
+security fix can break normal use subtly.
+
+<p>Finally a few technical things for developers to keep in mind:
+
+<list>
+<item>Make sure you target the right distribution in your debian/changelog.
+  For stable this is stable-security and for testing this is
+  testing-security. Do not target &lt;codename&gt;-proposed-updates.
+
+<item>Make sure the version number is proper. It has to be higher than the
+  current package, but lower than package versions in later
+  distributions. For testing this means there has to be a higher version
+  in unstable. If there is none yet (testing and unstable have the same
+  version for example) upload a new version to unstable first.
+
+<item>Do not make source-only uploads if your package has any binary-all
+  packages. The buildd infrastructure will not build those.
+
+<item>Make sure when compiling a package you compile on a clean system
+  which only has package installed from the distribution you are
+  building for. If you do not have such a system yourself yourself you
+  can try a debian.org machine (see http://db.debian.org/machines.cgi
+  or setup a chroot (the <package>pbuilder</package> and
+  <package>debootstrap</package> packages can be helpful in that
+  case).)
+
+</list>
+
+<sect2>Uploading security fixes
+
+<p>After the developer has created and tested the new package it needs to be
+uploaded so it can be installed in the archives. For security uploads
+the place to upload to is
+ftp://security.debian.org/pub/SecurityUploadQueue/ .
+
+<p>Once an upload to the security queue has been accepted the package will
+automatically be rebuilt for all architectures and stored for
+verification by the security team.
+
+<p>Uploads waiting for acceptance or verification are only accessible by
+the security team. This is necessary since there might be fixes for
+security problems that can not be disclosed yet.
+
+<p>If a member of the security team accepts a package it will be installed
+on security.debian.org as well as the proper &lt;codename&gt;-proposed-updates
+in ftp-master or non-US archive.
+
+<sect2>The security advisory
+
+<p>Security advisories are written and posted by the security team. However
+they certainly do not mind if a maintainer can supply (part of) the text
+for them. Information that should be in an advisory is described in
+<ref id="dsa">.
+
+<sect id="deb-pack-sign">Package signing in Debian
+
+<p>This section could also be titled "how to upgrade/update safely
+your Debian GNU/Linux system" and it deserves its own section
+basically because it is an important part of the Security
+Infraestructure. Package signing is an important issue since it avoids
+tampering of packages distributed in mirrors and of downloads with
+man-in-the-middle attacks. Automatic software update is an important
+feature but it's also important to remove security threats that could
+help the distribution of trojans and the compromise of systems during
+updates
+<footnote>
+<p>Some operating systems have already been plagued with
+automatic-updates problems such as the
+<url name="Mac OS X Software Update vulnerabity"
+id="http://www.cunap.com/~hardingr/projects/osx/exploit.html">.
+<p>FIXME: probably the Internet Explorer vulnerability handling
+certificate chains has an impact on security updates on Microsoft Windows.
+</footnote>
+
+
+<p>As of today (december 2001) Debian does not provide signed packages for
+the distribution and the <em>woody</em> release (3.0) does not integrate that
+feature. There is a solution for signed packages which will
+be, hopefully, provided in the next release (<em>sarge</em>).
+
+<p>This issue is better described in the
+<url id="http://www.cryptnet.net/fdp/crypto/strong_distro.html" name="Strong
+Distribution HOWTO"> by V. Alex Brennen.
+
+<sect1>The proposed scheme for package signature checks
+
+<p>The current (unimplemented) scheme for package signature checking
+using <prgn>apt</prgn> is:
 
 <list>
 <item>the Release file includes the md5sum of Packages.gz 
@@ -5228,40 +5688,51 @@ more information you can read:
 <url id="http://www.debian.org/News/weekly/2001/8/"> and
 <url id="http://www.debian.org/News/weekly/2000/11/">.
 
-<sect>Alternative per-package signing scheme
-<p>The additional scheme of signing each and every packages 
-allows packages to be checked when they are no 
-longer referenced by an existing Packages
-file, and also third-party packages where no Packages ever existed for
-them can be also used in Debian but will not be default scheme.
+<sect1>Alternative per-package signing scheme
+
+<p>The additional scheme of signing each and every packages allows
+packages to be checked when they are no longer referenced by an
+existing Packages file, and also third-party packages where no
+Packages ever existed for them can be also used in Debian but will not
+be default scheme.
 
 <p>This package signing scheme can be implemented using
 <package>debsig-verify</package>and <package>debsigs</package>.
 These two packages can sign and verify
 embeded signatures in the .deb itself. Debian already has the
 capability to do this now, but implementing the policy and tools 
-won't be started until after woody releases 
-(so as not to slow down its release cycle).
+won't be started until after woody releases.
+
+<p>Latest dpkg versions (since 1.9.21) incorporate a 
+<url
+id="http://lists.debian.org/debian-dpkg/2001/debian-dpkg-200103/msg00024.html"
+name="patch"> that provides this functionality as soon as 
+<package>debsig-verify</package> is installed.
 
 <p>NOTE: Currently <file>/etc/dpkg/dpkg.cfg</file> ships with
 "no-debsig" as per default.
 
-<sect>Checking packages releases
-<p>In case you want to add now the additional security checks you can use the
-script below, provided by Anthony Thown. 
-This script can automatically do some new security checks
-to allow the user to be sure that the software s/he's downloading 
-matches the software Debian's distributing. 
-This stops Debian developers from hacking into someone's
-system without the accountability provided by uploading to the main archive, or
-mirrors mirroring something almost, but not quite like Debian, or mirrors
-providing out of date copies of unstable with known security problems.   
+<p>NOTE2: Signatures from developers are currently stripped when they
+enter off the package archive since the currently preferred method is
+release checks as described previously.
 
-<p>This sample code, renamed as <prgn>apt-release-check</prgn>, should be 
+<sect1 id="check-releases">Checking distribution releases
+
+<p>In case you want to add now the additional security checks you can
+use the script below, provided by Anthony Thown.  This script can
+automatically do some new security checks to allow the user to be sure
+that the software s/he's downloading matches the software Debian's
+distributing.  This stops Debian developers from hacking into
+someone's system without the accountability provided by uploading to
+the main archive, or mirrors mirroring something almost, but not quite
+like Debian, or mirrors providing out of date copies of unstable with
+known security problems.
+
+<p>This sample code, renamed as <prgn>apt-check-sigs</prgn>, should be 
 used in the following way:
 <example>
 # apt-get update
-# apt-release-check
+# apt-check-sigs
 (...results...)
 # apt-get dist-upgrade
 </example>
@@ -5269,12 +5740,18 @@ used in the following way:
 <p>First you need to:
 
 <list>
-<item>get the keys the archive software uses to to sign Release files, <url id="http://ftp-master.debian.org/ziyi_key_2002.asc"> and
-add them to <file>~/.gnupg/trustedkeys.gpg</file> (which is what <prgn>gpgv</prgn> uses by default)
 
-<item>remove any <file>/etc/apt/sources.list</file>
- lines that don't use the normal "dists"
-structure, or change the script so that it works with them.
+<item>get the keys the archive software uses to to sign Release files,
+<url id="http://ftp-master.debian.org/ziyi_key_2002.asc"> and add them
+to <file>~/.gnupg/trustedkeys.gpg</file> (which is what
+<prgn>gpgv</prgn> uses by default).
+<example>
+  gpg --no-default-keyring --keyring trustedkeys.gpg --import ziyi_key_2002.asc
+</example>
+
+<item>remove any <file>/etc/apt/sources.list</file> lines that don't
+ use the normal "dists" structure, or change the script so that it
+ works with them.
 
 <item>be prepared to ignore the fact that Debian security updates don't
 have signed Release files, and that Sources files don't have
@@ -5285,6 +5762,11 @@ the appropriate keys.
 
 </list>
 
+<p>This is the example code for <prgn>apt-check-sigs</prgn>, the
+latest version can be retrieved from <url
+id="http://people.debian.org/~ajt/apt-check-sigs">.
+This code is currently in beta, for more information read
+<url id="http://lists.debian.org/debian-devel/2002/debian-devel-200207/msg00421.html">.
 
 <example>
 #!/bin/bash
@@ -5505,16 +5987,56 @@ fi
 rm -rf /tmp/apt-release-check
 </example>
 
-<chapt>Security tools in Debian
+<p>You might need to apply the following patch for <em>sid</em> since
+<prgn>md5sum</prgn> adds an '-' after the sum when the input is stdin:
+
+<example>
+@@ -37,7 +37,7 @@
+        local LOOKUP="$2"
+
+        Y="`get_md5sumsize Release "$LOOKUP"`"
+-       Y="`echo "$Y" | sed 's/^ *//;s/  */ /g'`"
++       Y="`echo "$Y" | sed 's/-//;s/^ *//;s/  */ /g'`"
+
+        if [ ! -e "/var/lib/apt/lists/$FILE" ]; then
+                if [ "$Y" = "" ]; then
+@@ -55,7 +55,7 @@
+                return
+        fi
+        X="`md5sum < /var/lib/apt/lists/$FILE` `wc -c < /var/lib/apt/lists/$FILE`"
+-       X="`echo "$X" | sed 's/^ *//;s/  */ /g'`"
++       X="`echo "$X" | sed 's/-//;s/^ *//;s/  */ /g'`"
+        if [ "$X" != "$Y" ]; then
+                echo "$FILE" >>BAD
+                echo "BAD"
+</example>
+
+<chapt id="sec-tools">Security tools in Debian
 
 <p>FIXME: More content needed.
-<p>Debian provides also a number of security tools that can make a Debian
-box suited for security testing purposes. Some of them are provided
-when installing the <package>harden-remoteaudit</package> package
+
+<p>Debian provides also a number of security tools that can make a
+Debian box suited for security purposes. This purposes include
+protection of information systems through firewalls (either packet or
+application-level), intrusion detection (both network and host based),
+vulnerability assesment, antivirus, private networks, etc.
+
+<p>Since Debian 3.0 (<em>woody</em>), the distribution features
+cryptographic software integrated into the main distribution. OpenSSH
+and GNU Privacy Guard are included in the default install, and strong
+encryption is now present in web browsers and web servers, databases,
+and so forth. Further integration of cryptography is planned for
+future releases. This software, due to export restrictions in the US,
+was not distributed along with the main distribution but included only
+in non-US sites.
 
 <sect id="vuln-asses">Remote vulnerability assesment tools
 <p>The tools provided by Debian to perform remote vulnerability assesment
 are:
+<footnote>
+Some of them are provided
+when installing the <package>harden-remoteaudit</package> package.
+</footnote>
 <list>
 <item>nessus
 <item>raccess
@@ -5524,6 +6046,7 @@ are:
 <item>satan (non-free)
 <!-- currently uploaded but not included
 <item>saint (non-free)
+<item>sara (non-free)
 -->
 </list>
 
@@ -5566,6 +6089,7 @@ determine remote services available. Currently Debian provides:
 <item>isic
 <item>icmpush
 <item>nbtscan
+<item>fragrouter
 </list>
 
 <p>Whileas <package>queso</package> and <package>xprobe</package> provide
@@ -5577,7 +6101,21 @@ used for remote ICMP attack techniques.
 
 <p>Designed specifically for Netbios networks, <package>nbtscan</package>
 can be used to scan IP networks and retrieve name information from 
-SMB-enabled servers, including: usernames, network names, MAC addresses...
+SMB-enabled servers, including: usernames, network names, MAC
+addresses...
+
+<p>On the other hand, <package>fragrouter</package> can be used to
+test network intrusion detection systems and see if the NIDS can be
+eluded by fragmentation attacks.
+
+<p>FIXME: Check <url id="http://bugs.debian.org/153117" name="Bug
+#153117"> (ITP fragrouter) to see if it's included.
+
+
+<p>FIXME add information based on
+<url id="http://rr.sans.org/linux/debian_laptop.php"
+name="Debian Linux Laptop for Road Warriors"> which describes how to
+use Debian and a laptop to scan for wireless (803.1) networks.
 
 <sect>Internal audits
 <p>Currently, only the <package>tiger</package> tool used in Debian can
@@ -5726,20 +6264,44 @@ that can be used to filter email from procmail and remove virii.
 <item><url id="http://packages.debian.org/amavis-postfix" name="amavis-postfix">, a
 script that provides an interface from the mail transport agent to one 
 or more virus scanners (this package provides the postfix version).
+<item><package>scannerdaemon</package> a daemon written in Java that accepts 
+incoming requests to scan files for viruses.
 </list>
 
 <p>As you can see, Debian does not currently provide any anti-virus
 software in the main distribution. There are, however, free software
-anti-virus projects which might (in the future) be included in Debian
-<url id="http://sourceforge.net/projects/openantivirus/" name="Open Antivirus">
-and <url id="http://sourceforge.net/projects/jvirus/" name="jvirus">
-(less chances for this since it is completely Java based).  There is
-also a <package>virussignatures</package> package which provides
-signatures for all packages, this package provides a script to
-download the latest virus signatures from <url
+anti-virus projects which might (in the future) be included in Debian:
+
+<list>
+<item><url id="http://sourceforge.net/projects/openantivirus/" name="Open
+Antivirus"> (see 
+<url
+id="http://bugs.debian.org/150698" name="Bug #150698 (ITP oav-scannerdaemon"> and
+<url
+id="http://bugs.debian.org/150695" name="Bug #150695 (ITP oav-update">).
+
+<item><url id="http://clamav.elektrapro.com/" name="Clam
+Antivirus">
+
+<item><url id="http://sourceforge.net/projects/jvirus/"
+name="jvirus">.
+
+<item><url id="http://www.sourceforge.net/projects/amavis"
+name="Amavis Next Generation">, a mail virus scanner which integrates
+with MTA setups and supports multiple virus scanning engines (see <url
+id="http://bugs.debian.org/154294" name="Bug #154294">).
+
+</list>
+
+<p>There is also a <package>virussignatures</package> package
+which provides signatures for all packages, this package provides a
+script to download the latest virus signatures from <url
 id="http://www.openantivirus.org/latest.php">.
 
-<p>FIXME: Check si to determine which packages are available for antivirus.
+<p>FIXME: Check to determine which packages are available for
+antivirus. Is clamav available? (there seem to be Debian packages for it).
+<p>FIXME: check if scannerdaemon is the same as the open antivirus scanner daemon
+(read ITPs).
 
 <p>However, Debian will <em>never</em> provide commercial anti-virus
 software such as: <url
@@ -5807,8 +6369,28 @@ keyserver wwwkeys.pgp.net
 them it will, after sometime, be available in all of them. There is,
 however, a Debian package that provides all the public keys of the
 developers involved in the project. Install
-<package>debian-keyring</package> to have access to it.
+<package>debian-keyring</package> to have access to it. Keyrings are
+installed under <file>/usr/share/keyrings/</file>.
 
+<p>For more information read 1
+<list>
+
+<item><URL ID="http://www.gnupg.org/faq.html" name="GnuPG FAQ">.
+
+<ITEM><URL ID="http://www.gnupg.org/gph/en/manual.html" name="GnuPG
+Handbook">.
+
+<ITEM><URL
+ID="http://www.dewinter.com/gnupg_howto/english/GPGMiniHowto.html"
+name="GnuPG Mini Howto (English)">.
+
+<ITEM><URL ID="http://www.uk.pgp.net/pgpnet/pgp-faq/"
+name="comp.security.pgp FAQ">.
+
+<ITEM><URL ID="http://www.cryptnet.net/fdp/crypto/gpg-party.html"
+name="Keysigning Party HOWTO">.
+
+</list>
 
 
 <chapt>Before the compromise
@@ -5820,7 +6402,7 @@ of exploitations result from known vulnerabilities that have not been
 patched in time, as a <url
 id="http://www.cs.umd.edu/~waa/vulnerability.html"> name="paper by
 Bill Arbaugh"> (presented on the 2001 IEEE Symposium on Security and
-Privacy) explains. Updates are described under <ref id="update">.
+Privacy) explains. Updates are described under <ref id="security-update">.
 
 <sect1>Using Tiger to check for security updates 
 
@@ -5879,7 +6461,7 @@ added yet to the standard cron scripts. That check is
 
 <p>If you are running an <em>stable</em> system and add the
 security.debian.org apt source line to your
-<file>/etc/apt/sources</file> (as described in <ref id="update">) this
+<file>/etc/apt/sources</file> (as described in <ref id="security-update">) this
 script will be able to tell you if there are new packages that you
 need to install. Since the only packages changing in this setup are
 security updates then you have just what you wanted.
@@ -5997,7 +6579,7 @@ install the packages and you can manually do this when results of the
 cron execution show that the system needs to be updated.
 
 <p>In order to do this the system must be properly configured to
-download security updates as discused on <ref id="update">. 
+download security updates as discused on <ref id="security-update">. 
 
 <p>However, this is not recommended for <em>unstable</em> without
 careful analysis since you might bring your system into an unusable
@@ -6564,6 +7146,77 @@ install all the services <em>disabled by default</em>. However, the
 system administrator needs to adapt the security of the system to his
 local security policy.
 
+<p>For a list of posted vulnerabilities per platform see <url
+id="http://securityfocus.com/vulns/stats.shtml">. Is this data useful?
+Probably not much since many applications might (or might not be)
+provided in Debian (as well as in other operating systems). Also some
+vulnerabilities "discovered" in Bugtraq regarding Debian affect the
+Debian <em>unstable</em> (i.e. not supported) distribution.
+<footnote>
+For example, based on the Securityfocus data it might seem that
+Windows NT is more secure that Linux which is a questionable
+assertion. After all, any Linux distribution provides a lot more
+software than the one provided in any operating system provided by
+Microsoft.
+</footnote>
+
+
+<sect2>Is Debian more secure than other Linux distributions (such as RedHat, SuSE...)?
+
+<p>There are not really that many differences between Linux
+distributions (besides for what is considered the base installation)
+since the same applications (but maybe different versions) are shipped
+with the distribution's stable version, for example the Kernel, Bind,
+Apache, OpenSSH, Xfree, gcc, zlib, etc. are retrieved from the same
+sources.
+
+<p>For example, Redhat got unlucky and shipped when foo 1.2.3 was
+current, which was later found to have a hole.  Debian, on the other
+hand, may have gotten lucky and shipped with foo 1.2.4, which
+incorporated the bug fix.  That was the case in the big rpc.statd
+problem from a couple years ago.
+
+<p>There is a lot of collaboration between the respective security
+teams for the major Linux distributions.  As a result of this, they
+all tend to release necessary security updates at the same time.
+Known security updates are rarely, if ever, left unfixed by a
+distribution vendor.  Knowledge of a security vulnerability is never
+kept from another distribution vendor, as fixed to common
+vulnerabilities are usually coordinated upstream or by <url
+id="http://cert.org" name="CERT"> As a result of all this, the
+relative security of the different distributions is very similar.
+
+<p>Probably one of the main advantages of Debian over other Linux
+distributions is that <prgn>apt</prgn> makes updates easier. However,
+security-wise, there are some aspects that improve security in the
+distribution:
+
+<list>
+<item>Debian  provides more security tools than other distros, see
+<ref id="sec-tools">.
+
+<item>Debian standard installation is smaller (less functionality) and
+        thus more secure (this usually
+        goes against usability), other distros tend to either install  
+        by default a lot of services or do not properly configure them
+        (remember the Ramen or Lion worms). It's not as strict as OpenBSD
+        (no daemons are active per default) but it's a good
+        compromise.
+<footnote>
+Without diminishing the fact that some distributions such as RedHat or
+Mandrake are also taking into account security in their standard
+installations by having the user select <em>security profiles</em> or
+help with wizard configuration of <em>personal firewalls</em>.
+</footnote>
+
+<item>Debian documents security, as you already know since you are
+reading <em>this</em> document.
+
+</list>
+
+
+<p>FIXME: add link to CERT's rpc.statd, and ramen or lion worms.
+
 <sect1>There are many Debian bugs in bugtraq does this mean that it is
 very vulnerable?
 
@@ -6586,6 +7239,8 @@ affects other distributions as well.
 <p>Debian contains quite a lot of packages, and nowadays there are
 many groups looking for security problems in software (for whichever
 reasons).
+
+
 
 <sect1>Has Debian any certification security-wise?
 
@@ -6641,6 +7296,28 @@ information. Most of the security guidelines for Unix systems apply
 also to Debian so securing service X in Debian is, most of the time,
 like securing the service for any other Linux distribution (or Unix,
 for that matter).
+
+<sect1>How can I remove all the banners for services?
+
+<p>If you do not like a user to connect to your, for example, POP3
+daemon and retrieve information on your system you might want to
+remove (or change) the banner the service shows to users
+<footnote>
+Note that this is security by obscurity and will probably not be worth
+the effort in the long term.
+</footnote>
+. Doing so depends on the software you are running for a given
+ service. For example, for <prgn>postfix</prgn> you can set your
+ smtpbanner in <file>/etc/postfix/main.cf</file>:
+<example>
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+</example>
+
+<p>Other software is not so easy to change, for
+<package>openssh</package> you need to recompile it to change the
+version it prints and need not to be careful not to remove the first
+part (<tt>SSH-2.0</tt>) that clients use to identify which protocols
+it supports.
 
 <sect1>Are all Debian packages safe?
 
@@ -6698,6 +7375,50 @@ consider tighten them. Probably changing them to 750. For users read
 <p>The thread discussing this on the debian-security mailing list can
 be read at <url
 id="http://lists.debian.org/debian-devel/2000/debian-devel-200011/msg00783.html">.
+
+<sect1>After installing a grsec/firewall I receive many console messages! How do I remove them?
+
+
+<p>If you are receiving console messages and have configured
+<file>/etc/syslog.conf</file> to not se messages on the console and
+redirect them to either files or a special tty you might be seeing
+messages sent directly to the console.
+
+<p>The default console log level for any given kernel is 7, that means
+that any message with lower priority will appear in the
+console. Usually, firewalls (the LOG rule) and some other security
+tools log lower that this priority.
+
+<p>To reduce messages sent to the console you can use
+<prgn>dmesg</prgn> (<tt>-n</tt> option see <manref section="8"
+name="dmesg">) which in fact examines and <em>controls</em> the kernel
+ring buffer. To fix this for the next reboot change
+<file>/etc/init.d/klogd</file> from
+
+<example>
+KLOGD=""
+</example>
+
+<p>to
+
+<example>
+KLOGD="-c 4"
+</example>
+
+<p>You might want to use a lower number if you still see them. A
+description of the log levels can be found at
+<file>/usr/include/sys/syslog.h</file>:
+<example>
+#define LOG_EMERG       0       /* system is unusable */
+#define LOG_ALERT       1       /* action must be taken immediately */
+#define LOG_CRIT        2       /* critical conditions */
+#define LOG_ERR         3       /* error conditions */
+#define LOG_WARNING     4       /* warning conditions */
+#define LOG_NOTICE      5       /* normal but significant condition */
+#define LOG_INFO        6       /* informational */
+#define LOG_DEBUG       7       /* debug-level messages */
+</example>
+
 
 <sect1>Operating system users and groups
 
@@ -7157,6 +7878,22 @@ to the different services just by inserting the appropiate lines in the followin
 
 <sect id="vulnerable-system">My system is vulnerable! (are you sure?)
 
+<sect1 id="vulnasses-false-positive">Vulnerability assesment scanner X says my Debian system is vulnerable!
+
+<p>Many vulnerability assessment scanners give false positives of
+Debian systems since they only use version checks to determine if a
+given software is vulnerable, but do not really test the security
+vulnerability itself. Since Debian does not change software versions
+when fixing a package (many times the fix made for newer releases is
+backported) some tools tend to think that an updated Debian system is
+vulnerable to things it's not really vulnerable to.
+
+<p>If you think your system is up to date with security patches, you
+might want to use the cross references to security vulnerabilities
+databases published with the DSAs (see <ref id="dsa">) to weed out
+false positivies if the tool you are using includes CVE references.
+
+
 <sect1>I've seen an attack on my system logs: am I compromised?
 
 <p>A trace of an attack does not always mean that you've been cracked
@@ -7311,8 +8048,12 @@ version indicated in the Debian Security Advisory.
 <p>Add <tt>DenyFilter \*.*/</tt> to your configuration file, for more
 information see <url id="http://www.proftpd.org/critbugs.html">.
 
+<sect2>I see quite a lot of open ports after installing Portsentry.
 
-<sect id="debian-sec-team">Questions regarding the Debian security team
+<p>That's just the way Portsentry works, it opens around twenty ports
+on unused ports to try to detect port scans. 
+
+<sect id="debian-sec-team-faq">Questions regarding the Debian security team
 
 <!-- FIXME: update from web page -->
 
@@ -7380,6 +8121,17 @@ incoming queue or in the mirrors).
 with which Debian is given.
 </list>
 
+<p>If you want to more in depth analysis on the time it takes for the
+Security Team to work on vulnerabilities you should consider that the
+new DSAs (see <ref id="dsa">) published on the <url id="http://security.debian.org"
+name="security website">, and the metadata used to generate them,
+includes links to vulnerability databases. You could donwload the
+sources of the web server (from the <url id="http://cvs.debian.org"
+name="CVS">) or use the HTML pages to determine the time that it takes
+for Debian to fix vulnerabilities correlating this data with public
+databases.
+
+
 <sect1 id="sec-unstable">How is security handled for <tt>testing</tt> and <tt>unstable</tt>?
 <p>The short answer is: it's not. Testing and unstable are rapidly moving
    targets and the security team does not have the resources needed to
@@ -7390,6 +8142,15 @@ with which Debian is given.
 really quick since security updates sometimes get they are usually
 available upstream faster (other versions, like those in stable need usually
 to be backported).
+
+<sect1 id="sec-older">I have an older version of Debian, is it security-supported?
+
+<p>Unfortunately no, the Debian Security Team cannot handle both the
+stable release (unofficially also the unstable) and other older
+releases. However, you can expect security updated for a limited
+period of time (usually several months) just after a new Debian
+distribution is released.
+
 
 <sect1>Why are there no official mirrors for security.debian.org?
 <p>A: The purpose of security.debian.org is to make security updates available
@@ -7471,14 +8232,6 @@ introduced in Debian and no software is introduced that is not first
 signed by an authorised developers. They are in charge of analysing the
 software they maintain and are security-aware.
 
-<sect1>I have an older version of Debian, is it security-supported?
-
-<p>Unfortunately no, the Debian Security Team cannot handle both the
-stable release (unofficially also the unstable) and other older
-releases. However, you can expect security updated for a limited
-period of time (usually several months) just after a new Debian
-distribution is released.
-
 <appendix id="harden-step">The hardening process step by step
 
 <!--
@@ -7509,7 +8262,7 @@ packages before doing [I]nstall. Leave the bare minimum software in
 the server.
 
 <item>Update all software from latest packages available at
-security.debian.org as explained previously in <ref id="update">.
+security.debian.org as explained previously in <ref id="security-update">.
 
 <item>implement the suggested issues presented in this manual
 regarding user quotas, login definitions and lilo
@@ -7861,7 +8614,7 @@ setup based on a course at
 		<item>Also remember to periodically run
 		<prgn>apt-get update ; apt-get upgrade</prgn>
 		(perhaps install as a cron job?) as explained in <ref
-		id="update">.
+		id="security-update">.
 
 	      </list>
 
