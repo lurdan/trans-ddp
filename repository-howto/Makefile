@@ -21,7 +21,8 @@ validate:
 
 html: $(manual).html
 $(manual).html: $(sources)
-	jade -t sgml $<
+	xmlto html-nochunks $<
+	tidy -mq $@
 
 clean distclean:
 	rm -f $(manual).html
