@@ -37,7 +37,7 @@ ORIG_LANG := en
 
 # List of langs (above the canonical one)
 #LANGS := en de es fr it ja pl pt_BR ru
-LANGS := en
+LANGS := en ru pt_BR
 
 # List of output format
 # Possible values are EXTS=html txt tov pdf ps info
@@ -54,6 +54,23 @@ publish: publish-html publish-files
 %.$(ORIG_LANG).sgml: %.sgml
 	rm -f $*.$(ORIG_LANG).sgml
 	ln -sf $*.sgml $*.$(ORIG_LANG).sgml
+
+%.ru.sgml: ru/%.ru.sgml
+	rm -f $*.ru.sgml
+	ln -sf ru/$*.ru.sgml $*.ru.sgml
+
+%.pt_BR.sgml: pt_BR/%.sgml
+	rm -f $*.pt_BR.sgml
+	ln -sf pt_BR/$*.sgml $*.pt_BR.sgml
+
+faqstatic.en.ent: faqstatic.ent
+	sed -e "s/@@@@//g" -e "s/@##@//g" $< > faqstatic.en.ent
+	
+faqstatic.pt_BR.ent: faqstatic.ent
+	sed -e "s/@@@@/pt_BR\//g" -e "s/@##@//g" $< > faqstatic.pt_BR.ent
+
+faqstatic.ru.ent: faqstatic.ent
+	sed -e "s/@@@@/ru\//g" -e "s/@##@/.ru/g" $< > faqstatic.ru.ent
 
 # If sgml for translated languages are in subdir
 # must be enabled soon
@@ -117,7 +134,7 @@ version.ent: debian/changelog
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+$(MANUAL).%.html: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 	debiandoc2html    -l $* -c $<
 #	debiandoc2html -1 -l $* -c $<
 	@echo "cleaning up file extensions";\
@@ -132,26 +149,26 @@ $(MANUAL).%.html: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent
 	done;   
 
 #----[ generating plain text ]-------------------------------------------------
-$(MANUAL).%.txt: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+$(MANUAL).%.txt: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 	debiandoc2text -l $* $<
 
 #----[ generating tov text ]---------------------------------------------------
-$(MANUAL).%.tov: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+$(MANUAL).%.tov: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 	debiandoc2textov -l $* $<
 
 #----[ generating info ]-------------------------------------------------------
-#$(MANUAL).%.info: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+#$(MANUAL).%.info: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 #	debiandoc2info -l $* $<
 
 # for now we avoid problem with above with followings
-$(MANUAL).%.texinfo: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+$(MANUAL).%.texinfo: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 	debiandoc2texinfo -l $* $<
 
 $(MANUAL).%.info: $(MANUAL).%.texinfo
 	makeinfo --force -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 
 #----[ generating teTeX ]------------------------------------------------------
-$(MANUAL).%.tex: $(MANUAL).%.sgml faqstatic.ent faqdynamic.ent 
+$(MANUAL).%.tex: $(MANUAL).%.sgml faqstatic.%.ent faqdynamic.ent 
 	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
@@ -273,8 +290,8 @@ distclean: clean
 
 clean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
-	rm -f *~ prior.aux pprior.aux $(MANUAL).en.sgml
-	rm -rf $(MANUAL)*.html 
+	rm -f *~ prior.aux pprior.aux $(MANUAL).??.sgml
+	rm -rf $(MANUAL)*.html faqstatic.??.ent
 
 .PHONY: all publish\
 	publish-html publish-ps publish-files\
