@@ -1,89 +1,85 @@
 #
 # Makefile for the Debian reference
 #
+#====[ customization ]=========================================================
 ##### CONF PART 
+# The cannonical language, in which the original document is
+ORIG_LANG := en
+# All languages
+ALL_LANGS := en fr it
+# target languages
+LANGS := en
+# Target file type (html ps pdf txt tov info)
+EXTS := html txt ps pdf
+# publish directory (default for all DDP)
 # this can and will be overriden by a higher level makefile
-#
-# Should work both for a manual in the Debian Documentation Project
-# manuals.sgml tree, and for package build.
-# build dir type               site type            org; languages; format         
-# `pwd`/.. -> manuals.sgml  -> DDP/DDP mirror       en;      ; html,txt
-# `pwd`/.. -> htdocs        -> sourceforge.net      en; fr,it; html,txt
-# `pwd`/.. -> $HOME         -> normal user account  en; fr,it; html,txt
+PUBLISHDIR := ../../../public_html/manuals.html
+# build flag for SGML parse.
+BOOK    := qref
+# Set parameters by build environment
+# build dir type               site type      languages  ; format         
+# `pwd`/.. -> manuals.sgml -> DDP/DDP mirror  en, fr, it ; html,txt, ps, pdf
+# `pwd`/.. -> htdocs       -> sourceforge.net en         ; html
+# `pwd`/.. -> $HOME        -> normal account  en         ; html
 # 
 HTDOCS := $(notdir $(patsubst %/,%, $(dir $(shell pwd))))
 ifeq ("$(HTDOCS)", "manuals.sgml")
 # DDP site or checked out source from DDP
 PUBLISHDIR := ../../../public_html/manuals.html
 MANUAL := $(notdir $(shell pwd))
-# The cannonical language, in which the original document is
-ORIG_LANG := en
-# list of langs (above the canonical one)
-LANGS := fr it
-# Because Latex is hard to work with, I just to do text for now
-#EXTS := ps pdf txt tov info
-EXTS := txt ps pdf
 else
 ifeq ("$(HTDOCS)", "htdocs")
 # qref.sourceforge.net
 PUBLISHDIR := .
 MANUAL := qref
-# The cannonical language, in which the original document is
-ORIG_LANG := en
-# list of langs (above the canonical one)
-LANGS := 
-# Because Latex is hard to work with, I just to do text for now
-#EXTS=ps pdf txt tov info
-EXTS := txt
 else
-# default: checked out source from qref.sourceforge.net
+# default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
 MANUAL := qref
-# The cannonical language, in which the original document is
-ORIG_LANG := en
-# list of langs (above the canonical one)
-LANGS := fr it
-# Because Latex is hard to work with, I just to do text for now
-#EXTS=ps pdf txt tov info
-EXTS := txt
 endif
 endif
+#
+# Should work both for a manual in the Debian Documentation Project
+# manuals.sgml tree, and for package build.
+# Key source files
+SGMLMSTR := qref.sgml
+SGMLSRCS := custom.ent default.ent  dynamic.%.ent date.ent \
+	    $(foreach lang, $(ALL_LANGS), $(wildcard $(lang)/*.sgml ) )
+TARSRCS = examples/* bin/* ??/*.sgml\
+	  Makefile index.php TODO PROJECT README
+ALLSRCS := $(SGMLSRCS)
 
-# build flag for SGML parse.
-BOOK            := qref
-##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
 
-# what will be built
-HTMLDIRS=$(foreach lang,$(ORIG_LANG) $(LANGS),$(MANUAL).$(lang).html)
-ALLFILES=$(foreach ext,$(EXTS),\
-	    $(foreach lang,$(ORIG_LANG) $(LANGS),$(MANUAL).$(lang).$(ext))\
-	  )
-SGMLSRC = custom.ent default.ent qref.sgml  \
-	 ./??/*.sgml ./examples/* Makefile index.php \
-	 TODO PROJECT README ./bin/* 
-
-# maximum times we're willing to run TeX to get cross-references right, if you subtract by 3
-MAX_TEX_RECURSION	:= 9
-
+##### END OF CONF PART
 #====[ build rules ]===========================================================
+# what will be built
+TARGETS := $(foreach ext,$(EXTS),\
+	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
+	  )
+HTMLDIRS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).html)
+FILEEXTS = $(filter-out html,$(EXTS))
+ALLFILES = $(foreach ext,$(FILEEXTS),\
+	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
+	  )
+
+# maximum times we're willing to run TeX to get cross-references right, 
+# if you subtract by 3
+MAX_TEX_RECURSION	:= 6
+
 # generate anything some dirs want version.ent to be built, some not
 
 DEBIAN=$(wildcard debian)
 ifeq ($(DEBIAN),"debian")
-all: version.ent $(HTMLDIRS) $(ALLFILES) publish
+all: version.ent $(TARGETS) publish
 else
-all: $(HTMLDIRS) $(ALLFILES) publish
+all: $(TARGETS) publish
 endif
-
-sf: $(HTMLDIRS) $(ALLFILES)
 
 version.ent: debian/changelog
 	./debian/rules $@
 
-DATE            := `date --utc +"%Y.%m.%d-%H:%M"`
+DATE := `date --utc +"%Y.%m.%d-%H:%M"`
 
-# --- build sgml
-#
 date.ent:
 	: > $@                       # clear the file
 	@echo "<!entity date \"$(DATE)\">" >> $@
@@ -118,20 +114,14 @@ dynamic.%.ent:
 # Create starting SGML for each language from template
 # Actual contents are in language segrigated subdirectory
 # generic rules for all the languages to each language
-$(MANUAL).%.sgml: qref.sgml 
+$(MANUAL).%.sgml: $(SGMLMSTR)
 	sed -e "s/@@@@/$*/g" $< > $(MANUAL).$*.sgml
 
 #----[ generating HTML ]-------------------------------------------------------
-# for orig_lang
-#$(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
-#	debiandoc2html -l $(ORIG_LANG) -c $< 2>_html.error
-
-# for any  languages
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
-
 #   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
+$(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
 	debiandoc2html -l $* -c $< 2>_html.$*.error
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
@@ -145,64 +135,38 @@ $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	done;   
 
 #----[ generating plain text ]-------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
-#	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
-
-# for translated languages
-$(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.%.ent
+$(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 	debiandoc2text -l $* $< 2>_txt.$*.error
 
 #----[ generating tov ]--------------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).tov: $(MANUAL).$(ORIG_LANG).sgml
-#	debiandoc2textov -l $(ORIG_LANG) -c $<
-
-# for translated languages
-$(MANUAL).%.tov: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+$(MANUAL).%.tov: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 	debiandoc2textov -l $* $<
 
 #----[ generating info ]-------------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).texinfo: $(MANUAL).$(ORIG_LANG).sgml
-#	debiandoc2texinfo -l $(ORIG_LANG) -c $<
-
-# for translated languages
-$(MANUAL).%.texinfo: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+$(MANUAL).%.texinfo: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 	debiandoc2texinfo -l $* $<
-
 # Buggy, Top must be moved manually
 
 #----[ generating info ]-------------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).info: $(MANUAL).$(ORIG_LANG).sgml
-#	debiandoc2info -l $(ORIG_LANG) -c $<
-
-# for translated languages
 #$(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 #	debiandoc2info -l $* $<
 
 # for now we avoid problem
-$(MANUAL).%.info: $(MANUAL).%.texinfo
+$(MANUAL).%.info: $(MANUAL).%.texinfo dynamic.%.ent date.ent $(SGMLSRCS)
 	@#makeinfo -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 	makeinfo --force -v -o $(MANUAL).$*.info $(MANUAL).$*.texinfo
 
 
 #----[ generating teTeX ]------------------------------------------------------
-$(MANUAL).%.tex: $(MANUAL).%.sgml date.ent dynamic.%.ent 
+$(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).ps: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.%.ent 
-#	debiandoc2latexps -l $(ORIG_LANG) -c $<
-
-# for translated languages
 #$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 #	debiandoc2latexps -l $* $<
 
 # debiandoc2latexps is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.ps:	$(MANUAL).%.tex
+$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
 #	 note that I have seen bi-stable .aux files, thus we check two levels deep
 	@-cp -pf prior.aux pprior.aux 2>/dev/null
 	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
@@ -227,16 +191,12 @@ $(MANUAL).%.ps:	$(MANUAL).%.tex
 	@rm -f prior.aux pprior.aux
 
 #----[ generating PDF ]--------------------------------------------------------
-# for orig_lang
-#$(MANUAL).$(ORIG_LANG).pdf: $(MANUAL).$(ORIG_LANG).sgml
-#	debiandoc2latexpdf -l $(ORIG_LANG) -c $<
-
 # for translated languages
 #$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 #	debiandoc2latexpdf -l $* $<
 
 # debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.pdf:	$(MANUAL).%.tex
+$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
 #	 note that I have seen bi-stable .aux files, thus we check two levels deep
 	@-cp -pf prior.aux pprior.aux 2>/dev/null
 	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
@@ -267,7 +227,7 @@ publish-html: $(HTMLDIRS)
 	# install for all language (html)
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	@$(foreach lang,$(ORIG_LANG) $(LANGS),\
+	@$(foreach lang,$(LANGS),\
 	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(lang).html ;\
 	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
 # 	install examples.  Excuse me for ugly script (skip CVS directory)
@@ -284,19 +244,21 @@ publish-files: $(ALLFILES)
 	@echo "# install for ext=$(EXTS), LANGS=$(LANGS), and ORIG_LANG=$(ORIG_LANG)"
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	@$(foreach ext,$(EXTS),\
+	@$(foreach ext,$(FILEEXTS),\
 	 $(foreach lang,$(ORIG_LANG) $(LANGS),\
 	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(lang).$(ext);\
 	  install -p -m 644 $(MANUAL).$(lang).$(ext)\
-	                    $(PUBLISHDIR)/$(MANUAL)/;)\
+	                    $(PUBLISHDIR)/$(MANUAL)/;\
+	  )\
 	)
-	@$(foreach ext,$(EXTS),\
+	# soft link $(FILEEXTS)
+	@$(foreach ext,$(FILEEXTS),\
 	  if [ "$(ORIG_LANG)" != "" ] ; then\
 	    ( cd $(PUBLISHDIR)/$(MANUAL); \
 	      rm -f $(MANUAL).$(ext);\
 	      ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
 	    ) \
-	  fi\
+	  fi ;\
 	)
 
 #----[ publish tar.gz files ]--------------------------------------------------
@@ -308,15 +270,16 @@ publish-tar: $(MANUAL).tar.gz
 	@install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
 
 #====[ validating SGML ]=======================================================
-validate:
-	set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
+validate: $(SGMLSRCS)
+	set -x; for i in $(wildcard $(MANUAL).*.sgml); \
+	  do nsgmls -ges -wall $$i; done
 
 #====[ Saving SGML tar ]=======================================================
 .PHONY:	tar
 tar: $(MANUAL).tar.gz
-$(MANUAL).tar.gz: $(SGMLSRC)
+$(MANUAL).tar.gz: $(TARSRCS)
 	# make tar
-	@tar cvzf $(MANUAL).tar.gz $(SGMLSRC) 2>_tar.error 1>&2
+	@tar cvzf $(MANUAL).tar.gz $(TARSRCS) 2>_tar.error 1>&2
 	
 #====[ cleaning up ]===========================================================
 neat:
@@ -324,12 +287,26 @@ neat:
 	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent
 
 clean distclean: neat
-	rm -f $(MANUAL)*.{txt,ps,pdf,info*,tar.gz} date.ent
+	rm -f $(MANUAL)*.{txt,tov,texinfo,out,ps,pdf,info*,tar.gz} date.ent
 	rm -rf $(MANUAL)*.html
 
-publishclean:
-	rm -Rf $(PUBLISHDIR)/$(MANUAL)/*
+xpublish:
+	rm -Rf $(PUBLISHDIR)/$(MANUAL)/
 
-.PHONY: all sf\
-	publish publish-html publish-files publish-tar \
-	neat clean distclean publishclean validate
+scp: publish
+	scp -pr $(PUBLISHDIR)/$(MANUAL)/ \
+	$$USER@shell.sf.net:/home/groups/q/qr/qref/htdocs/quick
+
+debug: 
+	# TARGETS   = $(TARGETS)
+	# HTMLDIRS  = $(HTMLDIRS)
+	# ALLFILES  = $(ALLFILES)
+#	# SGMLSRCS  = $(SGMLSRCS)
+	# MANUAL    = $(MANUAL)
+	# EXTS     = $(EXTS)
+	# FILEEXTS = $(FILEEXTS)
+
+.PHONY: all scp target tar validate debug\
+	publish xpublish publish-html publish-files publish-tar \
+	neat clean distclean 
+	# 	$(TARGETS) $(HTMLDIRS)
