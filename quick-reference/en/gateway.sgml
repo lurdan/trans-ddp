@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.41 $"  -->
+<!-- CVS revision of this document "$Revision: 1.42 $"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -252,11 +252,11 @@ when run with the argument <tt>help</tt>.
 For example, <tt>ip link help</tt> prints:
 <example>
 Usage: ip link set DEVICE { up | down | arp { on | off } |
-	                     dynamic { on | off } |
-	                     multicast { on | off } | txqueuelen PACKETS |
-	                     name NEWNAME |
-	                     address LLADDR | broadcast LLADDR |
-	                     mtu MTU }
+                     dynamic { on | off } |
+                     multicast { on | off } | txqueuelen PACKETS |
+                     name NEWNAME |
+                     address LLADDR | broadcast LLADDR |
+                     mtu MTU }
        ip link show [ DEVICE ]
 </example>
 See also <manref name="ip" section="8">.
@@ -532,7 +532,7 @@ The GNU C Library <manref name="resolver" section="3">
 can also look up IP addresses in files or consult
 Network Information Services (NIS).
 <p>
-To see what IP address is associated with the local host,
+To see what domain name is associated with the local host,
 use the <prgn>hostname --fqdn</prgn> command.  This prints out
 the first fully qualified domain name that the resolver finds
 for the local hostname.
@@ -564,11 +564,11 @@ to resolve a name: e.g.,
 How the resolver resolves names is also alleged to be governed by
 the <file>/etc/host.conf</file> configuration file.
 The <tt>order</tt> line in this file lists the methods
-that should be used to resolve a name:
+that should be used to resolve a name: e.g.,
 <tt>bind</tt>, <tt>hosts</tt>, <tt>nis</tt>.
 See <manref name="host.conf" section="5">.
 I believe that this line has been superseded by the <tt>hosts</tt>
-<file>nsswitch.conf</file> but I am not sure.
+line in <file>nsswitch.conf</file> but I am not sure.
 </footnote>
 See <manref name="nsswitch.conf" section="5">.
 Insofar as the <tt>files</tt> service is used, the behavior
@@ -697,7 +697,7 @@ To make this work you must install one of the following packages:
 <list compact>
 <item><package>dhcp3-client</package> (version 3, Internet Software Consortium)
 <item><package>dhcpcd</package> (Yoichi Hariguchi and Sergei Viznyuk)
-<item><package>pump</package> (Redhat)
+<item><package>pump</package> (Red Hat)
 </list>
 
 <package>pump</package> is simple and widely used.
@@ -897,7 +897,7 @@ iface eth0 inet ppp
 The better one is following but need verification
 <example>
 mapping eth0
-	script /root/bin/echo-ppp0
+        script /root/bin/echo-ppp0
 
 iface ppp0 inet ppp
         provider <var>myisp</var>
@@ -1243,12 +1243,6 @@ Networking hardware can be hot plugged either at boot time or
 after a card (e.g., a PCMCIA card) is inserted into the machine
 or after a utility such as <prgn>discover</prgn> runs and loads
 necessary driver modules.
-<footnote>
-If your system starts <prgn>discover</prgn> at 
-<file>/etc/rcS.d/S36discover</file>, you must move it to 
-<file>/etc/rcS.d/S40discover</file>.
-See bug <url id="&bug-rcs-discover;" name="#208155">.
-</footnote>
 <p>
 When the kernel detects new hardware it initializes the driver
 for the hardware and then runs the <prgn>hotplug</prgn> program
@@ -1341,8 +1335,12 @@ Another solution is to use <prgn>waproamd</prgn> which
 sets the WEP encryption key according to the access points
 that are available, as revealed by scanning.
 <p>
-<prgn>waproamd</prgn> can be set up so that instances are started
-by <prgn>hotplug</prgn>.
+<package>waproamd</package> works well in combination with
+<package>hotplug</package>.
+When a card has been inserted resulting in an interface
+becoming available for use,
+<file>/etc/hotplug.d/net/waproamd.hotplug</file> starts an
+instance of <prgn>waproamd</prgn> for that interface.
 <prgn>waproamd</prgn> works nicely in combination with
 <prgn>ifplugd</prgn>.
 <p>
@@ -1351,45 +1349,96 @@ for more information.
 
 <sect1 id="trigger-pcmcia">Network configuration and PCMCIA
 <p>
+If you use 16 bit PCMCIA network cards then you should set
+<tt>CARDMGR_OPTS="-f"</tt> in
+<file>/etc/defaults/pcmcia</file>.
+This slows down initialization slightly
+but it prevents a race condition by running 
+<prgn>cardmgr</prgn> in the foreground until all
+16 bit PCMCIA cards are configured.
+<p>
+Although by default <file>/etc/init.d/pcmcia</file> is started
+from <file>/etc/rc2.d/S20pcmcia</file> you may want to 
+move this earlier, e.g., to <file>/etc/rc2.d/S12pcmcia</file>
+in order to ensure that the PCMCIA subsystem is initialized
+before network services are started at S20.
+<p>
+There are several possible approaches to configuring
+PCMCIA network interfaces.
+<list compact>
+  <item>For 32 bit PCI (CardBus) PCMCIA network cards:
+    <list compact>
+      <item><package>hotplug</package> /
+      <package>ifupdown</package>
+   </list>
+<item>For 16 bit ISA PCMCIA network cards:
+  <list compact>
+    <item><package>hotplug</package> /
+      <package>ifupdown</package>
+      with locally disabled <file>/etc/pcmcia/network</file>
+      (recommended),
+      or
+    <item><package>pcmcia-cs</package> /
+      <package>ifupdown</package>
+      with default <file>/etc/pcmcia/network</file>
+      (deprecated),
+      or
+    <item><package>pcmcia-cs</package>
+      customized by enabling features of <file>/etc/pcmcia/network</file>
+      (deprecated)
+  </list>
+</list>
+<p>
+The recommended approach for 16 bit cards takes advantage of
+the fact that the Linux 2.4 hot plug subsystem now supports
+PCMCIA.
+Simply follow the directions in <ref id="trigger-hotplug">.
+<footnote>
 In past releases of &debian; the standard way to configure
-PCMCIA network cards was to use the facilities of the
-<package>pcmcia-cs</package> package.
-Scripts in <file>/etc/pcmcia/</file> are executed by
-<prgn>cardmgr</prgn>, the daemon that manages 16-bit PCMCIA
-cards, after card insertion or removal.
-Some people use <package>pcmcia-cs</package> in its default
-configuration wherein it simply calls <prgn>ifup</prgn> after
+PCMCIA network cards was through the <prgn>cardmgr</prgn>
+hook scripts <file>/etc/pcmcia/network</file> and
+<file>/etc/pcmcia/network.opts</file>.
+These hook scripts were developed in the era before Linux
+acquired a more general purpose hot plug capability.
+<p>
+Some people still use these scripts in their default state
+wherein they simply call <prgn>ifup</prgn> after
 the interface is added and <prgn>ifdown</prgn> when the
 interface is removed.
-Others use the special system of calling low level network
-configuration commands that is implemented in
-<file>/etc/pcmcia/network</file> and
-<file>/etc/pcmcia/network.opts</file>.
-The latter system has several problems.
-It is afflicted by race conditions;
-it only works for 16-bit PCMCIA cards;
-it duplicates what <package>ifupdown</package> already does.
-Consequently <package>pcmcia-cs</package> methods of network
-configuration are now deprecated in favor of the 
-<package>hotplug</package> mechanism described in
-<ref id="trigger-hotplug">.
+As noted above, it is now recommended to use
+<package>hotplug</package> to do this.
 <p>
-To disable the <package>pcmcia-cs</package> mechanism for
-configuring network interfaces, first make sure that none of the
-environment variables WHEREAMI, DHCLIENT, PUMP, BOOTP or DHCP
-is set to "y" in <file>/etc/pcmcia/network.opts</file>.
-(When the package is first installed these variables are all
-set to "n".)
-Second, edit <file>/etc/pcmcia/network.opts</file> so that
-the default start_fn() and stop_fn() definitions at the end of
-the file are removed, disabled or commented out.
-(When the package is first installed these definitions include
-<prgn>ifup</prgn> and <prgn>ifdown</prgn> commands.)
+Others still use the special system of calling low level
+network configuration commands that gets activated when
+certain variables in <file>/etc/pcmcia/network.opts</file>
+are set to "<tt>y</tt>".
+This system has several problems.
+It is afflicted by race conditions;
+it only works for 16 bit PCMCIA cards;
+it does what is better left to <package>ifupdown</package> to do.
+Consequently it is deprecated.
+</footnote>
+Note, however, that
+in order to prevent <prgn>cardmgr</prgn>'s hook script
+<file>/etc/pcmcia/network</file>
+from interfering with <package>hotplug</package> you must locally
+add the line:
+<example>
+exit 0
+</example>
+to the beginning of <file>/etc/pcmcia/network</file> in order to
+disable its default behavior.
 <p>
 Note that there is nothing wrong with running <prgn>cardmgr</prgn>.
 We just don't want it to call network configuration programs.
+<p>
+In order for <prgn>cardmgr</prgn> to work properly
+you may need to edit <file>/etc/pcmcia/config.opts</file>
+in order
+to configure resources assigned to 16 bit PCMCIA cards.
 See <ref id="kernel-pcmcia"> and the
-<url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">.
+<url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">
+for more information.
 
 <sect id="net-service-conf">Network service configuration
 <p>
@@ -1627,7 +1676,8 @@ Internet.
 </example>
 Apply example rules to strengthen the <prgn>ipmasq</prgn> protection.
 See <url id="&f-ipmasq-strong;">.
-For Debian kernel-image-2.4, make sure to load the proper modules.
+For Debian kernel-image-2.4 under woody, make sure to load the proper 
+modules.  Sarge version of ipmasq fixed this issue.
 See <ref id="kernel-net"> for configuration instructions.
 <p>
 For Debian kernel-image-2.2, edit <file>Z92timeouts.rul</file> in
@@ -1640,8 +1690,9 @@ remote sites (good for large emails, etc.):
 $IPCHAINS -M -S 86400 600 600
 </example>
 Also, if the network is accessed through a PCMCIA NIC, <prgn>ipmasq</prgn>
-needs to be started from <file>/etc/pcmcia/network.opts</file>.
-See <url id="&f-ipmasq;">.
+needs to be started either from <file>/etc/pcmcia/network.opts</file> 
+(read: <url id="&f-ipmasq;">) or from <file>/etc/network/interfaces</file> 
+(read: <ref id="trigger-pcmcia"> and <ref id="net-trigger">).
 
 <sect2 id="ip-redirect">Redirect SMTP connection (2.4)
 <p>

@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.27 $"  -->
-<!-- CVS revision of original english document "1.141"  -->
+<!-- CVS revision of this document "$Revision: 1.28 $"  -->
+<!-- CVS revision of original english document "1.150"  -->
 
 <chapt id="tune">Configurer un système &debian;
 <p>
@@ -1819,6 +1819,34 @@ ces paquets entrant en conflit avec&nbsp;:
 # apt-get install nullmailer         # ou ssmtp
 </example>
 
+<sect2 id="exim-smart">Smarthost
+<p>
+Si vous utilisez <prgn>exim</prgn> sur une machine qui est connectée par un
+service grand public, assurez-vous d'envoyer le courriel sortant à travers le
+serveur offert par votre FAI ou un autre.
+<footnote>
+Vous devez suivre cette règle pour toute machine en accès RTC, DSL, câble ou
+LAN par un routeur haut débit. Même si votre machine a une adresse IP fixe,
+c'est toujours une bonne idée de suivre cette règle. La plupart des stations
+de travail et serveurs à la maison tombent dans cette catégorie.
+</footnote>
+Voici quelques bonnes raisons pour le faire&nbsp;:
+<list compact>
+<item>pour assurer les ré-essais SMTP puisque le serveur de votre FAI a une
+connexion de meilleure qualité&nbsp;;
+<item>pour éviter d'envoyer le courriel directement d'une <strong>adresse IP
+dynamique</strong> qui risque d'être bloquée par les listes anti-spam&nbsp;;
+<item>pour sauver de la bande passante localement lors d'envois de courriels à
+plusieurs destinataires.
+</list>
+<p>
+Les seules exceptions éventuelles sont&nbsp;:
+<list compact>
+<item>pallier à une défaillance du serveur de votre FAI&nbsp;;
+<item>une expérience à but éducatif&nbsp;;
+<item>votre machine est un serveur professionnel.
+</list>
+
 <sect2 id="exim-base">Configuration de base d'Exim
 <p>
 Pour configurer <prgn>exim</prgn> en tant que MTA, configurez ce qui
@@ -2055,14 +2083,14 @@ qui permet aux programmes de fournir un affichage et des fonctionnalités
 adaptés aux conventions locales comme le jeu de caractères, le format de la
 date et de l'heure, le symbole de la monnaie, et ainsi de suite. Il utilise
 des variables d'environnement pour déterminer le comportement approprié. Par
-exemple, en supposant que vous avez les locales Anglais américain et Français
+exemple, en supposant que vous avez les locales Anglais américain et Allemand 
 installées sur votre système, les messages d'erreur de beaucoup de programmes
 peuvent être multilingues&nbsp;:
 <example>
 $ LANG="en_US" cat foo
 cat: foo: No such file or directory
-$ LANG="fr_FR" cat foo
-cat: foo: Aucun fichier ou répertoire de ce type
+$ LANG="de_DE" cat foo
+cat: foo: Datei oder Verzeichnis nicht gefunden
 </example>
 La glibc offre le support pour cette fonctionnalité dans la bibliothèque. Voir
 <manref name="locale" section="7">.
@@ -2327,29 +2355,60 @@ export XMODIFIERS
 exec /usr/bin/blackbox
 </example>
 
- <item>ajoutez les lignes suivantes à <file>~/.bashrc</file>&nbsp;:
+ <item>créez quelques fichiers dans <file>/etc/menu</file>&nbsp;:
+ <list compact>
+ <item><file>/etc/menu/xterm-local</file>&nbsp;: (ajoute de nouvelles entrées
+ dans le menu)
 <example>
-# Change l'environnement de langue selon le programme console
-# les shells X exécutent seulement .bashrc (ce ne sont pas des shells de
-# login)
-# l'environnement général pour X est configuré par .xsession
-if [ $TERM = kterm ] || [ $TERM = mlterm ]; then
-        unset LC_ALL
-        export LANG=C
-        #export LANG=ja_JP.eucJP
-# pour l'affichage des dates au format ISO yyyy-mm-dd, plus naturel pour le Japonais :-)
-        export LC_TIME=en_DK.ISO-8859-1
-        export LC_MESSAGES=C
-        export LANGUAGE=ja_JP.eucJP:en_US.ISO-8859-1:C
-        export LC_CTYPE=ja_JP.eucJP
-else
-        unset LC_ALL
-        export LANG=C
-        export LC_TIME=en_DK.ISO-8859-1
-        export LANGUAGE=en_US.ISO-8859-1:C
-        export LC_CTYPE=en_US.ISO-8859-1
-fi
+?package(xterm):\
+ needs=x11\
+ section=XShells\
+ longtitle="XTerm: terminal emulator (en_US.ISO-8859-1)"\
+ title="XTerm (en_US.ISO-8859-1)"\
+ command="sh -c 'LC_ALL=en_US.ISO-8859-1 xterm'"
+?package(xterm):\
+ needs=x11\
+ section=XShells\
+ longtitle="XTerm: terminal emulator (de_DE.ISO-8859-1)"\
+ title="XTerm (de_DE.ISO-8859-1)"\
+ command="sh -c 'LC_ALL=de_DE.ISO-8859-1 xterm -T xterm-de'"
+?package(xterm):\
+ needs=x11\
+ section=XShells\
+ longtitle="XTerm: terminal emulator for X with Unicode support (Japanese)"\
+ title="UXTerm (ja_JP.UTF-8)"\
+ command="sh -c 'LC_ALL=ja_JP.UTF-8 uxterm'"
 </example>
+ <item><file>/etc/menu/kterm</file>&nbsp;: (remplace les entrées par défaut)
+<example>
+?package(kterm):\
+ needs="x11"\
+ section="XShells"\
+ command="sh -c 'LC_ALL=ja_JP.eucJP /usr/X11R6/bin/kterm -xim'" \
+ title="Kanji Terminal"
+?package(kterm):\
+ needs="x11"\
+ section="XShells"\
+ command="sh -c 'LANG=ja_JP.eucJP \
+          LC_MESSAGES=en_US.ISO-8859-1 /usr/X11R6/bin/kterm -xim'" \
+ title="Kanji Terminal (bilingal)"
+</example>
+ <item><file>/etc/menu/mozilla-local</file>&nbsp;: (ajoute un nouveau
+raccourci)
+<example>
+?package(mozilla-browser):needs="x11" section="/" \
+        title=" Mozilla Navigator" command="mozilla-1.5" hints="Web browsers"
+\
+        icon=/usr/share/pixmaps/mozilla.xpm
+</example>
+ <item>exécutez <prgn>update-menus</prgn> depuis le compte root.
+ <footnote>
+ Au moins pour le gestionnaire de fenêtres <prgn>blackbox</prgn>, le slash
+dans <tt>section="/"</tt> active l'entrée du menu initial, et l'espace de
+début dans <tt>title=" Mozilla Navigator"</tt> active l'entrée en haut de la
+liste.
+ </footnote>
+ </list>
 
  <item>ajoutez les lignes suivantes à <file>~/.muttrc</file>&nbsp;:
 <example>
@@ -2368,7 +2427,7 @@ set allow_8bit=no
   <file>~/.Xresources</file> (on dirait que Debian le fait automatiquement).
   <item>Quelques applications (comme <prgn>mlterm</prgn>) permettent aussi de
   configurer <tt>*inputMethod:</tt> et d'autres paramètres dynamiquement au
-  démarrage (appuyez sur <strong>Ctrl-MouseButton-3</strong> dans
+  démarrage (appuyez sur <strong>Ctrl-Bouton-3</strong> dans
   <prgn>mlterm</prgn>).
   </list>
  <item>lancez X avec <tt>startx</tt> ou à partir d'un des gestionnaires
@@ -2390,10 +2449,10 @@ Il existe beaucoup de paquets pour le support de méthodes d'entée alternatives
 pour X&nbsp;:
 <example>
 Language   LC_CTYPE     XIM server XMODIFIERS              Démarrage par
-Japanese   ja_JP*       kinput2    "@im=kinput2"           Shift-Space
-Korean     ko_KR*       ami        "@im=Ami"               Shift-Space
-Chinese(T) zh_TW.Big5   xcin       "@im=xcin-zh_TW.big5"   Ctrl-Space
-Chinese(S) zh_CN.GB2312 xcin       "@im=xcin-zh_CN.GB2312" Ctrl-Space
+Japanese   ja_JP*       kinput2    "@im=kinput2"           Shift-Espace
+Korean     ko_KR*       ami        "@im=Ami"               Shift-Espace
+Chinese(T) zh_TW.Big5   xcin       "@im=xcin-zh_TW.big5"   Ctrl-Espace
+Chinese(S) zh_CN.GB2312 xcin       "@im=xcin-zh_CN.GB2312" Ctrl-Espace
 </example>
 <p>
 La méthode d'entrée japonaise <prgn>kinput2</prgn> est offerte par les paquets
@@ -2441,6 +2500,8 @@ offrent le support de codages traditionnels&nbsp;:
   <item><package>hanterm-xf</package> &ndash; Coréen (Hangul)
   <item><package>hztty</package> &ndash; Chinois (GB, Big5, zW/HZ)
 </list>
+Pour <prgn>kterm</prgn> (et peut-être d'autres), vous pouvez activer XIM par
+le menu après un Ctrl-click-milieu.
 
 <sect1 id="x-utf-8">Support UTF-8 pour l'émulateur de terminal X
 <p>

@@ -1,0 +1,1336 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.99"  -->
+
+<chapt id="tips"> &debian; tips
+
+
+<sect id="booting">システムをブートする
+<p>
+ブートプロンプトの詳細は LDP にある
+<url id="&bootprompt-howto;" name="BootPrompt-HOWTO"> をご覧ください。
+
+<sect1 id="crackroot">"root パスワードを忘れてしまった!" (その1)
+<p>
+コンソールのキーボードにアクセスできる人に限り、root パスワードを
+知らずにシステムをブートして root アカウントにログオンできます。
+(システムをブートするのを妨げる BIOS や <prgn>lilo</prgn> などの
+ブートローダからパスワードを要求されないことを仮定しています。)
+<p>
+これは外部の boot disk や BIOS のブート設定の変更を要求しない手順
+です。ここで、"Linux" は標準の Debian インストールで Linux kernel
+をブートするためのラベルです。
+<p>
+<prgn>lilo</prgn> ブートスクリーンでは、<tt>boot:</tt> が表示されたら
+すぐに enter を押し、次のように入力します:
+(自動ブートを避けるため、この時点で shift キーを押す必要があるシステム
+があります。)
+<example>
+boot: Linux init=/bin/sh
+</example>
+この操作により、システムが kernel をブートし、標準の <prgn>init</prgn>
+の代わりに <file>/bin/sh</file> を起動します。今や root 権限と root シェル
+を獲得しました。<file>/</file> は現在読み込みのみでマウントされ、
+多くのディスクパーティションはまだマウントされていないので、
+十分機能するシステムとするには、次を実行する必要があります。
+<example>
+init-2.03# mount -n -o remount,rw /
+init-2.03# mount -avt nonfs,noproc,nosmbfs
+init-2.03# cd /etc
+init-2.03# vi passwd
+init-2.03# vi shadow
+</example>
+(<file>/etc/passwd</file> の 2番目のデータフィールドが全てのユーザ名に対して
+"x" である場合、そのシステムは shadow password を使用しており、
+<file>/etc/shadow</file> を編集する必要があります。)
+root パスワードを無効にするには、パスワードファイルの 2番目のフィールド
+が空になるように編集してください。システムをリブートして、パスワード無しで
+root としてログインできるようになりました。runlevel 1 でブートすると、
+(少なくとも Potato 以降の) Debian はパスワードを要求しますが、より古い
+システムは要求しませんでした。
+<p>
+<file>/usr/</file> にアクセスできない場合に備えて <file>/bin/</file>
+に最小限のエディタを置いておくのは良い考えです。
+(<ref id="bin-editor"> 参照)
+<p>
+また、<package>sash</package> パッケージのインストールも考慮に入れてください。
+システムがブート不能に陥った場合、次を実行します:
+<example>
+boot: Linux init=/bin/sash
+</example>
+<prgn>sash</prgn> は <file>/bin/sh</file> が使えなくなった場合でも
+<prgn>sh</prgn> 対話的な代替品として働きます。
+これはスタティックリンクされており、多くの標準的な機能を組込みえ
+含んでいます。
+(リファレンスリストのため、プロンプトで "help" をタイプしてみてください)
+</sect1>
+
+<sect1 id="crackroot2">"root パスワードを忘れてしまった!" (その2)
+<p>
+rescue disk/root disk セットからブートします。
+<file><var>/dev/hda3</var></file> がもともとの root パーティションの場合、
+次の手順はパスワードファイルを前述の手順と同じ位簡単に編集できるようにします。
+<example>
+# mkdir <var>fixit</var>
+# mount <var>/dev/hda3</var> <var>fixit</var>
+# cd <var>fixit</var>/etc
+# vi shadow
+# vi passwd
+</example>
+<p>
+この手法の前述した手法に対する利点は、<prgn>lilo</prgn> パスワードを知る
+(ある場合) 必要がないことです。しかし、本手法を使うには、
+システムがフロッピ又は CD からブートできるように BIOS セットアップに
+アクセスできる必要があります。
+</sect1>
+
+<sect1 id="dead-lilo">boot 不能
+<p>
+インストール中に boot ディスクを作るのをさぼっていたとしても、問題ありません。
+<prgn>lilo</prgn> が壊れた場合、Debian インストールセットから boot disk
+を持ってきて、そこからシステムを boot させます。boot プロンプトでは、
+root パーティション が <file><var>/dev/hda12</var></file> であり、
+runlevel 3 で起動したいと仮定すると、次のコマンドを入力します:
+<example>
+boot: rescue root=<var>/dev/hda12</var> 3
+</example>
+そして、フロッピにある kernel を使ってほとんどフル機能のシステムにブート
+します。(kernel の機能やモジュールの不足によるささいな誤作動はあります。)
+<p>
+システムが壊れた場合、<ref id="un-bootable"> をご覧ください。
+<p>
+カスタムブートフロッピが必要な場合、rescue disk の <file>readme.txt</file>
+に従ってください。
+</sect1>
+
+<sect1 id="no-x-start">"boot 時に X を無効にさせてくれ!"
+<p>
+<tt>unstable</tt> を追いかけることは楽しいですが、ブート中に起動する
+バギーな <prgn>xdm</prgn>、<prgn>gdm</prgn>、<prgn>kdm</prgn> や 
+<prgn>wdm</prgn> がひどく噛みつくとも限りません。
+<p>
+まず boot プロンプトで次を入力して root シェルを獲得します:
+<example>
+boot: <var>Linux</var> vga=normal s
+</example>
+ここで、<var>Linux</var> はブートしたい kernel のためのラベルです。
+"vga=normal" により、<prgn>lilo</prgn> が必ず通常の VGA モードで起動します。
+そして、"s" (又は "S") は <prgn>init</prgn> がシングルユーザモードを呼び出す
+ために渡されるパラメータです。
+<p>
+X の起動デーモンを全て無効にするためのいくつかの方法があります:
+<list>
+<item>run <tt>update-rc.d <var>?</var>dm stop 99 1 2 3 4 5 6</tt>
+<item>insert "exit 0" at the start of all <file>/etc/init.d/<var>?</var>dm</file> files.
+<item>全ての <file>/etc/rc<var>2</var>.d/S99<var>?</var>dm</file> ファイルを
+<file>/etc/rc2.d/K99<var>?</var>dm</file> に改名する。
+<item>全ての <file>/etc/rc<var>2</var>.d/S99<var>?</var>dm</file> を削除する。
+<item><tt>/etc/X11/default-display-manager</tt> を起動する。
+</list>
+ここで、<file>rc<var>2</var>.d</file> の中の数字は <file>/etc/inittab</file>
+で指定した runlevel と対応させなければなりません。また、
+<file><var>?</var>dm</file> は全ての <prgn>xdm</prgn>、<prgn>gdm</prgn>、
+<prgn>kdm</prgn>、<prgn>wdm</prgn> を置き換えるために複数回コマンドを
+実行する必要があることを意味します。
+<p>
+このリストの最初だけが &debian; での "真実の道" です。最後の方法は
+簡単ですが、&debian; でしか動かず、<prgn>dpkg-reconfigure</prgn>
+を使用した後は再度ディスプレイマネージャの設定を要求します。
+残りは汎用のデーモンの無効化手段です。
+<p>
+コンソールシェルから <prgn>startx</prgn> コマンドを使って X をまだ起動
+できます。
+</sect1>
+
+<sect1 id="bootprompt">ブートプロンプトを使った他のブートトリック
+<p>
+<prgn>lilo</prgn> のブートプロンプトを使ってシステムを特定の runlevel
+と設定でブートすることができます。詳細は
+<url id="&bootprompt-howto;" name="BootPrompt-HOWTO"> (LDP) にあります。
+<p>
+システムを runlevel 4 でブートさせたい場合、<prgn>lilo</prgn> の
+ブートプロンプトで次を入力してください。
+<example>
+boot: Linux 4
+</example>
+<p>
+root パスワードを知っている状態でシステムを普通に動くシングルユーザモード
+で起動したい場合、次の例のうち一つを <prgn>lilo</prgn> のブートプロンプト
+で実行してください。
+<example>
+boot: Linux S
+boot: Linux 1
+boot: Linux -s
+</example>
+<p>
+システムを実際よりも少ないメモリ容量を用いてブートしたい場合 (例えば
+64MB のシステムで 48MB を用いる場合)、<prgn>lilo</prgn> ブートプロンプト
+で次を実行してください:
+<example>
+boot: Linux mem=48M
+</example>
+実際より多いメモリ容量をここで絶対指定しないでください。さもないと kernel
+がクラッシュします。64MB より多い、例えば 128MB のメモリを持っている場合、
+<tt>mem=128M</tt> をブートプロンプトで実行するか、同様の行を
+<file>/etc/lilo.conf</file> に追加しないと、古い kernel や古い BIOS を
+持つマザーボードは 64MB 以上のメモリを使用できません。
+</sect1>
+
+<sect1 id="bootgrub">GRUB ブートパラメータの設定
+<p>
+GRUB は GNU Hurd プロジェクト由来の新しいブートマネージャであり、
+Lilo より柔軟性がありますが、ブートパラメータの取り扱い方が lilo
+とはずいぶん異なります。
+<example>
+grub&gt; find /vmlinuz
+grub&gt; root (hd0,0)
+grub&gt; kernel /vmlinuz root=/dev/hda1
+grub&gt; initrd /initrd
+grub&gt; boot
+</example>
+ここで、Hurd デバイス名に気づく必要があります:
+<example>
+the Hurd/GRUB       Linux               MSDOS/Windows
+ (fd0)               /dev/fd0            A:
+ (hd0,1)             /dev/hda1           C: (通常)
+ (hd0,4)             /dev/hda4           F: (通常)
+ (hd1,4)             /dev/hdb4           ?
+</example>
+詳細は <file>&f-grub;</file> と <file>&f-grub-doc;</file> をご覧ください。
+</sect>
+
+<sect>行動を記録する
+
+<sect1 id="script">シェルでの行動を記録する
+<p>
+システム管理者は通常の PC 環境よりも Unix 環境におけるより複雑な仕事
+を行います。システムトラブルから回復する必要がある場合に備え、
+設定の最も基本的な意味を確実に知る必要があります。X11 ベースの GUI 
+設定ツールは見栄えは良く便利ですが、たびたび緊急事態に対応できません。
+<p>
+このような観点で、シェルでの活動を記録することは、特に root に
+とっては良い習慣です。
+<p>
+Emacs では、M-x <tt>shell</tt> を実行すると、バッファに記録を開始し、
+C-x C-w を使うとバッファをファイルに書き出します。
+<p>
+Shell では、<ref id="screen"> に記述されているように、<prgn>screen</prgn> 
+コマンドを "^A H" 付きで実行するか、<prgn>script</prgn> コマンドを
+使ってください。
+<example>
+$ script
+スクリプトを開始しました、ファイルは typescript です
+ ... 何かを行う ...
+ Ctrl-D
+$ col -bx &lt;typescript &gt;savefile
+$ vi savefile
+</example>
+次は <prgn>script</prgn> の代わりに使えます:
+<example>
+$ bash -i 2&gt;&amp;1 | tee typescript
+</example>
+</sect1>
+
+<sect1>X での行動を記録する
+<p>
+xterm の表示を含む X アプリケーションのグラフィックな画像を記録する
+必要がある場合、<prgn>gimp</prgn> (GUI) を使いましょう。ウィンドウごと又は
+スクリーン全体をキャプチャーできます。代替品には、<prgn>xwd</prgn>
+(<package>xbase-clients</package>)、 <prgn>import</prgn>
+(<package>imagemagick</package>)、<prgn>scrot</prgn>
+(<package>scrot</package>) があります。
+</sect1>
+
+
+</sect>
+
+<sect id="archiving">サブディレクトリ全体のコピーとアーカイブ
+<sect1>サブディレクトリ全体をコピーする基本的なコマンド
+<p>
+ファイル構成を最長性する必要がある場合、ファイルのリンクを含む内容を
+次のように移動します:
+<example>
+標準的方法;
+# cp -a /source/directory /dest/directory # GNU cp が必要
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        (cd /dest/directory &amp;&amp; tar xvfp - )
+ハードリンクを含む場合、衒学的な方法が必要となります:
+# cd /path/to/old/directory
+# find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+リモートにコピー:
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+リンクファイルが無い場合:
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
+</example>
+ここで、<prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn> であり、
+<prgn>ssh</prgn> &lt;==&gt; <prgn>rsh</prgn> です。
+<p>
+サブディレクトリ全体のコピーに関する次の比較情報は
+Manoj Srivastava (<email>srivasta@debian.org</email>) により
+debian-user@lists.debian.org で掲示されました。
+</sect1>
+
+<sect1><prgn>cp</prgn>
+<p>
+伝統的に、<prgn>cp</prgn> はシンボリックリンクを参照しませんし、ハードリンク
+を保つので、本当はこの仕事に向いていません。もう一つ考えるべきことは、
+まばらなファイル (穴を持つファイル) です。
+<p>
+GNU <prgn>cp</prgn> はこれらの制限を越えています。しかしながら、非 GNU
+システムでは、<prgn>cp</prgn> はまだこの問題を抱えています。また、
+<prgn>cp</prgn> を用いて、小さく移植性の高いアーカイブを作成できません。
+<example>
+&percnt; cp -a . newdir
+</example>
+
+<sect1><prgn>tar</prgn>
+<p>
+Tar は <prgn>cp</prgn> が持つシンボリックリンクの問題のいくつかを
+解決していますが、<prgn>cpio</prgn> は特別なファイルを扱えるため、
+伝統的な <prgn>tar</prgn> は使用されていません。
+<p>                                                             
+<prgn>tar</prgn> の複数のハードリンクの操作方法は、テープ上に一つ
+しかコピーを置かないことですが、コピーの名前はそのファイルを取得する
+ために使用される <em>唯一の</em> 名前です。<prgn>cpio</prgn> の方法は
+全リンクに対して一つのコピーを置きますが、全リンクの名前を使ってファイル
+を取得できます。
+<p>
+<prgn>tar</prgn> コマンドは <file>.bz2</file> ファイルに対するオプションが
+Potato と Woody の間で変更されました。ですから、短縮形のオプションである 
+<tt>-I</tt> (Potato) や <tt>-j</tt> (Woody) の代わりに、スクリプトでは 
+<tt>--bzip2</tt> を使ってください。
+</sect1>
+
+<sect1><prgn>pax</prgn>
+<p>
+新しい POSIX (IEEE Std 1003.2-1992, pages 380&ndash;388 (section 4.48) および pages 936&ndash;940 (section E.4.48)) 互換の移植性のあるアーカイブ
+交換ユーティリティです。<prgn>pax</prgn> はアーカイブファイルの読み書き、
+内容のリスト表示が行え、ディレクトリ階層のコピーもできます。<prgn>pax</prgn>
+の操作は特別なファイルフォーマットに依存せず、さまざまなアーカイブフォーマット
+をサポートしています。
+<p>
+<prgn>pax</prgn> の実装はまだ新しく、未熟です。
+<example>
+# apt-get install pax
+$ pax -rw -p e . newdir
+ 又は
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1><prgn>cpio</prgn>
+<p>
+<prgn>cpio</prgn> は <prgn>cpio</prgn> 又は <prgn>tar</prgn>アーカイブへの
+ファイルの操作ができます。アーカイブはディスク上の他のファイルにできますし、
+磁気テープやパイプにもできます。
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1><prgn>afio</prgn>
+<p>
+<prgn>afio</prgn> は <prgn>cpio</prgn> フォーマットアーカイブの操作を
+行うより良い手段です。般に、<prgn>cpio</prgn> よりも高速で、データの
+変造をいくらか上品な方法で扱います。マルチボリュームなアーカイブを
+サポートし、さらに対話的な操作もサポートします。
+<prgn>afio</prgn> は <prgn>tar</prgn> や <prgn>cpio</prgn> アーカイブ
+を圧縮するよりもより安全な圧縮アーカイブを作成できます。<prgn>afio</prgn>
+はバックアップスクリプト内で "アーカイブエンジン" として使うのにベストです。
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+私は磁気テープへのバックアップに <prgn>afio</prgn> を使っています。
+</sect1>
+</sect>
+
+<sect id="diff-backup">差分バックアップとデータ同期
+<p>
+差分バックアップとデータ同期はいくつかの方法で実装できます:
+<list>
+<item><package>rcs</package>:  バックアップと履歴、テキストのみ
+<item><package>rdiff-backup</package>:  バックアップと履歴、シンボリックリンクも可能
+<item><package>pdumpfs</package>:  ファイルシステム内のバックアップと履歴。シンボリックリンクも可能
+<item><package>rsync</package>:  片方向同期
+<item><package>unison</package>:  双方向同期
+<item><package>cvs</package>:  サーババックアップおよび履歴機能を持つ多方向同期。テキストのみだが熟成している。<ref id="cvs"> 参照
+<item><package>arch</package>:  サーババックアップおよび履歴機能を持つ多方向同期、"作業ディレクトリ" のようなものでは無い。
+<item><package>subversion</package>:  サーババックアップおよび履歴機能を持つ
+多方向同期、Apache と連携。
+</list>
+<ref id="archiving"> に記述されているアーカイブ手法と <ref id="cronjob">
+に記述されている規則的なジョブの自動化を組み合わせると、すばらしい
+バックアップシステムとなります。
+<p>
+三つの使いやすいユーティリティについて説明します。
+
+<sect1 id="rdiff-backup">rdiff を用いた差分バックアップ
+<p>
+<package>rdiff-backup</package> はあらゆるタイプのファイルに対して
+差分バックアップによる素晴らしくシンプルなバックアップを提供します。
+<file>~/</file> のほとんどを <file>/mnt/backup</file> にバックアップするには、
+次を実行します:
+<example>
+$ rdiff-backup --include ~/tmp/keep --exclude ~/tmp  ~/ /mnt/backup
+</example>
+このアーカイブから三日前のデータを <file>~/old</file> に復旧するには、
+次を実行します:
+<example>
+$ rdiff-backup -r 3D /mnt/backup ~/old
+</example>
+<manref name="rdiff-backup" section="1"> をご覧ください。
+
+<sect1 id="pdumpfs-backup"><package>pdumpfs</package> による日々のバックアップ
+<p>
+<package>pdumpfs</package> は 毎日のスナップショットを保存する Plan9 の 
+<prgn>dumpfs</prgn> と似たシンプルな日々のバックアップシステムです。
+ある日のファイルを取得するために、あらゆる過去のスナップショットにアクセス
+できます。ホームディレクトリを <prgn>pdumpfs</prgn> と <prgn>cron</prgn>
+でバックアップしましょう!
+<p>
+<prgn>pdumpfs</prgn> は送り先ディレクトリに <tt>YYYY/MM/DD</tt> の形
+でスナップショットを構築します。全ソースファイルは <prgn>pdumpfs</prgn>
+が最初に起動された際にスナップショットディレクトリにコピーされます。
+次回の起動からは、ディスクスペースの節約のため、<prgn>pdumpfs</prgn> 
+は更新されたか、新たに作成されたファイルのみコピーし、未更新ファイルは
+前日のスナップショットのファイルにハードリンクされます。
+<example>
+$ pdumpfs <var>src-dir</var> <var>dest-dir</var> [<var>dest-basename</var>]
+</example>
+<manref name="pdumpfs" section="8"> をご覧ください。
+</sect1>
+
+<sect1 id="backup">RCS による規則的な差分バックアップ
+<p>
+<package>Changetrack</package> はテキストベースの設定ファイルの変更点を RCS
+アーカイブに定期的に記録します。
+<manref name="changetrack" section="1"> をご覧ください。
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect1>
+</sect>
+
+
+<sect>システムフリーズからの回復
+<sect1 id="kill">プロセスを殺す
+<p>
+<prgn>top</prgn> を起動し、どのプロセスの動きがおかしいかを調べます。
+CPU 使用量でソートするためには `P' 、メモリ量でソートするには `M'、
+プロセスを殺すには `k' を押します。又は、BSD スタイルの <tt>ps aux | less</tt>
+や System-V スタイルの <tt>ps -efH | less</tt> も使えるかもしれません。
+System-V スタイルの文法では親 ID (<tt>PPID</tt>) を表示するので、
+ゾンビ (defunct) となった子プロセスを殺すのに使えます。
+<p>
+プロセス ID によりプロセスを殺す (又はシグナルを送る) には <prgn>kill</prgn>
+を、プロセスのコマンド名により同様のことを行うには <prgn>killall</prgn>
+を使います。良く使われるシグナルは次の通り:
+<example>
+ 1: HUP、デーモンを再起動
+15: TERM、通常の kill
+ 9: KILL、激しく kill する
+</example>
+
+</sect1>
+
+<sect1>Alt-SysRq
+<p>
+システム故障に対する緊急手段が kernel のコンパイルオプション "Magic SysRq key"
+により供給されています。i386 で Alt-SysRq を押し、<tt>r 0 k
+e i s u b</tt> キーのうち一つを続けて押してください。すると魔法が効果を発揮します。
+<p>
+Un`r'aw は X のクラッシュの後などにキーボードを回復します。端末の
+ログレベルを `0' に減らすと、エラーメッセージが減少します。
+sa`k' (sytem attention key) は現在の仮想端末上の全プロセスを殺します。
+t`e'rminate は現在の端末上の  <prgn>init</prgn> 以外の全プロセスを殺します。
+k`i'll は <prgn>init</prgn> 以外の全プロセスを殺します。
+<p>
+`S'ync、 `u'mount、そして  re`b'oot は本当にひどい状況から脱出するための
+ものです。
+<p>
+Debian の標準でインストールされる kernel は本文書が書かれた現時点では
+本オプション付でコンパイルされていません。kernel を再構築してこの機能を
+有効にしてください。詳しい情報は 
+<file>/usr/share/doc/kernel-doc-<var>version</var>/Documentation/sysrq.txt.gz</file> 又は  <file>/usr/src/<var>kernel-version</var>/Documentation/sysrq.txt.gz</file> にあります。
+
+</sect1>
+</sect>
+
+
+<sect id="nifty">Nifty little commands to remember
+
+<sect1>Pager
+<p>
+<prgn>less</prgn> is the default pager (file content browser).  Hit `h' for
+help. It can do much more than <prgn>more</prgn>.  <prgn>less</prgn> 
+can be supercharged by executing <tt>eval $(lesspipe)</tt> or 
+<tt>eval $(lessfile)</tt> in the shell startup script.  See more 
+in <file>&f-lessopen;</file>. The <tt>-R</tt> option allows raw character
+output and enables ANSI color escape sequences.  See 
+<manref name="less" section="1">.
+<p>
+<prgn>w3m</prgn> may be a useful alternative pager for some code 
+systems (EUC).
+
+<sect1>Free memory
+<p>
+<prgn>free</prgn> and <prgn>top</prgn> give good information on memory
+resources.  Do not worry about the size of "used" in the "Mem:" line, but read
+the one under it (38792 in the example below). 
+<example>
+$ free -k # for 256MB machine
+             total       used       free     shared    buffers cached
+Mem:        257136     230456      26680      45736     116136 75528
+-/+ buffers/cache:      38792     218344
+Swap:       264996          0     264996
+</example>
+The exact amount of physical memory can be confirmed by <tt>grep '^Memory'
+/var/log/dmesg</tt>,
+which in this case gives "Memory: 256984k/262144k available (1652k kernel
+code, 412k reserved, 2944k data, 152k init)".
+<example>
+Total         = 262144k = 256M (1k=1024, 1M=1024k)
+Free to dmesg = 256984k = Total - kernel - reserved - data - init
+Free to shell = 257136k = Total - kernel - reserved - data
+</example>
+About 5MB is not usable by the system because the kernel uses it.
+</sect1>
+
+<sect1>Set time (BIOS)
+<p>
+<example>
+# date MMDDhhmmCCYY
+# hwclock --utc
+# hwclock --systohc
+# hwclock --show
+</example>
+This will set system and hardware time to MM/DD hh:mm, CCYY.
+Times are displayed in local time but hardware time uses UTC.
+
+<sect1>Set time (NTP)
+<p>
+Reference: <url id="&time-howto;" name="Managing Accurate Date and Time HOWTO">.
+<p>
+<sect2>Set time with permanent Internet connection
+<p>
+Set system clock to the correct time automatically via a remote server:
+<!-- [XXX FIXME XXX] some what broken ntpdate -->
+<example>
+# ntpdate <var>server</var>
+</example>
+This is good to have in <file>/etc/cron.daily/</file> if your system has a
+permanent Internet connection.
+
+<sect2>Set time with sporadic Internet connection
+<p>
+Use the <package>chrony</package> package.
+</sect1>
+
+<sect1 id="setterm">How to control console features such as the screensaver
+<p>
+For disabling the screensaver, use following commands.
+<p>
+In the Linux console:
+<example>
+# setterm -powersave off
+</example>
+<p>
+Start the kon2(kanji) console with:
+<example>
+# kon -SaveTime 0
+</example>
+<p>
+While running X:
+<example>
+# xset s off
+ or
+# xset -dpms
+ or
+# xscreensaver-command -prefs
+</example>
+Read the corresponding manpages for controling other console features.
+See also <manref name="stty" section="1"> for changing and printing
+terminal line settings.
+</sect1>
+
+<sect1 id="getent">Search administrative database
+<p>
+Glibc offers <manref name="getent" section="1"> for searching
+entries from administrative databases, i.e.,
+passwd, group, hosts, services, protocols, or networks.
+<example compact>
+getent database [key ...]
+</example>
+
+<sect1>Disable sound (beep)
+<p>
+One can always unplug the PC speaker. ;-)  For the Bash shell:
+<example>
+echo "set bell-style none"&gt;&gt; ~/.inputrc
+</example>
+</sect1>
+
+<sect1>Error messages on the console screen
+<p>
+In order to quiet on-screen error messages, the first place to check is 
+<file>/etc/init.d/klogd</file>.  Set <tt>KLOGD="-c <var>3</var>"</tt> in this script and 
+run <tt>/etc/init.d/klogd restart</tt>. An alternative method is to run 
+<tt>dmesg -n<var>3</var></tt>.  
+<p>
+Here error levels mean:
+<list compact>
+<item>0: KERN_EMERG,   system is unusable
+<item>1: KERN_ALERT,   action must be taken immediately
+<item>2: KERN_CRIT,    critical conditions
+<item>3: KERN_ERR,     error conditions
+<item>4: KERN_WARNING, warning conditions
+<item>5: KERN_NOTICE,  normal but significant condition
+<item>6: KERN_INFO,    informational
+<item>7: KERN_DEBUG,   debug-level messages
+</list>
+<p>
+If one particular useless error message bothers you a lot, consider making a 
+trivial kernel patch like <file>shutup-abit-bp6</file> (available 
+in the <url id="&examples;" name="examples subdirectory">).
+<p>
+Another place to look may be <file>/etc/syslog.conf</file>; check to see
+whether any messages are logged to a console device.
+</sect1>
+
+<sect1>Set console to the correct type
+<p>
+Console screens in Unix-like systems are usually accessed using 
+(n)curses library routines.  These give the user a terminal-independent
+method of updating character screens with reasonable optimization.
+See <manref name="ncurses" section="3X"> and
+<manref name="terminfo" section="5">.
+<p>
+On a &debian; system, there are quite a lot of predefined entries:
+<example>
+$ toe | less                  # all entries
+$ toe /etc/terminfo/ | less   # user reconfigurable entries
+</example>
+Export your selection as environment variable <tt>TERM</tt>.
+<p>
+If the terminfo entry for <prgn>xterm</prgn> doesn't work with a non-Debian <prgn>xterm</prgn>,
+change your terminal type from "xterm" to one of the feature-limited 
+versions such as "xterm-r6" when you log in to a Debian system remotely.  
+See <file>&f-libncurse;</file> for more.  
+"dumb" is the lowest common denominator for terminfo.
+</sect1>
+
+<sect1>Get the console back to a sane state
+<p>
+When the screen goes berserk after <tt>cat <var>some-binary-file</var></tt> 
+(you may not be able to see the command echoed as you type):
+<example>
+$ reset
+</example>
+</sect1>
+
+<sect1>Convert a text file from DOS to Unix style
+<p>
+Convert a DOS text file (end-of-line = <tt>^M^J</tt>) to a Unix text file 
+(end-of-line = <tt>^J</tt>).
+<example>
+# apt-get install sysutils
+$ dos2unix <var>dosfile</var>
+</example>
+</sect1>
+
+<sect1 id="perl-i">Regular-expression substitution
+<p>
+Replace all instances of <var>FROM_REGEX</var> with <var>TO_TEXT</var> in
+all of the files <var>FILES</var> ...:
+<example>
+$ perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_TEXT</var>/g;' <var>FILES</var> ...
+</example>
+<tt>-i</tt> is for "in-place editing", <tt>-p</tt> is for "implicit loop over
+<var>FILES</var> ...".  If the substitution is complex, you can make recovery from errors
+easier by using the parameter <tt>-i.bak</tt> instead of <tt>-i</tt>; this
+will keep each original file, adding <tt>.bak</tt> as a file extension.
+</sect1>
+
+<sect1>Edit a file in place using a script
+<p>
+The following script will remove lines 5&ndash;10 and lines 16&ndash;20 in place.
+<example>
+#!/bin/bash
+ed $1 &lt;&lt;EOF
+16,20d
+5,10d
+w
+q
+EOF
+</example>
+Here, <prgn>ed</prgn> commands are the same as <prgn>vi</prgn>
+command-mode commands. Editing from the back of file makes it easy for scripting.
+</sect1>
+
+<sect1>Extract differences and merge updates for source files
+<p>
+Following one of these procedures will extract differences between two source
+files and create unified diff files <var>file.patch0</var> or 
+<var>file.patch1</var> depending on the file location:
+<example>
+$ diff -u <var>file.old</var> <var>file.new1</var> &gt; <var>file.patch0</var>
+$ diff -u <var>old/file</var> <var>new1/file</var> &gt; <var>file.patch1</var>
+</example>
+The diff file (alternatively called patch file) is used to send a program 
+update.  The receiving party will apply this update to another <var>file</var>
+by:
+<example>
+$ patch -p0 <var>file</var> &lt; <var>file.patch0</var>
+$ patch -p1 <var>file</var> &lt; <var>file.patch1</var>
+</example>
+If you have three versions of source code, you can merge them more 
+effectively using <prgn>diff3</prgn>:
+<example>
+$ diff3 -m <var>file.mine</var> <var>file.old</var> <var>file.yours</var> &gt; <var>file</var>
+</example>
+</sect1>
+
+<sect1>Convert a large file into small files
+<p>
+<example>
+$ split -b 650m <var>file</var>   # split file into 650MB chunks
+$ cat x* &gt;<var>largefile</var>    # merge files into 1 large file
+</example>
+</sect1>
+
+<sect1>Extract data from text file table
+<p>
+Let's consider a text file called <file>DPL</file> in which all previous
+&debian; project leader's names and their initiation days are listed
+in a space-separated format.
+<example>
+Ian     Murdock   August  1993
+Bruce   Perens    April   1996
+Ian     Jackson   January 1998
+Wichert Akkerman  January 1999
+Ben     Collins   April   2001
+Bdale   Garbee    April   2002
+Martin  Michlmayr March   2003
+</example>
+Awk is frequently used to extract data from these types of files.
+<example>
+$ awk '{ print $3 }' &lt;DPL                   # month started
+August
+April
+January
+January
+April
+April
+March
+$ awk '($1=="Ian") { print }' &lt;DPL          # DPL called Ian
+Ian     Murdock   August  1993
+Ian     Jackson   January 1998
+$ awk '($2=="Perens") { print $3,$4 }' &lt;DPL # When Perens started
+April 1996
+</example>
+<p>
+Shells such as Bash can be also used to parse this kind of file:
+<example>
+$ while read first last month year; do 
+    echo $month
+  done &lt;DPL
+... same output as the first Awk example
+</example>
+Here, <prgn>read</prgn> built-in command uses the characters in $IFS 
+(internal field separators) to split lines into words.
+<p>
+If you change IFS to ":", you can parse <file>/etc/passwd</file> with shell
+nicely:
+<example>
+$ oldIFS="$IFS"   # save old value
+$ IFS=":"
+$ while read user password uid gid rest_of_line; do
+    if [ "$user" = "osamu" ]; then 
+      echo "$user's ID is $uid"
+    fi
+  done < /etc/passwd
+osamu's ID is 1001
+$ IFS="$oldIFS"   # restore old value
+</example>
+(If Awk is used to do the equivalent, use <tt>FS=":"</tt> to set 
+the field separator.)
+<p> 
+IFS is also used by the shell to split results of parameter expansion, 
+command substitution, and arithmetic expansion.  These do not occur 
+within double or single quoted words.  The default value of IFS is
+&lt;space&gt;, &lt;tab&gt; and &lt;newline&gt; combined.
+<p>
+Be careful about using this shell IFS tricks. 
+Strange things may happen, when shell interprets some parts of
+the script as its <strong>input</strong>.
+<example>
+$ IFS=":,"                        # use ":" and "," as IFS
+$ echo IFS=$IFS,   IFS="$IFS"     # echo is a Bash built-in
+IFS=  , IFS=:,
+$ date -R                         # just a command output
+Sat, 23 Aug 2003 08:30:15 +0200
+$ echo $(date -R)                 # sub shell --&gt; input to main shell
+Sat  23 Aug 2003 08 30 36 +0200
+$ unset IFS                       # reset IFS to the default
+$ echo $(date -R)
+Sat, 23 Aug 2003 08:30:50 +0200
+</example>
+</sect1>
+
+
+<sect1 id="scrp-snip">Script snippets for piping commands
+<p>
+The following scripts will do nice things as a part of a pipe.
+<example>
+find /usr | egrep -v "/usr/var|/usr/tmp|/usr/local"
+                     # find all files in /usr excluding some files
+xargs -n 1 <var>command</var>   # run command for all items from stdin
+xargs -n 1 echo |    # split white-space-separated items into lines
+xargs echo      |    # merge all lines into a line
+grep -e <var>pattern</var>|     # extract lines containing <var>pattern</var>
+cut -d: -f3 -|
+        # extract third field separated by : (passwd file etc.)
+awk '{ print $3 }' | # extract third field separated by whitespaces
+awk -F'\t' '{ print $3 }' |
+        # extract third field separated by tab
+col -bx |            # remove backspace and expand tabs to spaces
+expand -|            # expand tabs
+sort -u|             # sort and remove duplicates
+
+tr '\n' ' '|         # concatenate lines into one line
+tr '\r' ''|          # remove CR
+tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+sed 's/^/# /'|       # make each line a comment
+sed 's/\<var>.ext</var>//g'|    # remove <var>.ext</var>
+sed  -n -e 2p|       # print the second line 
+head -n 2 -|         # print the first 2 lines
+tail -n 2 -|         # print the last 2 lines
+</example>
+</sect1>
+
+<sect1>Script snippets for looping over each file
+<p>
+The following ways of looping over each file matching 
+<tt>*.<var>ext</var></tt> ensures proper handling of 
+funny file names such as ones with spaces and performs equivalent process:
+<list>
+<item>Shell loop:
+<example>
+for <var>x</var> in *.<var>ext</var>; do
+  if test -f "$<var>x</var>"; then
+    <var>command</var> "$<var>x</var>"
+  fi
+done
+</example>
+<item><prgn>find</prgn> and <prgn>xargs</prgn> combination:
+<example>
+find . -type f -maxdepth 1 -name '*.<var>ext</var>' -print0 | \
+ xargs -0 -n 1 <var>command</var>
+</example>
+<item><prgn>find</prgn> with <tt>-exec</tt> option with a command:
+<example>
+find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+ -exec <var>command</var> '{}' \;
+</example>
+<item><prgn>find</prgn> with <tt>-exec</tt> option with a short shell script:
+<example>
+find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+ -exec sh -c "<var>command</var> '{}' && echo 'successful'" \;
+</example>
+</list>
+</sect1>
+
+<sect1 id="perl-mad">Perl short script madness
+<p>
+Although any Awk scripts can be automatically rewritten in Perl using
+<manref name="a2p" section="1">, one-liner Awk scripts are best
+converted to one-liner perl scripts manually. For example
+<example>
+awk '($2=="1957") { print $3 }' |
+</example>
+is equivalent to any one of the following lines:
+<example>
+perl -ne '@f=split; if ($f[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne 'if ((@f=split)[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne '@f=split; print $f[2] if ( $f[1]==1957 )' |
+perl -lane 'print $F[2] if $F[1] eq "1957"' |
+</example>
+<p>
+Since all the whitespace in the arguments to <prgn>perl</prgn> in the line
+above can be removed, and taking advantage of the automatic conversions
+between numbers and strings in Perl:
+<example>
+perl -lane 'print$F[2]if$F[1]eq+1957' |
+</example>
+See <manref name="perlrun" section="1"> for the command-line options.
+For more crazy Perl scripts, <url id="&perlgolf;"> may be interesting.
+</sect1>
+
+<sect1>Get text or a mailing list archive from a web page
+<p>
+The following will read a web page into a text file.
+Very useful when copying configurations off the Web.
+<example>
+$ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
+</example>
+<prgn>links</prgn> and <prgn>w3m</prgn> can be used here, too, with slight
+differences in rendering.
+<p>
+If this is a mailing list archive, use <prgn>munpack</prgn> to obtain mime contents from text.
+</sect1>
+
+<sect1>Pretty print a web page
+<p>
+The following will print a web page into a PostScript file/printer.  
+<example>
+$ apt-get install html2ps
+$ html2ps <var>URL</var> | lpr
+</example>
+See <ref id="lprlpd">.  Also check <prgn>a2ps</prgn> and 
+<prgn>mpage</prgn> packages for creating PostScript files.
+</sect1>
+
+<sect1>Pretty print a manual page
+<p>
+The following will print a manual page into a PostScript file/printer.  
+<example>
+$ man -Tps <var>some-manpage</var> | lpr
+$ man -Tps <var>some-manpage</var> | mpage -2 | lpr
+</example>
+</sect1>
+
+<sect1>Merge two PostScript or PDF files
+<p>
+You can merge two PostScript or PDF files.
+<example>
+$ gs -q -dNOPAUSE -dBATCH -sDEVICE=pswrite \
+  -sOutputFile=<var>bla.ps</var> -f <var>foo1.ps</var> <var>foo2.ps</var>
+$ gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
+  -sOutputFile=<var>bla.pdf</var> -f <var>foo1.pdf</var> <var>foo2.pdf</var>
+</example>
+</sect1>
+ 
+<sect1>Time a command
+<p>
+Display time used by a process.
+<example>
+# time <var>some-command</var> &gt;/dev/null
+real    0m0.035s       # time on wall clock (elapsed real time)
+user    0m0.000s       # time in user mode
+sys     0m0.020s       # time in kernel mode
+</example>
+</sect1>
+
+<sect1><prgn>nice</prgn> command
+<p>
+Use <prgn>nice</prgn> (from the GNU <package>shellutils</package> package) to
+set a command's nice value when starting. <prgn>renice</prgn>
+(<package>bsdutils</package>) or <prgn>top</prgn> can renice a process. A nice
+value of 19 represents the slowest (lowest priority) process; negative values
+are "not-nice", with -20 being a very fast (high priority) process. Only the
+superuser can set negative nice values.
+<example>
+# nice  -19 <var>top</var>                                         # very nice
+# nice --20 <var>cdrecord -v -eject speed=2 dev=0,0 disk.img</var> # very fast
+</example>
+Sometimes an extreme nice value does more harm than good to the system.
+Use this command carefully.
+</sect1>
+
+<sect1 id="cronjob">Schedule activity (<prgn>cron</prgn>, <prgn>at</prgn>)
+<p>
+Use <prgn>cron</prgn> and <prgn>at</prgn> to schedule tasks under Linux.
+See <manref name="at" section="1">, <manref name="crontab" section="5">,
+<manref name="crontab" section="8">. 
+<p> 
+Run the command <tt>crontab -e</tt> to create or edit a crontab file to set up
+regularly scheduled events. Example of a crontab file:
+<example>
+# use /bin/sh to run commands, no matter what /etc/passwd says
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+# Min Hour DayOfMonth Month DayOfWeek command (Day... are OR'ed)
+# run at 00:05, every day
+5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+# run at 14:15 on the first of every month -- output mailed to paul
+15 14 1  * *   $HOME/bin/monthly
+# run at 22:00 on weekdays(1-5), annoy Joe. &percnt; for newline, last &percnt; for cc:
+0 22 *   * 1-5 mail -s "It's 10pm" joe&percnt;Joe,&percnt;&percnt;Where are your kids?&percnt;.&percnt;&percnt;
+23 */2 1 2 *   echo "run 23 minutes after 0am, 2am, 4am ..., on Feb 1"
+5  4 *   * sun echo "run at 04:05 every sunday"
+# run at 03:40 on the first Monday of each month
+40 3 1-7 * *   [ "$(date +&percnt;a)" == "Mon" ] && command -args
+</example>
+Run the <prgn>at</prgn> command to schedule a one-time job:
+<example>
+$ echo '<var>command -args</var>'| at 3:40 monday
+</example>
+</sect1>
+
+<sect1 id="screen">Console switching with <prgn>screen</prgn>
+<p>
+The <prgn>screen</prgn> program allows you to run <strong>multiple</strong> virtual terminals, each with
+its own interactive shell, on a <strong>single</strong> physical terminal or terminal emulation
+window. Even if you use Linux virtual consoles or multiple xterm windows, it
+is worth exploring <prgn>screen</prgn> for its rich <strong>feature set</strong>, which
+includes
+<list compact>
+<item>scrollback history, 
+<item>copy-and-paste, 
+<item>output logging, 
+<item>digraph entry, and 
+<item>the ability to <strong>detach</strong> an entire <prgn>screen</prgn> session from your
+terminal and reattach it later. 
+</list>
+
+<sect2>Remote access scenario
+<p>
+If you frequently log on to a Linux machine
+from a remote terminal or using a VT100 terminal program, <prgn>screen</prgn>
+will make your life much easier with the <strong>detach</strong> feature.
+<p>
+<enumlist compact>
+<item>You are
+logged in via a dialup connection, and are running a complex
+<prgn>screen</prgn> session with editors and other programs open in several
+windows. 
+<item>Suddenly you need to leave your terminal, but you don't want to lose
+your work by hanging up. 
+<item>Simply type <tt>^A d</tt> to <strong>detach</strong> the session, then
+log out. (Or, even quicker, type <tt>^A DD</tt> to have <prgn>screen</prgn>
+detach and log you out itself.) 
+<item>When you log on again later, enter the command
+<tt>screen -r</tt>, and <prgn>screen</prgn> will magically <strong>reattach</strong> all the windows
+you had open. 
+</enumlist>
+
+<sect2>Typical <prgn>screen</prgn> commands 
+<p>
+Once you start <prgn>screen</prgn>, all keyboard input is sent to your current
+window except for the command keystroke, by default <tt>^A</tt>. All
+<prgn>screen</prgn> commands are entered by typing <tt>^A</tt> plus a single
+key [plus any parameters]. 
+Useful commands:
+<example>
+^A ?     show a help screen (display key bindings)
+^A c     create a new window and switch to it
+^A n     go to next window
+^A p     go to previous window
+^A <var>0</var>     go to window number <var>0</var>
+^A w     show a list of windows
+^A a     send a Ctrl-A to current window as keyboard input
+^A h     write a hardcopy of current window to file 
+^A H     begin/end logging current window to file
+^A ^X    lock the terminal (password protected)
+^A d     detach screen session from the terminal
+^A DD    detach screen session and log out
+</example>
+This is only a small subset of <prgn>screen</prgn>'s commands and features. If
+there's something you want <prgn>screen</prgn> to be able to do, chances are
+it can! See <manref name="screen" section="1"> for details.
+
+<sect2>Backspace and/or Ctrl-H in <prgn>screen</prgn> session
+<p>
+If you find that backspace and/or Ctrl-H do not work properly
+when you are running <prgn>screen</prgn>, edit <file>/etc/screenrc</file>,
+find the line reading
+<example compact>
+bindkey -k kb stuff "\177"
+</example>
+and comment it out (i.e., add "#" as the first character). 
+
+<sect2>Equivalent program to <prgn>screen</prgn> for X
+<p>
+Check out <prgn>xmove</prgn>.  See <manref name="xmove" section="1">.
+
+</sect1>
+
+<sect1 id="net-test">Network testing basics
+<p>
+Install  
+<package>netkit-ping</package>, 
+<package>traceroute</package>,
+<package>dnsutils</package>,
+<package>ipchains</package> (for 2.2 kernel),
+<package>iptables</package> (for 2.4 kernel), and
+<package>net-tools</package> packages and:
+<example>
+$ ping <var>yahoo.com</var>            # check Internet connection
+$ traceroute <var>yahoo.com</var>      # trace IP packets
+$ ifconfig                  # check host config
+$ route -n                  # check routing config
+$ dig <var>[@dns-server.com] host.dom [{a|mx|any}]</var> |less
+      # check <var>host.dom</var> DNS records  by <var>dns-server.com</var> 
+      # for a <var>{mx|any}</var> record
+$ ipchains  -L -n |less     # check packet filter (2.2 kernel)
+$ iptables -L -n |less      # check packet filter (2.4 kernel)
+$ netstat -a                # find all open ports
+$ netstat -l --inet         # find listening ports
+$ netstat -ln --tcp         # find listening TCP ports (numeric)
+</example>
+</sect1>
+
+<sect1 id="flush-mail">Flush mail from local spool
+<p>
+To flush mail from the local spool:
+<example>
+# exim -q    # flush waiting mail
+# exim -qf   # flush all mail
+# exim -qff  # flush even frozen mail
+</example>
+<tt>-qff</tt> may be better as an option in the
+<file>/etc/ppp/ip-up.d/exim</file> script.
+</sect1>
+
+<sect1 id="remove-mail">Remove frozen mail from local spool
+<p>
+To remove frozen mail from the local spool with a delivery error message:
+<example>
+# exim -Mg `mailq | grep frozen | awk '{ print $3 }'`
+</example>
+</sect1>
+
+<sect1>Redeliver mbox contents
+<p>
+You need to manually deliver mails to the sorted mailboxes in your 
+home directory from <file>/var/mail/<var>username</var></file>
+if your home directory became full and procmail failed.  After making 
+disk space in the home directory, run:
+<example>
+# /etc/init.d/exim stop
+# formail -s procmail &lt;/var/mail/<var>username</var>
+# /etc/init.d/exim start
+</example>
+</sect1>
+
+<sect1>Clear file contents
+<p>
+In order to clear the contents of a file such as a logfile, do not use
+<tt>rm</tt> to delete the file and then create a new empty file, because the
+file may still be accessed in the interval between commands. The following is
+the safe way to clear the contents of the file.
+<example>
+$ :&gt;<var>file-to-be-cleared</var>
+</example>
+</sect1>
+
+<sect1 id="dummyfile">Dummy files
+<p>
+The following commands will create dummy or empty files:
+<example>
+$ dd if=/dev/zero    of=<var>filename</var> bs=1k count=5 # 5KB of zero content
+$ dd if=/dev/urandom of=<var>filename</var> bs=1m count=7 # 7MB of random content
+$ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
+</example>
+For example, the following commands executed from the shell of the
+&debian; boot floppy will erase all the content of the hard disk
+<file>/dev/hda</file> completely for most practical uses.
+<example>
+# dd if=/dev/urandom of=/dev/hda ; dd if=/dev/zero of=/dev/hda
+</example>
+
+</sect1>
+
+<sect1 id="chroot"><prgn>chroot</prgn>
+<!-- updated using the idea from Colin Walters walters@debian.org -->
+<p>
+The <prgn>chroot</prgn> program, <manref name="chroot" section="8">, enables
+us to run different instances of the GNU/Linux environment on a single
+system simultaneously without rebooting.
+<p>
+One may also run a resource hungry program such as <prgn>apt-get</prgn>
+or <prgn>dselect</prgn> under the chroot of a fast host machine while
+NFS-mounting a slow satellite machine to the host as r/w and the chroot
+point being the mount point of the satellite machine.
+
+<sect2 id="chroot-debian">Run a different &debian; flavor with <prgn>chroot</prgn>
+<p>
+A chroot &debian; environment can easily be created by the
+<prgn>debootstrap</prgn> command in Woody.  For example, to create a Sid
+chroot on <var>/sid-root</var> while having fast Internet access:
+<example>
+main # cd / ; mkdir <var>/sid-root</var>
+main # debootstrap sid <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+... watch it download the whole system
+main # echo "proc-sid <var>/sid-root</var>/proc proc none 0 0" >> /etc/fstab
+main # mount proc-sid <var>/sid-root</var>/proc -t proc
+main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+main # chroot <var>/sid-root</var> /bin/bash
+chroot # apt-setup # set-up /etc/apt/sources.list
+chroot # vi /etc/apt/sources.list # point the source to unstable
+chroot # dselect  # you may use aptitude, install mc and vim :-)
+</example>
+<p>
+At this point you should have a fully working &debian; system, where you
+can play around without fear of affecting your main &debian;
+installation.
+<p>
+This <prgn>debootstrap</prgn> trick can also be used to install &debian;
+to a system without using a &debian; install disk, but instead one for
+another GNU/Linux distribution.  See <url id="&setup-chroot;">.
+
+<sect2 id="chroot-console">Setting up login for <prgn>chroot</prgn>
+<p>
+Typing <tt>chroot <var>/sid-root</var> /bin/bash</tt> is easy, but it
+retains all sorts of environment variables that you may not
+want, and has other issues.  A much better approach is to run another
+login process on a separate virtual terminal where you can log in to the
+chroot directly.
+<p>
+Since on default &debian; systems <tt>tty1</tt> to
+<tt>tty6</tt> run Linux consoles and <tt>tty7</tt> runs the X
+Window System, let's set up <tt>tty8</tt> for a chrooted console as an
+example.  After creating a chroot system as described in <ref
+id="chroot-debian">, type from the root shell of the main system:
+<example>
+main # echo "8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> "\
+       "/sbin/getty 38400 tty8"  >> /etc/inittab
+main # init q    # reload init
+</example>
+
+<sect2 id="chroot-x">Setting up X for <prgn>chroot</prgn>
+<p>
+You want to run the latest X and GNOME safely in your chroot? That's
+entirely possible!  The following example will make GDM run on virtual
+terminal <tt>vt9</tt>.
+<p>
+First install a chroot system using the method described in 
+<ref id="chroot-debian">.  From the root of the main system, copy key
+configuration files to the chroot system.
+<example>
+main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+main # chroot <var>/sid-root</var> # or use chroot console
+chroot # apt-get install gdm gnome x-window-system
+chroot # vi /etc/gdm/gdm.conf # do s/vt7/vt9/ in [servers] section
+chroot # /etc/init.d/gdm start
+</example>
+Here, <file>/etc/gdm/gdm.conf</file> was edited to change the first
+virtual console from <tt>vt7</tt> to <tt>vt9</tt>.
+<p>
+Now you can easily switch back and forth between full X environments in
+your chroot and your main system just by switching between Linux virtual
+terminals; e.g. by using Ctrl-Alt-F7 and Ctrl-Alt-F9. Have fun!
+<p>
+[FIXME] Add a comment and link to the init script of the chrooted gdm.
+
+<sect2 id="chroot-dist">Run other distributions with <prgn>chroot</prgn>
+<p>
+A chroot environment for another Linux distribution can easily be created.
+You install a system into separate partitions using the installer of the
+other distribution.  If its root partition is in
+<file><var>/dev/hda9</var></file>: 
+<example>
+main # cd / ; mkdir <var>/other-dist</var>
+main # mount -t ext3 <var>/dev/hda9</var> <var>/other-dist</var>
+main # chroot <var>/other-dist</var> /bin/bash
+</example>
+Then proceed as in <ref id="chroot-debian">, <ref
+id="chroot-console">, and <ref id="chroot-x">.
+
+<sect2 id="chroot-build">Build a package with <prgn>chroot</prgn>
+<p>
+There is a more specialized chroot package, <package>pbuilder</package>,
+which constructs a chroot system and builds a package inside the
+chroot. It is an ideal system to use to check that a package's
+build-dependencies are correct, and to be sure that unnecessary and
+wrong build dependencies will not exist in the resulting package.
+
+</sect1>
+
+<sect1>How to check hard links
+<p>
+You can check whether two files are the same file with two hard links by:
+<example> 
+$ ls -li <var>file1</var> <var>file2</var>
+</example>
+ 
+<sect1><prgn>mount</prgn> hard disk image file
+<p>
+If <file><var>file.img</var></file> contains an image of hard disk contents and the original hard disk had 
+a disk configuration which gives <var>xxxx</var> = (bytes/sector) * (sectors/cylinder),
+then the following will mount it to <file>/mnt</file>:
+<example>
+# mount -o loop,offset=<var>xxxx</var> <var>file.img</var> /mnt
+</example>
+Note that most hard disks have 512 bytes/sector.
+
+<sect1 id="smbmount">Samba
+<p>
+Basics of getting files from Windows:
+<example>
+# mount -t smbfs -o <var>username=myname,uid=my_uid,gid=my_gid</var> \
+        <var>//server/share /mnt/smb</var>  # mount Windows files to Linux
+# smbmount <var>//server/share /mnt/smb</var> \
+        -o "<var>username=myname,uid=my_uid,gid=my_gid</var>"
+# smbclient -L <var>192.168.1.2</var> # list the shares on a computer
+</example>
+<p>
+Samba neighbors can be checked from Linux using:
+<example>
+# smbclient -N -L <var>ip_address_of_your_PC</var> | less
+# nmblookup -T "*"
+</example>
+</sect1>
+
+<sect1>Utilities for foreign filesystems
+<p>
+Many foreign filesystems have Linux kernel support, and can thus
+be accessed simply by mounting the devices containing the filesystems.  For
+certain filesystems, there are also a few specialized tools to access the
+filesystems without mounting the devices.  This is accomplished with
+user-space programs so that kernel filesystem support is not needed. 
+<list compact>
+<item><package>mtools</package>: for MSDOS filesystem (MS-DOS, Windows)
+<item><package>cpmtools</package>: for CP-M filesystem
+<item><package>hfsutils</package>: for HFS filesystem (native Macintosh)
+<item><package>hfsplus</package>: for HFS+ filesystem (modern Macintosh)
+</list>
+In order to create and check an MS-DOS FAT filesystem,
+<package>dosfstools</package> is useful.
+</sect1>
+
+</sect>
+
+<sect id="oops">Typical mistakes to be noted
+<p>
+Here are few examples of dangerous actions.  The negative impacts will be
+enhanced if you are using privileged account: <tt>root</tt>.
+
+<sect1 id="rm-rf-star"><tt>rm -rf .*</tt>
+<p>
+<!-- 
+I know using quotes here are irregular but it is hard to read without it. 
+-->
+In "<tt>rm -rf .*</tt>", "<tt>.*</tt>" expands to include "<tt>.</tt>" and
+"<tt>..</tt>", and if you happen to have privileges to write to the parent
+directory then you'll end up removing all directories
+<strong>next</strong> to your current directory as well.
+<p>
+<list compact>
+<item>"<tt>rm -rf .</tt>" : removes everything under current directory and
+current directory itself.
+<item>"<tt>rm -rf *</tt>" : removes every non-dot files and  non-dot
+directories under current directory
+<item>"<tt>rm -rf .[^.]*</tt>" : removes every dot files and
+dot-directories under current directory.
+<item>"<tt>rm -rf .*</tt>" : removes everything under parent directory and
+parent directory itself.
+</list>
+
+<sect1 id="rm-passwd"><tt>rm /etc/passwd</tt>
+<p>
+Loss of some important files such as <file>/etc/passwd</file> through
+your stupidity is tough.  The &debian; system makes regular backups of
+them in <file>/var/backup</file>.  When you restore these files, you may
+manually have to set the proper permissions.
+<example>
+# cp /var/backup/passwd /etc/passwd
+# chmod 644 /etc/passwd
+</example>
+See also <ref id="recover-status">.
+
+</chapt>
+

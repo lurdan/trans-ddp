@@ -1,18 +1,35 @@
-<!-- CVS revision of this document "$Revision: 1.20 $"  -->
-<!-- CVS revision of original english document "1.61"  -->
+<!-- CVS revision of this document "$Revision: 1.21 $"  -->
+<!-- CVS revision of original english document "1.88"  -->
 <!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
 
 <chapt id="package">Gestione dei pacchetti in Debian 
 
 <p>
-Abbiate l'accortezza di organizzare un proxy http locale utilizzando <prgn>squid</prgn>,
-per i pacchetti scaricati da APT. Ciò migliora enormemente la performance
+Per ridurre il carico sui repositori &debian, abbiate l'accortezza di organizzare un proxy http locale utilizzando <prgn>squid</prgn>,
+per i pacchetti scaricati da APT e, se necessario, impostate la variabile
+d'ambiente <tt>http_proxy</tt> od il valore <tt>http</tt> in <file>/etc/apt/apt.conf</file>. Ciò migliora enormemente la performance
 degli upgrades via rete, in particolar modo con più macchine Debian su una
-LAN. Il capitolo è pensato per i sistemi Woody, ma molte informazioni sono
-applicabili anche a Potato, tranne che per
-<manref name="apt_preferences" section="5">, 
-ed argomenti correlati a <file>/etc/apt/preferences</file>.
- 
+LAN.
+<p>
+Sebbene l'opzione di pinning descritta in <manref name="apt_preferences"
+section="5"> sia potente, non risolve tutti i problemi di dipendenze,
+poichè le necessità di soddisfare le dipendenze fanno si che si tendano a
+scaricare le versioni più recenti di pacchetti fondamentali
+<p>
+<![%f-ref;[
+L'uso del metodo descritto in <ref id="chroot"> è preferibile per
+]]>
+<![%q-ref;[
+L'uso del metodo chroot è preferibile per
+]]>
+assicurare al contempo stabilità del sistema ed accesso alle
+versioni più recenti del software.
+<p>
+Questo capitolo fa riferimento ad un sistema basato su Woody, ma gran
+parte delle informazioni sono applicabili anche a Potato system
+(tranne che per <manref name="apt_preferences"
+section="5"> ed argomenti correlati a <file>/etc/apt/preferences</file>).
+
 <sect id="pkg-intro">Introduzione
 <p>
 Se la lettura di tutta la documentazione per gli sviluppatori è troppo per
@@ -22,15 +39,15 @@ potere della Debian con le distribuzioni <tt>testing</tt>/<tt>unstable</tt> :-)
 <sect1>Strumenti fondamentali
 <p>
 <example>
-dselect   &mdash; strumento di gestione dei pacchetti basato su menu (livello
+dselect   &ndash; strumento di gestione dei pacchetti basato su menu (livello
 superiore) 
-dpkg      &mdash; installa i pacchetti (centrato sui file dei pacchetti)
-apt-get   &mdash; installa i pacchetti (centrato sull'archivio pacchetti,
-APT)
-tasksel   &mdash; installa i task (un gruppo di pacchetti)
-aptitude  &mdash; installa i pacchetti (paccchetti &amp; task, ncurses APT)
-deity     &mdash; alternativa ad APT basata su ncurses
-synaptic, gsynaptic &mdash; interfacce alternative di APT
+dpkg      &ndash; installa i pacchetti (centrato sui file dei pacchetti)
+apt-get   &ndash; installa i pacchetti (centrato sull'archivio pacchetti,
+CLI APT)
+tasksel   &ndash; installa i task (un gruppo di pacchetti)
+aptitude  &ndash; installa i pacchetti (paccchetti &amp; task, ncurses APT)
+deity     &ndash; alternativa ad APT basata su ncurses
+synaptic, gsynaptic &ndash; interfacce alternative di APT
 </example>
 Questi strumenti non agiscono allo stesso livello. <prgn>dselect</prgn> gira al di sopra
 di APT (il comando da terminale è <prgn>apt-get</prgn>) e di <prgn>dpkg</prgn>.
@@ -43,12 +60,15 @@ tramite la voce <tt>[U]pdate</tt> del menu di <prgn>dselect</prgn> ([A]ggiorna p
 o tramite la shell con il comando "<tt>dselect update</tt>" prima di eseguire <tt>dselect select</tt>,
 <tt>tasksel</tt> o <tt>dpkg -l</tt>.
 <p>
-Per quanto riguarda le dipendenze, <prgn>apt-get</prgn> prende automaticamente
+Per quanto riguarda le dipendenze, <prgn>apt-get</prgn> sceglie automaticamente
 i pacchetti sotto <strong>dipende</strong> ma lascia quelli sotto
 <strong>raccomanda</strong> e <strong>suggerisce</strong>, mentre
 <prgn>dselect</prgn> offre un controllo più fine
-sulla scelta dei pacchetti e prende già in partenza quelli sotto <strong>dipende</strong>
-e <strong>raccomanda</strong>.
+sulla scelta dei pacchetti scegliendo già in partenza quelli sotto <strong>dipende</strong>
+e <strong>raccomanda</strong>. <prgn>aptitude</prgn> offre l'opzione di
+scegliere automaticamente tutti i pacchetti basandosi su
+<strong>dipende</strong>, <strong>raccomanda</strong>, e
+<strong>suggerisce</strong>.
 <![%f-ref;[
 Vedere <ref id="depends">.
 ]]>
@@ -57,7 +77,7 @@ Vedere <ref id="depends">.
 <sect1>Strumenti utili
 <p>
 <example>
-apt-cache      - controlla l'archivio dei pacchetti nella cache locale
+apt-cache         - controlla l'archivio dei pacchetti nella cache locale
 dpkg-reconfigure  - riconfigura un pacchetto già installato (se utilizza debconf)
 dpkg-source       - gestisce il pacchetto con il file sorgente
 dpkg-buildpackage - automatizza la creazione di un pacchetto
@@ -66,20 +86,20 @@ dpkg-buildpackage - automatizza la creazione di un pacchetto
 </sect1>
 </sect>
 
-<sect id="survival">Comandi di sopravvivenza Debian
+<sect id="apt-install">Le basi della gestione dei pacchetti &debian;
 <p>
-Conoscendoli, potrete vivere una vita di <strong>eterni</strong> "upgrade" :-)
-<p>
+E' possibile installare un gruppo di pacchetti, definito <em>task</em>, od un
+solo pacchetto, oppure aggiornare il sistema usando gli strumenti di gestione
+dei pacchetti descritti più avanti.
 <![%f-ref;[
 Fate riferimento anche a
 <ref id="install">, <ref id="woody"> e <ref id="bin-editor">.
 ]]>
-
-
-<sect1 id="tasksel">Installare i <em>task</em> con <prgn>tasksel</prgn>
+<sect1 id="tasksel">Installare i <em>task</em> con <prgn>tasksel</prgn> o con
+<prgn>aptitude</prgn>
 <p>
 <prgn>tasksel</prgn> è definito come l'<strong>Installatore Debian per i
-Task</strong> che viene presentato come una "<tt>semplice</tt>" opzione durante
+Task</strong> che vengono presentati come una "<tt>semplice</tt>" opzione durante
 l'installazione del sistema.
 <p>
 Quando si ha la necessità di installare delle funzionalità comuni che
@@ -89,19 +109,39 @@ Lanciatelo come segue:
 # dselect update
 # tasksel
 </example>
+<p>
+Anche <prgn>aptitude</prgn> offre l'accesso ai <em>task</em>. 
+Esso non solo permette di scegliere i <em>task</em> ma anche di
+deselezionare i pacchetti di un <em>task</em> in maniera
+selettiva, mediante un menu.
 </sect1>
 
-<sect1 id="apt-install">Installare il sistema con APT
+<sect1 id="setup-apt">Impostazione del sistema APT
 <p>
-Potete eseguire delle installazioni selettive dei pacchetti provenienti da archivi
-diversi, utilizzando le versioni più recenti di <prgn>apt-get</prgn> (&gt;Woody) aggiungendo
-gli indirizzi per <tt>unstable</tt> e <tt>testing</tt> al vostro 
-<file>/etc/apt/sources.list</file>.  Ciò vi permette, per esempio, di eseguire 
-degli aggiornamenti selettivi ad <tt>unstable</tt> e delle "regressioni" selettive a
-<tt>stable</tt> mentre state utilizzando la distribuzione <tt>testing</tt>.
+Se si tenta di tracciare distribuzioni diverse, è facile incappare in qualche
+conflitto di dipendenza dei pacchetti. E' buona norma non mischiare le
+versioni. Quanto segue è per coloro che hanno voglia di sperimentare, essendo
+a conoscenza dei rischi.
+<!--
+Yes. This is sloppy fix but better than nothing.  I saw many newbie
+confused.
+-->
 <p>
-Per fare degli aggiornamenti selettivi mentre usate la distribuzione <tt>testing</tt>, 
-impostate <file>/etc/apt/preferences</file> come segue:
+Per un aggiornamento selettivo mentre si traccia le distribuzione <tt>testing</tt>,
+APT (&gt;Woody) deve essere impostato come in <ref id="woody-transition">
+per utilizzare le funzionalità di <manref name="apt_preferences" section="5">.
+<p>
+Per prima cosa, aggiungete i riferimenti per <tt>stable</tt>, <tt>testing</tt>
+ed <tt>unstable</tt> al vostro <file>/etc/apt/sources.list</file>.
+Poi, modificate <file>/etc/apt/preferences</file> per impostare la corretta Pin-Priority.
+<footnote>
+Ho mantenuto la descrizione qui per coerenza con le altre parti. Se si stanno
+tracciando veramente <tt>testing</tt> o
+<tt>unstable</tt>, si dovrebbe in realtà rimuovere i riferimenti a
+<tt>stable</tt> da <file>/etc/apt/sources.list</file> e da
+<file>/etc/apt/preferences</file>.  Ciò perchè <tt>testing</tt>
+origina come una copia di <tt>stable</tt>.
+</footnote>
 <example>
 Package: *
 Pin: release a=stable
@@ -115,23 +155,234 @@ Package: *
 Pin: release a=unstable
 Pin-Priority: 50
 </example>
+
+
+<sect1 id="dselect"><prgn>dselect</prgn>
+<p>
+Una volta lanciato, <prgn>dselect</prgn> seleziona automaticamente tutti i pacchetti
+"Essenziali", "Importanti", e "Standard". In Potato, alcuni grossi programmi come teTEX ed Emacs,
+erano proprio contenuti in queste sezioni, ed era meglio deselezionarli a mano (digitando '_') alla prima installazione.
+In Woody sono stati spostati nella categoria "Opzionali"..
+<p>
+<prgn>dselect</prgn> presenta un'interfaccia utente un pò strana. Quattro sono i comandi
+ambigui (Maiuscolo significa MAIUSCOLO!):
+<example>
+Tasto  Azione
+Q      Esci. Conferma la selezione corrente ed esce comunque 
+       (prevale sulle dipendenze)
+R      Torna indietro. Non intendevo farlo.
+D      Dannazione! Non mi interessa cosa ne pensa dselect. 
+       Fallo e basta!
+U      Riporta tutto allo stato sUggerito
+</example>
+Usando <tt>D</tt> e <tt>Q</tt>, potete scegliere delle selezioni che presentano conflitti di
+dipendenze a vostro rischio e pericolo. Usate questi comandi con cura. Al
+momento <prgn>dselect</prgn> 
+rappresenta uno strumento maturo, basato su menu in grado di offrire un
+controllo fine sulle scelte riferire a <strong>suggerisce</strong> e a
+<strong>raccomanda</strong>. 
+<p>
+Aggiungete una linea con l'opzione "expert" in <file>/etc/dpkg/dselect.cfg</file> per ridurne il
+"rumore".Per
+macchine lente, lanciate <prgn>dselect</prgn> su un'altra macchina più veloce per trovare
+i pacchetti che vi servono ed usate <tt>apt-get install</tt> per
+installarli. 
+<p>
+<prgn>dselect</prgn> non fornisce accesso a pacchetti che non siano stati
+definiti dalla the Pin-Priority.
+</sect1>
+
+<sect1 id="aptitude"><prgn>aptitude</prgn>
+<p>
+<prgn>aptitude</prgn> è un nuovo installatore di pacchetti basato su menu,
+simile a <prgn>dselect</prgn>.  Può essere utilizzato anche da linea di
+comando in alternativa ad <prgn>apt-get</prgn>.  Vedere <manref name="aptitude"
+section="1">.
+<p>
+<prgn>aptitude</prgn> accetta comandi sotto forma singole lettere, di norma in
+minuscolo.
+<example>
+Tasto       Azione
+F10         Menu
+?           Aiuto per i comandi
+u           Aggiorna le informazioni relative all'archivio dei pacchetti
+g           Scarica ed installa i pacchetti selezionati
+q           Esce dalla schermata corrente e salva le modifiche
+x           Esce dalla schermata corrente e non salva le modifiche
+Enter       Mostra le informazioni su un pacchetto
+</example>
+<prgn>aptitude</prgn> offre l'opzione di prendere tutti i pacchetti basandosi
+automaticamente su <strong>dipende</strong>,
+<strong>raccomanda</strong>, e <strong>suggerisce</strong>. 
+Potete modificare questo comportamento tramite <tt>F10 -> Options -> 
+Dependency handling</tt> nel suo menu.
+<p>
+<prgn>aptitude</prgn> offre l'accesso a tutte le versioni di un pacchetto.
+</sect1>
+
+<sect1 id="apt-commands">I comandi <prgn>apt-cache</prgn> e <prgn>apt-get</prgn>
+<p>
+Durante il tracciamento di <tt>testing</tt>, come descritto nell'esempio
+sopra, è possibile gestire il sistema attraverso i seguenti comandi:
+<list>
+<item><tt>apt-get -u upgrade</tt>
+ <p>traccia solo la distribuzione <tt>testing</tt> ed aggiorna tutti i 
+pacchetti del sistema installando le dipendenze da <<tt>testing</tt>.
+<item><tt>apt-get -u dist-upgrade</tt>
+<p>Traccia la distribuzione <tt>testing</tt> ed aggiorna tutti i pacchetti
+nel sistema, installando e risolvendo le dipendenze da <tt>testing</tt>.
+<item><tt>apt-get -u dselect-upgrade</tt>
+<p>Traccia la distribuzione <tt>testing</tt> ed aggiorna tutti i pacchetti
+nel sistema sula base delle selezioni di <prgn>dselect</prgn>.
+<item><tt>apt-get -u install <var>pacchetto</var></tt>
+<p>Installa il <var>package</var> e le sue dipendenze dalla distribuzione
+<tt>testing</tt>.
+<item><tt>apt-get -u install <var>pacchetto</var>/unstable</tt>
+<p>Installa il <var>pacchetto</var> dalla distribuzione <tt>unstable</tt>
+mentre installa le sue dipendenze da <tt>testing</tt>.
+<item><tt>apt-get -u install -t unstable <var>pacchetto</var></tt>
+<p>Installa il <var>pacchetto</var> da <tt>unstable</tt> e
+ne installa le dipendenze sempre da <tt>unstable</tt>
+impostando la Pin-Priority di <tt>unstable</tt> a 990.
+<item><tt>apt-cache policy <var>foo bar ...</var></tt>
+<p>Controlla lo stato dei pacchetti <var>foo bar ...</var>.
+<item><tt>apt-cache show <var>foo bar ...</var> | less</tt>
+<p>Controlla le informazioni dei pacchetti <var>foo bar ...</var>.
+<item><tt>apt-get install <var>foo=2.2.4-1</var></tt>
+<p>Installa la particolare versione <var>2.2.4-1</var> del pacchetto <var>foo</var>.
+<item><tt>apt-get -u install <var>foo bar-</var></tt>
+<p>Installa il pacchetto <var>foo</var> e rimuove il pacchetto <var>bar</var> package
+<item><tt>apt-get remove <var>bar</var></tt>
+<p>Rimuove il pacchetto <var>bar</var> ma mantiene i file di configurazione
+personalizzati intatti.
+<item><tt>apt-get remove --purge <var>bar</var></tt>
+<p>Rimuove il pacchetto <var>bar</var> insieme a tutti i file di
+configurazione personalizzati.
+</list>
+Nei precedenti esempi, l'uso dell'opzione <tt>-u</tt> assicura che
+<prgn>apt-get</prgn> mostri una lista di tutti i pacchetti da aggiornare e che
+attenda un comando dell'utente per agire. Quanto segue imposta l'opzione <tt>-u</tt>
+come azione predefinita:
+<example>
+$ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+// Mostra sempre i pacchetti da aggiornare (-u)
+APT::Get::Show-Upgraded "true";
+.
+</example>
+<p>
+Usate l'opzione <tt>-s</tt> per simulare l'aggiornamento senza eseguirlo
+realmente.
+
+<sect1 id="apt-tracking">Tracciare una distribuzione &debian; specifica
+<p>
+A seconda delle vostre preferenze in fatto di distribuzioni &debian; da
+tracciare, potete modificare il file di esempio <file>/etc/apt/preferences</file> in
+<ref id="setup-apt"> in modo da soddisfare le vostre esifenze:
+<example>
+tracciare stable:            modificare la Pin-Priority di testing  a  50
+tracciare testing:           mantenere le impostazioni come mostrato sopra
+tracciare testing(unstable): modificare la Pin-Priority di unstable a 500
+tracciare unstable(testing): modificare la Pin-Priority di unstable a 800
+</example>
+Una linea guida per la scelta della Pin-Priority è di muoversi nella tabella
+precedente dall'alto verso il basso man mano che il tempo passa, dal momento
+immediatamente susseguente al rilascio di una distribuzione fino a quello del
+freeze per la nuova.
+<p>
+Attenzione: il tracciamento della distribuzione <tt>testing</tt> di &debian;
+ha come effetto collaterale di avere aggiornamenti per la sicurezza
+estremamente lenti.
+<p>
+Se si mescolano le distribuzioni di &debian;, <tt>testing</tt> con
+<tt>stable</tt> oppure <tt>unstable</tt> con <tt>stable</tt>, si rischia con
+molta probabilità di prendere pacchetti chiave da <tt>testing</tt> o da <tt>unstable</tt>
+che possono essere bacati. Quindi, attenzione.
+<p>
+Esempi di <file>/etc/apt/preferences</file> che bloccano alcuni pacchetti
+chiave a versioni più mature, mentre si tracciano versioni meno mature per
+pacchetti non così essenziali, sono disponibili nella 
+<url id="&examples;" name="sottodirectory degli esempi"> come
+<file>preferences.testing</file> e <file>preferences.unstable</file>.
+Dall'altra parte, <file>preferences.stable</file> forza tutti i pacchetti ad
+essere degradati a <tt>stable</tt>.
+
+<sect1 id="apt-stable">Downgrading all packages to <tt>stable</tt>
+<p>
+Per riportare tutti i pacchetti ad un livello inferiore (<tt>stable</tt>), è
+necessario modificare /etc/apt/preferences come segue:
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+ed eseguire "<tt>apt-get upgrade</tt>", che forzerà i pacchetti al livello inferiore,
+in virtù di Pin-priority &gt; 1000. Attenzione, ci potranno essere alcune imperfezioni
+nelle dipendenze.
+
+<sect1 id="apt-preferences">Panoramica di <file>/etc/apt/preferences</file>
+<p>
+Nel file di esempio <file>/etc/apt/preferences</file> mostrato in
+<ref id="setup-apt">, "Package: *" alla prima riga significa che la sezione si
+applica a tutti i pacchetti. Potete usare il nome di un pacchetto al posto di
+"*" per specificare la Pin-Priority per quello specifico pacchetto.
+<p>
+Alla seconda riga, "Pin: release a=stable" significa che 
+<prgn>apt-get</prgn> prende il file <file>Packages.gz</file> dall'archivio
+contenente un file <file>Release</file> con la riga
+"Archive: stable".
+<p>
+All'ultima riga, "Pin-Priority: 500" specifica che la Pin-Priority deve essere 500.
+<p>
+Se esistono più pacchetti con lo stesso nome, di norma verrà installato quello
+con la Pin-Priority più alta.  
+<p>
+Qui, i significati della Pin-Priority sono:
+<list>
+<item>1001 ed oltre: Priorità di abbassamento di livello.
+ <p>L'abbassamento di livello del pacchetto è ammesso per questo intervallo di Pin-Priority.
+<item>Da 100 a 1000: Priorità standard.
+ <p>L'abbassamento di livello del pacchetto non è ammesso. Alcune altre
+ Pin-Priority chiave:
+<list>
+<item>990: la priorità impostata dall'opzione <tt>--target-release</tt> 
+o <tt>-t</tt> di <manref name="apt-get" section="8">.
+<item>500: la priorità di tutti i pacchetti di default.
+<item>100: la priorità dei pacchetti attualmente installati.
+</list>
+<item>Da 0 a 99: Priorità non automatizzate. (Utilizzate solo se il pacchetto
+              non è installato e non ne sono disponibili altre versioni.)
+<item>Inferiore a 0: La versione non verrà mai selezionata.
+</list>
+<!--FIXME: updated up to this position! -->
+Gli stessi effetti di <tt>--target-release</tt> possono essere ottenuti
+impostando <file>/etc/apt/apt.conf</file> come segue:
+<example>
+# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
+</example>
+L'opzione da riga di comando <tt>--target-release</tt> e l'impostazione in 
+<file>/etc/apt/apt.conf</file> sopravanzano le impostazioni in 
+<file>/etc/apt/preferences</file>.  State attenti a queste interferenze quando
+giocate con <file>/etc/apt/preferences</file>.
+
+<sect id="survival">Comandi di sopravvivenza Debian
+<p>
+Conoscendoli, potrete vivere una vita di <strong>eterni</strong> "upgrade" :-)
+
+
 Lo stesso risultato si ottiene con
 <example>
 # echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
 </example>
 Viene così strutturato il tracciamento di <tt>testing</tt>:
 <list>
-<item><tt>apt-get upgrade</tt>
- <p>traccia solo la distribuzione <tt>testing</tt> ed aggiorna tutti i 
- pacchetti del sistema.
 <item><tt>apt-get install <var>pacchetto</var></tt>
- <p>installa <var>pachetto</var> e le sue dipendenze dalla distribuzione 
- <tt>testing</tt>.
+<p>installa <var>pachetto</var> e le sue dipendenze dalla distribuzione 
+<tt>testing</tt>.
 <item><tt>apt-get install <var>pacchetto</var>/unstable</tt>
- <p>installa <var>pacchetto</var> dalla distibuzione <tt>unstable</tt> mentre installa
- le sue dipendenze dalla <tt>testing</tt>.
+<p>installa <var>pacchetto</var> dalla distibuzione <tt>unstable</tt> mentre installa
+le sue dipendenze dalla <tt>testing</tt>.
 <item><tt>apt-get install -t unstable <var>pacchetto</var></tt>
- <p>installa <var>pacchetto</var> da <tt>unstable</tt> insieme alle sue dipendenze.
+<p>installa <var>pacchetto</var> da <tt>unstable</tt> insieme alle sue dipendenze.
 </list>
 <p>
 Se tracciate <tt>stable</tt>, calate la Pin-Priority di 
@@ -149,18 +400,7 @@ Altri comandi da usare sono:
 # apt-get remove vecchio-pacchetto-inutile
 # apt-get remove --purge vecchio-pacchetto-veramente-inutile
 </example>
-<p>
-Per riportare tutti i pacchetti ad un livello inferiore (<tt>stable</tt>), è
-necessario modificare /etc/apt/preferences come segue:
-<example>
-Package: *
-Pin: release a=stable
-Pin-Priority: 1001
-</example>
-ed eseguire "<tt>apt-get upgrade</tt>", che forzerà i pacchetti al livello inferiore,
-in virtù di Pin-priority &gt; 1000. Attenzione, ci potranno essere alcune imperfezioni
-nelle dipendenze.
-</sect1>
+
 
 <sect1 id="apt-upgrade">Aggiornare il sistema con APT
 <p>
@@ -186,6 +426,8 @@ effettuarlo.
 <prgn>dselect</prgn> offre un'interfaccia basata su menù per il controllo di APT.
 <prgn>deity</prgn> ed <prgn>aptitude</prgn> offriranno delle alternative a <prgn>dselect</prgn>.
 </sect1>
+
+
 
 <sect1 id="bug-check">Controllo dei bachi in Debian
 <P>
@@ -292,8 +534,8 @@ Se vi sono dipendenze non risolte, risolvetele oppure usate:
 <sect1 id="recover-status">Recuperare i dati sulla selezione dei pacchetti
 <p>
 Se <file>/var/lib/dpkg/status</file> diventa illeggibile per una qualsivoglia
-ragione, il sistema &debian perde i dati sulla selezione dei pacchetti,
-soffrendone i  maniera severa. cercate il vecchio file
+ragione, il sistema &debian; perde i dati sulla selezione dei pacchetti,
+soffrendone in  maniera severa. cercate il vecchio file
 <file>/var/lib/dpkg/status</file> in <file>/var/lib/dpkg/status-old</file>,
 oppure
 <file>/var/backups/dpkg.status.*</file>.
@@ -311,7 +553,7 @@ in <file>/usr/share/doc/</file>.
   grep -v '^debian$' | \
   awk '{print $1 " install"}' | \
   dpkg --set-selections
-  # dselect --expert # reinstalla il sistema, deseleziona se necessario
+# dselect --expert # reinstalla il sistema, deseleziona se necessario
 </example>
 
 <sect1 id="rescue-var">Recupero del sistema dopo danneggiamento di <file>/var</file>
@@ -340,10 +582,12 @@ descritta in <ref id="recover-status">.
 <sect1 id="un-bootable">Installare un pacchetto su un sistema non bootabile
 <p>
 Fate il boot in Linux mediante un floppy o CD di salvataggio Debian, o tramite
-una partizione alternativa se avete un sistema con più boot in Linux.  Montate
-il sistema non bootabile su <file>/target</file> ed usate il modo chroot di installazione
+una partizione alternativa se avete un sistema con più boot in Linux.  
+<![%f-ref;[
+Vedere <ref id="booting">. 
+]]>
+Montate il sistema non bootabile su <file>/target</file> ed usate il modo chroot di installazione
 di <prgn>dpkg</prgn>.
-.
 <example>
 # dpkg --root /target -i <var>packagefile.deb</var>
 </example>
@@ -368,10 +612,10 @@ Una procedura come la seguente vi aiuterà ad uscire da questa situazione. (Nella
 potete sostituire "links" con il vostro browser da terminale preferito.)
 <example>
 $ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
-  ... scarica un valido dpkg_<var>version</var>_<var>arch</var>.deb
-$ ar x dpkg_<var>version</var>_<var>arch</var>.deb
+... scarica un valido dpkg_<var>version</var>_<var>arch</var>.deb
 $ su
 password: *****
+$ ar x dpkg_<var>version</var>_<var>arch</var>.deb
 # mv data.tar.gz /data.tar.gz
 # cd /
 # tar xzfv data.tar.gz
@@ -388,33 +632,33 @@ anche essere utilizzata come URL.
 L'<strong>Illuminazione</strong> ottenuta con questi comandi salverà una persona dall'eterno ciclo del karma
 dell'inferno degli aggiornamenti, permettendogli di raggiungere il <strong>paradiso</strong> Debian. :-)
 
-<sect1 id="info-file">Informazioni sui file
+<sect1 id="info-file">Informazioni su di un file
 <p>
 Per scoprire a quale pacchetto un file appartiene:
 <example>
 $ dpkg {-S|--search} modello # trova i modelli nei pacchetti installati
 $ zgrep -e modello <var>/local/copy/of/debian/woody/Contents-i386.gz</var> 
-        # trova l'elenco dei file con la stessa radice (o il file) nell'archivio Debian
+	     # trova l'elenco dei file con la stessa radice (o il file) nell'archivio Debian
 </example>
 Potete utilizzare anche dei comandi specifici per i pacchetti:
 <example>
 # apt-get install dlocate 
-                 # è in conflitto con slocate (la versione sicura di locate) 
+	 # è in conflitto con slocate (la versione sicura di locate) 
 $ dlocate <var>filename</var> # alternativa rapida a dpkg -L e dpkg -S 
 ...
 # apt-get install auto-apt # strumento per l'installazione a richiesta dei pacchetti 
 # auto-apt update          # crea un database per auto-apt 
 $ auto-apt search <var>modello</var> 
-                # effettua una ricerca completa nell'archivio pacchetti
+	# effettua una ricerca completa nell'archivio pacchetti
 </example>
 </sect1>
 
-<sect1 id="info-package">Informazioni sui pacchetti
+<sect1 id="info-package">Informazioni su di un pacchetto
 <p>
 Cerca le informazioni negli archivi dei pacchetti e le visualizza. Accertatevi
 che apt sia indirizzato verso l'archivio(i) appropriato(i) modificando
-<tt>/etc/apt/sources.list</tt>.  Se volete vedere le differenze fra i
-pacchetti in testing/unstable e quelli correntemente installati utilizzate
+<tt>/etc/apt/sources.list</tt>.  Se volete vedere come si comportano i
+pacchetti in <tt>testing</tt>/<tt>unstable</tt> rispetto a quelli correntemente installati utilizzate
 <tt>apt-cache policy</tt>&mdash; un comando molto utile.
 <example>
 # apt-get check # aggiorna la cache e controlla le dipendenze 
@@ -453,7 +697,7 @@ Per una installazione automatica, senza controllo alcuno, aggiungete la seguente
 Dpkg::Options {"--force-confold";}
 </example>
 Questo è l'equivalente di <tt>apt-get -q -y <var>nomepacchetto</var></tt>.
-Ci possono essere serie implicazioni negative.  Usate questo trucco con accortezza. 
+Siccome in questo modo si risponde "si" a tutte le domande, usate questo trucco con accortezza. 
 Vedere <manref name="apt.conf" section="5"> e <manref name="dpkg" section="1">.
 <p>
 Si può configurare qualsiasi pacchetto in un secondo momento seguendo 
@@ -531,7 +775,7 @@ dpkg --get-selections "*"|grep -e "hold$"
 </example>
 </sect1>
 
-<sect1 id="mixedsys">Sistema misto stable/testing/unstable
+<sect1 id="mixedsys">Sistema misto <tt>stable</tt>/<tt>testing</tt>/<tt>unstable</tt>
 <p>
 <prgn>apt-show-versions</prgn> può elencare le versioni dei pacchetti disponibili 
 per ciascuna distribuzione.
@@ -543,35 +787,6 @@ $ apt-show-versions -u
 $ apt-get install `apt-show-versions -u -b | fgrep /unstable`
 ... aggiorna tutti i pacchetti da unstable alle loro versioni più recenti
 </example>
-</sect1>
-
-<sect1 id="dselect"><prgn>dselect</prgn> &ndash; configurazione generale
-<p>
-Aggiungete una linea con l'opzione "expert" in <file>/etc/dpkg/dselect.cfg</file> per ridurne il
-"rumore".
-<p>
-Una volta lanciato, <prgn>dselect</prgn> seleziona automaticamente tutti i pacchetti
-"Essenziali", "Importanti", e "Standard". In potato, alcuni grossi programmi come teTEX ed Emacs,
-erano proprio contenuti in queste sezioni, ed era meglio deselezionarli a mano (digitando '_') alla prima installazione.
-In Woody sono stati spostati nella categoria "Opzionali"..
-<p>
-<prgn>dselect</prgn> presenta un'interfaccia utente un pò strana. Quattro sono i comandi
-ambigui (Maiuscolo significa MAIUSCOLO!):
-<example>
-Tasto  Azione
-Q      Esci. Conferma la selezione corrente ed esce comunque 
-       (prevale sulle dipendenze)
-R      Torna indietro. Non intendevo farlo.
-D      Dannazione! Non mi interessa cosa ne pensa dselect. 
-       Fallo e basta!
-U      Riporta tutto allo stato sUggerito
-</example>
-Usando <tt>D</tt> e <tt>Q</tt>, potete scegliere delle selezioni che presentano conflitti di
-dipendenze a vostro rischio e pericolo. Usate questi comandi con cura. Per
-macchine lente, lanciate <prgn>dselect</prgn> su un'altra macchina più veloce per trovare
-i pacchetti che vi servono ed usate <tt>apt-get install</tt> per
-installarli. <tt>apt-get dselect-upgrade</tt> è il comando che utilizza al meglio la
-selezione con <prgn>dselect</prgn>.
 </sect1>
 
 <sect1 id="cache">"Potare" i files della cache
@@ -603,11 +818,11 @@ Potete poi trasferire questo file su un altro computer ed installarlo con:
 
 <sect1 id="port">Portare un pacchetto nel sistema <tt>stable</tt>
 <p>
-Se si eseguono degli aggiornamenti parziali di un sistema stable", può essere
+Se si eseguono degli aggiornamenti parziali di un sistema <tt>stable</tt>, può essere
 buona cosa ricreare un pacchetto all'interno del proprio ambiente a partire
 dai sorgenti. In tal modo si eviteranno dei massicci aggiornamenti di
 pacchetti, dovuti alle loro dipendenze. Per prima cosa, aggiungete le linee
-seguenti a /etc/apt/sources.list:
+seguenti a <file>/etc/apt/sources.list</file>:
 <example>
 deb-src &http-us;debian testing \
  main contrib non-free
@@ -624,7 +839,8 @@ su un'unica riga.
 <p>
 Poi recuperate i sorgenti e costruite un pacchetto locale:
 <example>
-$ apt-get source <var>pacchetto</var>
+$ apt-get update  # aggiorna la lista dei pacchetti sorgente
+$ apt-get source <var>pacchetto</var> 
 $ dpkg-source -x <var>pacchetto.dsc</var> 
 $ cd <var>versione-pacchetto</var> 
   ... controlla i pacchetti necessari (Build-depends nel file
@@ -632,16 +848,16 @@ $ cd <var>versione-pacchetto</var>
 
 $ dpkg-buildpackage -rfakeroot 
 
-  ...oppure (senza "signature") 
+...oppure (senza "signature") 
 $ dpkg-buildpackage -rfakeroot -us -uc utilizzate "debsign" in seguito, se necessario
 
-  ...poi per installare il pacchetto
+...poi per installare il pacchetto
 $ su -c "dpkg -i <var>pacchetto.deb</var>"
 </example>
 Normalmente, per soddisfare le dipendenze si ha la necessità di installare
-alcuni pacchetti con il suffisso "-dev". <package>debsign</package> è contenuto nel pacchetto
-<package>devscripts</package>. <package>auto-apt</package> può aiutare nel soddisfare queste dipendenze.
-<package>fakeroot</package> evita l'uso non necessario del root account.
+alcuni pacchetti con il suffisso "-dev". <prgn>debsign</prgn> è contenuto nel pacchetto
+<package>devscripts</package>. <prgn>auto-apt</prgn> può aiutare nel soddisfare queste dipendenze.
+<prgn>fakeroot</prgn> evita l'uso non necessario del root account.
 <p>
 In woody, questi problemi di dipendenze possono essere semplificati.  
 Per esempio per compilare solo il sorgente del pacchetto <package>pine</package>:
@@ -654,17 +870,18 @@ Per esempio per compilare solo il sorgente del pacchetto <package>pine</package>
 <sect1 id="local">Archivio locale dei pacchetti
 <p>
 Per creare un archivio locale dei pacchetti che sia compatibile con
-APT e dselect, bisogna creare <file>Packages</file> ed i file dei pacchetti devono  
+APT e <prgn>dselect</prgn>, bisogna creare <file>Packages</file> ed i file dei pacchetti devono  
 essere organizzati in un particolare albero directory.
 <p>
-Si possono creare sia un archivio ufficiale debian, che un deposito locale.
+Si possono creare sia un archivio ufficiale debian, che un repositorio locale,
+in questo modo.
 <example>
 # apt-get install dpkg-dev
 # cd <var>/usr/local</var>
 # install -d <var>pool</var> # i pacchetti sono fisicamente localizzati qui
 # install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
-# ls -1 <var>pool</var> | sed 's/_.*$/ extra <var>BOGUS</var>/' | uniq &gt; <var>override</var>
-# editor <var>override</var> # adjust <var>BOGUS</var>
+# ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+# editor <var>override</var> # adjust <var>priority</var> e <var>section</var>
 # dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
    &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
 # cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
@@ -679,11 +896,11 @@ EOF
    &gt;&gt; /etc/apt/sources.list
 </example>
 <p>
-In alternativa, un altro metodo per creare un archivio locale, molto alla bruta:
+In alternativa, un altro metodo per creare un archivio locale <tt>deb</tt>, molto alla bruta:
 <example>
 # apt-get install dpkg-dev
 # mkdir <var>/usr/local/debian</var>
-# mv <var>/dove/è/package.deb</var> <var>/usr/local/debian</var>
+# mv <var>/dove/è/pacchetto.deb</var> <var>/usr/local/debian</var>
 # dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
   gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
 #  echo "deb file:<var>/usr/local/debian</var> ./" &gt;&gt; /etc/apt/sources.list
@@ -700,7 +917,7 @@ Redhat <tt>rpm</tt>, Stampede <tt>slp</tt>, Slackware <tt>tgz</tt>, e Solaris
 <tt>pkg</tt>, in pacchetti &debian; <tt>deb</tt>. Se volete usare un pacchetto
 proveniente da un'altra distribuzione di Linux al posto di quello installato
 sul vostro sistema, potete utilizzare <prgn>alien</prgn> per convertirlo nel
-formato che più preferire. <prgn>Alien</prgn> supporta anche
+formato che più preferire. <package>alien</package> supporta anche
 pacchetti LSB.
 </sect1>                                                 
 
@@ -715,6 +932,26 @@ DPkg::Post-Install-Pkgs {"xargs /usr/bin/debsums -sg";};
 ^D
 </example>
 da Joerg Wendland &lt;joergland@debian.org&gt;  (non testata).
+<![%f-ref;[
+<sect1 id="spy">Ottimizzare <file>sources.list</file>
+<p>
+In breve, sforzi sovrumani per creare un <file>sources.list</file>
+ottimizzato, non hanno prodotto per me miglioramenti, da una località negli .
+Ho scelto manualmente un sito vicino usando <prgn>apt-setup</prgn>.
+<p>
+<prgn>apt-spy</prgn> crea automaticamente <file>sources.list</file>,
+basandosi su latenza e larghezza di banda. <prgn>netselect-apt</prgn> crea un
+<file>sources.list</file> ancora più completo, ma usa un metodo meno efficace
+per la scelta del mirror migliore (comparazione dei tempi di ping).
+<example>
+# apt-get install apt-spy
+# cd /etc/apt ; mv sources.list sources.list.org
+# apt-spy -d testing -l sources.apt
+</example>
+</sect1>
+
+]]>
+
 </sect>
 
 <sect id="pecuriarities">Altre particolarità di Debian
@@ -731,6 +968,8 @@ amministratori di sistema possono usare una deviazione anche per scavalcare un
 file di configurazione di un pacchetto, oppure quando alcuni files (non
 marcati come <strong>conffiles</strong>) devono essere salvaguardati da
 <prgn>dpkg</prgn>, durante l'installazione di una nuova versione di un dato
+file<![%f-ref;[
+(vedere <ref id="conffile">)]]>.
 <example>
 # dpkg-divert [--add]  <var>filename</var> # aggiunge la "deviazione"
 # dpkg-divert --remove <var>filename</var> # rimuove la "deviazione"
