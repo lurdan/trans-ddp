@@ -130,62 +130,13 @@ $(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
-#$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexps -l $* $<
-
-# debiandoc2latexps is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.ps:	$(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich latex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-latex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.ps=.log) for details
-	dvips -t `cat /etc/papersize` -o $(MANUAL).$*.ps $(MANUAL).$*
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
+$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
+	debiandoc2latexps -l $* $<
 
 #----[ generating PDF ]--------------------------------------------------------
 # for translated languages
-#$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
-#	debiandoc2latexpdf -l $* $<
-
-# debiandoc2latexpdf is broken. Imitate Makefile in boot-floppies
-$(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
-#	 note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich pdflatex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.pdf=.log) for details
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
+$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
+	debiandoc2latexpdf -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
 publish: publish-html publish-files
