@@ -12,6 +12,9 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
+sources := $(wildcard *.??*.sgml)
+sources_noncjk := $(filter-out maint-guide.zh_CN.sgml,$(filter-out maint-guide.ja.sgml,$(sources)))
+
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
@@ -31,7 +34,7 @@ html:
         done
 
 # generating plain text
-txt text: $(MANUAL).en.txt $(patsubst %.sgml,%.txt,$(wildcard *.??*.sgml))
+txt text: $(MANUAL).en.txt $(patsubst %.sgml,%.txt,$(sources))
 
 $(MANUAL).en.txt: $(MANUAL).sgml
 	debiandoc2text -l en $<
@@ -41,7 +44,7 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
 
 # generating PostScript
-ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(filter-out maint-guide.ja.sgml,$(wildcard *.??*.sgml)))
+ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
 
 $(MANUAL).en.ps: $(MANUAL).sgml
 	debiandoc2latexps -l en $<
@@ -51,7 +54,7 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
 # generating Portable Document Format
-pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(filter-out maint-guide.ja.sgml,$(wildcard *.??*.sgml)))
+pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
 	debiandoc2latexpdf -l en $<
