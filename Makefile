@@ -1,20 +1,25 @@
 # Top-level makefile for the Debian Documentation Project manuals
 
-SUBDIRS	:= book-suggestions 		\
-	   debian-bugs	 		\
-	   debiandoc-startup 		\
-	   developers-reference		\
-	   dictionary 			\
-	   markup 			\
-	   menu 			\
-	   meta 			\
-	   network-administrator 	\
-	   programmer 			\
-	   project-history 		\
-	   sgmltools-startup 		\
-	   system-administrator 	\
-	   user 			\
-	   users_manual 
+# live documentation
+SUBDIRS	:=	\
+		book-suggestions 	\
+		debian-bugs	 	\
+		developers-reference	\
+		dictionary 		\
+		meta 			\
+		network-administrator 	\
+		project-history 	\
+		system-administrator 	\
+		user			\
+		debiandoc-startup 	\
+		sgmltools-startup 	\
+		programmer
+
+# dead (unmaintained) documentation, suitable for reaping
+DEADDIRS :=	\
+		menu 			\
+		markup 			\
+		users_manual 
 
 all:
 	for dir in $(SUBDIRS); do	\
