@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.17 $"  -->
+<!-- CVS revision of this document "$Revision: 1.18 $"  -->
 
 <chapt>After Installation
 
@@ -617,25 +617,112 @@ applications that support PAM (access is denied by default).
 
 <sect1 id="user-limits">Limiting resource usage: the <file>limits.conf</file> file
 
-<p>
-You should really take a serious look into this file. Here you can
-define user resource limits. If you use PAM, the file
-<file>/etc/limits.conf</file> is ignored and you should use
-<file>/etc/security/limits.conf</file> instead.
+<p>You should really take a serious look into this file. Here you can
+define user resource limits. In old releases this configuration file
+was <file>/etc/limits.conf</file>, but in newer releases (with PAM)
+the <file>/etc/security/limits.conf</file> configuration file should
+be used instead.
 
 <p>If you do not restrict resource usage, <em>any</em> user with a
 valid shell in your system (or even an intruder who compromised the
-system through a service) can use up as much CPU, memory, stack,
-etc. as the system can provide. This <em>resource exhaustion</em>
-problem can only be fixed by the use of PAM. Note that there is a way
-to add resource limits to some shells (for example, <prgn>bash</prgn> has
-<prgn>ulimit</prgn>, see <manref section="1" name="bash">), but since not
-all of them provide the same limits and since the user can change
-shells (see <manref section="1" name="chsh">) it is better to place
-the limits on the PAM modules.
+system through a service or a daemon going awry) can use up as much
+CPU, memory, stack, etc. as the system can provide. This <em>resource
+exhaustion</em> problem can be fixed by the use of PAM. 
+
+<p>There is a way to add resource limits to some shells (for example,
+<prgn>bash</prgn> has <prgn>ulimit</prgn>, see <manref section="1"
+name="bash">), but since not all of them provide the same limits and
+since the user can change shells (see <manref section="1"
+name="chsh">) it is better to place the limits on the PAM modules as
+they will apply regardless of the shell used and will also apply to
+PAM modules that are not shell-oriented.
+
+<p>Resource limits are impossed by the kernel, but they need to be
+configured through the <file>limits.conf</file> and the PAM configuration
+of the different services need to load the appropiate PAM. You can
+check which services are enforcing limits by running:
+
+<example>
+$ find /etc/pam.d/ \! -name "*.dpkg*" | xargs -- grep limits |grep -v ":#"
+</example>
+
+<P>Commonly, <file>login</file>, <file>ssh</file> and the graphic
+session managers (<file>gdm</file>, <file>kdm</file> or
+<file>xdm</file>) should enforce user limits but you might want to do
+this in other PAM configuration files, such as <file>cron</file>, to
+prevent system daemons from taking over all system resources.
+
+<p>The specific limits settings you might want to enforce depend on
+your system's resources, that's one of the main reasons why no limits
+are enforced in the default installation.</p>
+
+<p>For example, the configuration example below enforces a 100 process
+limit for all users (to prevent <em>fork bombs</em>) as well as a
+limit of 10MB of memory per process and a limit of 10 simultaneous
+logins. Users in the <tt>adm</tt> group have higher limits and will
+can produce core files if they want to (there is only a <em>soft</em>
+limit.
+
+<p>
+<example>
+*               soft    core            0
+*		hard	core		0
+*               hard    rss             1000
+*		hard	memlock         1000
+*               hard    nproc           100
+*		-       maxlogins       1
+*		hard	data            102400
+*		hard	fsize           2048
+@adm		hard	core            100000
+@adm            hard    rss             100000
+@adm            soft    nproc           2000
+@adm            hard    nproc           3000
+@adm		hard	fsize           100000
+@adm            -       maxlogins       10
+</example>
+
+<p>These would be the limits a default user (including system daemons)
+would have:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 2048
+max locked memory     (kbytes, -l) 10000
+max memory size       (kbytes, -m) 10000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 100
+virtual memory        (kbytes, -v) unlimited
+</example>
+
+<p>And these are the limits for an administrative user:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 100000
+max locked memory     (kbytes, -l) 100000
+max memory size       (kbytes, -m) 100000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 2000
+virtual memory        (kbytes, -v) unlimited
+</example>
+
 
 <p>For more information read:
 <list>
+
+<item><url
+id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam-6.html"
+name="PAM reference guide for available modules">
 
 <item><url
 id="http://www.samag.com/documents/s=1161/sam0009a/0009a.htm"
@@ -650,8 +737,6 @@ users overview</em> section.
 <em>Limiting and monitoring users</em> section.
 
 </list>
-
-<p>FIXME: Get a good <file>limits.conf</file> up here
 
 <sect1>User Login actions: edit <file>/etc/login.defs</file>
 <p>
