@@ -28,7 +28,7 @@ faqdynamic.ent:
 	echo "<!entity docdate \"$(shell date +'%-d %B %Y')\">" > faqdynamic.ent
 	echo "<!entity docversion \"CVS\">" >> faqdynamic.ent
 
-$(MANUAL).html/index.html:	$(wildcard *.sgml) faqdynamic.ent
+html $(MANUAL).html/index.html:	$(wildcard *.sgml) faqdynamic.ent
 		debiandoc2html $(MANUAL).sgml
 
 # ensure our SGML is valid
