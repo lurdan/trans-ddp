@@ -459,19 +459,128 @@ zone "100.168.192.in-addr.arpa" {
   <sect id="bindsecondary">Setting up a Secondary DNS Server
 
   <p>A Secondary DNS Server is basically just a backup server.  I does not hold the master copies of the zone information but rather it holds copies of them.  Most sites use Secondary servers in remote locations or to cut down on the load on the Primary server.  The Secondary server performs zone transfers at said times making sure it has the newest versions of the zone information.
-<p>
+
+  <p>
 
     <sect1>Preparation 
+
+    <p>The big difference in setting up a Primary server and a Secondary server is that your zone files are already built.  The only changes you have to make is telling BIND on both systems that this server is a Secondary and to perform zone transfers.
+
+    <p>
 
     <sect1>Configuring BIND as a Secondary Server for your new DNS Domain
    
       <sect2>Changes to Primary Server
 
+      <p>First we need to make changes to your Primary server so that it knows about your new Secondary server.  On your Primary, edit your <em>foo.db</em> domain file and add the following line to it.  (note:  complete file is being shown here)
+
+      <p>
+
+<example>
+
+;
+; BIND data file for foo.db
+; /var/named/foo.db
+;
+@       IN      SOA     foo.org. root.foo.org. (
+                     1998121401         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Default TTL
+
+        IN      NS      dns.foo.org.
+	IN	NS	dns2.foo.org.	; ADD THIS LINE ***
+
+        IN      MX      10      mail.foo.org.
+
+www     IN      A       192.168.100.10
+news    IN      A       192.168.100.20
+mail    IN      A       192.168.100.30
+dns     IN      A       192.168.100.40
+dns2    IN      A       192.168.100.50
+
+</example>
+
+      <p>Now edit your <em>/var/named/192.168.100.db</em> file and do the same.
+
+      <p>
+
+<example>
+
+;
+; BIND reverse data file for 192.168.100.0
+; /var/named/192.168.100.db
+;
+@       IN      SOA     foo.org. root.foo.org. (
+                     1998121401         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Default TTL
+
+        IN      NS      dns.foo.org.
+	IN	NS	dns2.foo.org.	;  ADD THIS LINE ***
+
+10      IN      PTR     www.foo.org.
+20      IN      PTR     news.foo.org.
+30      IN      PTR     mail.foo.org.
+40      IN      PTR     dns.foo.org.
+50      IN      PTR     dns2.foo.org.
+
+</example>
+
+       <p>What your doing by adding the new IN NS line is telling BIND that dns2.foo.org is also a authorized DNS server for both foo.org and the 192.168.100.x subnet.  With BIND 8.x this also tells bind that whenever a change is made to the zone files, it needs to notify dns2.foo.org that a change has been made so thaht dns2.foo.org can perform a zone transfer.
+
+      <p>Please note that if you have setup your Primary server to only allow zone transfers from specific hosts, you'll need to make sure that dns2.foo.org is included in that list.  (allows-transfer option in <em>/etc/named.conf</em>.)
+
+      <p>You can now reload your BIND on your Primary server.  (<em>/etc/init.d/bind reload</em>)
+
+      <p>
+
       <sect2>named.conf
+
+      <p>Now on your Secondary server you need to add information to your <em>/etc/named.conf</em> file.  Add the following lines to the bottom of <em>/etc/named.conf</em>:
+
+      <p>
+
+<example>
+
+zone "foo.org" {
+        type slave;
+        file "foo.db";
+	masters {
+		192.168.100.40;
+	};
+};
+
+zone "100.168.192.in-addr.arpa" {
+        type slave;
+        file "192.168.100.db";
+	masters {
+		192.168.100.40;
+	};
+};
+
+</example>
+
+      <p>The above tells BIND that your server is a slave (Secondary) for foo.org and the 192.168.100.x subnet.  It also tells BIND that it needs to obtain the zone information (foo.db and 192.168.100.db) from 192.168.100.40 which is dns.foo.org.
+
+      <p>
 
       <sect2>zone files
 
       <p>Because this is a Secondary Server, there is no need to do anything with zone files.  BONUS!  As long as you have everything setup right on your Primary and your named.conf file is configured properly, everything will work properly.
+
+      <p>You are done.  Reload your BIND and test it out.  <em>/etc/init.d/bind reload</em>
+
+      <p>
+
+      <sect2>Information
+
+      <p>Now.  Each time the Primary site's zone files are modified and the Serial # is incremented, BIND will send out a notify to all Secondaries (any server in the zone file with a IN NS statement) stating a change has been made.  BIND on each of these servers will then check it's own zone files to see if it has the same version or not.  If the version that the Primary has notified it about is newer then it will perform a zone transfer and obtain the newer version.
+
+      <p>If everything is setup properly, you will never need to make any changes to your Secondary server except to upgrade BIND itself.  All changes from here on out should be made on the Primary server.
 
       <p>
 
