@@ -45,7 +45,12 @@ clean:
 	rm -rf $(prefix)
 	rm -f debian/files* core debian/substvars
 
-binary-indep:	build
+test:
+#	 make sure control files are good
+	sh -n debian/postinst
+	sh -n debian/prerm
+
+binary-indep:	build test
 	$(checkdir)
 	$(checkroot)
 	rm -rf $(prefix)
@@ -65,9 +70,6 @@ binary-indep:	build
 	$(install_file) debian/changelog $(docdir)/changelog.Debian
 	$(install_file) developers-reference.desc $(docbasedir)/$(package)
 
-#	 make sure control files are good
-	sh -n debian/postinst
-	sh -n debian/prerm
 	$(install_script) debian/postinst debian/prerm $(prefix)/DEBIAN/
 
 #	 compress docdir (policy)	
@@ -79,6 +81,12 @@ binary-indep:	build
 #	 be tricky about putting the TOC sections into the description of the package
 	perl -ne '/^\d+\.\s/ && print "    $$_";' < developers-reference.txt \
 		>> $(prefix)/DEBIAN/control
+
+	cd $(prefix) && \
+		find . -type f ! -regex '.*/DEBIAN/.*' -printf '%P\0' | \
+		xargs -r0 md5sum > DEBIAN/md5sums.tmp
+	$(install_file) $(prefix)/DEBIAN/md5sums.tmp $(prefix)/DEBIAN/md5sums
+	rm -f $(prefix)/DEBIAN/md5sums.tmp
 
 	dpkg --build $(prefix) ..
 
