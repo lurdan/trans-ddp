@@ -83,7 +83,7 @@ validate:
 
 # cleaning up
 clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*} *~
+	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt} *~
 	rm -rf $(MANUAL)*.html
 
 .PHONY: all publish clean distclean validate
