@@ -25,29 +25,29 @@ faqdynamic.ent:
         fi
 
 validate:
-	nsgmls -gues debian-faq.sgml
+	nsgmls -ges -wall debian-faq.sgml
+
+html debian-faq.html/index.html: $(SRCS)
+	debiandoc2html $<
+
+txt debian-faq.txt: $(SRCS)
+	debiandoc2text $<
+
+ps debian-faq.ps: $(SRCS)
+	debiandoc2latexps $<
+
+dvi debian-faq.dvi: $(SRCS)
+	debiandoc2latexdvi $<
+
+pdf debian-faq.pdf: $(SRCS)
+	debiandoc2latexpdf $<
+
+info debian-faq.info: $(SRCS)
+	debiandoc2info $<
 
 clean distclean:
 	rm -f debian-faq.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*} *~ .*~ core tsa*
 	rm -rf debian-faq.html
 	test -f ../debian/changelog || rm -f faqdynamic.ent
-
-html debian-faq.html/index.html: $(SRCS)
-	debiandoc2html debian-faq.sgml
-
-txt debian-faq.txt: $(SRCS)
-	debiandoc2text debian-faq.sgml
-
-ps debian-faq.ps: $(SRCS)
-	debiandoc2latexps debian-faq.sgml
-
-dvi debian-faq.dvi: $(SRCS)
-	debiandoc2latexdvi debian-faq.sgml
-
-pdf debian-faq.pdf: $(SRCS)
-	debiandoc2latexpdf debian-faq.sgml
-
-info debian-faq.info: $(SRCS)
-	debiandoc2info debian-faq.sgml
 
 .PHONY: all publish clean distclean validate
