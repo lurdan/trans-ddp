@@ -136,12 +136,12 @@ $(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 
 #----[ generating PostScript ]-------------------------------------------------
 $(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
-	debiandoc2latexps -v -l $* $<
+	debiandoc2latexps -l $* $<
 
 #----[ generating PDF ]--------------------------------------------------------
 # for translated languages
 $(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -v -l $* $<
+	debiandoc2latexpdf -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
 publish: publish-html publish-files
