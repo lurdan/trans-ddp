@@ -1,6 +1,11 @@
 #
 # Makefile for the Debian reference
 #
+# Read local texmf.cnf file
+
+export TEXMFCNF=texmf/
+
+
 #====[ customization ]=========================================================
 ##### CONF PART 
 # The cannonical language, in which the original document is
@@ -131,12 +136,12 @@ $(MANUAL).%.tex: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
 
 #----[ generating PostScript ]-------------------------------------------------
 $(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
-	debiandoc2latexps -l $* $<
+	debiandoc2latexps -v -l $* $<
 
 #----[ generating PDF ]--------------------------------------------------------
 # for translated languages
 $(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -v -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
 publish: publish-html publish-files
