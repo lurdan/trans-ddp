@@ -19,7 +19,7 @@ ORIG_LANG=en
 #
 # Since portuguese is not yet in debiandoc format we cannot publish it until it is
 #
-LANGS = es ru
+LANGS = es ja ru
 
 EXTS=txt info
 ##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
