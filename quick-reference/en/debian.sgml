@@ -1,0 +1,493 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
+
+<chapt id="package">Debian package management
+
+<![%FIXME[<p>===Proof reading by dsew: DONE (and redone) ===]]>
+
+<p>
+Make sure to set up a local http proxy using "squid" for packages downloaded by
+APT. This greatly improves the performance of network upgrades, especially
+with multiple Debian boxes on the LAN.  This document is based on a Woody 
+system but most information also applies to a Potato system (except for
+"man apt_preferences" and topics related to /etc/preferences).
+
+<sect id="pkg-intro">Introduction
+
+<sect1>Starting point
+<p>
+<example>
+# apt-get install debian-policy developers-reference maint-guide \
+       packaging-manual doc-debian doc-linux-text info \
+       man-db manpages manpages-dev less mc # for potato
+
+# apt-get install debian-policy developers-reference maint-guide \
+       doc-debian doc-linux-text apt-howto info \
+       man-db manpages manpages-dev less mc # for woody
+</example>
+Install these and inspect their corresponding documentation in
+/usr/share/doc/&lt;packagename&gt;/ with "mc" to understand Debian.  If that
+is too much, read this document first and start enjoying the full power of
+Debian with testing/unstable :-)
+</sect1>
+
+<sect1>Main tools
+<p>
+<example>
+dselect     - menu-driven package management tool (top level)
+apt-get     - install package (package-archive centric, APT)
+dpkg        - install package (package-file centric)
+aptitude & deity - Future replacements for dselect (GUI APT)
+</example>
+These are not equal-level tools. "dselect" runs on the top of APT (the
+command- line command is "apt-get") and and "dpkg". 
+When using dselect, make sure to update the status file (using [U]pdate) 
+before selection if you have installed packages via "apt-get".
+</sect1>
+
+<sect1>Convenience tools
+<p>
+<example>
+apt-cache         - check package archive in local cache
+dpkg-reconfigure  - reconfigure an already installed package
+dpkg-source       - manage source package file
+dpkg-buildpackage - automate the building of a package file
+...
+</example>
+</sect1>
+</sect>
+
+<sect id="survival">Debian survival commands
+<p>
+With this knowledge, one can live a life of eternal "upgrade" :-)
+<p>
+Also refer to <ref id="install"> and <ref id="woody">.
+
+<sect1 id="tasksel">Install <em>task</em> with "<prgn>tasksel</prgn>"
+<p>
+"<prgn>tasksel</prgn>" is the <em>Debian Task Installer</em>, which 
+is offered as the "<tt>simple</tt>" option during system installation.
+<p>
+When one needs to install a common function which requires multiple 
+packages, this is the best way.  Make sure to run as follows:
+<example>
+# dselect update
+# tasksel
+</example>
+</sect1>
+
+<sect1 id="apt-install">Install system with APT
+<p>
+You can selectively install packages from different archives using
+newer versions of apt-get (&gt;woody).  This enables selective upgrade to "unstable" 
+and selective downgrade to "stable" while tracking "testing".
+<example>
+# apt-cache policy libc6 libc6-dev locales         # check status
+# apt-get install libc6=2.2.4-1 libc6-dev=2.2.4-1 locales=2.2.4-1
+# apt-get install libc6/unstable libc6-dev/unstable locales/unstable
+# apt-get install -t unstable libc6 libc6-dev locales
+# apt-get -u install interesting-new-package remove-package-
+# apt-get remove useless-old-package
+# apt-get remove --purge really-useless-old-package
+</example>
+<p>
+To downgrade all packages to stable, edit /etc/apt/preferences as follows:
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+and run "apt-get upgrade", which forces downgrade due to Pin-priority &gt; 1000.
+</sect1>
+
+<sect1 id="apt-upgrade">Upgrade system with APT
+<p>
+Upgrade system with apt:
+<example>
+# apt-get update
+... then do one of the following:
+# apt-get -u upgrade          # pull all recommends
+# apt-get -u dist-upgrade     # pull all recommends and check dependency
+# apt-get -u dselect-upgrade  # follow selection by dselect
+</example>
+Use the "-s" option to simulate upgrade without actual upgrade.
+<p>
+"dselect" offers a menu-driven interface over APT.  "deity" and "aptitude"
+will offer alternatives to "dselect".
+</sect1>
+
+<sect1 id="bug-check">Check bugs in Debian
+<P>
+Usually most problems have been already recognized.  Check the following
+first:
+<example>
+$ lynx http://bugs.debian.org/
+$ lynx http://bugs.debian.org/&lt;packagename&gt;
+</example>
+Search Google (www.google.com) with search words including "site:debian.org".
+<p>
+When in doubt, read the fine manual. Set CDPATH as follows:
+<example>
+export CDPATH=.:/usr/local:/usr/share/doc
+</example>
+and type
+<example>
+$ cd &lt;packagename&gt;
+$ mc &lt;packagename&gt;
+</example>
+</sect1>
+
+<sect1 id="apt-trouble">APT upgrade troubleshooting
+<p>
+Package dependency problems may occur when upgrading in unstable/testing.
+Most of the time, this is because a package that will be upgraded has a new
+dependency that isn't met.  These problems are fixed by using
+<example>
+# apt-get dist-upgrade
+</example>
+If this does not work, then repeat one of the following until the problem
+resolves itself:
+<example>
+# apt-get upgrade -f         # continue upgrade even after error
+... or
+# apt-get dist-upgrade -f    # continue dist-upgrade even after error
+</example>
+<p>
+Some really broken upgrade scripts may cause persistent trouble.
+It is usually better to resolve this type of situation by inspecting the
+/var/lib/dpkg/info/packagename.{post-,pre-}{install,removal} scripts 
+of the offending package and then running: 
+<example>
+# dpkg --configure -a        # configures all partially installed packages
+</example>
+<p>
+If a script complains about a missing configuration file, look in /etc for
+the corresponding configuration file.  If one exists with an extension of .new
+(or something similar), change (mv) it to remove the suffix.
+<p>
+Package dependency problems may occur when installing in unstable/testing.
+There are ways to circumvent dependency.
+<example>
+# apt-get install -f package # override broken dependencies
+</example>
+<p>
+An alternative method to fix these situations is to use the <tt>equivs</tt>
+package:
+<example>
+Package: equivs
+Priority: extra
+Section: admin
+Description: Circumventing Debian package dependencies
+ This is a dummy package which can be used to create Debian
+ packages, which only contain dependency information.
+</example>
+If you compile a program from source, it is best to make it into a real
+local debianized package (*.deb).  Use <tt>equivs</tt> as a last resort.
+</sect1>
+<sect1 id="rescue-dpkg">Rescue using dpkg
+<p>
+Ad hoc recovery of a crashed dselect (APT) can be done on a really broken
+system by just using dpkg without APT:
+<example>
+# cd /var/cache/apt/archives
+# dpkg -i libc6* libdb2* perl*
+# dpkg -i apt* dpkg* debconf*
+# dpkg -i *  (until no error occurs)
+</example>
+If a package is missing, get it by:
+<example>
+# mc            # use "FTP link" pointing to Debian FTP server
+</example>
+As of recently, actual packages on the http/ftp server may not be located
+under the classic /dist directory but rather under the new /pool directory.
+<p>
+Then install by:
+<example>
+# dpkg -i /var/cache/apt/archives/packagefile.deb
+</example>
+For a broken dependency, fix it or use:
+<example>
+# dpkg --ignore-depends=package1,... -i packagefile.deb
+# dpkg --force-depends -i packagefile.deb
+# dpkg --force-depends --purge package
+</example>
+</sect1>
+
+<sect1 id="un-bootable">Install package into an unbootable system
+<p>
+Boot into Linux using a Debian rescue floppy/CD or an alternative
+partition in a multi-boot Linux system.  
+Mount the unbootable system on /target and use the chroot install mode of
+dpkg.
+<example>
+# dpkg --root /target -i packagefile.deb
+</example>
+Then configure and fix problems.
+<p>
+By the way, if a broken lilo is all that prevents booting, you can boot using 
+a standard Debian rescue disk. At boot prompt, assuming the root partition of 
+your Linux installation is in /dev/hda12 and you want runlevel 3, enter:
+<example>
+boot: rescue root=/dev/hda12 3
+</example>
+Then you are booted into an almost fully functional system with the kernel on
+FD. (There may be minor glitches due to lack of kernel features or modules.) 
+</sect1>
+</sect>
+
+<sect id="debian-package">Debian nirvana commands
+<p>
+Enlightment with these commands will save a person from the eternal
+karmic struggle of upgrade hell and let him reach Debian nirvana. :-)
+
+<sect1 id="info-file">Information on a file
+<p>
+To find the package to which a particular file belongs:
+<example>
+$ dpkg {-S|--search} pattern     # search package from installed filename
+$ zgrep -e pattern /local/copy/of/debian/woody/Contents-i386.gz
+             # find filename-pattern of files in the debian archive
+</example>
+Or use a specialized package command:
+<example>
+# apt-get install dlocate  # conflicts with slocate (secure version of locate)
+$ dlocate filename         # fast alternative to dpkg -L and dpkg -S
+...
+# apt-get install auto-apt # on-demand package installation tool
+# auto-apt update          # create db file for auto-apt
+$ auto-apt search pattern  # thorough search over the archive of packages
+...
+</example>
+</sect1>
+
+<sect1 id="info-package">Information on a package
+<p>
+Search and display information from package archives.  Make sure to
+point apt to the proper archive(s) by editing <tt>/etc/apt/sources.list</tt>.
+If you want to see how packages in testing/unstable do against the currently 
+installed one, use "apt-cache policy"&mdash;quite nice.
+<example>
+# apt-get   check                # update cache and check for broken packages
+$ apt-cache search  pattern      # search package from text description
+$ apt-cache policy  package      # package priority/dists information
+$ apt-cache show -a package|less # show description of package in all dists
+$ apt-cache showpkg package|less # package information for debugging
+# dpkg  --audit|-C               # search for partially installed packages
+$ dpkg {-s|--status} package ... # status and description of installed package
+$ dpkg -l package ...            # status of installed package (1 line each)
+$ dpkg -L package ...            # list file names installed by the package
+</example>
+<p>
+You can also find package information in (I use "mc"):
+<example>
+/var/lib/apt/lists/*
+/var/lib/dpkg/{available|status}
+</example>
+</sect1>
+
+<sect1 id="reconfigure">Reconfigure installed packages
+<p>
+Use the following to reconfigure any already-installed package.
+<example>
+# dpkg-reconfigure --priority=medium package [...]
+# dpkg-reconfigure --all  # reconfigure all packages
+</example>
+Do this for debconf if you need to change the debconf dialog mode permanently.
+<p>
+Some programs come with special configuration scripts.
+<example>
+apt-setup     - create /etc/sources.list
+install-mbr   - install a Master Boot Record manager
+tzconfig      - set the local timezone
+gpmconfig     - set gpm mouse daemon
+smbconfig     - configure Samba
+eximconfig    - configure Exim (MTA)
+apacheconfig  - configure Apache (httpd)
+cvsconfig     - configure CVS
+sndconfig     - configure sound system
+...
+update-alternatives - set default command, e.g., vim as vi
+update-rc.d         - System-V init script management
+update-menus        - Debian menu system
+...
+</example>
+</sect1>
+
+<sect1 id="remove">Remove and purge packages
+<p>
+Remove a package while maintaining its configuration:
+<example>
+# apt-get remove package ...
+# dpkg  --remove package ...
+</example>
+Remove a package and all configuration:
+<example>
+# apt-get remove --purge package ...
+# dpkg    --purge        package ...
+</example>
+</sect1>
+
+<sect1 id="hold">Holding older packages
+<p>
+For example, holding of libc6 and libc6-dev for "dselect" and 
+"apt-get -u upgrade package" can be done as follows:
+<example>
+# echo -e "libc6 hold\nlibc6-dev hold" | dpkg --set-selections
+</example>
+"apt-get -u install package" will not be hindered by this "hold".  To
+hold a package through forcing automatic downgrade for "apt-get -u upgrade
+package" or "apt-get -u dist-upgrade", add the following to
+/etc/apt/preferences:
+<example>
+Package: libc6*
+Pin: release a=stable
+Pin-Priority: 2000
+</example>
+<p>
+The following will list packages on hold:
+<example>
+dpkg --get-selections "*"|grep -e "hold$"
+</example>
+</sect1>
+
+<sect1 id="dselect">Dselect - global configuration
+<p>
+Add a line with "expert" in /etc/dpkg/dselect.cfg to reduce noise.
+<p>
+When started, dselect automatically selects all "Required", "Important", and
+"Standard" packages.  Some packages, such as teTEX and emacs, are large and
+may not be needed when you first install a system. So be careful.
+<p>
+Dselect has a somewhat strange user interface. There are 4 ambiguous commands
+(Capital means CAPITAL!):
+<example>
+Key-stroke  Action
+Q           Quit. Confirm current selection and quit anyway. (override dep.s)
+R           Revert! I did not mean it.
+D           Damn it! I do not care what dselect thinks.  Just Do it!
+U           Set all to sUggested state
+</example>
+With D and Q, you can select conflicting selections at your own risk.
+Handle these commands with care.  For a slower machine, run "dselect" on another
+fast machine to find packages and use "apt-get install" to install them.
+"apt-get dselect-upgrade" best honors dselect selection.
+</sect1>
+
+<sect1 id="cache">Reduce cached package files
+<p>
+Package install with apt leaves cached package files in
+<tt>/var/cache/apt/archives</tt> and these need to be cleaned.
+<example>
+# apt-get autoclean # removes only useless package files
+# apt-get clean     # removes all cache package files
+</example>
+</sect1>
+
+<sect1 id="record">Record/copy system configuration
+<p>
+To make a local copy of the package selection states:
+<example>
+$ dpkg --get-selections "*" &gt;myselections   # or use \*
+</example>
+"*" makes "myselections" include package entries for "purge" too.
+<p>
+You transfer this file to another computer, and install it there with:
+<example>
+# apt-get update
+# dpkg --set-selections &lt;myselections
+# apt-get -u dselect-upgrade
+</example>
+</sect1>
+
+<sect1 id="port">Port a package to the "stable" system
+<p>
+For partial upgrades of the stable system, rebuilding a package within its
+environment using the source package is desirable.  This avoids massive
+package upgrades due to their dependencies.  First, add the following entries
+to /etc/apt/sources.list:
+<example>
+deb-src http://http.us.debian.org/debian testing main contrib non-free
+deb-src http://non-us.debian.org/debian-non-US testing/non-US main contrib non-free
+deb-src http://http.us.debian.org/debian unstable main contrib non-free
+deb-src http://non-us.debian.org/debian-non-US unstable/non-US main contrib non-free
+</example>
+Then get the source and make a local package:
+<example>
+$ apt-get source package/unstable
+$ dpkg-source -x package.dsc
+$ cd package-version
+  ... inspect required packages (Build-depends in .dsc file) and
+      install them too.  You need fakeroot too.
+
+$ dpkg-buildpackage -rfakeroot 
+
+  ...or (no sig)
+$ dpkg-buildpackage -rfakeroot -us -uc # use "debsign" later if needed
+
+  ...or (no sig)
+# ./debian/rules binary
+# ./debian/rules clean
+# cd ..
+# dpkg-source -b package-version
+
+  ...Then to install
+# dpkg -i packagefile.deb
+</example>
+Usually, one needs to install few packages with the "-dev" suffix to satisfy
+package dependencies. "debsign" is in the "devscripts" package.  "auto-apt" may
+ease satisfying these dependencies.
+</sect1>
+</sect>
+
+<sect id="pecuriarities">Other Debian peculiarities
+
+<sect1 id="alternatives">Alternative commands
+<p>
+To make the command "vi" run "vim", use "update-alternatives":
+<example>
+# update-alternatives --display vi
+...
+# update-alternatives --config vi
+  Selection    Command
+-----------------------------------------------
+      1        /usr/bin/elvis-tiny
+      2        /usr/bin/vim
+*+    3        /usr/bin/nvi
+
+Enter to keep the default[*], or type selection number: 2
+</example>
+Items in the Debian alternatives system are kept in /etc/alternatives as
+symlinks.
+<p>
+To set your favorite X window manager, use "x-window-manager" instead.
+<p>
+"/bin/sh" is a direct symlink to "/bin/bash" or "/bin/ash/".  It's safer to
+use "/bin/bash" to be compatible with old bashism-contaminated scripts but 
+better discipline to use "/bin/ash" to enforce POSIX compliance.
+</sect1>
+
+<sect1 id="sys-v">System-V init and runlevels
+<p>
+Default runlevel to boot into can be set in /etc/inittab.
+<p>
+Unlike other distributions, Debian makes the management of runlevel completely 
+the sysadmin's responsibility.  Management of System-V style init on Debian is
+intended to be performed through update-rc.d scripts.
+<p>
+Starting /etc/init.d/name in runlevel 1,2,3 and stopping in
+4,5 with sequencing priority number 20 (normal) can be done by:
+<example>
+# update-rc.d name start 20 1 2 3 . stop 20 4 5 .
+</example>
+Removing symbolic links while the script in init.d still exists can be done by:
+<example>
+# update-rc.d -f name remove
+</example>
+For editing runlevels, I cheat.  I edit entries manually using the "mv" command 
+at the shell prompt of "mc" while copying link entries using "Alt-Enter". I even 
+disable a daemon by inserting "exit 0" at the start of an init.d script as a quick 
+hack. These are conffiles after all.
+</sect1>
+</sect>
+
+</chapt>

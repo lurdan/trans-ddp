@@ -1,0 +1,429 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.6"  -->
+<chapt id="tune"> Perfezionare Debian GNU/Linux
+
+<sect id="sudo">sudo - un ambiente di lavoro più sicuro
+<p>
+L'uso che faccio di sudo è fondamentalmente a protezione dalla mia
+stessa stupidità.Usare sudo è per me sempre meglio che lavorare sotto
+root. (Esiste un programma simile: super)
+<p>
+Installate "sudo" ed attivatelo impostando
+<url id="examples/" name="/etc/sudoers">
+<p>
+Questa configurazione permette ai membri del gruppo staff un accesso
+su qualsiasi comando da eseguire come root sotto sudo, ed ai membri di
+src un accesso a comandi selzionati eseguibili come root, sempre da
+sudo.
+<p>
+Il vantaggio di sudo è che richiede solo la user password, e che
+l'attività e minitorizzata. E' un modo carino per dare un minimo di
+autorità ad un amministratore alle prime armi. Per esempio:
+<example>
+$ sudo chown -R myself:mygrp .
+</example>
+<p>
+Ovviamente se sapete la password di root (come la maggior parte degli
+utenti casalinghi sa) qualunque comando può essere eseguito come root
+dall'account dell'utente:
+<example>
+$ su -c "shutdown -h now"
+Password:
+</example>
+So che dovrei restringere i privilegi dell'account admin in sudo ma,
+dopo tutto è il mio server casalingo, e non ne ho ancora sentito il
+bisogno.
+</sect>
+
+<sect id="backup">Backup
+<p>
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect>
+
+<sect id="cdrw">Masterizzatori-writer
+<p>
+I masterizzatori con interfaccia ATAPI/IDE sono di recente diventati
+un'opzione molto popolare. Rappresentano un supporto valido per il
+backup e l'archivio di un sistema per l'utente casalingo (&lt;$1 / 640
+MB). Le informazioni più autorevoli le trovate a
+<file>/usr/share/doc/HOWTO/en-txt/CD-Writing-HOWTO.txt.gz</file>
+(LDP). Accertatevi che la versione sia successiva all'anno 2000.
+
+<sect1>Introduzione
+<p>
+Primo, ogni distruzione di dati sul masterizzatore CD-writer porterà
+ad un danno irreparabile del CD. Prendete il masterizzatore con il
+buffer più grande possibile. Se i soldi non sono un problema,
+prendetene uno con interfaccia SCSI. Se potete scegliere quale
+interfaccia IDE connettere, prendete quello su PCI-bus (sulla scheda
+madre), piuttosto che su ISA-bus (schede SB16, ecc.).
+<p>
+Quando il masterizzatore è connesso su IDE, deve essere comandato dal
+driver IDE-SCSI, non dall'IDE-CD. Deve essere attivato anche il driver
+generico SCSI. Esistono due approcci per ottenere ciò, per i kernel
+delle moderne distribuzioni (Marzo 2001).
+</sect1>
+
+<sect1>Approccio 1: (modules+lilo)
+<p>
+Aggiungete la riga seguente a /etc/lilo.conf se usate qualsiasi kernel
+standard di una delle maggiori distribuzioni (Debian, Redhat,
+Mandrake, ...). Se usate più opzioni, elencatele separate da spazi.
+<example>
+append="hdx=ide-scsi"
+</example>
+Qui la collocazione del masterizzatore, a cui si ha accesso tramite il
+driver ide-scsi, è indicata da <tt>hdx</tt>:
+<example>
+hdb      se slave sella prima porta IDE.
+hdc      se master sulla seconda porta IDE.
+hdd      se slave sulla seconda porta IDE.
+hde-hdh  se sulla porta IDE esterna.
+</example>
+Finita la configurazione, date il seguente comando per l'attivazione,
+come root:
+<example>
+# lilo
+# shutdown -h now
+</example>
+</sect1>
+
+
+<sect1>Approccio 2: (ricompilare il kernel):
+<p>
+Debian usa make-kpkg per compilare il kernel.
+Usate il nuovo "--append_to_version" con make-kpkg per costruire 
+kernel-images multiple. 
+Usate la seguente configurazione tramite "make menuconfig":
+<list>
+<item>bzImage.
+<item>Escludete il driver IDE-CD (Non obbligatorio, ma è più semplice fare così)
+<item>Compilate ide-scsi e sg, direttamente nel kernel o come moduli.
+</list>
+</sect1>
+
+<sect1>Fasi post-configurazione:
+<p>
+Il supporto del kernel per il masterizzatore può essere attivato al
+boot tramite:
+<example>
+# echo ide-scsi >>/etc/modules
+# echo sg       >>/etc/modules
+# cd /dev; ln -sf scd0 cdrom
+</example>
+L'attivazione manuale può essere fatta tramite:
+<example>
+# modprobe ide-scsi
+# modprobe sg
+</example>
+Dopo il reboot, potete controllare l'avvenuta installazione tramite:
+<example>
+$ dmseg|less
+# apt-get install cdrecord
+# cdrecord -scanbus
+</example>
+</sect1>
+
+<sect1>Il file CD-image (bootabile)
+<p>
+Per creare un CD-ROM di files contenuti nella target-directory/ sotto
+forma di cd-image.raw (bootabile, con il formato Juliet TRANS.TBL
+attivato. Se non lo volete bootabile, togliete le opzioni -b e -c),
+inserite il boot floppy nel drive e,
+<example>
+# dd if=/dev/fd0 target-directory/boot.img 
+# mkisofs -r -V volume_id -b boot.img -c bootcatalog -J -T -o cd-image.raw\
+  target_directory/
+</example>
+<p>
+Una cosa carina è fare dei CD-ROM bootabili in DOS. Se una normale
+immagine DOS di un boot floppy è contenuta nel boot.img, il CD-ROM
+eseguirà il boot come se nel primo floppy drive (A:) ci fosse il
+floppy DOS. Più interessante potrebbe essere farlo con freeDOS.
+<p>
+Il file CD-image può essere ispezionato montandolo sul device loop.
+<example>
+# mount -t iso9660 -o ro,loop cd-image.raw /cdrom
+# cd /cdrom
+# mc
+# umount /cdrom
+</example>
+</sect1>
+
+<sect1>Scrivere sul masterizzatore (R, R/W):
+<p>
+Primo test con (in caso di velocità doppia)
+<example>
+# nice --20 cdrecord -dummy speed=2 dev=0,0 disk.img
+</example>
+Se tutto va bene, scrivete sul CD-R con
+<example>
+# nice --20 cdrecord -v -eject speed=2 dev=0,0 disk.img
+</example>
+Oppure, sul CD-RWcon
+<example>
+# nice --20 cdrecord -v -eject blank=fast speed=2 dev=0,0 disk.img
+</example>
+
+<sect1>Differenze di stile fra le distribuzioni:
+<p>
+Alcune differenze fra le distribuzioni (soft- verso hardlink).
+<list>
+<item> hardlink: Mandrake 6.x
+<item> softlink: Debian2.x, Redhat6.x
+</list>
+</sect1>
+
+<sect1>Fare un'immagine di un CD
+<p>
+Alcuni CD-R e CD commerciali hanno dei settori spuri alla fine, cosa
+che rende impossibile la copia tramite dd (il CD di Windows 98 è uno
+di questi). Il pacchetto cdrecord ha il comando readcd. Usatelo per
+copiare qualsiasi CD in una file immagine. Se è un disco di dati,
+ontatelo ed eseguite "mount" per vedere le dimensioni reali. Dividete
+il numero ottenuto (in blocchi=1024byte) per 2 per avere il numero
+reale di settori del CD (2048 byte). Lanciate readcd con le opzioni ed
+usate l'immagine risultante per bruciare il CD-R/RW.
+<example>
+# readcd [target] [lun] [scsibusno] # select function 11 </example>
+Per la maggior parte dei casi, impostate tutti e tre i parametri a
+0. Talvolta il numero dei settori dati da readcd è un pò in eccesso!
+Utilizzate il numero ottenuto dal montaggio per i migliori risultati.
+<example>
+Il mio CD-R       = +2 sectors
+MS Windows CD     = +1 sector, i.e., +2048 byte
+</example>
+</sect1>
+
+<sect1>Creare un CD Debian
+<p>
+Le informazioni più aggiornate le potete reperire dal
+<url id="http://cvs.debian.org/debian-cd/" name="Debian CD site."> 
+Il software più aggiornato può essere reperito tramite CVS anonimo.
+<example>
+$ export CVSROOT=anonymous@cvs.debian.org:/cvs/debian-boot
+$ cvs co debian-cd
+</example>
+Per la creazione del CD, date i seguenti comandi. 
+<example>
+# apt-get install debian-cd
+# cd /etc/debian-cd
+# vim CONF.sh
+$ . CONF.sh
+$ make distclean
+$ make status
+$ make list COMPLETE=1 SIZELIMIT1=555000000 SRCSIZELIMIT=665000000
+$ make official_images
+ oppure se volete solo immagini binarie:
+$ make bin-official_images
+</example>
+</sect1>
+
+<sect1>Backup del sistema su CD-R
+<p>
+Copiate i file di configurazione chiave e di dati sul CD-R.
+Usate questo script: <url id="examples/" name="backup">
+</sect1>
+
+<sect1>Copiare CD musicali su CD-R
+<p>
+Non testato da me:
+<example>
+# apt-get get install cdrecord cdparanoia
+# cdparanoia -s -B
+# cdrecord dev=0,0,0 speed=2 -v -dao -eject defpregap=1 -audio *.wav
+</example>
+oppure,
+<example>
+# apt-get install cdrdao #disk at once
+# cdrdao read-cd --device /dev/cdrom --driver generic-mmc --paranoia-mode 3
+my_cd # legge il cd
+# cdrdao write --device /dev/cdrom --driver generic-mmc --speed 8
+my_cd # scive un nuovo CD
+</example>
+cdrdao crea una vera copia.. (senza buchi,.. ecc..)
+</sect1>
+</sect>
+
+<sect>I programmi X
+<p>
+Il server X è una macchina che mostra il sistema X window su schermo
+ed accetta input da tastiera. Il client X è una macchina su cui girano
+delle applicazioni compatibili con X window. Talvolta i due termini
+vengono invertiti, portando un pò di confusione. Per i dettagli fate
+riferimento all' XWindow-User-HOWTO.txt.gz (LDP) e al
+mini/Remote-X-Apps.txt.gz (LDP).
+
+<sect1>Il server X
+<p>
+Per lanciarlo leggete "man 1 XFree86" 
+<p>
+per (ri)configurare X4 in woody, lanciate:
+<example>
+# dpkg-reconfigure --p=low xserver-xfree86
+</example>
+<p>
+Invocate il server X dalla console locale:
+<example>
+$ startx -- :&lt;display&gt; vtXX 
+eg.:
+$ startx -- :1 vt8    # esempio per lanciarlo in vt8 connesso a to localhost:1
+</example>
+Molti sono i modi per far accettare connessioni remote (lato
+applicazioni) al server (lato schermo). Il meccanismo della host list
+(xhost), il meccanismo della magic cookie (xauth), ed il port
+forwarding con ssh (shell sicura). Spiegherò i più semplici, xhost
+(insicuro) e ssh (sicuro).
+</sect1>
+
+<sect1>Client X
+<p>
+Il programma client X client (lato applicazione) ottiene il display a
+cui connettersi leggendo la variabile DISPLAY. Per esempio, prima di
+lanciare un programma client di X, eseguire uno dei seguenti comandi
+ottiene:
+<example>
+$ export DISPLAY=:0 # default, la macchina locale con il primo schermo X
+$ export DISPLAY=hostname.fulldomain.name:0.2
+$ export DISPLAY=localhost:0
+</example>
+Dove,
+<list>
+<item>hostname:D.S significa schermo S sul display D dell'host hostname;
+il server X per questo display è in ascolto sulla porta TCP 6000+D.
+<item>host/unix:D.S significa schermo S su display D dell'host host; il server è in ascolto sullo UNIX domain socket
+/tmp/.X11-unix/XD (in tal modo è raggiungibile solo dall'host).
+<item>:D.S equivale a host/unix:D.S, dove host è l'hostname locale.
+</list>
+Questa impostazione può essere cambiata dando al client l'argomento
+-display hostname:0 al momento del lancio.
+</sect1>
+
+
+<sect1>Connessione X remota: Xhost
+<p>
+Xhost permette l'accesso basato sugli hostnames. Molto poco sicuro. Se
+utilizzato dietro un firewall con utenti fidati, il seguente comando
+disabilita il controllo dell'host e permette la connessione da
+ovunque:
+<example>
+$ xhost +
+</example>
+Si può riabilitare con:
+<example>
+$ xhost -
+</example>
+<p>
+Non distingue fra utenti diversi sull'host remoto. In più gli
+hostnames (veri indirizzi) possono essere contraffatti. Cosa non buona
+se siete su una rete non sicura (tipo con una connessione telefonica
+PPP ad internet).
+</sect1>
+
+<sect1>Connessione X remota: SSH
+<p>
+Questo è il modo semplice e sicuro di stabilire una connessione remota
+da un server locale ad un'applicazione su un server remoto. Lanciate
+il server locale su un sistema locale. Lanciate da esso x-term ed
+eseguite ssh per stabilire una connessione con il sito
+remoto. Eseguite, poi, i comandi delle applicazioni X del sito remoto.
+<example>
+localname @ localhost $ ssh -q -X -l loginname remotehost.domain
+Password:
+.....
+loginname @ remotehost $ gimp &
+</example>
+</sect1>
+</sect>
+
+<sect id="ssh">SSH
+<p>
+SSH è il modo sicuro per connettersi ad internet. Io uso openSSH.
+[WOODY] usa SSH2. Attenzione alla migrazione.
+
+<sect1 id="ssh-basics">Principi basilari
+<p>
+Per ssh, il pacchetto non-US deve essere disponibile per l'installazione.
+<example>
+# apt-get install ssh
+</example>
+La connessione ssh viene lanciata come segue.
+<example>
+$ ssh username@hostname.domain.ext
+$ ssh -1 username@hostname.domain.ext # Force SSH version 1
+</example>
+Per l'utente, ssh è più intelligente di telnet (Non vi bombarda di with [^]).  
+</sect1>
+
+<sect1 id="ssh-forward">Port forwarding - per il tunneling smtp/pop3
+<p>
+Per stabilire una pipe per connettere la porta 25 del server remoto
+con la port 4025 del localhost e la porta 110 del server remoto con la
+porta 4110 del localhost tramite ssh, esguite dalla macchina locale:
+<example>
+# ssh -q -L 4025:remote-server:25 4110:remote-server:110 \
+           username@remote-server
+</example>
+E' un modo sicuro di eseguire connessioni a server SMTP/POP3 su Internet.
+</sect1>
+
+<sect1 id="ssh-rsa">Connettersi con meno passwords possibili - RSAAuthentication
+<p>
+[POTATO-SSH1] Potete evitare di ricordare una password per ogni
+sistema remoto usando la RSAAuthentication.
+<p>
+Impostate il contenuto di /etc/ssh/sshd_config sul sitema remoto a
+"RSAAuthentication yes" ed eseguite:
+<example>
+$ ssh-keygen
+$ cat .ssh/identity.pub | ssh user1@remote "cat - >>.ssh/authorized_keys"
+</example>
+Potrete cambiare la passphrase in seguito con "ssh-keygen -p".
+Verificate le impostazioni provando la connessione. In caso di
+problemi, usate "ssh -v".
+<p>
+Potete aggiungere opzioni per limitare gli ingressi delle chiavi
+autorizzate sull'host. Vedere "man sshd" per i dettagli.
+<p>
+[WOODY-SSH2]
+Potete evitare di ricordare una password per ogni
+sistema remoto. Lanciate i seguenti comandi senza passphrase:
+<example>
+$ ssh-keygen -t rsa
+$ cat .ssh/id_rsa.pub | ssh user1@remote "cat - &lt;&lt;.ssh/authorized_keys2"
+</example>
+Potrete aggiungere/cambiare la passphrase in seguito con "ssh-keygen
+-p". Verificate le impostazioni provando la connessione. In caso di
+problemi, usate "ssh -v".
+<p>
+Potete aggiungere opzioni per limitare gli ingressi di
+authorized_keys2 sull'host e l'esecuzione di determinati
+comandi. Vedere "man sshd" per i dettagli.
+<p>
+[FIXME] SSH2 ha HostbasedAuthentication. Da Walter Hofmann walterh@gmx.de
+<example>
+C'erano due errori: 1) Bisogna passare ad HostbasedAuthentication sul
+client! La pagina man è sbagliata, non avviene di default.i 
+2) Bisogna impostare PreferredAuthentications così che 
+HostbasedAuthentication viene provata prima di chiedere le passwords.
+</example>
+<p>
+FIXME XXX: add info on "ssh-agent"
+</sect1>
+
+<sect1 id="ssh-trouble">Problemi
+<p>
+In caso di problemi, controllate i permessi del file di configurazione e lanciate con l'opzione "-v".
+<p>
+Usate "-P" se non siete root ed avete problemi col firewall, per
+evitare di usare la porta del server (1:1023).
+<p>
+Dopo che l'amministratore del sistema remoto (potete anche essere voi stessi) ha combinato qualche casino, la connessione ssh può smettere di funzionare. In genere ciò capita dal cambiamento della host_key durante la manuetnzione del sistema. Dopo esersi assicurati che è proprio questo il caso e che nessuno sta tentando di falsificare l'host remoto mediante qualche trucco geniale, potete riguadagnare la connessione rimuovendo la voce host_key dal ~/.ssh/known_hosts sulla macchina locale.
+</sect1>
+
+
+</sect>
+</chapt>

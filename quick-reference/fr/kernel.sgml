@@ -1,0 +1,160 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.2"  -->
+<chapt id="kernel">Le noyau Linux et Debian
+<p>
+Debian a une manière de recompiler le noyau Linux et les modules associés qui
+lui est propre.
+<sect id="kernel-compile">Recompilation du noyau
+
+<sect1 id="kernel-debian">Méthode Debian standard
+<p>
+Utilisez le nouveau "kernel-package" dans unstable.(7/2001). "tar" a aussi 
+connu des changements entre potato et woody, utilisez l'option -j au 
+lieu de -I pour .bz2.
+Soyez attentifs au rapports de bogues relatifs à gcc, binutils et modutils.
+<p>
+Sous Debian, compiler un noyau "maison" à partir des sources nécessite de prendre certaines précautions.
+Utilisez la nouvelle option "--append_to_version" avec make-kpkg pour compiler de multiples kernel-images.
+<example>
+# apt-get install debhelper modutils kernel-source-2.4.12 kernel-package
+# vi /etc/kernel-pkg.conf                # entrez votre nom et adresse électronique
+$ cd /usr/src                            # dossier où va se faire la compilation
+... télécharger depuis kernel.org ou installer le paquet kernel-*-source.deb.
+$ tar -xvjf kernel-source-2.4.12.tar.bz2
+$ cd kernel-source-2.4.12                # si c'est votre source du noyau
+$ rm -rf */pcmcia   # [FACULTATIF] si on veut utiliser des modules de pcmcia-cs
+$ cp /boot/config-2.4.12-386 .config     # récuperez la configuration actuelle comme defaut
+$ make menuconfig                        # personnalisez votre kernel
+$ make-kpkg clean                        # obligatoire  (voire: man make-kpkg)
+$ fakeroot \
+make-kpkg --append_to_version -486 --initrd --revision=rev.01 kernel_image
+$ cd ../modules/pcmcia
+$ fakeroot ./debian/rules
+$ cd ../..
+# dpkg -i kernel-image*.deb pcmcia-cs*.deb # installation
+</example>
+En réalité, "make-kpkg kernel_image" lance  "make oldconfig" et "make dep"
+N'utilisez pas  --initrd si initrd n'est pas utilisé.
+<p>
+Vous pouvez évitez de faire "rm -fr */pcmcia" en sélectionnant "General setup  ---&gt;" 
+jusqu'à "PCMCIA/CardBus support  ---&gt;" dans "make menuconfig" and 
+configurez comme "&lt; &gt; PCMCIA/CardBus support". 
+</sect1>
+
+<sect1 id="kernel-classic">Méthode classique
+<p>
+Récupérez les sources officielles depuis:
+<example>
+linux:     http://www.kernel.org/
+pcmcia-cs: http://pcmcia-cs.sourceforge.net/  
+</example>
+ou utilisez les sources équivalentes dans debian et and faites ce qui suit :
+<example>
+# cd /usr/src
+# tar xfvz linux-nimportequoi.tar.gz
+# rm -rf linux
+# ln -s linux-nimportequoi linux
+# tar xfvz pcmcia-cs-nimportequoi.tar.gz
+# ln -s pcmcia-cs-nimportequoi pcmcia
+# cd linux
+# rm -rf */pcmcia   # [FACULTATIF] si on veut utiliser les modules de pcmcia-cs
+# make menuconfig
+... configurez ...
+# make dep
+# make bzImage
+... editions des fichiers de configuration pour lilo / grub ...
+... déplacez /usr/src/linux/arch/i386/boot/bzImage vers boot ...
+... /sbin/lilo ou ce qui se fait pour grub
+# make modules; make modules_install
+# cd ../pcmcia
+# make config
+# make all
+# make install
+... ajoutez les noms des module dont vous avez besoin dans /etc/modules
+# shutdown -r now
+... redémarrez avec le nouveau noyau ...
+</example>
+l'utilisation des paquets gcc, binutils et  modutils de Debian unstable peut faciliter les choses.
+</sect1>
+</sect>
+
+<sect id="kernel-modules">Le noyau 2.4 modulaire
+<p>
+Les nouveaux noyaux 2.4 fournis avec Debian sont très modulaires. 
+Vous devez vous assurer que les modules effectuant 
+les fonctions du noyau que vous recherchez sont là.
+
+<sect1 id="kernel-pcmcia">PCMCIA
+<p>
+/etc/modules doit contenir les lignes suivantes pour que PCMCIA fonctionne:
+<example>
+# driver ISA PnP 
+isa-pnp
+# driver PCMCIA bas niveau
+yenta_socket
+</example>
+Le reste est pris en charge par des scripts pcmcia (du paquet pcmcia-cs), par depmod et kmod.
+</sect1>
+
+<sect1 id="kernel-scsi">SCSI
+<p>
+[NON TESTE]/etc/modules doit contenir les lignes suivantes pour que  SCSI fonctionne:
+<example>
+# core SCSI
+scsi_mod
+# driver générique SCSI
+sg
+# disque SCSI
+sd_mod
+# Tous les autres modules nécessaires pour le matériel
+...
+</example>
+Depmod peut peut-être se charger lui-même de certains de ces modules .
+</sect1>
+
+<sect1 id="kernel-net">Fonctions réseau
+<p>
+/etc/modules doit contenir les lignes suivantes pour obtenir des fonctionnalités réseau supplémentaires :
+<example>
+# net/ipv-4
+ip_gre
+ipip
+
+# net/ipv-4/netfilter
+# iptable (dans l'ordre)
+ip_tables
+ip_conntrack
+ip_conntrack_ftp
+iptable_nat
+iptable_filter
+iptable_mangle
+#
+ip_nat_ftp
+ip_queue
+#
+ipt_LOG
+ipt_MARK
+ipt_MASQUERADE
+ipt_MIRROR
+ipt_REDIRECT
+ipt_REJECT
+ipt_TCPMSS
+ipt_TOS
+ipt_limit
+ipt_mac
+ipt_mark
+ipt_multiport
+ipt_owner
+ipt_state
+ipt_tcpmss
+ipt_tos
+ipt_unclean
+#
+#ipchains
+#ipfwadm
+</example>
+Ces lignes ne sont pas optimisées. Depmod pourrait se charger de certains des modules.
+</sect1>
+
+</sect>
+</chapt>

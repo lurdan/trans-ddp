@@ -1,0 +1,419 @@
+#######################################################################
+# ======================== Default ====================================
+# Defaults for procmail
+#
+# All delivary to Qmail style Maildir.  i.e. followed by /
+# No lock needed
+
+MAILDIR=$HOME/Mail
+DEFAULT=$MAILDIR/Inbox/
+LOGFILE=$MAILDIR/Maillog
+
+# H Header (Default)
+# B Body
+# b feed body to the pipe (Default)
+# D
+# f filter throgh the pipe
+# h Feed the header to the pipe (Default)
+# w wait
+# c copy and drop to delivary
+
+# ======================== General ====================================
+# Touch-up
+
+## Add message length for Maildir(qmail)
+:0 BHfw
+* H ?? !^Lines:
+* -1^0
+*  1^1 ^.*$
+| formail -i "Lines: $="
+
+## Add a "Content-Type: application/pgp" header so Mutt will know the
+## mail is encrypted.
+:0 BHfw
+* ^-----BEGIN PGP MESSAGE-----
+* ! ^Content-type: multipart
+| formail -i "Content-Type: application/pgp; format=text; x-action=encryptsign"
+
+## Add a "Content-Type: application/pgp" header so Mutt will know the
+## mail is signed.
+:0 BHfw
+* ^-----BEGIN PGP SIGNED MESSAGE-----
+* ! ^Content-type: multipart
+| formail -i "Content-Type: application/pgp; format=text; x-action=sign"
+
+# ======================== Spam Checks ================================
+## by from headr
+:0 Hfw
+* 1^0 ^From:.*tropper4us@yahoo.com
+* 1^0 ^From:.*lincek@ahoj.pl
+* 1^0 ^From:.*iwebmaster@iwww.net
+| formail -A "X-SPAM: FROM $="
+
+## by to header
+:0 Hfw
+* 1^0 ^To:.*@mail63.csoft.net
+* 1^0 ^To:.*undisclosed.*recipient
+* 1^0 ^To:.*Valued.*Customer
+| frmail -A "X-SPAM: TO $="
+
+## by other header ndicating spam
+:0 Hfw
+* 1^0   ^X-Advertisement
+* 1^0   ^Subject:.*ADV(ERTI|[^a-zA-Z]|$)
+* 1^0   relay[0-9]*\.uu\.net
+| frmail -A "X-SPAM: HEADER $="
+
+## no korean html
+:0 Hfw
+* ^Content-Type: text/.*ks_c_5601
+| formail -A "X-SPAM: MIME HTML Korean $=" -i "Subject: SPAM Korean HTML"
+
+## no html
+:0 BHfw
+* ^Content-Type:.*html
+| formail -A "X-SPAM: MIME HTML $="
+
+## no msword
+:0 BHfw
+* ^Content-Type:.*msword
+| formail -A "X-SPAM: MIME MSWORD $="
+
+## no jpeg
+:0 BHfw
+* ^Content-Type:.*jpeg
+| formail -A "X-SPAM: MIME JPEG $="
+
+## no html by body
+:0 Bfw
+* -5^0
+* 1^1 [<]BR[>]|[<]A|[<]/A[>]|[<]FONT|[<]/FONT[>]|[<]DIV|[<]/DIV[>]|\
+[<]/?STYLE[>]|[<]/?TITLE[>]|[<]/?B[>]|[<]/?P[>]|[<]/?TD[>]|[<]/?TR[>]|\
+[<]/?P[>]|[<]/?HTML[>]|[<]/?BODY[>]
+| formail -A "X-SPAM: BODY HTML $="
+
+# ----------------------------------------------------------------------
+# Asian codings Check body(B) and case sensitive(D)
+
+# if 5% are high bit characters
+# http://www3.sympatico.ca/walter.dnes/email/chinese/
+:0 BDfw
+# safety offset
+* -100^0
+# char counter
+* -1^1 .
+# bad char counter
+*  2^1 =[0-9A-F][0-9A-F]
+* 20^1 [ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]
+* 20^1 [ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß]
+* 20^1 [àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ]
+* 20^1 =[A-F][0-9A-F]
+| formail -A "X-SPAM: ASIA8B $=" -i "Lines: $=" -i "Subject: SPAM ASIAN-8bit" 
+
+# if 5% are high bit characters (Just header)
+# http://www3.sympatico.ca/walter.dnes/email/chinese/
+:0 HDfw
+# safety offset
+* -100^0
+# char counter
+* -1^1 .
+# bad char counter
+*  2^1 =[0-9A-F][0-9A-F]
+* 20^1 [ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]
+* 20^1 [ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß]
+* 20^1 [àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ]
+* 20^1 =[A-F][0-9A-F]
+| formail -A "X-SPAM: ASIA8H $=" -i "Lines: $=" -i "Subject: SPAM ASIAN-8bit" 
+
+# If 50% of line contains asian 7 bit encoded
+:0 BDfw
+# safety offset
+* -10^0
+# line counter
+* -10^1 ^.+$
+# 7 bit escape counter
+* 10^1 \$|\(
+# suspicious char counter (optional)
+* 2^1 [\$%!]
+| formail -A "X-SPAM: ASIA7B $=" -i "Lines: $=" -i "Subject: SPAM ASIAN-7bit-ESC" 
+
+# If 50% of line contains asian 7 bit encoded
+:0 HDfw
+# safety offset
+* -10^0
+# line counter
+* -10^1 ^.+$
+# 7 bit escape counter
+* 10^1 \$|\(
+# suspicious char counter (optional)
+* 2^1 [\$%!]
+| formail -A "X-SPAM: ASIA7H $=" -i "Lines: $=" -i "Subject: SPAM ASIAN-7bit-ESC" 
+
+:0 HBfw
+# safety offset
+* -10^0
+# line counter
+#* -1^1 (^|[	 ])[a-zA-Z0-9]([\.,:!; 	]|$)
+# english words counter
+* -1^1 (^|[	 ])\
+(the|this|that|it|they|is|are|am|be|to|of|can|could|may|might|will|would|\
+in|on|at|up|who|whose|when|which|what|how|with|without|over|under|down|for|\
+makes?|do|did|does|done|much|many|few|small|laege|every|if|not|unless|from)\
+([	 ]|$)
+# 3 letters and more
+* 1^1 (^|[	 ])\
+([ld][aeo]s|dans|bien|sans|por|avec|con|qu[aeoi]|tene(r|mos)|tengo|tiene|\
+tod[oa]s?|aqui|como|sus|sur|usted(es|)|elle|AHORA|SON|donde|\
+est(|a|amos|ais|as|e|o|ar)|un[ao]|tres|oui|sin|busc[ao]|hola|hoy|especial|\
+cada|Domicilio|PEDI(DO|r)|valor|Adultos)\
+([	 ]|$)
+| formail -A "X-SPAM: LATAIN-ENGLISH+10 = $=" -i "Lines: $="
+
+# check contents for spam
+:0 BHfw
+# start offset -99, so score of 100 reach positive for SPAM
+* -99^0
+* 100^0   As.*seen.*on.*(NBC|CBS|CNN|Oprah|TV)[\.\,\!\ ]
+* 100^0   READ.*E-?MAIL.*TO.*THE.*END
+* 50^1   (^| )sex($| |,|\.)
+* 50^1   (^| )penis($| |,|\.)
+* 50^1    http://[0-9]*\.
+* 50^1    cyberpromo
+* 50^1    mailloop.com
+* 50^1    r2software
+* 50^1    massmailx
+# Very unlikely phrase
+* 50^1    SECTION.*301
+* 50^1    Bill.*S.*1618
+* 50^1    105.*Congress
+* 50^1    usa.*law
+* 50^1    antispam\.org
+* 50^1    over.*18
+* 50^1    commercial.*e-?mail
+* 50^1    Certification.*Program
+# 4+ repeats for red flag (comb word)
+*  25^1    [ 	](medical techni.*|mortgage qoute|Weight Loss|Sexual Potency|\
+Body Fat|auto ?insurance|Mail(ing)? ?List|LOWEST RATES?|discount(ed)? prices?|\
+FREE TRIAL|CREDIT CARD|GLADLY ACCEPTs?|Special Offers?|incredible savings?|\
+Free shipping|additional $[0-9,\.]+)[ 	]
+# 6+ repeats for red flag (single words)
+#*  15^1    love|diet|money|health|loan|morgage|remove|reply|marketing|GUARANTEE|\
+#NIGERIAN?
+*  1^1  [ ][\$] ?[1-9][0-9,.]+[ ]
+# 25+ repeats for red flag
+*  4^1  http:
+| formail -A "X-SPAM: CONTENT $=" -i "Lines: $="
+
+# ======================== Spam trap 1 ================================
+
+:0
+* ^X-SPAM:
+Xspam/
+
+# ======================== Mailing List ===============================
+
+# Mailing list
+:0
+* 1^0
+# if reply, must read it
+* 10^0 ^Subject:[	 ]?RE
+# if new post is not from decent ISP, may skip it.
+* -1^0 ^From:.*@hotmail.com
+* -1^0 ^From:.*@aol.com
+* -1^0 ^From:.*@msn.com
+* -1^0 ^From:.*@yahoo.com
+# if new post is with empty From/To/Subject, may skip it.
+{
+# useless postings
+:0
+* 1^0 ^From: *$
+* 1^0 ^To: *$
+* 1^0 ^Subject: *$
+Xspam/
+
+# blackhole for autoresponders
+:0
+* 1^0 ^From:.*spam_filter@linuxfreemail.com
+* 1^0 ^Subject: Automated reply from
+/dev/null
+
+# White list
+:0
+* ^Resent-Sender.*debian-user-request@lists.debian.org
+debian-user/
+
+:0
+* ^Resent-Sender.*debian-devel-request@lists.debian.org
+debian-devel/
+
+:0
+* ^Resent-Sender.*debian-devel-announce-request@lists.debian.org
+debian-devel-announce/
+
+:0
+* ^Resent-Sender.*debian-testing-request@lists.debian.org
+debian-testing/
+
+:0
+* ^Resent-Sender.*debian-laptop@lists.debian.org
+debian-laptop/
+
+:0
+* ^Resent-Sender.*debian-mentors-request@lists.debian.org
+debian-mentors/
+
+:0
+* ^Resent-Sender.*debian-legal-request@lists.debian.org
+debian-legal/
+
+:0
+* ^Resent-Sender.*debian-news-request@lists.debian.org
+debian-news/
+
+:0
+* ^Resent-Sender.*debian-announce-request@lists.debian.org
+debian-announce/
+
+:0
+* ^Resent-Sender.*debian-doc-request@lists.debian.org
+debian-doc/
+
+:0
+* ^Resent-Sender.*debian-firewall-request@lists.debian.org
+debian-firewall/
+
+:0
+* ^Resent-Sender.*debian-policy-request@lists.debian.org
+debian-policy/
+
+:0
+* ^Resent-Sender.*debian-laptop-request@lists.debian.org
+debian-laptop/
+
+:0
+* ^Resent-Sender.*debian-sgml-request@lists.debian.org
+debian-sgml/
+
+:0
+* ^Sender.*newbiedoc-discuss-admin@lists.sourceforge.net
+newbiedoc-discuss/
+
+:0
+* ^Sender.*qref-developers-admin@lists.sourceforge.net
+qref-dev/
+
+:0
+* ^Sender.*@list.csoft.net
+csoft/
+
+:0
+* ^Sender.*owner-mutt-users@mutt.org
+mutt-users/
+
+:0
+* ^Sender: help-gnu-emacs-admin@gnu.org
+emacs/
+
+:0
+* ^Sender: torture-admin@gnu.org
+emacs/
+
+:0
+* ^Delivered-To:.*vim@vim.org
+vim/
+
+}
+# Mailing list post from junk address etc. --> Zzzz.  Let it sleep.
+:0
+* ^Resent-Sender.*@lists.debian.org
+* ^X-Mailing-List:
+debian-zzz/
+
+# Auto responder address to accept
+:0
+* ^From:.*@bugs.debian.org
+Inbox/
+
+# ======================== Normal Mails ===============================
+## Filter by content (hinted by spamfilter, etc)
+
+# Just by header for bulk mail
+:0 fw
+* 1^0   ^X-Distribution:.*bulk
+* 1^0   ^From: *$
+* 1^0   ^To: *$
+* 1^0   ^Subject: *$
+| formail -A "X-SPAM: HEADER $=" -i "Lines: 5001"
+
+# check contents for bulk mail
+:0 BHfw
+# start offset -99, so score of 100 reach positive for SPAM
+* -99^0
+* 100^1   receiv.*this.*e.?mail.*as.*subscriber
+* 100^1   remov.*from.*mailing
+* 80^1    http://[0-9]*\.
+* 80^1    bulk.*e-?mail
+* 80^1    reply.*with.*remove
+* 80^1    remove.*in.*subject
+* 80^1    remove.*address
+* 80^1    permanently.*remove.*mail
+* 80^1    removeall@
+* 80^1    removeme@
+* 80^1    remove@
+* 80^1    remove\.ht
+* 80^1    remov.*mail
+* 80^1    unsubscribe.*in.*subject
+* 80^1    unsubscribe.*address
+* 80^1    permanently.*unsubscribe.*mail
+* 80^1    unsubscribeall@
+* 80^1    unsubscribeme@
+* 80^1    unsubscribe@
+* 80^1    unsubscribe\.ht
+* 80^1    unsubscrib.*mail
+* 80^1    subject=.*unsubscribe
+* 80^1    stop.*receiv
+* 80^1    because.*you.*register
+* 80^1    this.*not.*spam
+* 80^1    one.*time.*mail
+| formail -A "X-SPAM: CONTENT BULK $=" -i "Lines: $="
+
+:0
+* ^TO_.*debian-.*@lists.debian.org
+XIndup/
+
+# local condition - If not to me, then just assume spam
+:0BHfw
+* 1^0 ! ^TO_(.*aokiconsulting\.com|.*@csoft\.net)
+* 1^0   ^TO_.*freedisk@aokiconsulting\.com
+* 1^0   ^TO_.*bogus@aokiconsulting\.com
+* 1^0   ^TO_.*nospam@aokiconsulting\.com
+| formail -A "X-SPAM: NOT-TO-ME $=" -i "Lines: 5002"
+
+# ======================== Spam trap 2 ================================
+
+# Store in spam folder for all SPAM marked contents
+:0
+* ^X-SPAM:
+Xspam/
+
+# ======================== Auto responders ============================
+
+:0
+* 1^0 ^FROM_MAILER
+* 1^0 ^FROM_DAEMON
+Xdaemon/
+
+# ----------------------------------------------------------------------
+# White list (Positively to me)
+
+# to my mail address
+:0
+* 1^0 ^TO_.*@csoft\.net
+* 1^0 ^TO_.*aokiconsulting\.com
+Inbox/
+
+# ----------------------------------------------------------------------
+# Safe fall back
+
+:0
+Xthru/

@@ -1,0 +1,213 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<chapt id="cvs">CVS
+<p>
+Vérifiez <file>/usr/share/doc/cvs/html-cvsclient</file>, 
+<file>/usr/share/doc/cvs/html-info</file>,
+<file>/usr/share/doc/cvsbook</file> avec lynx ou lancez "info cvs" et "man cvs" 
+pour de l'information détaillée.
+
+<sect id="cvs-inst">Installation d'un serveur CVS
+<p>
+La configuration suivante autorise un "commit" sur le dépôt cvs seulement par un membre du groupe "src", 
+et l'administration de cvs seulement par un membre du groupe "staff", ceci afin de réduire les risques 
+de conflits.
+<example>
+# cd /var/lib; umask 002 ; sudo mkdir cvs # [WOODY] FSH
+# apt-get install cvs cvs-doc cvsbook
+# export CVSROOT=/var/lib/cvs
+# cd $CVSROOT
+# chown root:src .         # "staff" => restriction importante pour un projet débutant.
+# chmod 3775 .             # Si la ligne précédente utilise "staff", alors régler sur 2775
+# cvs -d=/var/lib/cvs init # il est plus prudent de spécifier explicitement -d ici!
+# cd CVSROOT
+# chown -R root:staff .
+# chmod 2775 .
+# touch val-tags 
+# chmod 664 history val-tags
+# chown root:src history val-tags
+</example>
+<p>
+</sect>
+
+<sect id="cvs-examples">Exemples de session CVS
+
+<sect1>CVS Anonyme CVS (téléchargement seulement)
+<p>
+<example>
+$ export CVSROOT=:pserver:anonymous@cvs.qref.sf.net:/cvsroot/qref
+$ cvs login
+$ cvs -z3 co qref
+</example>
+</sect1>
+
+<sect1>Utilisation d'un serveur CVS local 
+<p>
+<example>
+$ export CVSROOT=/var/lib/cvs
+</example>
+</sect1>
+
+<sect1>Utilisation d'un pserver CVS distant
+<p>
+Ceci n'est pas très sûr, mais convenable pour du CVS anonyme:
+<example>
+$ export CVSROOT=:pserver:account@cvs.foobar.com:/var/lib/cvs
+$ cvs login
+</example>
+</sect1>
+
+<sect1>Utilisation de CVS distant avec ssh
+<p>
+Ceci est sécurisé et agréable à utiliser avec une authentification RSA, qui peut éliminer
+un appel de mot de passe, "man ssh":
+<example>
+$ export CVSROOT=:ext:account@cvs.foobar.com:/var/lib/cvs
+</example>
+où pour sourceforge:
+<example>
+$ export CVSROOT=:ext:account@cvs.qref.sf.net:/cvsroot/qref
+</example>
+</sect1>
+
+<sect1>Créer une nouvelle archive CVS
+<p>
+Pour,
+<example>
+Item              Valeur                    Signification
+arbre source:      ~/projet-x              Tous les codes sources
+Nom de Projet:     projet-x                Nom pour ce projet
+Balise vendeur:     Main-branch		   Balise pour la branche entière
+Balise de version:  Original-version       Balise pour une version spécifique
+</example>
+Alors,
+<example>
+$ cd ~/projet-x                 # va dans le répertoire du source
+ ... créer un arbre source ...
+$ cvs import -m "Start projet-x" projet-x Main-branch Release-initial
+$ cd ..; rm -R ~/projet-x
+</example>
+</sect1>
+
+<sect1>Travailler avec CVS
+<p>
+Pour rappeler et travailler sur des sources locaux d'un projet-x avec une archive CVS:
+<example>
+$ cd                            # va à la zone de travail.
+$ cvs co project-x              # cherche les sources du CVS et les importe en local.
+$ cd project-x
+ ... effectuez les changements pour les contenus
+$ cvs diff -u
+ ... (similaire à diff -u repository/ local/)
+$ cvs ci -m "Describe change"   # sauvegarde les sources locaux sur CVS
+$ vi newfile_added
+$ cvs add newfile_added
+$ cvs ci -m "Added newfile_added"
+$ cvs up                        # absorbe la dernière version à partir de CVS
+$ cvs tag Release-1             # ajoute la balise de version
+... edit further
+$ cvs tag -d Release-1          # enlève la balise de version
+$ cvs ci -m "more comments"
+$ cvs tag Release-1             # rajoute la balise de version
+$ cd                            # retourne à la zone de travail.
+$ cvs co -r Release-initial -d old project-x # met la version originale en version ancienne
+$ cd old
+$ cvs tag -b Release-initial-bugfixes # crée la balise de branche (-b)
+ ... Maintenant vous pouvez travailler sur la version ancienne.
+$ cvs update -r Release-initial-bugfixes # mélange avec les autres sur la branche???
+$ cvs update -j Release-initial-bugfixes # mélange sur le même tronc???
+ ... Répare les conflits ...
+$ cvs ci -m "merge Release-initial-bugfixes"
+$ cd
+$ tar -cvzf old-project-x.tar.gz old     # fait une archive j pour bz2
+$ cvs release -d old                     # enlève le source local (optionnel)
+</example>
+Jolies options à se souvenir (utiliser juste après cvs):
+<example>
+-n      lancement sec, sans effet
+-t      message des étapes de l'activité cvs
+</example>
+</sect1>
+
+<sect1>Exportation de fichiers à partir de CVS
+<p>
+Pour avoir la dernière version par CVS, utiliser "tomorrow":
+<example>
+$ cvs ex -D tomorrow module_name
+</example>
+</sect1>
+
+<sect1>Administrer CVS
+<p>
+Ajouter un alias à un projet (serveur local):
+<example>
+$ su - admin           # un membre de l'équipe
+Password:
+$ export CVSROOT=/var/lib/cvs ; cvs co CVSROOT/modules
+$ cd CVSROOT
+$ echo "px -a project-x" >>modules
+$ cvs ci -m "Now px is an alias for project-x"
+$ cvs release -d .
+$ exit                 # control-D pour quitter su
+$ cvs co -d project px # projet-x (alias:px) de CVS au répertoire du projet
+$ cd project
+ ... faites les changements pour les contenus
+</example>
+</sect1>
+</sect>
+
+<sect id="cvs-trouble">Problèmes de CVS
+
+<sect1>Permissions de fichiers dans le dépôt
+<p>
+CVS ne va pas écraser le fichier du dépôt courant mais va le remplacer par un autre.  
+Ainsi, <em>la permission en écriture sur le répertoire de dépôt</em> est critique. 
+Pour chaque nouvelle création d'un dépôt, lancer ce qui suit pour vous assurer que cette condition et remplie.
+<example>
+# cd /var/lib/cvs
+# chown -R root:src dépôt
+# chmod -R ug+rwX   dépôt
+# chmod    2775     dépôt  # si besoin est, et sous-répertoire
+</example>
+</sect1>
+
+<sect1>Bit d'exécution 
+<p>
+Le bit d'exécution de fichier est conservé lorsqu'on quitte la session.  Si on observe n'importe quel 
+problème de permission d'exécution dans les fichiers de contrôle, on peut changer
+la permission sur ce fichier dans le dépôt CVS avec la commande suivante.
+<example>
+# chmod ugo-x nom_du_fichier
+</example>
+</sect1>
+
+</sect>
+
+<sect id="cvs-short">Commandes CVS
+<p>
+<example>
+{add|ad|new} [-k kflag] [-m 'message'] files...
+{admin|adm|rcs} [rcs-options] files...
+{annotate|ann} [options] [files...]
+{checkout|co|get} [options] modules...
+{commit|ci|com}   [-lnR]  [-m  'log_message'  |  -f  file] \
+        [-r revision] [files...]
+{diff|di|dif} [-kl] [rcsdiff_options] [[-r rev1 | -D date1] \
+        [-r rev2 |  -D date2]] [files...]
+{export|ex|exp} [-flNn] -r rev|-D date [-d dir] [-k kflag] module...
+{history|hi|his} [-report] [-flags] [-options args] [files...]
+{import|im|imp} [-options] repository vendortag releasetag...
+{login|logon|lgn}
+{log|lo|rlog} [-l] rlog-options [files...]
+{rdiff|patch|pa} [-flags] [-V vn] [-r t|-D d [-r t2|-D d2]] modules...
+{release|re|rel} [-d] directories...
+{remove|rm|delete} [-lR] [files...]
+{rtag|rt|rfreeze} [-falnR]  [-b]  [-d]  [-r  tag  |  -D  date] \
+         sym_bolic_tag modules...
+{status|st|stat} [-lR] [-v] [files...]
+{tag|ta|freeze} [-lR] [-F] [-b] [-d] [-r tag | -D date]  [-f] \
+         sym_bolic_tag [files...]
+{update|up|upd} [-AdflPpR] [-d] [-r tag|-D date] files...
+</example>
+</sect>
+
+</chapt>

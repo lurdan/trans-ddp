@@ -1,0 +1,176 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.7"  -->
+<chapt id="kernel">Il kernel Linux su Debian
+<p>
+Debian ha i suoi modi per la ricompilazione del kernel e dei relativi moduli.
+
+<sect id="kernel-compile">Ricompilare il kernel
+
+<sect1 id="kernel-debian">Il metodo standard Debian
+<p>
+Usate il nuovo "kernel-package" in unstable.(7/2001) Anche "tar" ha
+subito alcuni cambiamenti nel passaggio da potato a woody, per cui
+utilizzate -j al posto di -I per i files .bz2. Controllate anche i bug
+reports per gcc, binutils e modutils.
+<p>
+La compilazione di un proprio kernel dai sorgenti in un sistema Debian
+richiede una cura speciale.  
+Per compilare più "kernel-images", utilizzate il nuovo 
+"--append_to_version" con make-kpkg.
+<example>
+# apt-get install debhelper modutils kernel-source-2.4.12 kernel-package
+# vi /etc/kernel-pkg.conf                # inserisco il mio nome ed email
+$ cd /usr/src                            # la directory di compilazione
+... scaricate da kernel.org, oppure installate i pachetti kernel-*-source.deb.
+$ tar -xvjf kernel-source-2.4.12.tar.bz2
+$ cd kernel-source-2.4.12                # se è il vostro sorgente
+$ rm -rf */pcmcia   # [FACOLTATIVO] se volete usare i moduli da pcmcia-cs
+$ cp /boot/config-2.4.12-386 .config     # usa il config corrente come default
+$ make menuconfig                        # customizzate a vostro piacimento
+$ make-kpkg clean                        # deve essere eseguito (per: man make-kpkg)
+$ fakeroot \
+make-kpkg --append_to_version -486 --initrd --revision=rev.01 kernel_image
+$ cd ../modules/pcmcia
+$ fakeroot ./debian/rules
+$ cd ../..
+# dpkg -i kernel-image*.deb pcmcia-cs*.deb # install
+</example>
+"make-kpkg kernel_image" esegue in raltà un "make oldconfig" ed un "make dep"
+Se initrd non è usato, non mettete  --initrd.
+<p>
+Si può evitare di dover dare "rm -fr */pcmcia" selezionando 
+"General setup ---&gt;" 
+e "PCMCIA/CardBus support ---&gt;" in "make
+menuconfig" ed impostando la configurazione come "&lt; &gt;
+PCMCIA/CardBus support".
+</sect1>
+
+<sect1 id="kernel-classic">Il metodo classico
+<p>
+Scaricate i sorgenti originali da:
+<example>
+linux:     http://www.kernel.org/
+pcmcia-cs: http://pcmcia-cs.sourceforge.net/  
+</example>
+oppure utilizzate i sorgenti equivalenti da debian ed eseguite i
+seguenti comandi:
+<example>
+# cd /usr/src
+# tar xfvz linux-xxx.tar.gz
+# rm -rf linux
+# ln -s linux-xxx linux
+# tar xfvz pcmcia-cs-xxx.tar.gz
+# ln -s pcmcia-cs-xxx pcmcia
+# cd linux
+# rm -rf */pcmcia   # [FACOLTATIVO] se volete usare i moduli da pcmcia-cs
+# make menuconfig
+... configure stuff ...
+# make dep
+# make bzImage
+... modifiche per lilo / grub ...
+... muovete /usr/src/linux/arch/i386/boot/bzImage in boot ...
+... /sbin/lilo o qualunque altra cosa serva per grub
+# make modules; make modules_install
+# cd ../pcmcia
+# make config
+# make all
+# make install
+... aggiungete i nomi dei moduli richiesti a /etc/modules
+# shutdown -r now
+... fate il boot con il nuovo kernel ...
+</example>
+L'uso di gcc, binutils, modutils prese da Debiand unstable può essere di aiuto.
+</sect1>
+</sect>
+
+<sect id="kernel-modules">Kernel 2.4 modulare
+<p>
+I nuovi kernel debian 2.4 sono altamente modularizzati. Per farli
+funzionare come avete deciso, dovrete essere sicuri che i moduli siano
+veramente lì.  
+<sect1 id="kernel-pcmcia">PCMCIA
+<p>
+/etc/modules deve contenere i seguenti driver, affinchè PCMCIA funzioni:
+<example>
+# Driver ISA PnP
+isa-pnp
+# Driver PCMCIA di basso livello
+# yenta_socket # non sembra essere necessario :-(
+</example>
+Il resto viene configurato dagli scripts pcmcia (del pacchetto
+pcmcia-cs) da depmod e kmod.  Credo che isa-pnp mi sia stato
+necessario perchè il mio laptop è un vecchio isa-pcmcia. I modelli più
+recenti con cardbus-pcmcia non lo richiedono.
+<p>
+[Da Miquel van Smoorenburg &lt;miquels@cistron.nl&gt;] 
+"Ho semplicemente rimosso tutta la roba correlata con pcmcia dal mio
+laptop, compreso cardmgr, ecc., ed ho installato un kernel 2.4 con
+supporto per cardbus, insieme al nuovo pacchetto "hotplug" da woody.
+<p>
+Se avete delle PC card a 32 bit non avete bisogno del pacchetto pcmcia, il kernel 2.4 ha i servizi per le card già inseriti. Il driver tulip standard dovrebbe funzionare bene con la vostra card dlink.
+Mike."
+</sect1>
+
+<sect1 id="kernel-scsi">SCSI
+<p>
+[NON TESTATO]/etc/modules deve contenere i seguenti driver affinchè
+SCSI funzioni:
+<example>
+# SCSI core
+scsi_mod
+# Driver generico SCSI
+sg
+# Disco SCSI
+sd_mod
+# Tutti gli altri moduli hardware necessari
+...
+</example>
+Forse depmod può prendersi cura di alcuni dei moduli summenzionati.
+</sect1>
+
+<sect1 id="kernel-net">Funzioni di rete
+<p>
+/etc/modules deve contenere i seguenti driver per le funzioni extra di rete:
+<example>
+# net/ipv-4
+ip_gre
+ipip
+
+# net/ipv-4/netfilter
+# iptable (nell'ordine)
+ip_tables
+ip_conntrack
+ip_conntrack_ftp
+iptable_nat
+iptable_filter
+iptable_mangle
+#
+ip_nat_ftp
+ip_queue
+#
+ipt_LOG
+ipt_MARK
+ipt_MASQUERADE
+ipt_MIRROR
+ipt_REDIRECT
+ipt_REJECT
+ipt_TCPMSS
+ipt_TOS
+ipt_limit
+ipt_mac
+ipt_mark
+ipt_multiport
+ipt_owner
+ipt_state
+ipt_tcpmss
+ipt_tos
+ipt_unclean
+#
+#ipchains
+#ipfwadm
+</example>
+Qunato sopra non è ottimizzato al meglio. Depmod potrebbe prendersi cura di alcuni dei moduli.
+</sect1>
+
+</sect>
+</chapt>

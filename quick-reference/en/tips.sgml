@@ -1,0 +1,577 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+
+<chapt id="tips"> GNU/Linux tips
+
+<![%FIXME[<p>===Proof reading: DONE by dsew ===]]>
+
+<sect>Booting the system
+<p>
+See <file>/usr/share/doc/HOWTO/en-txt/BootPrompt-HOWTO.txt.gz</file> 
+(LDP) for detailed information on the boot prompt.
+
+<sect1 id="crackroot">"I forgot the root password!" (1)
+<p>
+It is possible to boot a system and log on to the root account without knowing
+the root password as long as one has an access to the console keyboard.  (This
+assumes there are no password requests from the BIOS or from a boot-loader
+such as lilo that would prevent one from booting the system.)
+<p>
+This is a procedure which requires no external boot disks and
+no change in BIOS boot settings. Here, "Linux" is the label for
+booting the Linux kernel in the default Debian install.
+<p>
+At the lilo boot screen, as soon as "boot:" appears (you must press a shift
+key at this point on some systems to prevent automatic booting), enter:
+<example>
+boot: Linux init=/bin/sh
+</example>
+This causes the system to boot the kernel and run /bin/sh instead of its
+standard init.  Now you have gained root privileges and a root shell.  Since /
+is currently mounted read-only and many disk partitions have not been mounted
+yet, you must do the following to have a reasonably functioning system.
+<example>
+init-2.03# mount -n -t remount,rw /
+init-2.03# mount -avt nonfs,noproc,nosmbfs
+init-2.03# cd /etc
+init-2.03# vi passwd
+init-2.03# vi shadow
+</example>
+(If the second data field in /etc/passwd is "x" for every username, your
+system uses shadow passwords, and you must edit /etc/shadow.) To disable the
+root password, edit the second data field in the password file so that it is
+empty.  Now the system can be rebooted and you can log on as root without a
+password.  Unlike some older Linuxes, the current Debian (Potato) requires a
+password only when booting into runlevel 1.
+</sect1>
+
+<sect1>"I forgot the root password!" (2)
+<p>
+Boot from any emergency boot/root disk set.  If /dev/hda3 is the original root
+partition, the following will let one edit the password file just as easily as
+the above.
+<example>
+# mkdir fixit
+# mount /dev/hda3 fixit
+# cd fixit/etc
+# vi shadow
+# vi passwd
+</example>
+<p>
+The advantage of this approach over the previous method is one does not need
+to know the lilo password (if any).  But to use it one must be able to access
+the BIOS setup to allow the system to boot from floppy disk or CD, if that is
+not already set.
+</sect1>
+
+<sect1>Cannot boot the system
+<p>
+No problem&mdash;even if you didn't bother to make a boot disk during install.
+If lilo is broken, grab the boot disk from the Debian installation set and
+boot your system from it.  At the boot prompt, assuming the root partition of
+your Linux installation is on /dev/hda12 and you want runlevel 3, enter:
+<example>
+boot: rescue root=/dev/hda12 3
+</example>
+Then you are booted into an almost fully functional system using the kernel on
+the floppy. (There may be minor glitches due to lack of kernel features or
+modules.) 
+<p>
+If you need a custom boot floppy, follow readme.txt on the rescue disk.
+</sect1>
+
+<sect1 id="bootprompt">Other boot tricks with the boot prompt
+<p>
+The system can be booted into a particular runlevel and configuration
+using the lilo boot prompt. Details are given in BootPrompt-HOWTO.txt.gz.
+<p>
+If you want to boot the system into runlevel 4, use the following 
+input at the lilo boot prompt.
+<example>
+boot: Linux 4
+</example>
+<p>
+If you want to boot the system into normally functioning single-user mode
+and you know the root password, one of the following examples at the lilo
+boot prompt will work.
+<example>
+boot: Linux S
+boot: Linux 1
+boot: Linux -s
+</example>
+<p>
+If you want to boot the system with less memory than system actually has
+(say 48MB for a system with 64MB), use this input at the lilo boot prompt:
+<example>
+boot: Linux mem=48M
+</example>
+Make sure not to specify more than the actual memory size here, otherwise
+the kernel will crash.  If one has more than 64MB of memory, e.g. 128MB,
+unless one executes mem=128M on boot prompt or includes a similar
+append line in /etc/lilo.conf, old kernels and/or a motherboard with an old
+BIOS will not use memory beyond 64MB.
+</sect1>
+</sect>
+
+<sect>Recording activities
+<sect1 id="script">Recording shell activities
+<p>
+System administration involves much more elaborate tasks in a Unix environment
+than in an ordinary personal computer environment.  Make sure to know the most
+basic means of configuration in case you need to recover from system trouble.
+X-window-based GUI configuration tools look nice and convenient but are often
+unsuitable in these emergency situations.
+<p>
+In this context, recording shell activities is a good practice,
+especially as root.
+<p>
+Emacs: Use "M-x shell" to start recording into a buffer, and
+use "C-x C-w" to write the buffer to a file.
+<p>
+Shell: Use the "script" command.
+<example>
+$ script
+Script started, file is typescript
+ ... do whatever ...
+ Control-D
+$ col -bx &lt;typescript &gt;savefile
+$ vi savefile
+</example>
+The following can be used instead of "script":
+<example>
+$ bash -i 2&gt;&amp;1 | tee typescript
+</example>
+</sect1>
+<sect1>Recording X activities
+<p>
+If you need to record the graphic image of an X application, including an
+xterm display, use gimp (GUI).  It can capture each window or the whole
+screen. An alternatives are xwd(X), import(ImageMagick), or scrot(scrot). 
+</sect1>
+</sect>
+
+<sect>Move / Copy File
+<p>
+If you need to rearrange file structure, move content including file links by:
+<example>
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        (cd /dest/directory &amp;&amp; tar xvfp - )
+# cp -a /source/directory /dest/directory
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+If there are no linked files:
+# scp -pr user1@host1.dom:/source/directory user2@host2.dom:/dest/directory
+</example>
+Here, scp &lt;==&gt; rcp and ssh &lt;==&gt; rsh.
+</sect>
+
+<sect>Modify files with regular-expression substitution
+<p>
+Replace all instances of FROM_REGEX with TO_REGEX in
+all of the files FILES ...:
+<example>
+# perl -i -p -e 's/FROM_REGEX/TO_REGEX/g;' FILES ...
+</example>
+"-i" is for "in-place editing", "-p" is for "implicit loop over FILES ...".
+If the substitution is complex, you can make recovery from errors easier by
+using the parameter "-i.bak" instead of "-i"; this will keep each original
+file, adding ".bak" as a file extension.
+</sect>
+
+
+<sect>System freeze recovery
+<sect1>Kill process
+<p>
+Run "top" to see what process is acting funny. Press "P" to sort by cpu 
+time, "M" to sort by memory, and "k" to kill a process.
+<p>
+Use "kill" to kill (or send a signal to) a process by process ID, "killall" to
+do the same by process command name. Frequently used signals:
+<example>
+ 1: HUP,  restart daemon
+15: TERM, normall kill
+ 9: KILL, kill hard
+</example>
+
+</sect1>
+
+<sect1>ALT-SysRq
+<p>
+Insurance against system malfunction is provided by the kernel compile option
+"Magic SysRq key".
+Pressing ALT-SysRq on an i386, followed by one of the keys 'r 0 k e i s u b',
+does the magic.
+<p>
+Un'R'aw restores the keyboard after things like X crashes.  Changing the
+console loglevel to
+'0' reduces error messages.  sa'K' (system attention key) kills all processes on
+the current virtual console.  t'E'rminate kills all processes on the current terminal
+except init.  k'I'll kills all processes except init.
+<p>
+'S'ync, 'U'mount, and re'B'oot are for getting out of really bad situations.
+<p>
+Debian default installation kernels are not compiled with this option at the
+time this document is written.  Recompile the kernel to activate this
+function.  Detailed information is in
+<file>/usr/share/doc/kernel-doc-version/Documentation/sysrq.txt.gz</file>.
+
+</sect1>
+</sect>
+
+<sect>Config files
+
+<sect1>Login control
+<p>
+<![%FIXME[<p>=== Expansion needed here ===]]>
+<example>
+/etc/securetty           # controls root login by console
+/etc/hosts.{allow|deny}  # controls access to services by host
+/etc/pam.d/login         # controls login
+</example>
+<p>
+Comment out "ALL: PARANOID" in /etc/hosts.deny.
+<p>
+Change content of /etc/pam.d/login as follows, if you want insecure but 
+passwordless console terminals at your risk.
+<example>
+#auth       required   pam_unix.so nullok
+auth       required   pam_permit.so
+</example>
+NFS and other RPC-based programs require the sunrpc portmapper for login. "man 8
+portmap"
+</sect1>
+
+<sect1>Defaults
+<p>
+<example>
+/etc/defaults/rcS        # boot defaults (motd, sulogin,...)
+/etc/syslog.conf         # system log mode
+</example>
+Check the "colorize" package for a program to colorize system log files.
+</sect1>
+</sect>
+
+<sect>Nifty little commands to remember
+<sect1>Free memory
+<p>
+"free" and "top" give good information on memory resources.  Do not 
+worry about the size of "used" in the "Mem:" line, but read the one under it 
+(38792 in the example below). 
+<example>
+$ free -k # for 256MB machine
+             total       used       free     shared    buffers cached
+Mem:        257136     230456      26680      45736     116136 75528
+-/+ buffers/cache:      38792     218344
+Swap:       264996          0     264996
+</example>
+Exact physical memory can be confirmed by "grep '^Memory' /var/log/dmesg"
+which in this case gives "Memory: 256984k/262144k available (1652k kernel
+code, 412k reserved, 2944k data, 152k init)".
+<example>
+Total         = 262144k = 256M (1k=1024, 1M=1024k)
+Free to dmesg = 256984k = Total - kernel - reserved - data - init
+Free to shell = 257136k = Total - kernel - reserved - data
+</example>
+About 5MB is not usable by the system because the kernel uses it.
+</sect1>
+
+<sect1>Set time (BIOS)
+<p>
+<example>
+# date MMDDhhmmCCYY
+# hwclock --utc
+# hwclock --systohc
+# hwclock --show
+</example>
+This will set system and hardware time to MM/DD hh:mm, CCYY.
+Times are displayed in local time but hardware time uses UTC.
+<p>
+Set system clock to the correct time automatically via a remote server:
+<example>
+# ntpdate &lt;server&gt;
+</example>
+This is good to have in <file>/etc/cron.daily</file> if your system has a
+permanent Internet connection.
+</sect1>
+
+<sect1>How to disable the screensaver
+<p>
+In the Linux console:
+<example>
+# setterm -powersave off
+</example>
+<p>
+Start the kon2(kanji) console with:
+<example>
+# kon -SaveTime 0
+</example>
+<p>
+While running X:
+<example>
+# xset s off
+ or
+# xset -dpms
+ or
+# xscreensaver-command -prefs
+</example>
+Read the corresponding man pages.
+</sect1>
+
+<sect1>Disable sound (beep)
+<p>
+One can always unplug the PC speaker ;-)  For the shell:
+<example>
+echo "set bell-style none">> ~/.inputrc:
+</example>
+</sect1>
+
+<sect1>Error messages on the console screen
+<p>
+By default <file>/etc/syslog.conf</file> in Debian is set to overwrite 
+the console screen. Edit the last part of this file to change.
+<p>
+Also run "dmesg -n1" to quiet on-screen error messages.
+</sect1>
+
+<sect1>Get the console back to a sane state
+<p>
+When the screen goes berserk after "$ cat binaryfile" (you may not be able to
+see the command echoed as you type):
+<example>
+$ reset
+</example>
+</sect1>
+
+<sect1>Convert text file from DOS to Unix style
+<p>
+Convert a DOS (end-of-line=^M^J) text file to a Unix file(^J).
+<example>
+# apt-get install sysutils
+$ dos2unix dosfile
+</example>
+</sect1>
+
+<sect1>Convert a large file into small files
+<p>
+<example>
+$ split -b 650m file   # split file into 650 MB chunks
+$ cat x* >largefile    # merge files into 1 large file
+</example>
+</sect1>
+
+<sect1>Script snippets for piping commands
+<p>
+The following scripts will do nice things as a part of a pipe.
+<example>
+xargs -n 1 command   # run command for all items from stdin
+xargs -n 1 echo|     # split white space separated items into lines
+grep -e pattern|     # extract lines containing pattern
+cut -d: -f3 -|       # extract third field separated by :  (passwd file etc.)
+col -bx |            # remove backspace and expand tabs to spaces
+expand -|            # expand tabs
+sort -u|             # sort and remove duplicates
+tr '\n' ' '|         # concatenate lines into one line
+tr '\r' ''|          # remove CR
+tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+sed 's/^/# /'|       # make each line a comment
+sed 's/\.ext//g'|    # remove .ext
+sed  -n -e 2p|       # print the second line 
+head -n 2 -|         # print the first 2 lines
+tail -n 2 -|         # print the last 2 lines
+</example>
+</sect1>
+
+<sect1>Get text or a mailing list archive from a web page
+<p>
+The following will read a Web page into a text file.
+Very useful when copying configurations off the Web.
+<example>
+$ lynx -dump http://www.remote-site.com/help-info.html &gt;textfile
+</example>
+<p>
+If this is a mailing list archive, use "munpack" to obtain mime contents from text.
+</sect1>
+
+<sect1>Time a command
+<p>
+Display time used by a process.
+<example>
+# time df >/dev/null
+real    0m0.035s       # time on wall clock (elapsed real time)
+user    0m0.000s       # time in user mode
+sys     0m0.020s       # time in kernel mode
+</example>
+</sect1>
+
+<sect1>Nice command
+<p>
+Use "nice" (from the GNU shellutils package) to set a command's nice value
+when starting. "renice" (bsdutild) or "top" can renice a process. A nice value
+of 19 represents the slowest (lowest priority) process; negative values are
+"not-nice", with -20 being a very fast (high priority) process. Only the
+superuser can set negative nice values.
+<example>
+# nice  -19 top                                         # very nice
+# nice --20 cdrecord -v -eject speed=2 dev=0,0 disk.img # very fast
+</example>
+</sect1>
+
+<sect1>Schedule activity (cron, at)
+<p>
+Use "cron" and "at" to schedule tasks under Linux.  See "man at", "man 5
+crontab" and "man 8 crontab".  
+<p> 
+Run the command "crontab -e" to create or edit a crontab file to set up
+regularly scheduled events. Example of a crontab file:
+<example>
+# use /bin/sh to run commands, no matter what /etc/passwd says
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+# Min Hour DayOfMonth Month DayOfWeek command (Day... are ORed)
+# run at 00:05, every day
+5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+# run at 14:15 on the first of every month -- output mailed to paul
+15 14 1  * *   $HOME/bin/monthly
+# run at 22:00 on weekdays(1-5), annoy Joe. % for newline, last % for cc:
+0 22 *   * 1-5 mail -s "It's 10pm" joe%Joe,%%Where are your kids?%.%%
+23 */2 1 2 *   echo "run 23 minutes after 0am, 2am, 4am ..., on Feb 1"
+5  4 *   * sun echo "run at 04:05 every sunday"
+# run at 03:40 on the first Monday of each month
+40 3 1-7 * *   [ "$(date +%a)" == "Mon" ] && command -args
+</example>
+Run the "at" command to schedule a one-time job:
+<example>
+$ echo 'command -args'| at 3:40 monday
+</example>
+</sect1>
+
+<sect1>Console switching with "screen"
+<p>
+The "screen" program allows you to run multiple virtual terminals, each with
+its own interactive shell, on a single physical terminal or terminal emulation
+window. Even if you use Linux virtual consoles or multiple xterm windows, it
+is worth exploring <prgn>screen</prgn> for its rich feature set, which
+includes scrollback history, copy-and-paste, output logging, digraph entry,
+and the ability to detach an entire <prgn>screen</prgn> session from your
+terminal and reattach it later. If you frequently log on to a Linux machine
+from a remote terminal or using a VT100 terminal program, <prgn>screen</prgn>
+will make your life much easier.
+<p>
+Once you start <prgn>screen</prgn>, all keyboard input is sent to your current
+window except for the command keystroke, by default <tt>^A</tt>. All
+<prgn>screen</prgn> commands are entered by typing <tt>^A</tt> plus a single
+key [plus any parameters]. Useful commands:
+<example>
+^A ?     show a help screen (display key bindings)
+^A c     create a new window and switch to it
+^A n     go to next window
+^A p     go to previous window
+^A 0     go to window number 0
+^A w     show a list of windows
+^A a     send a Ctrl-A to current window as keyboard input
+^A h     write a hardcopy of current window to file 
+^A H     begin/end logging current window to file
+^A ^X    lock the terminal (password protected)
+^A d     detach screen session from the terminal
+^A DD    detach screen session and log out
+</example>
+<prgn>screen</prgn>'s "detach" feature is very powerful. Suppose you are
+logged in via a dialup connection, and are running a complex
+<prgn>screen</prgn> session with editors and other programs open in several
+windows. Suddenly you need to leave your terminal, but you don't want to lose
+your work by hanging up. Simply type <tt>^A d</tt> to detach the session, then
+log out. (Or, even quicker, type <tt>^A DD</tt> to have <prgn>screen</prgn>
+detach and log you out itself.) When you log on again later, enter the command
+"screen -R", and <prgn>screen</prgn> will magically reattach all the windows
+you had open. 
+<p>
+This is only a small subset of <prgn>screen</prgn>'s commands and features. If
+there's something you want <prgn>screen</prgn> to be able to do, chances are
+it can! "man screen" for details.
+<p>
+<em>Note:</em> If you find that backspace and/or Ctrl-H do not work properly
+when you are running <prgn>screen</prgn>, edit /etc/screenrc, find the line
+reading
+<example>
+bindkey -k kb stuff "\177"
+</example>
+and comment it out (i.e., add "#" as the first character). 
+<![%FIXME[<p>=== Add "xmove" for X if desired ===]]>
+</sect1>
+
+<sect1>Network testing basics
+<p>
+<example>
+$ ping yahoo.com            # check Internet connection
+$ traceroute yahoo.com      # trace IP packets
+$ ifconfig                  # check host config
+$ route -n                  # check routing config
+$ dig [@dns-server.com] host.dom [{a|mx|any}] |less    \
+      # check host.dom DNS records [@ dns-server.com] for a [{mx|any}] record
+$ ichains  -L -n |less      # check packet filter (2.2 kernel)
+$ iptables -L -n |less      # check packet filter (2.4 kernel)
+$ netstat -a | grep LISTEN  # find out all open ports (needs net-tools)
+</example>
+</sect1>
+
+<sect1>Flush mail from local spool
+<p>
+To flush mail from the local spool:
+<example>
+$ su -c "exim -q"
+</example>
+</sect1>
+
+<sect1>Clear file contents
+<p>
+Do not use "rm" in case the file is accessed by others.
+<!-- Osamu: Do you mean "in case the file is being accessed by someone else"
+or "in case the file needs to be accessed by others"? -->
+<example>
+$ :>file-to-be-cleared
+</example>
+</sect1>
+
+<sect1>Dummy files
+<p>
+<example>
+$ dd if=/dev/zero    of=filename bs=1k count=5 # 5KB of zero content
+$ dd if=/dev/urandom of=filename bs=1m count=7 # 7MB of random content
+$ touch filename                        #  create 0B file or update mtime
+</example>
+</sect1>
+
+<sect1>chroot
+<p>
+You can create an independent system that shares the same kernel.
+<example>
+# mount /dev/hda1 /mnt/target   # supposing /dev/hda1 contains one system
+# chroot /mnt/target
+... Now the contents of /dev/hda1 are seen as the root directory.
+# mount proc /proc              # just in case
+... run command within /dev/hda1
+</example>
+This enables stable/testing/unstable to be loaded on one machine.  Also, one
+may run a memory-hungry program such as dselect by running it on a host machine while
+NFS-mounting a satellite machine to the host as r/w and pointing chroot to the
+satellite machine.
+</sect1>
+
+<sect1>Samba
+<p>
+Basics of getting file from Windoze:
+<example>
+# mount -t smb -o username=myname,uid=my_uid,gid=my_gid\
+   //server/share/mnt/smb/ # mount Windows file to Linux
+<!-- Osamu: I believe the above needs to be
+  mount -t smbfs -o "username=myname,uid=my_uid,gid=my_gid" //server/share /mnt/smb
+I usually use "smbmount" instead (which has a slightly different syntax. [DS]
+-->
+# smbclient -L 192.168.1.2 # list the shares on a computer
+</example>
+</sect1>
+
+</sect>
+
+</chapt>
+

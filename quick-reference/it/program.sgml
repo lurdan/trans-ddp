@@ -1,0 +1,411 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.9"  -->
+<chapt id="program">Programmazione
+<p>
+Non usate "test" come nome di un file eseguibile di prova. "test" è un
+comando interno di shell.
+<sect>Dove iniziare
+<p>
+<em>Linux Programming Bible</em> (John Goerzen/IDG books)
+<p>
+Documenti ed esempi in /usr/share/doc/&lt;packages&gt;
+<p>
+Molti documenti info più lunghi possono essere ottenuti rilegati da 
+<url id="http://www.gnu.org/" name="GNU">.
+<p>
+Le quattro sezioni a seguire contengono dei semplici scripts, in
+linguaggi differenti, per creare un file di testo contenente le
+informazioni di account, da aggiungere a /etc/passwd, utilizzando un
+"batch processor" come il programma "newusers". Ogni script richiede
+come input un file con le righe sotto forma di <tt>nome cognome
+password</tt>. (Le home directories reali di ciscun utente non vengono
+create con questi script.)
+</sect>
+
+<sect>BASH
+<p>
+<em>Learning the bash Shell</em>, 2nd edition (O'Reilly)
+<example>
+$ info bash
+$ mc   /usr/share/doc/bash/examples/ /usr/share/doc/bash/
+</example>
+(Installate il pacchetto bash-doc per vedere i file di esempio.)
+<p>
+Esempio di programma breve (crea delle voci di account per "newusers"
+a partire da input standard):
+<example>
+#!/bin/bash
+# (C) Osmu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+pid=1000;
+while read n1 n2 n3 ; do
+if [ ${n1:0:1} != "#" ]; then
+let pid=$pid+1
+echo ${n1}_${n2}:password:${pid}:${pid}:,,,/home/${n1}_${n2}:/bin/bash
+fi
+done
+</example>
+</sect>
+
+<sect>AWK
+<p>
+<em>Effective awk Programming</em>, 3rd edition, and <em>sed &amp; awk</em>,
+2nd edition (O'Reilly)
+<example>
+$ man awk
+$ info awk
+</example>
+Esempio di programma breve (crea delle voci di account per "newusers"):
+<example>
+#!/usr/bin/awk -f
+# Script per creare un file utilizzabile con il comando 'newusers',
+# a partire da un file che contiene user IDs e passwords sotto forma di:
+# Nome Cognome password
+# Copyright (c) KMSelf Sat Aug 25 20:47:38 PDT 2001
+# Distributed under GNU GPL v 2, or at your option, any later version.
+# This program is distributed WITHOUT ANY WARRANTY.
+
+BEGIN {
+    # Assign starting UID, GID
+    if ( ARGC &gt; 2 ) {
+	startuid = ARGV[1]
+	delete ARGV[1]
+    }
+    else {
+        printf( "Usage:  newusers startUID file\n" \
+	  "...where startUID is the starting userid to add, and file is \n" \
+	  "an input file in form firstname last name password\n" \
+	)
+	exit
+    }
+
+    infile = ARGV[1]
+    printf( "Starting UID: %s\n\n", startuid )
+}
+
+/^#/ { next }
+
+{
+    ++record
+    first = $1
+    last = $2
+    passwd = $3
+    user= substr( tolower( first ), 1, 1 ) tolower( last )
+    uid = startuid + record - 1
+    gid = uid
+    printf( "%s:%s:%d:%d:%s %s,,/home/%s:/bin/bash\n",  \
+	user, passwd, uid, gid, first, last, user \
+	)
+}
+</example>
+</sect>
+
+<sect>PERL
+<p>
+<em>Programming Perl</em>, 3rd edition (O'Reilly)
+<example>
+$ man perl
+</example>
+Esempio di programma breve (crea delle voci di account per "newusers"):
+<example>
+#!/usr/bin/perl
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+$pid=1000;
+while (&lt;STDIN&gt;) {
+	if (/^#/) { next;}
+        chop;
+        $pid++;
+        ($n1, $n2, $n3) = split / /;
+        print $n1,"_",$n2,":", $n3, ":",$pid,
+                  ":",$pid,",,,/home/",$n1,"_",$n2,":/bin/bash\n"
+}
+</example>
+<p>
+Installate Perl module &lt;module name&gt;:
+<example>
+# perl -MCPAN -e 'install &lt;module name&gt;'
+</example>
+ 
+</sect>
+
+<sect>PYTHON
+<p>
+<em>Learning Python</em> (O'Reilly).
+E' un interprete valido.
+<example>
+$ man python
+</example>
+Esempio di programma breve (crea delle voci di account per "newusers"):
+<example>
+#! /usr/bin/env python
+import sys, string
+
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+# Ported from awk script by KMSelf Sat Aug 25 20:47:38 PDT 2001
+# This program is distributed WITHOUT ANY WARRANTY.
+
+def usages():
+		print \
+"Usage:  ", sys.argv[0], " start_UID [filename]\n" \
+"\tstartUID is the starting userid to add.\n" \
+"\tfilename is input file name. If not specified, standard input.\n\n" \
+"Input file format:\n"\
+"\tfirstname lastname password\n"
+		return 1
+
+def parsefile(startuid):
+	#
+	# main filtering
+	#
+	uid = startuid
+	while 1:
+		line = infile.readline()
+		if not line:
+			break
+		if line[0] == '#':
+			continue
+		(first, last, passwd) = string.split(string.lower(line))
+		# above crash with wrong # of parameters :-)
+		user = first[0] + last
+		gid = uid
+		lineout = "%s:%s:%d:%d:%s %s,,/home/%s:/bin/bash\n" %  \
+			(user, passwd, uid, gid, first, last, user)
+		sys.stdout.write(lineout)
+		++uid
+
+if __name__ == '__main__':
+	if len(sys.argv) == 1:
+		usages()
+	else:
+		uid = int(sys.argv[1])
+		#print "# UID start from: %d\n" % uid
+		if len(sys.argv) &gt; 1:
+			infilename   = string.join(sys.argv[2:])
+			infile = open(infilename, 'r')
+			#print "# Read file from: %s\n\n" % infilename
+		else:
+			infile = sys.stdin
+		parsefile(uid)
+</example>
+</sect>
+
+<sect>MAKE
+<p>
+<em>Managing Projects with make</em>, 2nd edition (O'Reilly)
+<example>
+$ info make
+</example>
+Semplici variabili automatiche:
+<p>
+Regole di sintassi:
+<example>
+Obiettivo: [ Prerequisito ... ]
+&lt; TAB &gt; command1
+&lt; TAB &gt; -command2 # ignora errori
+&lt; TAB &gt; @command3 # sopprime l'echoing
+</example>
+Ogni riga viene interpretata dalla shell dopo la sostituzione della variabile da parte di make. 
+Usate "\" alla fine della riga per continuare a capo lo script.
+Usate "$$" per "$" per le variabili d'ambiente dello shell script.
+<p>
+Regola delle equivalenze implicite:
+<example>
+.c:   header.h == %  : %.c header.h
+.o.c: header.h == %.c: %.o header.h
+</example>
+Variabili automatiche per le summenzionate regole:
+<example>
+foo.o: new1.c new2.c.c old1.c new3.c
+$@ == foo.o                         (obiettivo)
+$< == new1.c                        (il primo)
+$? == new1.c new2.c new3.c          (i più recenti)
+$^ == new1.c new2.c.c old1.c new3.c (tutti)
+$* == `%' motivo corrispondente al motivo obiettivo.
+</example>
+Riferimenti delle variabili:
+<example>
+foo1 := bar    # Espansione unica
+foo2  = bar    # Espansione ricorsiva
+foo3 += bar    # Appendi
+SRCS := $(wildcard *.c)
+OBJS := $(foo:c=o)
+OBJS := $(foo:%.c=%.o) 
+OBJS := $(patsubst %.c,%.o,$(foo)) 
+DIRS  = $(dir directory/filename.ext) # Estrae la "directory"
+$(notdir NAMES...), $(basename NAMES...), $(suffix NAMES...) ...
+</example>
+Per vedere le regole interne automatiche, lanciate "make -p -f/dev/null". 
+</sect>
+
+<sect>C
+<p>
+Kernighan &amp; Ritchie, <em>The C Programming Language</em>, 2nd edition
+(Prentice Hall).
+Per i riferimenti alla libreria delle funzioni GNU C:
+<example>
+# apt-get install glibc6-doc manpages-dev
+</example>
+Per i riferimenti alla libreria delle funzioni C, usate il comando 
+"<prgn>info libc</prgn>".
+Per ciascuna funzione, tipo "printf", usatee "<prgn>man 3 printf</prgn>".
+
+<sect1>Un semplice programma in C (gcc)
+<p>
+Un semplice esempio di compilazione del file "example.c", con una libreria "libm" in un eseguibile "run_example":
+<example>
+$ cat &gt; example.c 
+#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv, char **envp){
+	double x;
+	char y[11];
+	x=sqrt(argc+7.5);
+	strncpy(y, argv[0], 10); /* prevent buffer overflow */
+	y[10] = '\0'; /* fill to make sure string ends with '\0' */
+	printf("%5i, %5.3f, %10s, %10s\n", argc, x, y, argv[1]);
+	return 0;
+}
+
+$ gcc -Wall -g -o run_example example.c -lm
+$ ./run_example
+    1, 2.915, ./run_exam,     (null)
+$ ./run_example 1234567890qwerty
+    2, 3.082, ./run_exam, 1234567890qwerty
+</example>
+Qui, "-l<em>m</em>" è necessario per il link della libreria library
+"lib<em>m</em>" per sqrt().  La libreria vera è in "/lib" con il nome
+"libm.so.6", softlink a "libm-2.1.3.so".
+<p>
+Guardate l'ultimo parametro nel testo risultante. Ci sono più di 10
+caratteri, anche se viene specificato "%10s".
+<p>
+L'uso di puntatori di funzioni che richiedano operazioni in memoria
+senza controlli sui loro "confini", tipo sprintf e strcpy, non è
+considerato sufficiente a prevenire gli effetti di exploit tipo buffer
+overflow, che annullano gli effetti di overrun. Utilizzate, invece,
+snprintf e strncpy.
+</sect1>
+
+<sect1>Debugging (gdb)
+<p>
+<url id="http://www.dirac.org/linux/gdb" name="GDB tutorial">
+<p>
+Per il debugging di un programma compilato con l'opzione -g, usate
+gdb. Molti comandi possono essere abbreviati. L'espansione del comando
+mediante tab funziona come per la shell.
+<example>
+$ info gdb
+...
+$ gdb program
+(gdb) b 1                # imposta il punto di interruzione alla riga 1
+(gdb) run arg1 arg2 arg3 # lancia il programma
+(gdb) next               # riga successiva
+...
+(gdb) step               # un passo avanti
+...
+(gdb) p parm             # stampa parm 
+...
+(gdb) p parm=12          # imposta il valore di parm a 12
+</example>
+Per il debugging da emacs, fate riferimento a <ref id="editkey">.
+</sect1>
+
+<sect1>Flex &ndash; una miglior... Lex
+<p>
+Al vostro programma dovete fornire una propria main() e yywrap(),
+altrimenti program.l apparirà come nell'esempio qui sotto, tentando la
+compilazione senza librerie (yywrap è una macro; "%option main"
+diventa implicitamente "%option noyywrap"):
+<example>
+%option main
+%%
+.|\n	ECHO ;
+%%
+</example>
+In alternativa, potete compilarlo con l'opzione -l<em>fl</em> al
+termine della riga di comando cc (tipo ATT-Lex con -l<em>l</em>). In
+questo caso nessuna %option è richiesta.
+</sect1>
+
+<sect1>Bison &ndash; un Yacc migliore
+<p>
+Dovete fornire la vostra main() e yyerror(). Main() chiama yyparse() che chiama yylex(), normalmente creata con FleX.
+<example>
+%%
+
+%%
+</example>
+</sect1>
+
+<sect1>Autoconf &ndash; disinstallare
+<p>
+SE avete ancora il sorgente e SE utilizza autoconf/automake e SE
+ricordate come l'avete configurato:
+<example>
+$ ./configure tutte-le-opzioni-che-avevate-dato
+# make uninstall
+</example>
+</sect1>
+
+</sect>
+
+<sect>SGML
+<p>
+SGML permette la gestione dei formati multipli dei documenti. Un
+sistema SGML semplice è Debiandoc, utilizzato qui. Richiede delle
+comversioni minori dai files di testo originali per i seguenti
+caratteri:
+<example>
+&lt;   &amp;lt;
+&gt;   &amp;gt;
+&amp;   &amp;amp;
+&copy;   &amp;copy;
+&ndash;   &amp;ndash;
+&mdash;   &amp;mdash;
+</example>
+Per marcare una sezione come commento non stampabile, date:
+<example>
+&lt;!-- Il commento va qui ... --&gt;
+</example>
+Per marcare una sezione con un commento modificabile, date:
+<example>
+&lt;![ %FIXME [ Il commento va qui ... ]]&gt;
+</example>
+In SGML, la <em>prima definizione</em> di un'entità vince. Per esempio:
+<example>
+&lt;!entity % qref "INCLUDE"&gt;
+&lt;![ %qref [ &lt;!entity param "Data 1"&gt; ]]&gt;
+&lt;!entity param "Data 2"&gt;
+&amp;param;
+</example>
+Questa termina come "Data 1". Se la prima riga è, invece, "IGNORE",
+questa terminerà come "Data 2". La seconda riga è un'affermazione
+condizionale.
+<p>
+Per maggiori dettagli, fate un "<prgn>apt-get install debiandoc-sgml-doc</prgn>".  
+Leggete, inoltre
+<em>DocBook The Definitive Guide</em>, by Walsh and Muellner (O'Reilly)
+</sect>
+
+<sect>Creare pacchetti debian
+<p>
+Leggete la documentazione fornita nel pacchetto "packaging-manual" (Potato) o
+"debian-policy" (Woody).
+<p>
+Usate il comando dh_make dal pacchetto dh-make per creare un pacchetto di base. 
+Poi, procedete secondo le istruzioni contenute in"<prgn>man dh_make</prgn>"
+Queste usano debhelper in debian/rules.  
+<p>
+Un approccio alternativo è quello di usare deb-make dal pacchetto
+debmake. Non usa nessuno script debhelper e dipende esclusivamente
+dalla shell.
+<p>
+Per degli esempi di pacchetti con sorgenti multipli vedete "mc"
+(dpkg-source -x mc_4.5.54.dsc), che usa "sys-build.mk" di Adam Heath
+&lt;doogie@debian.org&gt; e "glibc" (dpkg-source -x
+glibc_2.2.4-1.dsc), che usa un altro sistema di Joel Klecker
+&lt;espy@debian.org&gt;.
+</sect>
+
+</chapt>
