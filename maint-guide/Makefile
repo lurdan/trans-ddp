@@ -20,6 +20,7 @@ sources_noncjk := $(filter-out maint-guide.zh_CN.sgml,$(filter-out maint-guide.j
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
 html:
+	rm -rf *html
 	@if [ $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
           echo debiandoc2html -c -l en $(MANUAL).sgml; \
           debiandoc2html -c -l en $(MANUAL).sgml; \
