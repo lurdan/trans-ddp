@@ -1,4 +1,8 @@
-XML_DECL=/usr/lib/sgml/declaration/xml.decl
+# potato or above
+XML_DECL=/usr/lib/sgml/declaration/xml.dcl
+# slink or above
+#XML_DECL=/usr/lib/sgml/declaration/xml.decl
+
 DEBIAN_VERSIONS=potato slink
 
 # DDP standard
