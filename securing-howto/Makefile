@@ -127,13 +127,12 @@ publish-html: $(HTMLDIRS)
 	 # install original html
 	 install -p -m 644 $(MANUAL).html/*.html \
 	                   $(PUBLISHDIR)/$(MANUAL)/
-	 # make the simlinks for html files
+	 # make the symlinks for html files
 	 @$(foreach file,$(wildcard  $(MANUAL).html/*.html),\
 	  name=`echo $(file) | sed 's/$(MANUAL).html\///'`; \
 	  link=`echo $$name|sed 's/.$(ORIG_LANG).html$$/.html/'`;\
-	  rm -f $$link; \
 	  echo "$$link -> $$name";\
-	  ln -s $(PUBLISHDIR)/$(MANUAL)/$$name\
+	  ln -sf $(PUBLISHDIR)/$(MANUAL)/$$name\
 	        $(PUBLISHDIR)/$(MANUAL)/$$link;\
 	 )
 
@@ -151,8 +150,7 @@ publish-files: $(ALLFILES)
 	 install -p -m 644 $(MANUAL).$(ORIG_LANG).$(ext)\
 	                   $(PUBLISHDIR)/$(MANUAL)/;\
 	 \
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
-	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
+	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
 
@@ -169,9 +167,8 @@ publish-ps: ps
 	 # install original ps
 	 install -p -m 644 $(MANUAL).$(ORIG_LANG).ps\
 	                   $(PUBLISHDIR)/$(MANUAL)/
-	 # make the simlinks for ps
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps;
-	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
+	 # make the symlinks for ps
+	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
 
 
