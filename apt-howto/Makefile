@@ -25,7 +25,7 @@ PUBLISHDIR := ../../../public_html/manuals.html
 ORIG_LANG := en
 
 # List of langs (above the canonical one)
-LANGS := en es pl ko pt_BR
+LANGS := en es pl ko pt_BR fr
 
 # List of langs to eXclude from pdf/ps 
 # Only because it breaks system.  If anyone know how-to fix, let me know.
