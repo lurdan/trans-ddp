@@ -21,14 +21,14 @@ sources_noncjk := $(filter-out maint-guide.zh_CN.sgml,$(filter-out maint-guide.j
 #	debiandoc2html -c -l $* $<
 html:
 	rm -rf *html
-	@if /usr/bin/[ $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
+	@if /usr/bin/test $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html; then \
           echo debiandoc2html -c -l en $(MANUAL).sgml; \
           debiandoc2html -c -l en $(MANUAL).sgml; \
           mv $(MANUAL).html $(MANUAL).en.html; \
         fi
 	@for i in *.??*.sgml; do \
           j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
-	  if /usr/bin/[ $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
+	  if /usr/bin/test $$i -nt $(MANUAL).$$lang.html/index.$$lang.html; then \
             echo debiandoc2html -c -l $$lang $$i; \
             debiandoc2html -c -l $$lang $$i; \
           fi; \
