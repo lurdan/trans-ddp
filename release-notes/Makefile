@@ -30,16 +30,16 @@ ifneq "$(PUBLISHDIR)" ""
 	set -ex; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
-	  $(makedir) $(PUBLISHDIR)/$$arch/release-notes; \
+	  $(makedir) $(PUBLISHDIR)/release-notes/$$arch/release-notes; \
 	  for lang in $(LANGUAGES); do \
-            $(install_file) $$lang/release-notes.$$lang.html/* $(PUBLISHDIR)/$$arch/release-notes/; \
-            $(install_file) $$lang/release-notes.$$lang.txt $(PUBLISHDIR)/$$arch/; \
+            $(install_file) $$lang/release-notes.$$lang.html/* $(PUBLISHDIR)/release-notes/$$arch/release-notes/; \
+            $(install_file) $$lang/release-notes.$$lang.txt $(PUBLISHDIR)/release-notes/$$arch/; \
             if [ "$$lang" != "ja" -a "$$lang" != "zh_TW" ]; then \
-              $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/$$arch/; \
-              $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/$$arch/; \
+              $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/release-notes/$$arch/; \
+              $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/release-notes/$$arch/; \
             fi; \
 	  done; \
-          for i in $(PUBLISHDIR)/$$arch/release-notes/*.en.html; do \
+          for i in $(PUBLISHDIR)/release-notes/$$arch/release-notes/*.en.html; do \
             ln -sf $$i $${i%.en.html}.html; \
           done; \
 	done
