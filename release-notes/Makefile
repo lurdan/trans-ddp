@@ -56,9 +56,9 @@ else
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
 	done
 # XXX needs to be updated for each release that introduces new architectures!
-	for newarch in mips mipsel ia64 hppa s390; do \
-          mv upgrade-$$newarch disks-$$newarch; \
-        done
+#	for newarch in mips mipsel ia64 hppa s390; do \
+#          mv upgrade-$$newarch disks-$$newarch; \
+#        done
 	tar cjf relnotes.tar.bz2 upgrade-* disks-*
 	rm -rf upgrade-* disks-*
 endif
