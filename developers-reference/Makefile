@@ -40,7 +40,7 @@ publish:	all
 	[ -d $(PUBLISHDIR) ] || exit 1
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	$(make_directory) $(PUBLISHDIR)/$(MANUAL)
-	$(install_file) developers-reference*.html/*.html	\
+	$(install_file) developers-reference*.html/*.html developers-reference*pdf	\
 	   $(PUBLISHDIR)/$(MANUAL)
 
 developers-reference.html:	developers-reference.sgml
