@@ -37,7 +37,7 @@ endif
 MANUAL1 := reference
 MANUAL2 := quick-reference
 
-# Basename for language-independent SGML-template.
+# Basename for language-independent SGML-template and tar-ball name.
 MANUAL0 := qref
 
 # Build type: Possible values are BUILD_TYPE = web|package|sf
@@ -52,7 +52,7 @@ LANGSALL := en fr it es fi pt-br de
 # List of languages built for "publish" target for DDP: pt_BR
 LANGS1 := en fr it es de
 # subset which has Quick Reference subset document
-LANGS2 := en
+LANGS2 := en fr de
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -239,7 +239,7 @@ ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; ln -sf $(MANUAL1) debian-reference
 endif
 # Create index page
-ifeq ("$(BUILD_TYPE)", "web")
+ifneq ("$(BUILD_TYPE)", "package")
 	# Make index page for web
 	@{ \
 	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
@@ -278,7 +278,7 @@ endif
 	          $(PUBLISHDIR)/$(MANUAL2)/ ;\
 	)
 # Create index page
-ifeq ("$(BUILD_TYPE)", "web")
+ifneq ("$(BUILD_TYPE)", "package")
 	# Make index page for web
 	@{ \
 	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
@@ -388,16 +388,16 @@ publish-pdf2:  pdf2
 	)
 
 
-publish-tar: $(MANUAL1).tar.gz
-	rm -f $(PUBLISHDIR)/$(MANUAL1).tar.gz
-	install -p -m 644 $(MANUAL1).tar.gz $(PUBLISHDIR)/
+publish-tar: $(MANUAL0).tar.gz
+	rm -f $(PUBLISHDIR)/$(MANUAL0).tar.gz
+	install -p -m 644 $(MANUAL0).tar.gz $(PUBLISHDIR)/
 
 #====[ DDP test-script ]==============================================
 web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr de"
 
 sf-test:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" txt
@@ -439,7 +439,7 @@ validate2-%: $(SGMLSRCS) $(MANUAL2)-%.ent
 
 #====[ cleaning up ]===========================================================
 distclean: clean
-	rm -f  $(PUBLISHDIR)/$(MANUAL1).tar.gz
+	rm -f  $(PUBLISHDIR)/$(MANUAL0).tar.gz
 	rm -Rf $(PUBLISHDIR)/$(MANUAL1)
 	rm -Rf $(PUBLISHDIR)/$(MANUAL2)
 	rm -f $(PUBLISHDIR)/debian-reference

@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.22 $"  -->
+<!-- CVS revision of this document "$Revision: 1.23 $"  -->
 
 <chapt id="tips"> &debian; tips
 
@@ -171,19 +171,10 @@ screen. Alternatives are <prgn>xwd</prgn>
 (<package>scrot</package>). 
 </sect1>
 
-<sect1 id="backup">Recording changes to the configuration files
-<p>
-<package>Changetrack</package> will record changes to the configuration
-files in RCS archives.  See <manref name="changetrack" section="1">.
-<example>
-# apt-get install changetrack
-# vi changetrack.conf
-</example>
-</sect1>
 
 </sect>
 
-<sect>Copy and archive a whole subdirectory
+<sect id="archiving">Copy and archive a whole subdirectory
 <sect1>Basic commands for copying a whole subdirectory
 <p>
 If you need to rearrange file structure, move content including file links by:
@@ -282,7 +273,55 @@ $ find . -depth -print0 | afio -px -0a new-dir
 </example>
 All my backups onto tape use <prgn>afio</prgn>. 
 </sect1>
+</sect>
 
+<sect id="diff-backup">Differential backup and data synchronization
+<p>
+Differential backup and data synchronization can be implimented 
+with several methods:
+<list>
+<item><package>rcs</package>:  backup and history, text-only
+<item><package>rdiff-backup</package>:  backup and history. symlink OK.
+<item><package>rsync</package>:  1-way synchronization
+<item><package>unison</package>:  2-way synchronization
+<item><package>cvs</package>:  multi-way synchronization with server 
+ backup and history, text-only, mature. See <ref id="cvs">.
+<item><package>arch</package>:  multi-way synchronization with server 
+ backup and history, no such thing as a "working directory".
+<item><package>subversion</package>:  multi-way synchronization with 
+ server backup and history, Apache.
+</list>
+Combination of one of this with the archiving method described in 
+<ref id="archiving"> and the automated regular job described
+in <ref id="cronjob"> will make a nice backup system.
+<p>
+I will explain 2 easy-to-use utilities.
+
+<sect1 id="rdiff-backup">Differential backup with rdiff
+<p>
+<package>Rdiff-backup</package> offers nice and simple backup with
+the differential history for any types of files including symlinks. 
+To back up most of <file>~/</file> to <file>/mnt/backup</file>:
+<example>
+$ rdiff-backup --include ~/tmp/keep --exclude ~/tmp  ~/ /mnt/backup
+</example>
+To restore 3 day old data from this archive to <file>~/old</file>:
+<example>
+$ rdiff-backup -r 3D /mnt/backup ~/old
+</example>
+See <manref name="rdiff-backup" section="1">.
+</sect1>
+
+<sect1 id="backup">Regular differential backup with RCS
+<p>
+<package>Changetrack</package> will record changes to the text-based
+configuration files in RCS archives regularly.  
+See <manref name="changetrack" section="1">.
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect1>
 </sect>
 
 
@@ -290,7 +329,10 @@ All my backups onto tape use <prgn>afio</prgn>.
 <sect1>Kill a process
 <p>
 Run <prgn>top</prgn> to see what process is acting funny. Press `P' to sort by cpu 
-usage, `M' to sort by memory, and `k' to kill a process.
+usage, `M' to sort by memory, and `k' to kill a process.  Alternatively,
+BSD style <tt>ps aux | less</tt> or System V style <tt>ps -efH | less</tt> 
+may be used.  The System V style syntax displays parents process ID 
+<tt>PPID</tt> which can be used for killing zombie (defunct) child.
 <p>
 Use <prgn>kill</prgn> to kill (or send a signal to) a process by process ID,
 <prgn>killall</prgn> to do the same by process command name. Frequently used
@@ -512,12 +554,35 @@ $ dos2unix <var>dosfile</var>
 Replace all instances of <var>FROM_REGEX</var> with <var>TO_REGEX</var> in
 all of the files <var>FILES</var> ...:
 <example>
-# perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_REGEX</var>/g;' <var>FILES</var> ...
+$ perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_REGEX</var>/g;' <var>FILES</var> ...
 </example>
 <tt>-i</tt> is for "in-place editing", <tt>-p</tt> is for "implicit loop over
 <var>FILES</var> ...".  If the substitution is complex, you can make recovery from errors
 easier by using the parameter <tt>-i.bak</tt> instead of <tt>-i</tt>; this
 will keep each original file, adding <tt>.bak</tt> as a file extension.
+</sect1>
+
+<sect1>Extract differences and merging updates for the source file
+<p>
+Following one of the procedures will extract difference of the source 
+file and create unified diff files <var>file.patch0</var> or 
+<var>file.patch1</var> depending on the file location:
+<example>
+$ diff -u <var>file.old</var> <var>file.new1</var> &gt; <var>file.patch0</var>
+$ diff -u <var>old/file</var> <var>new1/file</var> &gt; <var>file.patch1</var>
+</example>
+The diff file (alternatively called patch file) is used to send program 
+update.  Reciving party will apply this update to another <var>file</var>
+by:
+<example>
+$ patch -p0 <var>file</var> &lt; <var>file.patch0</var>
+$ patch -p1 <var>file</var> &lt; <var>file.patch1</var>
+</example>
+If you have all 3 version of source codes, you can merge them more 
+effectively using <prgn>diff3</prgn>:
+<example>
+$ diff3 -m <var>file.mine</var> <var>file.old</var> <var>file.yours</var> &gt; <var>file</var>
+</example>
 </sect1>
 
 <sect1>Convert a large file into small files
@@ -568,13 +633,22 @@ If this is a mailing list archive, use <prgn>munpack</prgn> to obtain mime conte
 
 <sect1>Pretty print a Web page
 <p>
-The following will read a Web page into a PostScript file/printer.  
+The following will print a Web page into a PostScript file/printer.  
 <example>
 $ apt-get install html2ps
 $ html2ps <var>URL</var> | lpr
 </example>
 See <ref id="lprlpd">.  Also check <prgn>a2ps</prgn> and 
 <prgn>mpage</prgn> packages for creating PostScript files.
+</sect1>
+
+<sect1>Pretty print a manual page
+<p>
+The following will print a manual page into a PostScript file/printer.  
+<example>
+$ man -Tps <var>some-man-page</var> | lpr
+$ man -Tps <var>some-man-page</var> | mpage -2 | lpr
+</example>
 </sect1>
 
 <sect1>Merge two Postscript or PDF files
@@ -615,7 +689,7 @@ Sometimes an extreme nice value does more harm than good to the system.
 Use this command carefully.
 </sect1>
 
-<sect1>Schedule activity (<prgn>cron</prgn>, <prgn>at</prgn>)
+<sect1 id="cronjob">Schedule activity (<prgn>cron</prgn>, <prgn>at</prgn>)
 <p>
 Use <prgn>cron</prgn> and <prgn>at</prgn> to schedule tasks under Linux.
 See <manref name="at" section="1">, <manref name="crontab" section="5">,
