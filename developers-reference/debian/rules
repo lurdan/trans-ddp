@@ -1,7 +1,27 @@
 #!/usr/bin/make -f
+# rules file for sgml-data
+#
+# I do not use debstd, debhelper, or any of that stuff.
+# I believe in stripped down rules files; nothing that is not required
+# I believe in readability through abstraction
 
 package		:= developers-reference
 
+# directory abstraction
+PREFIX		:= debian/tmp
+docdir		:= $(PREFIX)/usr/doc/$(package)
+libdir		:= $(PREFIX)/usr/lib/$(package)
+sharedir	:= $(PREFIX)/usr/share/$(package)
+menudir		:= $(PREFIX)/usr/lib/menu
+docbasedir	:= $(PREFIX)/usr/share/doc-base
+
+# tool abstraction
+install_file	:= install -o root -g root -m 644 -p
+install_program	:= install -o root -g root -m 755 -p
+make_directory	:= install -d -o root -g root -m 755
+compress	:= gzip -9f
+
+# version abstraction
 DEB_VERSION	:= $(shell LC_ALL=C dpkg-parsechangelog | grep ^Version: | sed 's/^Version: *//')
 DATE		:= $(shell date +"%Y-%m-%d")
 
@@ -14,44 +34,62 @@ version.ent:
 
 build:	version.ent
 	$(checkdir)
+	nsgmls -gues developers-reference.sgml	# check SGML syntax
 	debiandoc2html developers-reference.sgml
 	debiandoc2text developers-reference.sgml
-	gzip -9 developers-reference.text
 	touch build
 
 clean:
 	$(checkdir)
-	-rm -f build
-	-rm -rf developers-reference.html
-	-rm -rf developers-reference.text*
-	-rm -rf developers-reference.lout* lout.li
-	-rm -f `find . -name "*~"`
-	-rm -rf debian/tmp debian/files* core debian/substvars version.ent
+	rm -f build
+	rm -rf developers-reference.html
+	rm -f developers-reference.text*
+	rm -f developers-reference.lout* lout.li
+	rm -f version.ent
+	rm -f `find . -name "*~"`
+	rm -rf $(PREFIX)
+	rm -f debian/files* core debian/substvars
 
 binary-indep:	checkroot build
 	$(checkdir)
-	-rm -rf debian/tmp
-	install -d debian/tmp
-	cd debian/tmp && install -d `cat ../dirs`
-	cp -a developers-reference.html debian/tmp/usr/doc/developers-reference/
-	cp developers-reference.text.gz debian/tmp/usr/doc/developers-reference/
-	cp developers-reference.sgml debian/tmp/usr/doc/developers-reference/
-	gzip -9 debian/tmp/usr/doc/developers-reference/developers-reference.sgml
-	cp debian/{copyright,changelog} debian/tmp/usr/doc/developers-reference/
-	gzip -9 debian/tmp/usr/doc/developers-reference/changelog
-	cp debian/menu debian/tmp/usr/lib/menu/developers-reference
-	cp developers-reference.desc debian/tmp/usr/share/doc-base/developers-reference
-	cp debian/{control,postinst,prerm} debian/tmp/DEBIAN/
-	chmod +x debian/tmp/DEBIAN/{postinst,prerm}
-	dpkg-gencontrol
-	chown -R root.root debian/tmp
-	chmod -R go=rX debian/tmp
-	dpkg --build debian/tmp ..
-	debiandoc2ps -pa4 -1 -O developers-reference.sgml | gzip -9v > ../developers-reference.ps.gz
+	rm -rf $(PREFIX)
+	$(make_directory) $(PREFIX)/DEBIAN
+	$(make_directory) $(docdir)
+	$(make_directory) $(libdir)
+	$(make_directory) $(sharedir)
+
+	$(install_file) developers-reference.html $(docdir)
+	$(install_file) developers-reference.text $(docdir)
+	$(install_file) developers-reference.sgml $(docdir)
+	$(install_file) debian/copyright $(docdir)
+	$(install_file) debian/changelog $(docdir)
+	$(install_file) debian/menu $(menudir)/$(package)
+	$(install_file) developers-reference.desc $(docbasedir)/$(package)
+
+	# make sure control files are good
+	sh -n debian/preinst
+	sh -n debian/postinst
+	sh -n debian/prerm
+	# install the control files
+	$(install_script) debian/control debian/postinst debian/prerm \
+		$(PREFIX)/DEBIAN/
+
+	# compress docdir (policy)	
+	find $(docdir) -type f \( -size +4k -or -iname "change*" \) \
+            ! -name "*.html" ! -name "*.gif" \
+            ! -name "copyright" | xargs $(compress)
+
+	dpkg-gencontrol -isp
+	dpkg --build $(prefix) ..
+
+	# some extra-package files
+	debiandoc2ps -pletter -1 developers-reference.sgml
+	$(compress) ../developers-reference.ps
 	dpkg-distaddfile -fdebian/files developers-reference.ps.gz byhand -
-	GZIP=-9v tar zcf ../developers-reference.html.tar.gz developers-reference.html
+	GZIP=-9v tar czf ../developers-reference.html.tar.gz developers-reference.html
 	dpkg-distaddfile -fdebian/files developers-reference.html.tar.gz byhand -
-	cp developers-reference.text.gz ..
+	$(install_file) developers-reference.text ..
+	$(compress) developers-reference.text
 	dpkg-distaddfile -fdebian/files developers-reference.text.gz byhand -
 
 binary-arch:	checkroot build
