@@ -12,15 +12,36 @@ ifeq ("$(HTDOCS)", "manuals.sgml")
 # DDP site or checked out source from DDP
 PUBLISHDIR := ../../../public_html/manuals.html
 MANUAL := $(notdir $(shell pwd))
+# The cannonical language, in which the original document is
+ORIG_LANG := en
+# list of langs (above the canonical one)
+LANGS := fr it
+# Because Latex is hard to work with, I just to do text for now
+#EXTS := ps pdf txt tov info
+EXTS := txt
 else
 ifeq ("$(HTDOCS)", "htdocs")
 # qref.sourceforge.net
 PUBLISHDIR := .
 MANUAL := qref
+# The cannonical language, in which the original document is
+ORIG_LANG :=
+# list of langs (above the canonical one)
+LANGS :=
+# Because Latex is hard to work with, I just to do text for now
+#EXTS=ps pdf txt tov info
+EXTS :=
 else
 # default: checked out source from qref.sourceforge.net
 PUBLISHDIR := $$HOME/public_html
 MANUAL := qref
+# The cannonical language, in which the original document is
+ORIG_LANG := en
+# list of langs (above the canonical one)
+LANGS := 
+# Because Latex is hard to work with, I just to do text for now
+#EXTS=ps pdf txt tov info
+EXTS :=
 endif
 endif
 
@@ -60,6 +81,8 @@ all: version.ent $(HTMLDIRS) $(ALLFILES) publish
 else
 all: $(HTMLDIRS) $(ALLFILES) publish
 endif
+
+sf: $(HTMLDIRS) $(ALLFILES)
 
 version.ent: debian/changelog
 	./debian/rules $@
@@ -109,8 +132,8 @@ $(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
 #   This trick is bad. debiandoc2html should be corrected.
 $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	debiandoc2html -l $* -c $< 2>_html.$*.error
-	@echo "cleaning up file extensions";\
-	for file in `ls $(MANUAL).$*.html/*` ; do\
+	# clean up file extensions
+	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
 	          sed 's/$(shell echo $*|\
 	      sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
@@ -174,23 +197,24 @@ publish: publish-html publish-files
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
-	test -d $(PUBLISHDIR)/$(MANUAL) \
+	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	# install all html
-	$(foreach lang,$(ORIG_LANG) $(LANGS),\
+	@rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+	# install for all language (html)
+	@$(foreach lang,$(ORIG_LANG) $(LANGS),\
 	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
-#	# excuse me for ugly script (skip CVS directory)
-	test -d $(PUBLISHDIR)/$(MANUAL)/examples \
+#	# install examples.  Excuse me for ugly script (skip CVS directory)
+	@test -d $(PUBLISHDIR)/$(MANUAL)/examples \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
-	install -p -m 644  --preserve-timestamps \
+	@install -p -m 644  --preserve-timestamps \
 	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
 
 #----[ publish the files ]-----------------------------------------------------
 publish-files: $(ALLFILES)
-	test -d $(PUBLISHDIR)/$(MANUAL) \
+	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	$(foreach ext,$(EXTS),\
+	# install for all language (ext=txt, ps, pdf, ...)
+	@$(foreach ext,$(EXTS),\
 	 rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(ext);\
 	 \
 	 $(foreach lang,$(LANGS),\
@@ -230,14 +254,21 @@ validate:
 	set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
 
 #====[ cleaning up ]===========================================================
-clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
-	rm -rf $(MANUAL)*.html
+neat:
+	rm -f $(MANUAL)*.{dvi,log,tex,aux,toc,sasp*} *~
 	rm -f $(MANUAL).??.sgml 
 	rm -f *.error
-	rm -f dynamic.ent date.ent dynamic.??.ent
+	rm -f dynamic.ent dynamic.??.ent
 
+clean distclean: neat
+	rm -f $(MANUAL)*.{txt,ps,pdf,info*}
+	rm -rf $(MANUAL)*.html
+	rm -f *.error
+	rm -f date.ent
 
-.PHONY: all html txt ps\
+publishclean:
+	rm -Rf $(PUBLISHDIR)/$(MANUAL)/*
+
+.PHONY: all sf\
 	publish publish-html publish-files publish-txt publish-ps\
-	clean distclean validate 
+	neat clean distclean publishclean validate

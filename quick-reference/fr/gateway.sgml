@@ -1,185 +1,130 @@
-<!-- CVS revision of this document "$Revision: 1.3 $"  -->
-<!-- CVS revision of original english document "1.3"  -->
+<!-- CVS revision of this document "$Revision: 1.4 $"  -->
+<!-- CVS revision of original english document "1.15"  -->
 <chapt id="gateway">Construire une passerelle avec Debian GNU/Linux
 <p>
-Voici ma configuration pour une machine passerelle. Serveur de Mail, serveur
-DHCP, cache DNS, proxy Web, serveur CVS, serveur NFS, server SMB, etc.
+Linux permet d'avoir une machine passerelle tout usage, avec NAT, mail, DHCP,
+cache DNS, cache proxy HTTP, CVS, NFS, et services Samba pour un réseau local
+personnel.
 
 <sect>Configuration réseau
 <p>
-Ici se trouvent les informations de configuration réseau.
 
-<sect1>Réseau privé
+<sect1>Configuration de la passerelle
 <p>
-Il est recommandé d'utiliser les adresses IP suivantes pour le réseau privé.
-Le réseau privé est un LAN séparé par un pare-feu utilisant
-l'IP-masquerade(NAT).
+Le réseau local  utilise des adresses IP des plages ci-dessous pour éviter les
+collisions d'adresse avec l'Internet.
 <example>
 Class A: 10.0.0.0                    avec masque 255.0.0.0
 Class B: 172.16.0.0 - 172.31.0.0     avec masque 255.255.0.0
 Class C: 192.168.0.0 - 192.168.255.0 avec masque 255.255.255.0
 </example>
 <p>
-Ma préférence pour mon réseau privé à la maison va pour la classe C. Je ne
-peux avoir au maximum que 254 machines avec la classe C, mais cela est
-amplement suffisant. Je choisis 192.168.1.0 comme adresse de mon réseau privé
-par habitude. Chaque machine est assignée une adresse manuellement parmi
-192.168.1.1, 192.168.1.2, 192.168.1.3, ..., 192.168.1.254.
+Debian utilise  <file>/etc/network/interfaces</file> pour la configuration IP.
 <p>
-J'utilise 192.168.0.0/24 pour le proxy transparent (squid).
-<p>
-Mon masque de réseau est 255.255.255.0 et mon adresse de diffusion est
-192.168.1.255. J'utilise 192.168.1.1 pour la machine passerelle. (Certaines
-distributions préconfigurent 192.168.1.254 pour la passerelle pendant
-l'installation. Faites attention.)
-</sect1>
-
-<sect1>Configuration de la passerelle
-<p>
-La passerelle vers l'Internet est une Debian Potato 2.2 avec la configuration
-suivante.
+Par exemple, si <file>eth0</file> est connectée à l'Internet avec une adresse
+IP fournie par DHCP et <file>eth1</file> est connectée au réseau local,
+<file>/etc/network/interfaces</file> est configuré comme suit (Woody ou
+version plus récente) :
 <example>
-Paramètres d'installation :
-    hostname=gateway (J'utilise maintenant le nom donné par mon FAI à la
-place.)
-    domainname=lan.aokiconsulting.com (pareil qu'au-dessus.)
-Actuellement 2 cartes réseau PCMCIA 10 base/T (cartes PCI Tulip auparavant)
-sont installées :
-    externe : connectée à un modem câble ATT@HOME 
-    interne : connectée à un commutateur 100 baseT
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet static
+address 192.168.1.1
+network 192.168.1.0
+netmask 255.255.255.0
+broadcast 192.168.1.255
 </example>
+Exécutez les commandes suivantes pour mettre à jour la configuration réseau
+avec le nouveau <file>/etc/network/interfaces</file> :
+<example>
+# /etc/init.d/networking restart
+</example>
+Rappel : le fichier <file>interfaces</file> de Woody est incompatible avec
+celui de Potato.
 <p>
-Debian utilise /etc/network/interfaces pour la configuration IP, alors que
-Redhat utilise /etc/sysconfig/network.
-<url id="examples/" name="Consultez les exemples de /etc/network/interfaces">
+Si le système utilise une carte réseau PCMCIA, il faut configurer le réseau
+dans <file>/etc/pcmcia/network.opts</file> à la place.
 <p>
-Consultez la sortie des commandes suivantes en cas de problème :
+En cas de doute, consultez la sortie des commandes suivantes :
 <example>
 # ifconfig
 # cat /proc/pci
 # cat /proc/interrupts
 # dmesg|more
 </example>
+Parfois, les connexions DSL (PPPoE ?) ont des problèmes de MTU. Consultez <url
+id="http://www.linuxdoc.org/HOWTO/DSL-HOWTO/index.html" name="DSL-HOWTO">
+(LDP).
+</sect1>
+
+<sect1>IP-masquerade
+<p>
+Les machines du LAN peuvent accéder à l'Internet à travers une passerelle qui
+utilise IP-masquerade (NAT).
+<example>
+# apt-get install ipmasq
+</example>
+Appliquez les règles de l'exemple pour fortifier la protection
+<prgn>ipmasq</prgn>. Consultez
+<file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
+<!-- Now upstream is current
+Updated scripts here:
+<url id="http://qref.sourceforge.net/quick/examples/"
+name="A80firewall.def I80firewall.def O80firewall.def">.
+-->
+Pour l'image du noyau Debian 2.4, assurez-vous de charger les modules
+appropriés. Consultez <ref id="kernel-net">.
+<p>
+Pour l'image du noyau Debian 2.2, éditez <file>Z92timeouts.rul</file> dans
+<file>/etc/masq/rules</file> comme suit :
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - default
+# 1 day, 10 min, 10 min - longer example
+$IPCHAINS -M -S 86400 600 600
+</example>
+De plus, si le réseau est accédé par une carte PCMCIA, <prgn>ipmasq</prgn> a
+besoin d'être démarré depuis <file>/etc/pcmcia/network.opts</file>. Consultez
+<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
 </sect1>
 
 <sect1>Points principaux de la configuration réseau pour une passerelle
 <p>
-Pour une passerelle entre un LAN et Internet à la maison, vous pouvez combiner
-toutes les fonctions sur la même machine.
+Ensemble de programmes typique :
 <example>
-Paquets :
-    ipmasq, bind, squid, exim, dhcpd, samba, nfs (kernel)
-Connnexion à Internet par câble @Home (adresse IP fixe attribuée par DHCP)
-FAI :
-    bootp -&gt; no		(On utilise l'IP fixe à la place)
-    ip = 24.19.151.xxx		(IP attribuée par le FAI, eth0)
-    gw = 24.19.151.1		(IP attribuée par le FAI)
-    ns = 24.1.4.12 24.1.4.14	(DNS fournis par le FAI, pour l'installation
-seulement)
-
-LAN :
-
-    Internet (n'importe quelle IP)
-        |
-    Passerelle du FAI:(24.19.151.1)
-        |
-    eth0:(24.19.151.xxx)=hostname.long-cable-isp-domain-name.home.com
-    PC pare-feu (IPMASQ)
-    eth1:(192.168.1.1)=gateway.aokiconsulting.com
-        |
-    PC du LAN
-    eth0:(FIXEE : 192.168.1.2-99)=???.lan.aokiconsulting.com
-          DHCP :  192.168.1.100-200)
-
-Le PC pare-feu utilise ipmasq fortifié (pas de connexion serveur sur un port
-&lt; 1024).
-
-Toutes les machines du LAN sont sur le domaine "lan.aokiconsulting.com".
-Toutes les machines du LAN ont des noms sympas et faciles à retenir.
-Toutes les machines du LAN ont l'adresse mail internet de
-"???.lan.aokiconsulting.com".
-Enregistrement DNS (public dans vhost en utilisant csoftadm)
-    gateway			IN	A	24.19.151.xxx
-    *.lan.aokiconsulting.com.	MX	5	gateway.aokiconsulting.com.
-    gateway.aokiconsultgin.com.	MX	5	gateway.aokiconsulting.com.
-
-/etc/init.d/dhcpd       (éditer pour exécuter dhcpd, seulement sur eth1)
+# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail
+# apt-get install ssh cvs
+</example>
+<p>
+Ensuite, consultez les fichiers suivants :
+<example>
+/etc/init.d/dhcpd       (éditer pour avoir LAN = eth1)
 /etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) pour NFS
-/etc/exports            (manquait)
+/etc/exports            (besoin pour NFS)
 /etc/bind/db.192.168.1  (à ajouter)
 /etc/bind/db.lan        (à ajouter)
 /etc/bind/named.conf    (à éditer)
 /etc/resolve.conf       (à éditer)
 /etc/hosts
-/etc/ipmasq/rules/*     (voir ci-dessous pour les détails)
-/etc/dhcpd.conf         (à remplacer avec le fichier local)
+/etc/dhcpd.conf         (éditer pour avoir LAN = eth1)
+/etc/dhclient.conf	(éditer pour forcer le DNS local)
 /etc/samba/smb.conf
+/etc/exim/exim.conf
+/etc/mailname
+/etc/aliases
 /etc/squid.conf         (ajouter toutes les adresses IP des machines du LAN
 comme machines autorisées)
-/etc/exim.conf
-Check file: /etc/resolve.conf
+</example>
+<prgn>bind</prgn> crée un cache DNS local et transforme l'hôte local en
+serveur DNS. Consultez le fichier <file>/etc/resolve.conf</file> :
+<example>
 nameserver 127.0.0.1
 search lan.aokiconsulting.com
-#nameserver 24.1.4.xxx
 </example>
-<p>
-Rappel : le fichier "interfaces" de woody n'est pas compatible avec celui de
-potato. De plus, l'installation de bind crée un serveur DNS cache et change le
-DNS pour le DNS local.
 </sect1>
-</sect>
 
-<sect>Pare-feu avec ipmasq et squid
-<p>
-Le moyen le plus facile de configurer un pare-feu simple est d'installer deux
-cartes réseau sous Linux et d'utiliser le paquet ipmasq pour configurer un
-système de filtrage de paquets qui bloque presque tous les ports de serveurs
-(&lt; 1024) vers l'Internet. Cela peut se faire en insérant 
-<url id="examples/" name="A80firewall.def, I80firewall.def and
-O80firewall.def"> dans /etc/ipmasq/rules/.
-<example>
-# apt-get install ipmasq
- ... installe A80firewall.def, I80firewall.def/rul and O80firewall.def/rul
-# cp A80firewall.def A80firewall.rul; vi A80firewall.rul # à personaliser
-# ipmasq -v
-</example>
-<p>
-Pour éviter d'être déconnecté lors d'un transfert de gros fichiers ou mails,
-changer les timeouts d'ipmasq peut se révéler utile dans un environnement de
-réseau privé. Cela peut aussi introduire des risques au niveau de la sécurité,
-c'est donc à utiliser avec prudence.
-Editez Z92timeouts.rul dans /etc/masq/rules comme suit :
-<example>
-# tcp, tcp-fin, udp
-# 2hr, 10 sec, 160 sec - default
-# 1 day, 10 min, 10 min - current
-$IPCHAINS -M -S 86400 600 600
-</example>
-<p>
-Remarques :
-<list>
- <item>   Port 137:139 sont les services NetBIOS
- <item>   224.0.0.0/240.0.0.0 est une adresse multicast
- <item>   Le serveur DHCP ne doit fonctionner que pour le réseau interne s'il
-est installé.
-</list>
-<p>
-Je ne m'embête pas à fermer les ports ouverts parce que les scripts de
-filtrage IP décrits ci-dessus bloquent les connexions depuis l'Internet tout
-en servant le LAN avec ces services. Cela est bien pour une petit LAN mais
-peut ne pas être une bonne chose en environnement industriel. Editez
-/etc/inet.d pour fermer les ports des services inutilisés.
-<p>
-De plus, si le réseau est accédé par des cartes réseau PCMCIA, ipmasq doit
-être démarré depuis /etc/pcmcia/network.opts (consultez
-/usr/share/doc/ipmasq/ipmasq.txt.gz)
-<p>
-Même si un proxy HTTP transparent est de trop, il faut configurer un proxy
-HTTP. Cela fait une grosse différence lors de la mise à jour de Debian par
-HTTP.
-<p>
-Pour activer un proxy HTTP transprent, utilisez le noyau 2.4 et suivez
-/usr/share/doc/squid/README.transparent-proxy.gz.
 </sect>
 
 <sect>Gérer plusieurs connexions à l'Internet
@@ -216,15 +161,49 @@ cas de défaillance d'une connexion rapide ?
 <p>
 La configuration du courrier électronique se divise en trois parties :
 <list>
-<item>MTU : exim
-<item>MUA : mutt
-<item>Utilitaires : procmail, fetchmail, mail,...
+<item>MTA : <prgn>exim</prgn>
+<item>MUA : <prgn>mutt</prgn>
+<item>Utilitaires : <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
+<prgn>mail</prgn>,...
 </list>
+
+<sect1>Agent de transport de mail (Mail transport agent) (Exim)
+<p>
+Utilisez <prgn>exim</prgn> comme agent de transport de mail (MTA).
+Configurez-le :
+<example>
+/etc/exim.conf          "eximconfig" pour créer et éditer
+/etc/inetd.conf         mettez smtp en commentaire pour exécuter exim en tant
+que daemon
+/etc/email-addresses    ajoutez les listes d'adresses sources spoofées
+Vérifiez le filtre avec exim -brw, -bf, -bF, -bV, ... etc.
+</example>
+</sect1>
+
+<sect1>Tout récupérer pour les adresses e-mail non existantes (Exim)
+<p>
+Dans <file>/etc/exim/exim.conf</file> (Woody ou plus), dans la partie
+DIRECTORS, à la fin (après localuser: director) ajoutez une directive
+"catch-all" qui correspond à toutes les adresses que la directive précédente
+ne pouvait résoudre (par Miquel van Smoorenburg)
+<example>
+catchall:
+  driver = smartuser
+    new_address = webmaster@mydomain.com
+</example>
+<p>
+Si vous souhaitez une recette plus détaillée pour chaque domaine virtuel,
+ajoutez ce qui suit à la fin de <file>exim.conf</file> (par moi, non testé)
+<example>
+*@yourdomain.com ${lookup{$1}lsearch*{/etc/email-addresses} {$value}fail} T
+</example>
+Et ajoutez une entrée "*" dans <file>/etc/email-addresses</file>.
+</sect1>
 
 <sect1>Agent utilisateur pour le mail (Mail user agent) (Mutt)
 <p>
-Utilisez mutt comme agent utilisateur pour le mail (MUA) associé à vim.
-Personalisez-le avec "~/.muttrc":
+Utilisez <prgn>mutt</prgn> comme agent utilisateur pour le mail (MUA) associé
+à <prgn>vim</prgn>.  Personalisez-le dans <file>~/.muttrc</file> :
 <example>
 # utiliser le mode visuel et "gq" pour reformater les citations
 set editor="vim -c 'set tw=72 et ft=mail'"
@@ -239,50 +218,21 @@ hdr_order from subject to cc date user-agent x-mailer
 auto_view application/msword
 ....
 </example>
-Ajouter ce qui suit dans /etc/mailcap :
+Ajouter ce qui suit dans <file>/etc/mailcap</file> ou
+<file>$HOME/.mailcap</file> pour afficher les mails HTML et les attachements
+MS Word dans le message :
 <example>
 text/html; lynx -force_html %s; needsterminal;
 application/msword; /usr/bin/antiword '%s'; copiousoutput;
 description="Microsoft Word Text"; nametemplate=%s.doc
 </example>
-Maintenant les .doc de M$ Word peuvent être lus (non testé).
 
-<sect1>Agent de transport de mail (Mail transport agent) (Exim)
-<p>
-Utilisez exim comme agent de transport de mail (MTA). Configurez-le :
-<example>
-/etc/exim.conf          "eximconfig" pour créer et éditer
-/etc/inetd.conf         mettez smtp en commentaire pour exécuter exim en tant
-que daemon
-/etc/email-addresses    ajoutez les listes d'adresses sources spoofées
-Vérifiez le filtre avec exim -brw, -bf, -bF, -bV, ... etc.
-</example>
-</sect1>
-<sect1>Tout récupérer pour les adresses e-mail non existantes (Exim)
-<p>
-Dans /etc/exim.conf (ou /etc/exim/exim.conf si vous utilisez woody), dans la
-partie DIRECTORS, à la fin (après localuser: director) ajoutez une directive
-"catch-all"
-qui correspond à toutes les adresses que la directive précédente ne
-pouvait résoudre (par Miquel van Smoorenburg)
-<example>
-catchall:
-  driver = smartuser
-    new_address = webmaster@mydomain.com
-</example>
-<p>
-Si vous souhaitez une recette plus détaillée pour chaque domaine virtuel,
-ajoutez ce qui suit à la fin de exim.conf (par moi, non testé)
-<example>
-*@yourdomain.com ${lookup{$1}lsearch*{/etc/email-addresses} {$value}fail} T
-</example>
-Et ajoutez une entrée "*" dans /etc/email-addresses.
 </sect1>
 
 <sect1>Utilitaire de courrier électronique (fetchmail)
 <p>
-"fetchmail" est exécuté en mode daemon et récupère le courrier électronique du
-compte POP3 du FAI sur le système de mail local. Configurez :
+<prgn>fetchmail</prgn> est exécuté en mode daemon et récupère le courrier
+électronique du compte POP3 du FAI sur le système de mail local. Configurez :
 <example>
 /etc/init.d/fetchmail   voir ci-dessous pour le script
 /etc/rc?.d/???fetchmail exécutez update-rc.d fetchmail defaults 30
@@ -291,12 +241,12 @@ compte POP3 du FAI sur le système de mail local. Configurez :
 </example>
 <p>
 Les informations pour démarrer fetchmail en mode daemon depuis un script
-init.d dans potato ne sont pas claires (woody devrait corriger cela)
-<url id="examples/" name="/etc/init.d/fetchmail and /etc/fetchmailrc">
+<prgn>init.d</prgn> dans potato ne sont pas claires (woody devrait corriger
+cela). <url id="examples/" name="/etc/init.d/fetchmail and /etc/fetchmailrc">
 <p>
 Si vos en-têtes de mails sont contaminées par des ^M dûs au logiciel de
 courrier électronique de votre FAI, ajoutez 'stripcr' aux options dans
-~/.fetchmailrc :
+<file>$HOME/.fetchmailrc</file> :
 <example>
 options fetchall no keep stripcr
 </example>
@@ -304,8 +254,8 @@ options fetchall no keep stripcr
 
 <sect1>Utilitaire de courrier électronique (procmail)
 <p>
-Procmail est un filtre pour le courrier électronique délivré. Il faut créer un
-~/.procmailrc" pour chaque compte.
+<prgn>procmail</prgn> est un filtre pour le courrier électronique délivré.
+Il faut créer un <file>$HOME/.procmailrc</file> pour chaque compte.
 <example>
 # Tout le courrier délivré vers un Maildir à la Qmail, c'est-à-dire suivi par /
 # Pas besoin de verrou
