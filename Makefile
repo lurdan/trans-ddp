@@ -1,7 +1,7 @@
 # Top-level makefile for the Debian Documentation Project manuals
 
 # where we should publish to
-PUBLISHDIR :=	$(shell pwd)/../../public_html/manuals.html
+PUBLISHDIR :=	/org/www.debian.org/debian.org/doc/manuals
 
 # live documentation
 SUBDIRS	:=	\
@@ -19,6 +19,8 @@ SUBDIRS	:=	\
 		intro-i18n		\
 		java-faq		\
 		faq
+SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
+SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
 # dead (unmaintained) documentation, suitable for reaping
 DEADDIRS :=	\
@@ -28,22 +30,26 @@ DEADDIRS :=	\
 		markup 			\
 		users_manual 
 
-.PHONY: all
-all:
-	[ -d $(PUBLISHDIR) ] || exit 1
-	for dir in $(SUBDIRS); do				\
-	  $(MAKE) -C $$dir PUBLISHDIR=$(PUBLISHDIR) publish	;\
-	done
+# How to install stuff in publish directory
+install_file := install -p -m 664
+install_dir := install -d -m 2775
 
-.PHONY: clean
-clean:
-	for dir in $(SUBDIRS); do				\
-	  $(MAKE) -C $$dir clean				;\
-	done
+.SUFFIXES: 
+.PHONY: all publish clean $(SUBDIRS) $(SUBDIRS-publish) $(SUBDIRS-clean)
 
-# easy way to make a single subdirectory
-.PHONY: $(SUBDIRS) $(DEADDIRS)
-$(SUBDIRS) $(DEADDIRS):
-	[ -d $(PUBLISHDIR) ] || exit 1
-	$(MAKE) -C $@ PUBLISHDIR=$(PUBLISHDIR) publish
+publish::
+	[ -d $(PUBLISHDIR) ] || mkdir -p $(PUBLISHDIR)
+publish:: $(SUBDIRS-publish)
 
+all: $(SUBDIRS)
+
+clean: $(SUBDIRS-clean)
+
+$(SUBDIRS-publish):
+	$(MAKE) -C $(subst -publish,,$@) publish
+
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+$(SUBDIRS-clean):
+	$(MAKE) -C $(subst -clean,,$@) clean
