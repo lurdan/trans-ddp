@@ -1,0 +1,88 @@
+#!/usr/bin/perl -w
+
+# This script checks if the translations of the documents are up to date.
+# When called with "-d" option, it also prints what has changed in the
+# original since last translation
+
+# copied from boot-floppies and s/pl/xx/g and modified
+#
+# SYNOPSIS:
+#             ./doc-check [-d] [-v] [-V] [lang [subdoc ...]]
+#	-d: diff
+#	-v: verbose on reading each file header
+#	-V: verbose on diff
+#	-e: verbose on equal rev file (default=quiet)
+#	
+#
+#	(uses $lang set to "fr" if lang is not given on commandline)
+#	(checks all files if no subdoc is specified)
+#	(-d option enables to check diff)
+#	Make sure to update top few lines when proof reading
+
+use Getopt::Std;
+$opt_d = $opt_v = $opt_V = $opt_e = 0;
+getopts('devV');
+# You may set this to your default language code
+$lang = shift || "fr";
+
+sub checkdiff
+{
+	my ($xxfname, $enfname) = (@_);
+	my ($xxrev, $enrev) = getrev($xxfname, $enfname);
+	if ($opt_d) {
+		if ( "$xxrev" ne "$enrev" ) {
+			my $s = "cvs diff -u -r $xxrev -r $enrev $enfname";
+			warn "running $s:\n" if ($opt_V);
+			system($s);
+		}
+	} else {
+		if ( ("$xxrev" ne "$enrev") or $opt_e) {
+			print "$enfname : $xxrev -> $enrev\n";
+		}
+	}
+}
+
+sub getrev
+{
+	my ($xxfname, $enfname) = (@_);
+	my ($xxrev, $enrev) = ("1.1.1.1", "1.1.1.1"); # I'd rather fake it.
+	#my ($xxrev, $enrev) = (0, 0); 
+
+	warn "checking $xxfname:\n" if $opt_v;
+	open FILE, $xxfname or die "$xxfname: $!";
+	while (<FILE>) {
+		if (/<!--\s*CVS revision of original english document\s*\"([\d\.]+)\"\s*-->/) {
+			$xxrev = $1;
+			last;
+		}
+	}
+	warn "checking $enfname:\n" if $opt_v;
+	open FILE, $enfname or die "$enfname: $!";
+	while (<FILE>) {
+		if (/<!--\s*CVS revision of this document\s*\"[\$]Revision:\s*([\d\.]+)\s*\$\"\s*-->/) {
+			# [] around \$ is needed to keep cvs away from changing text here ;) 
+			$enrev = $1;
+			last;
+		}
+	}
+	close FILE;
+	warn "failed to find revision for $xxfname" unless $xxrev;
+	warn "failed to find revision for $enfname" unless $enrev;
+	return ($xxrev, $enrev);
+}
+@subdocs = (); # Intialize
+push @subdocs, @ARGV; # take options
+if ($#subdocs < 0) {
+	# default is for all
+	push @subdocs, (
+	"append", "cvs", "debian", "edit", "gateway", 
+	"gnupg", "install", "kernel", "links", "program", 
+	"tips", "titletoc", "tune", "tutorial", "woody"
+	);
+}
+
+foreach $doc (@subdocs) {
+	my $xxfname = "$lang/" . "$doc" . ".sgml";
+	my $enfname = "en/" . "$doc" . ".sgml";
+	checkdiff($xxfname, $enfname);
+}
