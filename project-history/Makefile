@@ -11,6 +11,11 @@ MANUAL :=	$(shell basename $(shell pwd))
 #  (this can be overriden by a higher level makefile)
 PUBLISHDIR :=	../../../public_html/manuals.html
 
+.SUFFIXES: .sgml .txt .html
+
+.sgml.txt:
+	debiandoc2text $*.sgml
+
 # What do we want by default?
 all:		publish
 
