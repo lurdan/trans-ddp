@@ -4,6 +4,9 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
+# increase pool size for Korean documents in Woody
+export TEXMFCNF=../quick-reference/texmf:
+
 export PATH:=../quick-reference/bin/:${PATH}
 
 # Basename for SGML
