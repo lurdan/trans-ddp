@@ -34,7 +34,7 @@ ifneq "$(PUBLISHDIR)" ""
 	  for lang in $(LANGUAGES); do \
             $(install_file) $$lang/release-notes.$$lang.html/* $(PUBLISHDIR)/$$arch/release-notes/; \
             $(install_file) $$lang/release-notes.$$lang.txt $(PUBLISHDIR)/$$arch/; \
-            if [ "$$lang" != "ja" ]; then \
+            if [ "$$lang" != "ja" -a "$$lang" != "zh_TW" ]; then \
               $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/$$arch/; \
               $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/$$arch/; \
             fi; \
