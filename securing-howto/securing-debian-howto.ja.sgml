@@ -1,6 +1,6 @@
 <!doctype debiandoc system>
 <!--
-$Id: securing-debian-howto.ja.sgml,v 1.16 2002-04-26 01:49:33 oohara Exp $
+$Id: securing-debian-howto.ja.sgml,v 1.17 2002-04-26 23:55:06 oohara Exp $
 -->
 
 <!--
@@ -94,14 +94,14 @@ the original e-mail of the above quote ends here
 <name>翻訳: 大原雄馬</name>
 <email>oohara@libra.interq.or.jp</email>
 </author>
-<version>v2.1
+<version>v2.2
 <!--
 "date" tag breaks the original timestamp
 -->
 <!--
-<date>Mon,  1 Apr 2002 10:27:06 +0200
+<date>Tue, 23 Apr 2002 20:56:15 +0200
 -->
-Mon,  1 Apr 2002 10:27:06 +0200 (翻訳: Fri, 26 Apr 2002)
+Tue, 23 Apr 2002 20:56:15 +0200 (翻訳: Sat, 27 Apr 2002)
 
 <abstract>
 この文書では Debian のデフォルトのインストールを安全にし強化する
@@ -335,11 +335,32 @@ id="http://packages.debian.org/kernel-patch-2.2.18-openwall">
 <sect>Changelog/History
  <p>
 
+<sect1>dated Sat, 27 Apr 2002
+<p>Changes by Oohara Yuuma
+<list>
+<item>New upstream version (version 2.2, cvs revision 1.53).
+<item>The changelog for "dated Fri, 26 Apr 2002" had a typo ---
+it was based on cvs revision 1.51, not 1.31 .
+</list>
+
 <sect1>dated Fri, 26 Apr 2002
 <p>Changes by Oohara Yuuma
 <list>
 <item>New upstream version (version 2.1, cvs revision 1.31).
 <item>Fixed a broken tag.
+</list>
+
+<sect1>Version 2.2
+<p>Changes by Javier Fern&aacute;ndez-Sanguino Pe&ntilde;a.
+<list>
+<item>Fixed typos, thanks to Jamin W. Collins.
+<item>Added a reference to apt-extracttemplate manpage
+(documents the APT::ExtracTemplate config).
+<item>Added section about restricted SSH. Information based on that
+posted by  Mark Janssen, Christian G. Warden and Emmanuel Lacour on
+the debian-security mailing list.
+<item>Added information on antivirus software.
+<item>Added a FAQ: su logs due to the cron running as root.
 </list>
 
 <sect1>Version 2.1
@@ -1430,7 +1451,8 @@ some spaces are deleted to fit this into the 80-char column
 <file>/tmp</file> を noexec に設定して新しいソフトウェアを実行したいときは
 注意してください。なぜなら、ソフトウェアの中には <file>/tmp</file> を
 インストールに使うものがあるかもしれないからです。適切に
-<tt>APT::ExtractTemplates::TempDir</tt> が設定されていなければ、apt は
+<tt>APT::ExtractTemplates::TempDir</tt> (<manref name="apt-extracttemplates"
+section="1"> をごらんください) が設定されていなければ、apt は
 そのようなプログラムのひとつです (<url id="http://bugs.debian.org/116448"> を
 ごらんください)。<file>/etc/apt/apt.conf</file> 中のこの変数を
 <file>/tmp</file> 以外の実行権限がついた他のディレクトリに設定することが
@@ -1780,9 +1802,110 @@ Debian は現時点では <file>pam_chroot</file> モジュールを提供していません
 サービス (ssh や telnet) を chroot してください。
 
 <p>
-ユーザがシステムにアクセスできる時刻を制限したいなら
+ユーザがシステムにアクセスできる<em>時刻</em>を制限したいなら
 <file>/etc/security/access.conf</file> を必要にあわぜて設定する必要が
 あるかもしれません。
+
+<sect2>ユーザのための ssh を制限する
+<p>
+Debian の sshd ではユーザの移動をサーバを通して制限することはできません。
+なぜなら商用のプログラム (sshd2) が持っている Chroot 機能 (「ChrootGroups」
+または 「ChrootUsers」を使います。<manref name="sshd2_config" section="5"> を
+ごらんください) がないからです。しかし、これを可能にするパッチがあります。
+このパッチは
+<url id="http://bugs.debian.org/139047" name="Bug report 139047"> または
+<url id="http://www.cag.lcs.mit.edu/~raoul/"> から入手できます (そして
+将来は OpenSSH パッケージにこれが適用されるかもしれません)。Emanuel
+Lacour さんはこの機能つきの ssh パッケージを
+<url id="http://debian.home-dn.net/woody/ssh/"> に置いていますが、自分で
+コンパイルすることが推奨されています。必要なすべての手続きの説明が
+<url id="http://mail.incredimail.com/howto/openssh/"> にあります
+(これは RedHat 7.2 について述べていますが、ほどんどすべてが Debian にも
+適用可能です)。このパッチを適用したらあとは <file>/etc/passwd</file> を
+修正してユーザのホームのパスを変更するだけです (特別な <tt>/./</tt>
+トークンを使います):
+
+<example>
+joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>
+これはリモートシェルアクセスおよび ssh チャンネル経由のリモートコピーの
+<em>両方</em>を制限します。
+
+<p>
+必要なバイナリおよびライブラリがすべてユーザの chroot パスの中にあるように
+してください。これらのファイルはユーザに (chroot の檻から脱出するなどの
+目的で) 改ざんされないように root によって所有されるべきです。たとえば
+以下が含まるでしょう:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
 
 <sect1>手製のユーザ監査
 <p>
@@ -2051,7 +2174,7 @@ name="syslog.conf" section="5"> をごらんください。
 あります。最初に <file>/var/log/lastlog</file> と
 <file>/var/log/faillog</file> が一般ユーザに読める必要はありません。
 lastlog ファイルではだれが最近ログインしたかわかります。そして faillog では
-失敗したログインの要約を見ることができます。この HOWTO の著者はこの両方を
+失敗したログインの要約を見ることができます。このマニュアルの著者はこの両方を
 660 に chmod することを推奨します。ログファイルをすこしながめて、
 どのログファイルを UID が 0 でないユーザや「adm」でも「root」でもない
 グループが読んだり書きこんだりできるようにするか非常に注意深く決めてください。
@@ -2661,7 +2784,8 @@ Debian GNU/Linux には管理者がこれを行うのを助けるパッケージがいくつかあります。
 ユーザが自分のディレクトリ以外のどんなものも見ることができないように ftp を
 ftp ユーザのホームディレクトリの内部へ chroot するべきです。そうしないと
 ユーザはシェルを持っているかのようにあなたのルートファイルシステムをうろつく
-ことができます。この chroot 機能を有効にするには proftpd.conf のグローバル
+ことができます。この chroot 機能を有効にするには
+<file>proftpd.conf</file> のグローバル
 セクションに以下の行を追加することができます:
 
 <example>
@@ -4017,6 +4141,48 @@ name="OpenCA"> または OpenSSL の CA サンプルのようなフリーに入手できる
 id="http://ospkibook.sourceforge.net/" name="Open PKI book"> を
 ごらんください。
 
+<sect>対ウイルスツール
+<p>
+Debian には対ウイルスツールはそれほど多くありません。たぶん GNU/Linux が
+現在のところあまりウイルスに感染していないからでしょう。しかし、Debian
+ディストリビューション全体に広まったウイルスが (幸運にもまだ) ないにも
+かかわらず、GNU/Linux のワームやウイルスは存在しています。いずれにせよ、
+管理者は対ウイルスゲートウェイを構築するか、自分自身をウイスルから守ろうと
+したいでしょう。
+
+<p>
+Debian は対ウイルス環境を構築するために現在以下のような道具を提供しています。
+<list>
+<item><url id="http://packages.debian.org/sanitizer" name="sanitizer">、
+procmail から呼び出して電子メールをフィルタリングし、ウイルスを
+除去する道具です。
+<item><url id="http://packages.debian.org/amavis-postfix"
+name="amavis-postfix">、メールトランスポートエージェントからひとつまたは
+複数のウイルススキャナへのインターフェイスを提供するスクリプトです
+(このパッケージは postfix 版を提供します)。
+</list>
+
+<p>
+ごらんのとおり、Debian は現時点では対ウイルスソフトウェア自体は提供して
+いません。しかし、Debian に (将来) 入るかもしれないフリーソフトウェア
+対ウイルスプロジェクトが存在します。
+<url id="http://sourceforge.net/projects/openantivirus/" name="openantivirus">
+および 
+<url id="http://sourceforge.net/projects/jvirus/" name="jvirus">
+(こちらは可能性が低いかもしれません。というのもこれは完全に Java にもとづいて
+いるからです) です。また、Debian は以下のような商用対ウイルスソフトウェアを
+提供することは決してしないでしょう:
+<url id="http://www.pandasoftware.com/com/linux/linux.asp"
+name="Panda Antivirus">、
+<url id="http://www.nai.com/naicommon/buy-try/try/products-evals.asp"
+name="NAI Netshield (uvscan)">、
+<url id="http://www.sophos.com/" name="Sophos Sweep">、
+<url id="http://www.antivirus.com/products/" name="TrendMicro Interscan">、
+<url id="http://www.ravantivirus.com" name="RAV"> などです。
+くわしくは
+<url id="http://www.computer-networking.de/~link/security/av-linux_e.txt"
+name="Linux antivirus software mini-FAQ"> をごらんください。
+
 <chapt>システムを破られる前
 
 <sect id="intrusion-detect">侵入検知を設定する
@@ -4334,8 +4500,8 @@ cd または dvd ライタを接続しましょう。ログファイルが 600 MB 近くになったら、
 さえすれば... プリンタほどのハードコピーではありませんが、より大容量を
 扱えますし、 cd は保管場所をそれほど取りません。
 
-<item>何もかも immutable に設定 (Jim Dennis によって書かれた、Tips-HOWTO から
-取られました)。
+<item>何もかも immutable に設定 (Jim Dennis さんによって書かれた
+Tips-HOWTO から取られました)。
 システムをインストールして設定したらすぐ <file>/bin</file>、
 <file>/sbin/</file>、<file>/usr/bin</file>、<file>/usr/sbin</file> そして
 <file>/usr/lib</file> (さらに他のいつも気になるところ) に移動して思いきって
@@ -4664,6 +4830,7 @@ while read i; do find / -user "$i" | grep -q . && echo "$i"; done
 
 <item>lp:
   プリンタデーモンによって利用されます。
+
 <item>mail:
   <file>/var/mail</file> の中のメールボックスはポリシーで説明されているように
   mail グループによって所有されています。このユーザやグループはさまざまな
@@ -5017,6 +5184,29 @@ security@debian.org にメールで送ってください。security team に接触できる
 正確な (上流のバージョン - 斜線 - Debian リリース) バージョン番号を
 Debian Security Advisory が示すバージョンと比較することによって調べることが
 できます。
+
+<sect1>ログの中でユーザが「su」しているのを発見しました。
+<p>
+ログの中にこのような行があるかもしれません:
+<example>
+ Apr  1 09:25:01 server su[30315]: + ??? root-nobody
+ Apr  1 09:25:01 server PAM_unix[30315]: (su) session opened for user nobody by (uid=0)
+</example>
+
+<p>
+あまり気にしないでください。これが cron 経由で実行されるジョブ (ふつうは
+<file>/etc/cron.daily/find</file> か <prgn>logrotate</prgn> です) によるものか
+確かめてください:
+<!--
+yes, the upstream uses newline in the middle of crontab without backslash
+-->
+<example>
+$ grep 25 /etc/crontab
+25 6    * * *   root    test -e /usr/sbin/anacron || run-parts --report
+/etc/cron.daily
+$ grep nobody /etc/cron.daily/*
+find:cd / && updatedb --localuser=nobody 2>/dev/null
+</example>
 
 <sect1>特定のソフトウェア
 
