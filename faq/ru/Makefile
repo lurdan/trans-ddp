@@ -12,7 +12,7 @@ currentlangcn := $(subst _,-,$(shell echo $(currentlang) | tr A-Z a-z))
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
-sources := $(manual).sgml ../faqstatic.ent ../faqdynamic.ent $(wildcard *.sgml)
+sources := $(manual).sgml faqstatic.ent ../faqdynamic.ent $(wildcard *.sgml)
 
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
@@ -24,6 +24,9 @@ publish: all
 	rm -f $(PUBLISHDIR)/$(manual)/*.$(currentlangcn).html
 	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
 	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
+
+faqstatic.ent:
+	ln -sf ../$@ .
 
 ../faqdynamic.ent:
 	cd .. && $(MAKE) faqdynamic.ent
