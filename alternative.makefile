@@ -23,6 +23,8 @@
 # called <directoryname>.[<language>.]sgml, which is the top-level file
 # for the manual in this directory.
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 # Basename for language dependent sgml (DDP default, generated)
 MANUAL := $(notdir $(CURDIR))
 
@@ -97,8 +99,8 @@ pdf:  $(PDFS)
 tar:  $(MANUAL).tar.gz
 
 # Until woody, we will not build ps/pdf
-#publish: publish-html publish-examples publish-txt publish-ps publish-pdf
-publish: publish-html publish-examples publish-txt
+publish: publish-html publish-examples publish-txt publish-ps publish-pdf
+#publish: publish-html publish-examples publish-txt
 publish-all: publish publish-tar
 
 # =================================================================== #
