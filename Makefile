@@ -33,7 +33,7 @@ PUBLISHDIR :=	/org/www.debian.org/debian.org/doc/manuals
 install_file := install -p -m 664
 install_dir := install -d -m 2775
 # arguments to make publish
-publish_args := PUBLISHDIR=$(PUBLISHDIR) install_file=$(install_file) install_dir=$(install_dir)
+publish_args := PUBLISHDIR=$(PUBLISHDIR) install_file="$(install_file)" install_dir="$(install_dir)"
 
 .SUFFIXES: 
 .PHONY: all publish clean $(SUBDIRS) $(SUBDIRS-publish) $(SUBDIRS-clean)
