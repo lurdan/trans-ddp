@@ -78,7 +78,8 @@ PDFS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).pdf)
 # =================================================================== #
 # If some languages have problems building, filter-out in here.
 
-all: html txt ps pdf
+all: html txt 
+#all: html txt ps pdf
 html: $(HTMLS)
 text txt:  $(TXTS)
 ps:   $(PSS)
