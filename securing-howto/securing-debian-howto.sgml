@@ -23,9 +23,8 @@
 <name>Javier Fernández-Sanguino Peña</name>
 <email>jfs@computer.org</email>
 </author>
-<version>v2.1
-<date>Mon,  1 Apr 2002 10:27:06 +0200
-
+<version>v2.2
+<date>Tue, 23 Apr 2002 20:56:15 +0200
 
 <abstract>
 This document describes the process of securing and hardening the
@@ -256,6 +255,18 @@ to policy.
 
 <sect>Changelog/History
  <p>
+<sect1>Version 2.2
+<p>Changes by Javier Fernández-Sanguino Peña.
+<list>
+<item>Fixed typos, thanks to Jamin W. Collins.
+<item>Added a reference to apt-extracttemplate manpage
+(documents the APT::ExtracTemplate config).
+<item>Added section about restricted SSH. Information based on that
+posted by  Mark Janssen, Christian G. Warden and Emmanuel Lacour on
+the debian-security mailing list.
+<item>Added information on antivirus software.
+<item>Added a FAQ: su logs due to the cron running as root.
+</list>
 <sect1>Version 2.1
 <p>Changes by Javier Fernández-Sanguino Peña.
 <list>
@@ -619,7 +630,7 @@ have a better background regarding general UNIX and (specific) Linux
 security. Take some time to read over security related documents in
 order to take informed decisions when you are encountered with
 different choices. Debian GNU/Linux is based on the Linux kernel, so
-many of the information regarding Linux, as well as from other
+much of the information regarding Linux, as well as from other
 distributions and general UNIX security also apply to it (even if the
 tools used, or the programs available, differ).
 
@@ -1016,9 +1027,10 @@ Debian cannot be disabled by modifying files in
 <sect1 id="inetd">Disabling inetd services
 <p>
 You should stop all unneeded services on your system, like
-echo, chargen, discard, daytime, time, talk, ntalk and the HIGHLY
-insecure considered r-services (rsh, rlogin and rcp. Use ssh
-instead). After disabling those, you should check if you really need
+echo, chargen, discard, daytime, time, talk, ntalk and  r-services 
+(rsh, rlogin and rcp) which are considered HIGHLY
+insecure (use ssh instead). 
+After disabling those, you should check if you really need
 the inetd daemon.  Many people prefer to use daemons instead of
 calling services via inetd. Denial of Service possibilities exist
 against inetd, which can increase the machine's load tremendously. If
@@ -1265,8 +1277,9 @@ be set noexec, but some software like Smartlist keeps its programs in
 Be careful if setting <file>/tmp</file> noexec and you want to install new software, since 
 some might use it for installation. Apt is one such program
 (see <url id="http://bugs.debian.org/116448">) if not configured properly
-<tt>APT::ExtractTemplates::TempDir</tt>. You can set this variable in 
-<file>/etc/apt/apt.conf</file> to another directory with exec privileges other
+<tt>APT::ExtractTemplates::TempDir</tt> (see <manref name="apt-extracttemplates" section="1">). 
+You can set this variable in <file>/etc/apt/apt.conf</file> to another 
+directory with exec privileges other
 than <file>/tmp</file>
 
 <p>Regarding noexec, please be aware that it might not offer you that much security. 
@@ -1598,9 +1611,110 @@ subshell) could be able to bypass the limits of the shell.
 <file>pam_chroot</file> module. An alternative to it is to
 chroot the service that provides remote logging (ssh, telnet).
 
-<p>If you wish to restrict when users can access the system you will
+<p>If you wish to restrict <em>when</em> users can access the system you will
 have to customize <file>/etc/security/access.conf</file> for your
 needs.
+
+<sect2>Restricting ssh for users
+
+<p>Debian's sshd will not allow you to restrict user's movement
+through the server since it lacks the Chroot function that the commercial
+(sshd2) program has (using 'ChrootGroups' or 'ChrootUsers', see
+<manref name="sshd2_config" section="5">). However, there is
+a patch available that will allow you to do this, the patch
+can be retrieved from
+<url id="http://bugs.debian.org/139047" name="Bug report 139047"> or
+<url id="http://www.cag.lcs.mit.edu/~raoul/">
+(and might be applied in the OpenSSH package in the future). Emanuel
+Lacour has ssh packages with this feature at 
+<url id="http://debian.home-dn.net/woody/ssh/">, going through
+the compilation step is recommended, though.
+A description of all the steps needed can be found
+at <url id="http://mail.incredimail.com/howto/openssh/"> (almost
+all is applicable to Debian even if it talks about RedHat 7.2).
+After applying the patch you just need to modify the <file>/etc/passwd</file>
+by changing the home path of the users (with the special <tt>/./</tt> token):
+
+<example>
+joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>This will restrict <em>both</em> remote shell access as well as
+remote copy through the ssh channel.
+
+<p>Make sure to have all the needed binaries and libraries in the
+chrooted path for users.  These files should be owned by root
+to avoid tampering by the user (so as to exit the chrooted jailed).
+A sample might include:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
+
 
 <sect1>Hand-made user auditing
 
@@ -1859,7 +1973,7 @@ need to be readable by normal users. In the lastlog file you can see
 who logged recently, and in the faillog you see a summary of failed
 logins. The author recommends chmod'ing both to 660. Take a brief look
 over your log files and decide very carefully which logfiles you make
-readable/writeable for a user with another UID than 0 and a group
+readable/writeable for a user with an UID other than 0 and a group
 other than 'adm' or 'root'.
 
 <p>
@@ -2423,7 +2537,7 @@ inside a SSL or SSH tunnel), you should chroot ftp into the ftp users'
 home directory, so that the user is unable to see anything else than
 their own directory. Otherwise they could traverse your root
 filesystem just like if they had a shell. You can add the following
-line in your proftpd.conf in your global section to enable this chroot
+line in your <file>proftpd.conf</file> in your global section to enable this chroot
 feature:
 
 <example>
@@ -2657,7 +2771,7 @@ from the outside. This includes limiting possible queries from
 clients: zone transfers and recursive queries.
 
 <item>limit the access of the daemon to the server itself so if it is
-used to break into the damage to the system is limited. This includes
+used to break in, the damage to the system is limited. This includes
 running the daemon as a non-privileged user and chrooting it.
 
 </list>
@@ -3697,6 +3811,41 @@ id="http://www.openca.org" name="OpenCA"> or the CA samples from
 OpenSSL. For more information read the <url
 id="http://ospkibook.sourceforge.net/" name="Open PKI book">.
 
+<sect>Antivirus tools
+<p>There are not that many antivirus tools in Debian, probably
+because GNU/Linux users are not that much plagued currently by
+virii. There have been, however, worms and virii for GNU/Linux
+even if there has not (yet, hopefully) been any virus that
+has spread on the wild over any Debian distribution. In any
+case, administrators might want to build up antivirus gateways
+or protect themselves against them.
+
+<p>Debian provides currently the following tools for building
+antivirus environments:
+<list>
+<item><url id="http://packages.debian.org/sanitizer" name="sanitizer">, a tool
+that can be used to filter email from procmail and remove virii.
+<item><url id="http://packages.debian.org/amavis-postfix" name="amavis-postfix">, a
+script that provides an interface from the mail transport agent to one 
+or more virus scanners (this package provides the postfix version).
+</list>
+
+<p>As you can see, Debian does not currently provide any antivirus
+software itself. There are, however, free software antivirus projects which
+might (in th future) be included in Debian
+<url id="http://sourceforge.net/projects/openantivirus/" name="openantivirus">
+and 
+<url id="http://sourceforge.net/projects/jvirus/" name="jvirus"> (slow chances
+for this since it is completely Java based). Also, Debian will never
+provide commercial antivirus software like: 
+<url id="http://www.pandasoftware.com/com/linux/linux.asp" name="Panda Antivirus">,
+<url id="http://www.nai.com/naicommon/buy-try/try/products-evals.asp" name="NAI Netshield (uvscan)">,
+<url id="http://www.sophos.com/" name="Sophos Sweep">,
+<url id="http://www.antivirus.com/products/" name="TrendMicro Interscan">,
+<url id="http://www.ravantivirus.com" name="RAV">....
+For more pointers see the <url id="http://www.computer-networking.de/~link/security/av-linux_e.txt"
+name="Linux antivirus software mini-FAQ">.
+
 <chapt>Before the compromise
 
 <sect id="intrusion-detect">Set up Intrusion Detection.
@@ -4649,12 +4798,31 @@ a package by looking at the package changelog, or comparing its
 exact (upstream version -slash- debian release) version number with the
 version indicated in the Debian Security Advisory.              
 
+<sect1>I found users doing 'su' in my logs.
+<p>You might find lines in your logs like:
+<example>
+ Apr  1 09:25:01 server su[30315]: + ??? root-nobody
+ Apr  1 09:25:01 server PAM_unix[30315]: (su) session opened for user nobody by (uid=0)
+</example>
+<p>Don't worry too much, check out if this is due to a job running through the cron
+(usually <file>/etc/cron.daily/find</file> or <prgn>logrotate</prgn>):
+
+<example>
+$ grep 25 /etc/crontab
+25 6    * * *   root    test -e /usr/sbin/anacron || run-parts --report
+/etc/cron.daily
+$ grep nobody /etc/cron.daily/*
+find:cd / && updatedb --localuser=nobody 2>/dev/null
+</example>
+
+
 <sect1>Specific software
 
 <sect2>Proftpd is vulnerable to a Denial of Service attack
 
 <p>Add <tt>DenyFilter \*.*/</tt> to your configuration file, for more
 information see <url id="http://www.proftpd.org/critbugs.html">.
+
 
 <sect>Questions regarding the Debian security team
 
@@ -4812,7 +4980,7 @@ introduced in Debian and no software is introduced that is not first
 signed by an authorised developers. They are in charge of analysing the
 software they maintain and are security-aware.
 
-<sect1>I have an older version of Debian is it security-supported?
+<sect1>I have an older version of Debian, is it security-supported?
 
 <p>Unfortunately no, the Debian Security Team cannot handle both the
 stable release (unofficially also the unstable) and other older
