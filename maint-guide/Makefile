@@ -41,7 +41,7 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
 
 # generating PostScript
-ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(filter-out maint-guide.ja.sgml,$(filter-out maint-guide.it.sgml,$(wildcard *.??*.sgml))))
+ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(filter-out maint-guide.ja.sgml,$(wildcard *.??*.sgml)))
 
 $(MANUAL).en.ps: $(MANUAL).sgml
 	debiandoc2latexps -l en $<
@@ -51,7 +51,7 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
 # generating Portable Document Format
-pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(filter-out maint-guide.ja.sgml,$(filter-out maint-guide.it.sgml,$(wildcard *.??*.sgml))))
+pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(filter-out maint-guide.ja.sgml,$(wildcard *.??*.sgml)))
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
 	debiandoc2latexpdf -l en $<
