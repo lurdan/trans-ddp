@@ -5,7 +5,7 @@
 <!ENTITY % default  SYSTEM "default.ent">  %default;
 
 ]>
-<!-- CVS revision of this document "$Revision: 1.46 $"  -->
+<!-- CVS revision of this document "$Revision: 1.47 $"  -->
 <!-- CVS revision of original english document "*.**"  -->
 
 <debiandoc>
@@ -173,6 +173,15 @@
   you know of any common mistakes after you build the package, and explain
   the errors found. (see <manref name="lintian" section="1">,
   /usr/share/doc/lintian/lintian.html/index.html)
+
+  <item><package/linda/ - this is the alternative Debian package checker.
+  (see <manref name="linda" section="1">)
+
+  <item><package/pbuilder/ - this package contains programs which is used 
+  for creating and maintaining chroot environment.  Building Debian 
+  package in this chroot environment verifies the proper build dependency
+  and avoid FTBFS bugs.  (see <manref name="pbuilder" section="8"> and 
+  <manref name="pdebuild" section="1">)
   </list>
 
   <p>The following is the <em>very important</em> documentation which you
@@ -191,7 +200,7 @@
   about the technical details of packaging, like the structure of the
   archive, how to rename, orphan, pick up packages, how to do NMUs, how to
   manage bugs, when and where to upload etc.
-  (see &developer-reference;)
+  (see &developers-reference;)
   </list>
 
   <p>The short descriptions that are given above only serve to introduce
@@ -1556,11 +1565,13 @@
 
   <chapt id="checkit">Checking the package for errors
 
-  <p>Run <manref name="lintian" section="1"> on your .changes file; this
-  program will check for many common packaging errors. The command is:
+  <p>Run <manref name="lintian" section="1"> and 
+  <manref name="linda" section="1"> on your .changes file; these
+  programs will check for many common packaging errors. The commands are:
   
   <p><example>
   lintian -i gentoo_0.9.12-1_i386.changes
+  linda -i gentoo_0.9.12-1_i386.changes
   </example>
   
   <p>Of course, replace the filename with the name of the .changes file
@@ -1571,9 +1582,28 @@
   verify that the warnings are spurious (and make Lintian overrides; see
   the documentation for details).
 
-  <p>Note that you can build the package with <prgn/dpkg-buildpackage/ and run
-  <prgn/lintian/ all in one command with <manref name="debuild" section="1">.
+  <p>Note that you can build the package with <prgn/dpkg-buildpackage/ , run
+  <prgn/lintian/ , and <prgn/linda/ all in one command with 
+  <manref name="debuild" section="1">.
+  
+  <p>Customization of the debuild command can be done through 
+  <file>/etc/devscripts.conf</file> or <file>~/.devscripts</file>. 
+  I would suggest at least following items:
 
+  <p><example>
+  DEBSIGN_KEYID="Your_SSH_keyID"
+  DEBUILD_DPKG_BUILDPACKAGE_OPTS="-i -ICVS -I.svn"
+  </example>
+  With these, you can build package always with your GPG key and avoid 
+  including undesired components.  (This is good for sponsoring too.)
+  For example, cleaning source and rebuilding package from a user account 
+  is as simple as:
+
+  <p><example>
+  debuild clean
+  debuild
+  </example>
+  
   <p>Look inside the package using a file manager like <manref name="mc" section="1">,
   or unpack it in a temporary place using <manref name="dpkg-deb" section="1">.
   Be on the lookout for extra unneeded files, both in the binary and source
@@ -1587,7 +1617,56 @@
   it on machines other than your own and watch closely for any warnings
   or errors both during the installation and while the program is being run.
 
-  <chapt id="upload">Uploading the package
+  <chapt id="pbuilder">The <package>pbuilder</package> package
+  <p>
+For clean room (chroot) build environment to verify the build
+dependencies, <package>pbuilder</package> package is very useful.  This
+ensures clean build from source under autobuilder for different
+architectures and avoid FTBFS bug which is release critical one.
+<p>
+The most basic use of <package>pbuilder</package> package is the direct 
+invocation of <prgn>pbuilder</prgn> command from root.  For example, 
+issue following commands in the directory where <file>.orig.tar.gz</file>, 
+<file>.diff.gz</file>, and <file>.dsc</file> exist
+to build a package.
+<example>
+root # pbuilder create # if second time, pbuilder update
+root # pbuilder build foo.dsc
+</example>
+The newly build packages will be located in
+<file>/var/cache/pbuilder/result/</file> with root ownership.
+<p>
+The <prgn>pdebuild</prgn> command helps you to use 
+<package>pbuilder</package> package functions from the normal user 
+account. I first customize my system by setting:
+<example>
+BUILDRESULTUID=<var>numeric_UID</var>
+BUILDRESULTGID=<var>numeric_GID</var>
+AUTO_DEBSIGN=yes
+</example>
+in <file>~/.pbuilderrc</file>
+or <file>/etc/pbuilderrc</file>.  I also change the ownership of
+<file>/var/cache/pbuilder/result/</file> to 
+<tt><var>numeric_UID</var>:<var>numeric_GID</var></tt> with the
+permission <tt>2775</tt>.
+<p>
+Then, from the root of source tree while having 
+<file>orig.tar.gz</file> file in its parent directory, issue 
+following commands:
+<example>
+$ sudo pbuilder create # if second time, sudo pbuilder update
+$ pdebuild
+</example>
+The newly build packages will be located in
+<file>/var/cache/pbuilder/result/</file> with non-root ownership.
+<p>
+See <url id=" http://www.netfort.gr.jp/~dancer/software/pbuilder.html">,
+<manref section="1" name="pdebuild">,
+<manref section="5" name="pbuilderrc">, and
+<manref section="8" name="pbuilder"> .
+
+
+  <chapt id="upload">Uploading the pacakage
 
   <p>Now that you have tested your new package thoroughly, you will be ready
   to start the Debian new maintainer application process, as described at
