@@ -59,33 +59,6 @@ $(MANUAL).en.ps: $(MANUAL).sgml
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
-# temporary debug code for www-master
-FORCE:
- 
-$(MANUAL).ko.ps: FORCE
-	-rm -f $(MANUAL).ko.{dvi,info*,log,tex,aux,toc,out,sasp*,tpt} 
-	-debiandoc2latexps -v -k -l ko $(MANUAL).ko.sgml
-	@echo " ###### Content of $(MANUAL).ko.log: ##########"
-	-cat $(MANUAL).ko.log
-	@echo " ###### End of content of $(MANUAL).ko.log ##########"
-	@echo " ###### mfput.log: ##########"
-	-test -e mfput.log && cat mfput.log || true
-	@echo " ###### missfont.log: ##########"
-	-test -e missfont.log && cat missfont.log || true
-	@echo " ###### Generate a few font files ##########"
-	-gsftopk umj10 1493
-	-set -x && . mktexpk --mfmode ljfour --bdpi 600 --mag 2+293/600 --dpi 1493 umj11
-	-gsftopk umj12 1493
-	@echo " ###### Content of file /etc/texmf/dvips/updmap ##########"
-	-cat /etc/texmf/dvips/updmap
-	@echo " ###### Content of file /etc/texmf/dvips/psfonts.map ##########"
-	-cat /etc/texmf/dvips/psfonts.map
-	@echo " ###### Content of file /etc/texmf/dvips/config.ps ##########"
-	-cat /etc/texmf/dvips/config.ps
-	-ls -l /var/cache/fonts/pk/modeless/uhc/myoungjo/
-	-kpsewhich psfonts.map uhc-down.map
-	-rm -f $(MANUAL).ko.{dvi,info*,log,tex,aux,toc,out,sasp*,tpt} 
-
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
