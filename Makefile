@@ -9,6 +9,7 @@ SUBDIRS	:=	\
 		debian-bugs	 	\
 		developers-reference	\
 		dictionary 		\
+		maint-guide		\
 		meta 			\
 		network-administrator 	\
 		project-history 	\
