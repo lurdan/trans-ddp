@@ -241,7 +241,7 @@ scp: publish-all
 validate:
 	set -x; for i in $(LANGS); do $(MAKE) validate.$$i ; done
 
-validate.%: $(SGMLSRCS)
+validate.%: $(SGMLSRCS) dynamic.%.ent
 	nsgmls -gues -wall $(MANUAL).$*.sgml
 
 #====[ cleaning up ]===========================================================
