@@ -12,7 +12,7 @@ PUBLISHDIR := ../../../public_html/manuals.html
 all:
 
 publish: debian-faq.html/index.html
-	test -d $(PUBLISHDIR)
+	test -d $(PUBLISHDIR)/debian-faq || install -d -m 755 $(PUBLISHDIR)/debian-faq
 	rm -f $(PUBLISHDIR)/debian-faq/*.html
 	install -p -m 644 debian-faq.html/*.html $(PUBLISHDIR)/debian-faq/
 
