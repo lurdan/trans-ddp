@@ -4,6 +4,8 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
@@ -13,7 +15,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 all: html txt ps pdf
 
 sources := $(wildcard *.??*.sgml)
-sources_noncjk := $(filter-out maint-guide.zh_CN.sgml,$(filter-out maint-guide.ja.sgml,$(filter-out maint-guide.ko.sgml,$(sources))))
+sources_noncjk := $(filter-out maint-guide.ko.sgml,$(sources))
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
