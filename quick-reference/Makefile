@@ -1,5 +1,5 @@
 #
-# New Makefile Template (Osamu Aoki) Potato env.
+# New Makefile Template (Osamu Aoki)
 #
 #  Build html(multi-page), txt, ps, pdf, and other formats.
 #
@@ -51,10 +51,10 @@ endif
 PUBLISHDIR := ~/public_html/manuals.html
 
 # List of languages build for "publish" target for DDP
-LANGS := en fr it
+LANGS := en fr it es
 
 # Files which affect SGML generation (excluding *.sgml)
-SGMLENTS := custom.ent default.ent dynamic.%.ent
+SGMLENTS := custom.ent default.ent
 
 # All SGML source files
 SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
@@ -103,14 +103,12 @@ PDFS := $(foreach lang,$(LANGS),$(MANUAL).$(lang).pdf)
 all:  html txt ps pdf 
 sgml: $(SGMLS)
 html: $(HTMLS)
-txt:  $(TXTS)
+text txt:  $(TXTS)
 ps:   $(PSS)
 pdf:  $(PDFS)
 tar:  $(MANUAL).tar.gz
 
-# For patato, just HTML and TXT
-#publish: publish-html publish-examples publish-txt publish-ps publish-pdf
-publish: publish-html publish-examples publish-txt
+publish: publish-html publish-examples publish-txt publish-ps publish-pdf
 publish-all: publish publish-tar
 
 # =================================================================== #
@@ -141,24 +139,24 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 
 # HTML
 
-$(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(SGMLSRCS)
+$(MANUAL).%.html.stamp: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
 	debiandoc2html    -l $* -c $<
 # since $(MANUAL).%.html/index.%.html can not be a target file
 	touch $(MANUAL).$*.html.stamp
 
 # TXT
 
-$(MANUAL).%.txt: $(MANUAL).%.sgml $(SGMLSRCS)
+$(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
 	debiandoc2text -l $* $<
 
 # PS
 
-$(MANUAL).%.ps: $(MANUAL).%.sgml $(SGMLSRCS)
+$(MANUAL).%.ps: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
 	debiandoc2latexps -l $* $<
 
 # PDF
 
-$(MANUAL).%.pdf: $(MANUAL).%.sgml $(SGMLSRCS)
+$(MANUAL).%.pdf: $(MANUAL).%.sgml dynamic.%.ent $(SGMLSRCS)
 	debiandoc2latexpdf -l $* $<
 
 # TAR
@@ -227,7 +225,7 @@ sf:
 	$(MAKE) BUILD_TYPE=sf "LANGS=en fr it fi pt es" scp
 
 sf-test:
-	$(MAKE) BUILD_TYPE=sf "LANGS=en fr it fi pt es" html
+	$(MAKE) BUILD_TYPE=sf "LANGS=en fr it fi pt es" text
 
 sf-clean:
 	$(MAKE) BUILD_TYPE=sf distclean
@@ -253,6 +251,6 @@ clean:
 	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent date.ent $(MANUAL).tar.gz
 	rm -rf $(MANUAL)*.html *stamp
 
-.PHONY: all html txt ps pdf files tar sf \
+.PHONY: all html text txt ps pdf files tar sf \
 	publish publish-all publish-html publish-files publish-tar \
 	clean distclean validate

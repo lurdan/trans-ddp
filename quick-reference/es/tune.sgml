@@ -1,0 +1,462 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.14.4.3"  -->
+
+<chapt id="tune"> Tuning a &debian; system
+
+<![%FIXME[<p>===Proof reading: dsew DONE ===]]>
+
+<sect id="sudo"><prgn>sudo</prgn> - safer work environment
+<p>
+My usage of <prgn>sudo</prgn> is mostly a protection from my own stupidity.  I consider
+using <prgn>sudo</prgn> a better alternative to always using the system as root.
+YMMV. 
+<p>
+Install <prgn>sudo</prgn> and activate it by setting options in
+<url id="&examples;" name="/etc/sudoers">.
+<p>
+The sample configuration provides staff group members access to any
+commands run as root under <prgn>sudo</prgn> and also gives src members access to
+selected commands run as root under <prgn>sudo</prgn>.
+<p>
+The advantage of <prgn>sudo</prgn> is that it only requires an ordinary user's password to
+log in, and activity is monitored.  This is nice way to give some authority to
+a junior administrator.  For example:
+<example>
+$ sudo chown -R myself:mygrp .
+</example>
+<p>
+Of course if you know the root password (as most home users do),
+any command can be run under root from a user account:
+<example>
+$ su -c "shutdown -h now"
+Password:
+</example>
+(I know I should tighten the admin account's <prgn>sudo</prgn> privileges.
+But since this is my home server, I have not bothered yet.)
+<p>
+For a different program that allows ordinary users to run commands with root
+privileges, see the <package>super</package> package.
+</sect>
+
+<sect id="backup">Backup of configuration files
+<p>
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect>
+
+<sect id="cdrw">CD-writer
+<p>
+CD-writers with ATAPI/IDE interfaces have recently become a very popular
+option.  It is a nice media for system backup and archiving for the home user
+needing &lt; 640 MB capacity.  For the most authoritative information, see
+CD-Writing-HOWTO (LDP). (Make sure you have a version from 2000 or later.)
+
+<sect1>Introduction
+<p>
+First, any disruption of data sent to the CD-writer will cause irrecoverable
+damage to the CD. Get a CD-writer with as large a buffer as possible. If money
+is no object, do not bother with ATAPI/IDE, just get a SCSI version.  If you
+have a choice of IDE interface to be connected, use the one on the PCI-bus
+(i.e., on the motherboard) rather than one on the ISA-bus (an SB16 card,
+etc.).
+<p>
+When a CD-writer is connected to IDE, it has to be driven by the IDE-SCSI
+driver instead of an ordinary IDE CD driver. Also, the SCSI generic driver
+needs to be activated. There are two possible approaches for of doing this,
+assuming a kernel distributed with modern distributions (as of March 2001).
+</sect1>
+
+<sect1>Approach 1: modules + <prgn>lilo</prgn>
+<p>
+Add the following line to <file>/etc/lilo.conf</file> if you are using a stock Debian
+kernel. If multiple options are used, list them separated by spaces:
+<example>
+append="hdx=ide-scsi ignore=hdx"
+</example>
+Here the location of the CD-writer, which is accessed through the ide-scsi driver,
+is indicated by <tt>hdx</tt>, where <em>x</em> represents one of the following:
+<example>
+hdb      for a slave on the first IDE port
+hdc      for a master on the second IDE port
+hdd      for a slave on the second IDE port
+hde-hdh  for a drive on an external IDE port
+</example>
+Type the following commands as root to activate after finishing all the
+configuration:
+<example>
+# lilo
+# shutdown -h now
+</example>
+</sect1>
+
+
+<sect1>Approach 2: recompile the kernel
+<p>
+Debian uses <prgn>make-kpkg</prgn> to create a kernel.  Use the new
+<tt>--append_to_version</tt> with make-kpkg to build multiple kernel images.
+Use the following setup through <tt>make menuconfig</tt>:
+<list>
+<item>bzImage
+<item>Exclude the IDE CD driver (not a must, but simpler to do this)
+<item>Compile in ide-scsi and sg, or make them modules
+</list>
+</sect1>
+
+<sect1>Post-configuration steps
+<p>
+Kernel support for the CD-writer can be activated during booting by
+the following:
+<example>
+# echo ide-scsi &gt;&gt;/etc/modules
+# echo sg       &gt;&gt;/etc/modules
+# cd /dev; ln -sf scd0 cdrom
+</example>
+Manual activation can be done by:
+<example>
+# modprobe ide-scsi
+# modprobe sg
+</example>
+After reboot, you can check installation by:
+<example>
+$ dmseg|less
+# apt-get install cdrecord
+# cdrecord -scanbus
+</example>
+</sect1>
+
+<sect1>CD-image file (bootable)
+<p>
+To create a CD-ROM of files under <file>target-directory/</file> as
+<file>cd-image.raw</file>
+(bootable, Joliet TRANS.TBL-enabled format; if not bootable, take out
+<tt>-b</tt> and <tt>-c</tt> options), insert a boot floppy in the first floppy drive and
+<example>
+# dd if=/dev/fd0 target-directory/boot.img 
+# mkisofs -r -V volume_id -b boot.img -c bootcatalog -J -T \
+        -o cd-image.raw target_directory/
+</example>
+<p>
+One funny hack is to make a bootable DOS CD-ROM.  If an ordinary DOS boot
+floppy disk image is in the above <file>boot.img</file>, the CD-ROM will boot
+as if a DOS floppy were in the first floppy drive (A:).  Doing this with
+freeDOS may be more interesting.
+<p>
+This CD-image file can be inspected by mounting it on the loop device.
+<example>
+# mount -t iso9660 -o ro,loop cd-image.raw /cdrom
+# cd /cdrom
+# mc
+# umount /cdrom
+</example>
+</sect1>
+
+<sect1>Write to the CD-writer (R, R/W):
+<p>
+First test with (assuming double speed)
+<example>
+# nice --20 cdrecord -dummy speed=2 dev=0,0 disk.img
+</example>
+Then if OK, write to CD-R with
+<example>
+# nice --20 cdrecord -v -eject speed=2 dev=0,0 disk.img
+</example>
+Or write to a CD-RW disk with
+<example>
+# nice --20 cdrecord -v -eject blank=fast speed=2 dev=0,0 disk.img
+</example>
+</sect1>
+
+<sect1>Make an image file of a CD
+<p>
+Some CD-R's and commercial CD's have junk sectors at the end that make copying
+by <prgn>dd</prgn> impossible (the Windows 98 CD is one of them).  The
+<package>cdrecord</package> package comes with the <prgn>readcd</prgn> command.  Use this to copy
+any CD contents to an image file.  If it is a data disk, mount it and run
+<prgn>mount</prgn> to see its actual size.  Divide the number shown (in blocks, = 1024
+bytes) by 2 to get the number of actual CD sectors (2048 bytes).  Run
+<prgn>readcd</prgn> with options and use this disk image to burn the CD-R/RW.
+<example>
+# readcd [target] [lun] [scsibusno] # select function 11
+</example> 
+Here, set all 3 command line parameters to 0 for most cases.  Sometimes the
+number of sectors given by <prgn>readcd</prgn> is excessive!  Use the above
+number from an actual mount for better results.
+<example>
+My CD-R       = +2 sectors
+MS Windows CD = +1 sector, i.e., +2048 bytes
+</example>
+</sect1>
+
+<sect1>Create Debian CD image
+<p>
+To obtain the latest information, visit the
+<url id="&debian-cd;" name="Debian CD site."> 
+The latest software can be obtained by anonymous CVS.
+<example>
+$ export CVSROOT=anonymous@cvs.debian.org:/cvs/debian-boot
+$ cvs co debian-cd
+</example>
+Following is a summary of CD image creation. 
+<example>
+# apt-get install debian-cd
+# cd /etc/debian-cd
+# vim CONF.sh
+$ . CONF.sh
+$ make distclean
+$ make status
+$ make list COMPLETE=1 SIZELIMIT1=555000000 SRCSIZELIMIT=665000000
+$ make official_images
+ or if you want only binary images :
+$ make bin-official_images
+</example>
+</sect1>
+
+<sect1>Backup system to CD-R
+<p>
+Copy key configuration files and data files to CD-R.
+Use script here: <url id="examples/" name="backup">
+</sect1>
+
+<sect1>Copy music CD to CD-R
+<p>
+Not tested by me:
+<example>
+# apt-get get install cdrecord cdparanoia
+# cdparanoia -s -B
+# cdrecord dev=0,0,0 speed=2 -v -dao -eject defpregap=1 -audio *.wav
+</example>
+or,
+<example>
+# apt-get install cdrdao #disk at once
+# cdrdao read-cd --device /dev/cdrom --driver generic-mmc \
+        --paranoia-mode 3 my_cd # read cd
+# cdrdao write --device /dev/cdrom --driver generic-mmc --speed 8 \
+        my_cd # write a new CD
+</example>
+<prgn>cdrdao</prgn> does a real copy (no gaps, etc...)
+</sect1>
+</sect>
+
+<sect>X program
+<p>
+An "X server" is a program that displays an X window and/or desktop on a
+user's CRT and accepts keyboard and mouse input. An "X client" is a program on
+a host that runs X-window-compatible application software. This reverses the
+ordinary use of "server" and "client" in other contexts.  For details refer to
+XWindow-User-HOWTO (LDP) and Remote-X-Apps (LDP mini).
+
+<sect1>X server
+<p>
+See <manref name="XFree86" section="1"> for X server information.
+<p>
+To (re)configure X4 in Woody, run:
+<example>
+# dpkg-reconfigure --p=low xserver-xfree86
+</example>
+<p>
+Invoke X server from local console:
+<example>
+$ startx -- :&lt;display&gt; vtXX 
+eg.:
+$ startx -- :1 vt8
+... start on vt8 connected to localhost:1
+</example>
+There are several ways of getting the X server (display side) to accept remote
+connections from an X client (application side):  the host list mechanism
+(<prgn>xhost</prgn>), the magic cookie mechanism (<prgn>xauth</prgn>), and
+port forwarding with <prgn>ssh</prgn> (secure shell).  I explain the easy
+ones, <prgn>xhost</prgn> (insecure) and <prgn>ssh</prgn> (secure), below.
+</sect1>
+
+<sect1>X client
+<p>
+The X client program (application side) obtains the display to connect to by inspecting
+the DISPLAY environment variable.  For example, prior to running an X
+client progran, executing one of the following commands achieves this:
+<example>
+$ export DISPLAY=:0 
+        # The default, local machine using the first X screen
+$ export DISPLAY=hostname.fulldomain.name:0.2
+$ export DISPLAY=localhost:0
+</example>
+Here,
+<list>
+<item><tt>hostname:<var>D.S</var></tt> means screen <var>S</var> on display
+<var>D</var> of host <tt>hostname</tt>; the X server for this display is
+listening to TCP port 6000+D.  <item><tt>host/unix:<var>D.S</var></tt> means
+screen <var>S</var> on display <var>D</var> of host <tt>host</tt>; the X
+server for this display is listening to UNIX domain socket
+<file>/tmp/.X11-unix/XD</file> (so it's only reachable from <tt>host</tt>).
+<item><tt><var>:D.S</var></tt> is equivalent to
+<tt>host/unix:<var>D.S</var></tt>, where <tt>host</tt> is the local hostname.
+</list>
+This setting can be overridden by giving the X client the command-line
+argument <tt>-display hostname:0</tt> when it's started.
+</sect1>
+
+<sect1 id="xtcp">TCP/IP connection to X
+<p>
+By default, X11 doesn't allow TCP/IP (remote) connections in the recent
+versions of Debian.  Following will reviel it:
+<example>
+# find /etc/X11 -type f -print0 | xargs -0 grep nolisten
+/etc/X11/xinit/xserverrc:exec /usr/bin/X11/X -dpi 100 -nolisten tcp
+</example>
+Remove "-nolisten" to allow TCP/IP connection in X.
+</sect1>
+ 
+<sect1>Remote X connection: <prgn>xhost</prgn>
+<p>
+<prgn>xhost</prgn> allows access based on hostnames. This is very insecure.
+If used behind a firewall with trusted users, the following will disable host
+checking and allow connections from anywhere:
+<example>
+$ xhost +
+</example>
+You can re-enable host checking with:
+<example>
+$ xhost -
+</example>
+<p>
+<prgn>xhost</prgn> does not distinguish between different users on the remote host.
+Also, hostnames (addresses actually) can be spoofed. This is bad if
+you're on an untrusted network (for instance with dialup PPP
+access to the Internet).
+</sect1>
+
+<sect1>Remote X connection: <prgn>ssh</prgn>
+<p>
+This is a secure and easy way to make a connection from a local X server to a
+remote application server.  Start the X server on a local workstation. Open an
+xterm in it and run <prgn>ssh</prgn> to establish a connection with the remote
+site.  Then run X application commands on the remote site from the xterm
+prompt.
+<example>
+localname @ localhost $ ssh -q -X -l loginname remotehost.domain
+Password:
+.....
+loginname @ remotehost $ gimp &
+</example>
+</sect1>
+
+<sect1 id="xtermfaq">Xterm
+<p>
+Everything about xterm at
+<url id="&xtermfaq;">
+</sect1>
+
+<sect1 id="ss-xsu">Gain root in X
+<p>
+Ceate $HOME/.xinitrc as:
+<example>
+# This makes X work when I su to root.
+if [ -z "$XAUTHORITY" ]; then
+        XAUTHORITY=$HOME/.Xauthority
+        export XAUTHORITY
+fi
+</example>
+and run "su" in xterm.
+</sect1>
+ 
+</sect>
+
+<sect id="ssh">SSH
+<p>
+SSH (Secure SHell) is the secure way to connect over internet.  I use openSSH.
+The version in Woody uses SSH2; be careful if you are migrating.
+
+<sect1 id="ssh-basics">Basics
+<p>
+The non-US <package>ssh</package> package needs to be available for installation.
+<example>
+# apt-get install ssh
+</example>
+The following will start an <prgn>ssh</prgn> connection.
+<example>
+$ ssh username@hostname.domain.ext
+$ ssh -1 username@hostname.domain.ext # Force SSH version 1
+</example>
+For the user, <prgn>ssh</prgn> functions as a smarter <prgn>telnet</prgn>
+(will not bomb with ^]).  
+</sect1>
+
+<sect1 id="ssh-forward">Port forwarding &ndash; for SMTP/POP3 tunneling
+<p>
+To establish a pipe to connect to port 25 of <var>remote-server</var> from port 4025 of
+localhost, and to port 110 of <var>remote-server</var> from port 4110 of localhost
+through <prgn>ssh</prgn>, execute on the local machine:
+<example>
+# ssh -q -L 4025:remote-server:25 4110:remote-server:110 \
+           username@remote-server
+</example>
+This is a secure way to make connections to SMTP/POP3 servers over the Internet.
+</sect1>
+
+<sect1 id="ssh-rsa">Connect with fewer passwords &ndash; RSAAuthentication
+<p>
+<em>[POTATO-SSH1]</em>
+One can avoid having to remember a password for each remote system by using
+RSAAuthentication.  
+<p>
+On the remote system, be sure there is a line set to 
+"RSAAuthentication yes" in <file>/etc/ssh/sshd_config</file> and run:
+<example>
+$ ssh-keygen
+$ cat .ssh/identity.pub | ssh user1@remote \
+        "cat - &gt;&gt;.ssh/authorized_keys"
+</example>
+One can change the passphrase later with <tt>ssh-keygen -p</tt>.
+Make sure to verify settings by testing the connection.  In case of any
+problem, use <tt>ssh -v</tt>.
+<p>
+You can add options to the entries in <prgn>authorized_keys</prgn> to limit
+hosts and to run specific commands. See <manref name="sshd" section="8"> for details.
+<p>
+<em>[WOODY-SSH2]</em>
+To avoid needing to remember a password for each remote system, run the
+following without any passphrase:
+<example>
+$ ssh-keygen -t rsa
+$ cat .ssh/id_rsa.pub | ssh user1@remote \
+        "cat - &gt;&gt;.ssh/authorized_keys"
+</example>
+One can add/change the passphrase later with <tt>ssh-keygen -p</tt>.  Make sure 
+to verify settings by testing the connection.  In case of any problem, use
+<tt>ssh -v</tt>.
+<p>
+You can add options to the entries in <prgn>authorized_keys</prgn> to limit
+hosts and to run specific commands. See <manref name="sshd" section="8"> for
+details.
+<p>
+Note that SSH2 has HostbaseAuthentication. For this to work, you may need to
+adjust settings in <file>/etc/ssh/ssh_config</file> on the client machine:
+<list>
+<item>Set "HostbasedAuthentication yes"
+<item>If there is a PreferredAuthentications line, "hostbased" should be the
+first option (this is the default setting for <prgn>ssh</prgn>)
+</list>
+<p>
+<![%FIXME[<p>=== Add info on "ssh-agent" ===]]>
+</sect1>
+
+<sect1 id="ssh-trouble">Troubles
+<p>
+If you have problems, check the permissions of configuration files and run
+<prgn>ssh</prgn> with <tt>-v</tt>.
+<p>
+Use <tt>-P</tt> if you are root and have trouble with a firewall; this avoids the use
+of server ports 1&ndash;1023.
+<p>
+If <prgn>ssh</prgn> connections to a remote site suddenly stop working, it may be the
+result of tinkering by the sysadmin, most likely a change in
+<prgn>host_key</prgn> during system maintenance.  After making sure this is
+the case and nobody is trying to fake the remote host by some clever hack, one
+can regain connection by removing the <prgn>host_key</prgn> entry from
+<file>~/.ssh/known_hosts</file> on the local machine.
+</sect1>
+
+
+</sect>
+</chapt>

@@ -1,0 +1,273 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.18.4.3"  -->
+
+<chapt id="gateway"> Building a gateway with a &debian; system
+
+<![%FIXME[<p>===Proof reading by dsew: DONE  ===]]>
+
+<p>
+&debian; offers an all-purpose gateway machine, which handles NAT,
+mail, DHCP, DNS cache, http proxy cache, CVS, NFS, and Samba services
+for a home LAN system.
+
+<sect>Network configuration
+<p>
+
+<sect1 id="ip-class">Host configuration for the gateway
+<p>
+The LAN uses IP addresses for the following private network range to avoid IP
+address collision with the Internet.
+<example>
+Class A: 10.0.0.0                    with mask 255.0.0.0
+Class B: 172.16.0.0 - 172.31.0.0     with mask 255.255.0.0
+Class C: 192.168.0.0 - 192.168.255.0 with mask 255.255.255.0
+</example>
+<p>
+Debian uses <file>/etc/network/interfaces</file> for IP configuration.
+<p>
+For example, if <file>eth0</file> connects to the Internet with a
+DHCP-provided IP address and <file>eth1</file> connects to the LAN,
+<file>/etc/network/interfaces</file> is set as following (Woody or later):
+<example>
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet static
+address 192.168.1.1
+network 192.168.1.0
+netmask 255.255.255.0
+broadcast 192.168.1.255
+</example>
+Issue the following command to update the networking configuration to the
+new <file>/etc/network/interfaces</file>:
+<example>
+# /etc/init.d/networking restart
+</example>
+Reminder: The <file>interfaces</file> file in Woody or later releases is
+not compatible with Potato.
+<p>
+If the system uses a PCMCIA NIC, one needs to set up the network through
+<file>/etc/pcmcia/network.opts</file> instead.
+<p>
+Check the output of the following if in doubt:
+<example>
+# ifconfig
+# cat /proc/pci
+# cat /proc/interrupts
+# dmesg|more
+</example>
+Sometimes, DSL (PPPoE?) has MTU issues.  Refer to the DSL-HOWTO (LDP).
+</sect1>
+
+<sect1>IP-masquerade
+<p>
+Machines on the LAN can access Internet resources through a gateway
+which runs IP-masquerade (NAT).
+<example>
+# apt-get install ipmasq
+</example>
+Apply example rules to strengthen the <prgn>ipmasq</prgn> protection.
+See <file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
+<!-- Now upstream is current
+Updated scripts here:
+<url id="&debian-reference;examples/"
+name="A80firewall.def I80firewall.def O80firewall.def">.
+-->
+For Debian kernel-image-2.4, make sure to load the proper modules.  See
+<ref id="kernel-net">.
+<p>
+For Debian kernel-image-2.2, edit <file>Z92timeouts.rul</file> in
+<file>/etc/masq/rules</file> as follows:
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - default
+# 1 day, 10 min, 10 min - longer example
+$IPCHAINS -M -S 86400 600 600
+</example>
+Also, if the network is accessed through a PCMCIA NIC, <prgn>ipmasq</prgn>
+needs to be started from <file>/etc/pcmcia/network.opts</file>.  Read
+<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
+</sect1>
+
+<sect1>Network configuration checkpoints
+<p>
+Typical set of programs:
+<example>
+# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
+# apt-get install ssh cvs
+</example>
+<p>
+Then check the following files:
+<example>
+/etc/init.d/dhcpd       (edit to serve only LAN = eth1)
+/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) for NFS
+/etc/exports            (Need this for NFS)
+/etc/bind/db.192.168.1  (add)
+/etc/bind/db.lan        (add)
+/etc/bind/named.conf    (edit)
+/etc/resolve.conf       (edit)
+/etc/hosts
+/etc/dhcpd.conf         (edit for LAN = eth1)
+/etc/dhclient.conf      (edit to force local DNS)
+/etc/samba/smb.conf
+/etc/exim/exim.conf
+/etc/mailname
+/etc/aliases
+/etc/squid.conf         (add all LAN host IP as allowed)
+</example>
+<prgn>bind</prgn> creates a local cache DNS server and changes DNS to
+localhost.  Check <file>/etc/resolve.conf</file>:
+<example>
+nameserver 127.0.0.1
+search lan.aokiconsulting.com
+</example>
+</sect1>
+
+</sect>
+
+<sect>Manage multiple net connections
+<p>
+[FIXME] Policy routing (by Phil Brutsche pbrutsch@tux.creighton.edu):
+See the <url id="&iproute;" name="iproute manual"> for
+details.  Traffic control (tc) may also be interesting.
+<p>
+Environment:
+<example>
+eth0: 192.168.1.2/24; gateway 192.168.1.1
+eth1: 10.0.0.2/24; gateway 10.0.0.1
+No masquerading on this machine.
+</example>
+Special magic:
+<example>
+# ip rule add from 192.168.1.2 lookup 1
+# ip rule add from 10.0.0.2 lookup 2
+# ip route add to default via 10.0.0.1 metric 0
+# ip route add to default via 192.168.1.1 metric 1
+# ip route add table 1 to 192.168.1.0/24 via eth0
+# ip route add table 1 to 10.0.0.2/24 via eth1
+# ip route add table 1 to default via 192.168.1.1
+# ip route add table 2 to 192.168.1.0/24 via eth0
+# ip route add table 2 to 10.0.0.2/24 via eth1
+# ip route add table 2 to default via 10.0.0.2
+</example>
+[FIXME] I've never done this.  How to setup dialup as backup to a fast
+connection?
+</sect>
+
+<sect>Mail programs
+<p>
+Mail configuration divides into three categories:
+<list>
+<item>MTA: <prgn>exim</prgn>
+<item>MUA: <prgn>mutt</prgn>
+<item>Utilities: <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
+<prgn>mail</prgn>, ...
+</list>
+
+<sect1>Mail transport agent (Exim)
+<p>
+Use <prgn>exim</prgn> as the mail transfer agent (MTA). Configure:
+<example>
+/etc/exim/exim.conf     "eximconfig" to create and edit
+/etc/inetd.conf         comment out smtp to run exim as daemon
+/etc/email-addresses    Add spoofed source address lists
+check filters using exim -brw, -bf, -bF, -bV, ... etc.
+</example>
+</sect1>
+
+<sect1>Catch-all for nonexistent email addresses (Exim)
+<p>
+In <file>/etc/exim/exim.conf</file> (Woody or later),
+in the DIRECTORS part, at the end (after the localuser: director)
+add a catch-all director that matches all addresses that the
+previous directors couldn't resolve (per Miquel van Smoorenburg):
+<example>
+catchall:
+  driver = smartuser
+    new_address = webmaster@mydomain.com
+</example>
+<p>
+If one wants to have more a detailed recipe for each virtual domain, etc., 
+add the following at the end of <file>/etc/exim/exim.conf</file> 
+(per me, not well tested):
+<example>
+*@yourdomain.com ${lookup{$1}lsearch*{/etc/email-addresses} \
+        {$value}fail} T
+</example>
+Then have an "*" entry in <file>/etc/email-addresses</file>
+</sect1>
+
+<sect1>Mail user agent (Mutt)
+<p>
+Use <prgn>mutt</prgn> as the mail user agent (MUA) in combination with
+<prgn>vim</prgn>.  (This is not gateway machine thing per se but since
+many "Mail" issues are here, I included here.)
+Customize with <file>~/.muttrc</file>; for example:
+
+<![%FIXME[<p>=== I think some of the contents of this muttrc is
+                 off-topic.  Mutt has relatively sane defaults for
+                 header display, etc.  I think it should only contain
+                 customizations that are necessary depending on the
+                 local configuration (set from, set realname, set
+                 editor, set folder...) -bignachos 
+		 
+		 Yes: I should have mail topics separated from this doc. 
+		 But unignore is GOOD (OA)
+		 ===]]>
+<example>
+# use visual mode and "gq" to reformat quotes
+set editor="vim -c 'set tw=72 et ft=mail'"
+#
+# header weeding taken from the manual (Sven's Draconian header weeding)
+#
+ignore *
+unignore from: date subject to cc
+unignore user-agent x-mailer
+hdr_order from subject to cc date user-agent x-mailer
+auto_view application/msword
+....
+</example>
+Add the following to <file>/etc/mailcap</file> or
+<file>$HOME/.mailcap</file> to display HTML mail and MS Word attachments
+inline:
+<example>
+text/html; lynx -force_html %s; needsterminal;
+application/msword; /usr/bin/antiword '%s'; copiousoutput;
+description="Microsoft Word Text"; nametemplate=%s.doc
+</example>
+
+</sect1>
+
+<sect1>Mail utility (Fetchmail)
+<p>
+<prgn>fetchmail</prgn> is run in daemon mode to fetch mail from a POP3 account
+with an ISP into the local mail system.  Configure:
+<example>
+/etc/init.d/fetchmail   
+/etc/rc?.d/???fetchmail run update-rc.d fetchmail default priority 30
+/etc/fetchmailrc        configuration file (chown 600, owned by fetchmail)
+</example>
+<p>
+Information on how to start fetchmail as a daemon from the <prgn>init.d</prgn> 
+script for Potato is confusing (Woody fixed this).
+<url id="&examples;" name="/etc/init.d/fetchmail and /etc/fetchmailrc">
+<p>
+If your e-mail headers are contaminated by ^M due to your ISP's mailer, add
+"stripcr" to your options in <file>$HOME/.fetchmailrc</file>:
+<example>
+options fetchall no keep stripcr
+</example>
+</sect1>
+
+<sect1>Mail utility (Procmail)
+<p>
+<prgn>procmail</prgn> is a local mail delivery / filter program. One needs to create 
+<file>$HOME/.procmailrc</file> for each account that uses it. Example:
+<url id="&examples;" name="_procmailrc">
+
+</sect1>
+
+</sect>
+
+</chapt>
