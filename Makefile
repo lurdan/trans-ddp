@@ -11,6 +11,7 @@ SUBDIRS	:=	\
 		network-administrator 	\
 		project-history 	\
 		system-administrator 	\
+		securing-howto		\
 		user			\
 		programmer		\
 		intro-i18n		\
