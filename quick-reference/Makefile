@@ -87,6 +87,9 @@ publish: webs
 	$(install_dir) $(PUBLISHDIR)/$(TFILE)
 	$(install_file) --preserve-timestamps \
 	  $(TFILE).html/*.html $(PUBLISHDIR)/$(TFILE)/
+	$(install_dir) $(PUBLISHDIR)/$(TFILE)/examples
+	$(install_file) --preserve-timestamps \
+	  * $(PUBLISHDIR)/$(TFILE)/examples/
 
 # web page (auto-select language)
 webs: date.ent
