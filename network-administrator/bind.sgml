@@ -1,0 +1,371 @@
+<!-- Debian Network Administartor's Manual - DNS/BIND -->
+
+  <chapt id="dnsandbind">DNS/BIND
+<p>
+author = Ivan E. Moore II <email>rkrusty@tdyc.com</email>
+</p>
+
+<p>
+Welcome.  The purpose of this section is to help you setup BIND on Debian.  The document will start you out from ground zero to an actually working fully functional BIND system.  Since there are plenty of HOWTO's out there on setting up BIND this document will just focus on setting BIND up on a Debian system.  Please refer to any of those documents for advanced configuration help.
+<p>
+I am also going to just focus on BIND 8.x since that is the current version being used by Debian and is so much better to use.  If you are using BIND 4.x I would recommend you to upgrade.
+<p>
+
+  <sect id="preparation">Preparation
+
+  <sect1>Obtaining the necessary files
+<p>
+Fist off you need to install the proper files.  Go into dselect and install the following files:
+<p>
+<example>
+Required Files:
+
+bind
+dnsutils
+
+Optional Files:
+
+bind-doc
+dns-browse
+libnet-dns-perl
+
+</example>
+<p>
+If you use apt-get, then just run this command:
+<p>
+<example>
+apt-get install bind bind-doc dnsutils
+</example>
+
+<p>
+  <sect id="bindsetting">Setting up BIND
+
+  <sect1>bindconfig
+<p>
+If you have already installed bind and answered the questions during install you can go back and reconfigure the base BIND system by typing bindconfig.  This program does just the generic basic settings.  bindconfig is what dpkg runs when it installs BIND so what I'm about to cover is exactly what you'll go through when you first install BIND. This is what it looks like.
+<p>
+  <sect2>Step 1
+<p>
+<example>
+snowcrash:/var/named# bindconfig
+
+It appears that you already have an /etc/named.conf file, suggesting
+that you have already configured BIND version 8.X at least once.  If
+you proceed, a copy of this file will be saved, but no customizations
+that you have made to it will be included in the new configuration.
+
+If this means nothing to you, go ahead and proceed with the remainder
+of the configuration process.  If you have customized /etc/named.conf,
+you probably want to stop now to preserve your customizations.
+
+Proceed to configure BIND, ignoring existing /etc/named.conf? [N] 
+</example>
+<p>
+  <sect2>Step 2
+<p>
+
+<example>
+Proceed to configure BIND, ignoring existing /etc/named.conf? [N] Y
+
+BIND Configuration
+------------------
+By answering the following questions, you can configure BIND for your system.
+If your system has already been configured, the default values will allow you
+to verify your existing configuration.
+
+Press [ENTER] 
+</example>
+<p>
+  <sect2>Step 3
+<p>
+<example>
+Forwarder Hosts
+---------------
+If you are close to a well-connected host or set of hosts which accept
+recursive DNS queries, it would be to your advantage to use them as forwarders
+in order to reduce traffic over links to outside servers.
+
+Your DNS server will send all queries not in its cache to the forwarders
+first. Each forwarder will be asked in turn until an answer is returned or the
+list is exhausted. If no answer is forthcoming from a forwarder, the server
+will continue as it would have without the forwarders.
+
+To answer this question, separate each address with a space, or answer `none'
+to eliminate all forwarder hosts.
+
+Forwarder IP addresses? [] 
+</example>
+<p>
+This option allows you to forward any DNS requests to another DNS server.  The reason you might want to do this is if your inside a firewall and cannot directly reach the outside world.  You can point your server to do all it's lookups from specific servers inside your network which can reach the outside world.
+<p>
+
+  <sect2>Step 4
+<p>
+<example>
+Localhost Entries
+-----------------
+With this option, BIND will contain entries for the `localhost' pseudo-host
+and its reverse mapping (127.0.0.1). This is recommended.
+
+Enable localhost entries? [Y] 
+</example>
+<p>
+You want this.  This allows mapping to and from your localhost which is 127.0.0.1.  
+<p>
+
+<sect2>Step 5
+<p>
+<example>
+Configuration Complete
+----------------------
+Advanced configuration, such as sortlists, xfrnets, limits, and other options
+can be accomplished by manually editing the /var/named/boot.options
+configuration file and reloading your nameserver. You may wish to refer to
+the named(8) man page or review the documentation in /usr/doc/net/named to
+assist in further customization.
+
+This automatic configuration does not manipulate zone files; you should ensure
+the proper boot entries are made in /var/named/boot.zones for each primary and
+secondary zone you are serving. If you leave this file empty, your server will
+act conveniently as a caching-only name server.
+
+Saving old /var/named/boot.options to /var/named/boot.options.old ...
+Reading boot.zones ... 
+Reading boot.options ... 
+Rotated `/etc/named.conf' at Mon Dec  7 06:34:58 EST 1998.
+Reload named now with the new configuration? [Y] 
+</example>
+<p>
+All your basic configuration is now complete.  Go ahead and say yes to this so that bind will be restarted.
+<p>
+  <sect1>resolv.conf
+<p>
+/etc/resolv.conf is where Linux looks to find out how it should perform DNS lookups.  The format is as follows:
+<p>
+<example>
+domain yourdomain.com
+search yourdomain.com otherdomains.com
+nameserver 192.168.100.1
+nameserver 127.0.0.1
+</example>
+<p>
+Pretty straight forward.  The first line tells it what domain your in.  This can be ommitted if you want.  The second line is a search pattern.  This too can be ommitted.  Without it you could not do a lookup on a hostname without typing out it's fully qualified domain name.  ie.. you couldn't lookup beavis.  You'd have to lookup beavis.yourdomain.com.  (Unless you specified this information in your /etc/hosts file)
+<p>
+The "nameserver" lines tell it a search order for DNS servers.  Now since we are setting up BIND on your system you will need to change this file.  You'll want it to look more like the following:
+<p>
+<example>
+domain yourdomain.com
+search yourdomain.com
+nameserver 127.0.0.1
+nameserver x.x.x.x
+</example>
+<p>
+Replace "yourdomain.com" with whatever domain you are using and replace the "x.x.x.x" with a backup DNS server that you can use.  (This way if your's fails you still can perform lookups).
+<p>
+
+Save this file and you should be done.  What this gives you so far is the ability to lookup DNS information for the Internet.  
+
+<p>
+  <sect id="bindadvanced">Advanced Configuration
+
+  <sect1>named.conf
+
+<p>
+named.conf is where you get to tell BIND what where and how.  It is the main configuration file for BIND.  Prior to BIND 8.x this file was called named.boot.  Below is the stock named.conf file you get after installing BIND for the first time.
+<p>
+<example>
+
+// generated by named-bootconf.pl
+
+options {
+        directory "/var/named";
+        /*
+         * If there is a firewall between you and nameservers you want
+         * to talk to, you might need to uncomment the query-source
+         * directive below.  Previous versions of BIND always asked
+         * questions using port 53, but BIND 8.1 uses an unprivileged
+         * port by default.
+         */
+        // query-source address * port 53;
+};
+
+//
+// Boot file for name server
+//
+// type         domain                  source          file
+zone "." {
+        type hint;
+        file "named.root";
+};
+
+// Zone boot information and daemon options are kept in other files
+// (autoincluded from boot.zones)
+//
+// Name server zone boot file
+// See named(8) for syntax and further information
+//
+// type         domain                  source          file
+// (autoincluded from boot.options)
+//
+// Options for name server
+// Use `bindconfig' to automatically configure this file
+//
+// type         domain                  source          file
+zone "localhost" {
+        type master;
+        file "named.local";
+};
+
+zone "127.in-addr.arpa" {
+        type master;
+        file "named.rev-local";
+};
+
+// Custom configurations below (will be preserved)
+
+
+</example>
+<p>
+
+The named.conf file is highly configurable.  From just looking at it you can see how to add a new domain.  To add a new domain you just add the following at the bottom of your named.conf file:
+<p>
+<example>
+zone "newdomain.com" {
+        type master;
+        file "newdomain.db";
+};
+
+zone "100.168.192.in-addr.arpa" {
+        type master;
+        file "192.rev";
+};
+</example>
+<p>
+Just replace "newdomain.com" with the name of the domain you are going to perform DNS for and replace the "100.168.192.in-addr.arpa" with the proper subnet you will perform reverse DNS for.  For more information on how this works please refer to the BIND 8.x documentation located in /usr/doc. (if you installed bind-doc)
+<p>
+the "type" in the above example specifies whether your will be a master or slave for that domain.  type master means your DNS server will not rely on anyone else for information on that domain.  Other systems can be setup to perform zone-transfers of that domain.  zone-transfers means basically transferring the information to another DNS server so that server can be used to perform DNS lookups.  If you are going to pull information from another server you will need to use type slave instead.
+<p>
+
+the "file" in the above example specifies the actual file name where the information is stored or will be stored.  These files will be (or should be) located in /var/named by default.  (unless you change the "directory" statement in /etc/named.conf.)
+<p>
+By default BIND is not setup with much security and anyone can pull your information remotely.  To control who can perform zone-transfers and thus pull information from your server add this line to your named.conf file:
+
+<p>
+<example>
+
+        allow-transfer "192.168.100.1";  /* this line */
+</example>
+<p>
+This line would go into the options section like so:
+<p>
+<example>
+options {
+        directory "/var/named";
+        allow-transfer "192.168.100.1";  
+};
+
+</example>
+<p>
+Replace the 192.168.100.1 with the IP addresses of those servers you want to be able to perform zone-transfers from your site.  NOTE:  This does not mean that people not listed here will not be able to perform nslookups from your server.  It just means that they have to know what they are looking for.  They will have to know a hostname or ip address in order to do a lookup.  They will not be able to just pull all the data stored in your database files.
+
+<p>
+
+  <sect1>zone files
+<p>
+The zone files (or database files) are the heart of your BIND system.  This is where all the information is stored on what hostname goes with what ip address. 
+<p>
+  <sect2>domain zone files
+<p>
+Here is an example for a domain file for yourdomain.com.  Please note this is a very generic example and there are more features to it.  Please refer to the BIND documentation for help with these features.
+<p>
+<example>
+;
+; BIND data file for yourdomain.com
+;
+@       IN      SOA     yourdomain.com. root.yourdomain.com. (
+                              1         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Default TTL
+;
+        IN      NS      dns.yourdomain.com.
+	IN	MX	10	mail.yourdomain.com.
+
+www	IN	A	192.168.100.5
+dns	IN	A	192.168.100.10
+mail	IN	A	192.168.100.20
+
+</example>
+<p>
+Any line starting with a ; is a comment line and is ignored by BIND.  The first 6 lines are configuration lines for the zone.  These lines tell it what the zone is (yourdomain.com) who is responsible for it (root.yourdomain.com which is equivilant to root@yourdomain.com) and a few other things.  These other things include a serial number used for keeping track of when it's updated, how often to refresh the database, how often to retry a zone transfer, when the zone information will expire and a default time to live.  Most of this information is only used if you have both master and slave systems.  
+<p>
+The next two lines tell it who the primary DNS server is and who should get the mail for this domain.  You can have multiple listings of each of these.  To add more dns servers just repeat exactly what is listed changing the dns.yourdomain.com with another dns server.  To add another mail server you do the same thing except you have an extra field.  The "10" in the MX line states a priority, lower number being first.  What this means is if you have 2 MX listings, one is 10 and one is 20, it will try to deliver the mail to the MX listing with the 10 priority and if it fails it will then go to the MX listing with the 20 priority.
+<p>
+The rest of the zone file lists all your hosts and ips.  For more information other features and configuration of this information check the BIND documentation.
+<p>
+  <sect2>Reverse Files
+<p>
+The reverse lookup files are almost identicle to the domain files with only minor changes.  Here is an example of a reverse lookup file.
+<p>
+<example>
+;
+; BIND reverse data file for 192.168.100.0
+;
+@       IN      SOA     yourdomain.com. root.yourdomain.com. (
+                              1         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Default TTL
+;
+        IN      NS      dns.yourdomain.com.
+
+5	IN	PTR	www.yourdomain.com.
+10	IN	PTR	dns.yourdomain.com.
+20	IN	PTR	mail.yourdomain.com.
+
+</example>
+<p>
+The first section of this file is exactly the same as the first section of the domain zone files.  The bottom section is where it is different.  This time we are listing the last part of the IP address first and then the hostname last.  <p>
+There are 2 things you must notice here.  You have to use the fully qualified domain name here and you must put a "." at the end of it.  These 2 things are important to the file and weird things will happen if you don't do it this way.
+
+<p>
+  <sect id="bindfinishing">Finishing up
+
+  <sect1>Testing
+  <p>
+Testing is the easy part.  If you followed the directions listed here everything should work fine.  The first thing you need to do before we can properly test is to reload the database.<p>
+<example>
+/etc/init.d/bind reload
+</example>
+<p>
+Then you need to go ahead and load up nslookup and run some queries
+<p>
+<example>
+snowcrash:~# nslookup
+Default Server:  localhost
+Address:  127.0.0.1
+
+> 
+</example>
+<p>First off when you run nslookup it should look like the above example unless you have created your own domain and are using an ip address other than 127.0.0.1.  You should be able to type in www.debian.org and it should think for a few and return with www.debian.org's ip address.
+
+<p>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:2
+sgml-indent-data:t
+sgml-parent-document:"network-administrator.sgml chapt sect"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->
+
