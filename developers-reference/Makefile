@@ -17,6 +17,10 @@ DEBIANDOC2LATEX	:= debiandoc2latex
 DEBIANDOC2PS	:= debiandoc2latexps
 DEBIANDOC2PDF	:= debiandoc2latexpdf
 
+# this hint is for adding a link to the pdf version
+add_pdf_link	:= patch -p0 < add_pdf_link.diff
+remove_pdf_link	:= patch -p0 -R < add_pdf_link.diff
+
 make_directory	:= install -d -m 755
 install_file	:= install -m 644 -p
 
@@ -41,7 +45,9 @@ publish:	all
 	   $(PUBLISHDIR)/$(MANUAL)
 
 developers-reference.html:	developers-reference.sgml
+	$(add_pdf_link)
 	$(DEBIANDOC2HTML) -l en $<
+	$(remove_pdf_link)
 
 developers-reference.html/*:	developers-reference.html
 
