@@ -1,11 +1,12 @@
-<!-- CVS revision of this document "$Revision: 1.11 $"  -->
-<!-- CVS revision of original english document "1.18"  -->
+<!-- CVS revision of this document "$Revision: 1.12 $"  -->
+<!-- CVS revision of original english document "1.25"  -->
 
 <chapt id="gateway">Construire une passerelle avec &debian;
 <p>
-Linux permet d'avoir une machine passerelle tout usage, avec NAT, mail, DHCP,
-cache DNS, cache proxy HTTP, CVS, NFS, et services Samba pour un réseau local
-personnel.
+&debian; permet d'avoir une machine passerelle tout usage, avec NAT, mail,
+DHCP, cache DNS, cache proxy HTTP, CVS, NFS, et services Samba pour un réseau
+local personnel. Voir <url id="&netfilterhome;" name="Netfilter">, ou de
+nombreuses configuration de réseaux sont expliquées.
 
 <sect>Configuration réseau
 <p>
@@ -20,12 +21,12 @@ Class B: 172.16.0.0 - 172.31.0.0     avec masque 255.255.0.0
 Class C: 192.168.0.0 - 192.168.255.0 avec masque 255.255.255.0
 </example>
 <p>
-Debian utilise  <file>/etc/network/interfaces</file> pour la configuration IP.
+&debian; utilise  <file>/etc/network/interfaces</file> pour la configuration IP.
 <p>
 Par exemple, si <file>eth0</file> est connectée à l'Internet avec une adresse
 IP fournie par DHCP et <file>eth1</file> est connectée au réseau local,
 <file>/etc/network/interfaces</file> est configuré comme suit (Woody ou
-version plus récente) :
+version plus récente)&nbsp;:
 <example>
 auto eth0
 iface eth0 inet dhcp
@@ -38,17 +39,17 @@ netmask 255.255.255.0
 broadcast 192.168.1.255
 </example>
 Exécutez les commandes suivantes pour mettre à jour la configuration réseau
-avec le nouveau <file>/etc/network/interfaces</file> :
+avec le nouveau <file>/etc/network/interfaces</file>&nbsp;:
 <example>
 # /etc/init.d/networking restart
 </example>
-Rappel : le fichier <file>interfaces</file> de Woody est incompatible avec
+Rappel&nbsp;: le fichier <file>interfaces</file> de Woody est incompatible avec
 celui de Potato.
 <p>
 Si le système utilise une carte réseau PCMCIA, il faut configurer le réseau
 dans <file>/etc/pcmcia/network.opts</file> à la place.
 <p>
-En cas de doute, consultez la sortie des commandes suivantes :
+En cas de doute, consultez la sortie des commandes suivantes&nbsp;:
 <example>
 # ifconfig
 # cat /proc/pci
@@ -57,49 +58,19 @@ En cas de doute, consultez la sortie des commandes suivantes :
 </example>
 Parfois, les connexions DSL (PPPoE ?) ont des problèmes de MTU. Consultez le
 <url id="http://www.linuxdoc.org/HOWTO/DSL-HOWTO/index.html" name="DSL-HOWTO">
-du LDP.
+du LDP. Si vous avez des problèmes avec certains sites web, consultez <ref
+id="killecn">.
 </sect1>
 
-<sect1>IP-masquerade
+<sect1 id="ip-check">Points principaux de la configuration réseau
 <p>
-Les machines du LAN peuvent accéder à l'Internet à travers une passerelle qui
-utilise IP-masquerade (NAT).
-<example>
-# apt-get install ipmasq
-</example>
-Appliquez les règles de l'exemple pour fortifier la protection
-<prgn>ipmasq</prgn>. Consultez
-<file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
-<!-- Now upstream is current
-Updated scripts here:
-<url id="http://qref.sourceforge.net/quick/examples/"
-name="A80firewall.def I80firewall.def O80firewall.def">.
--->
-Pour l'image du noyau Debian 2.4, assurez-vous de charger les modules
-appropriés. Consultez <ref id="kernel-net">.
-<p>
-Pour l'image du noyau Debian 2.2, éditez <file>Z92timeouts.rul</file> dans
-<file>/etc/masq/rules</file> comme suit :
-<example>
-# tcp, tcp-fin, udp
-# 2hr, 10 sec, 160 sec - default
-# 1 day, 10 min, 10 min - longer example
-$IPCHAINS -M -S 86400 600 600
-</example>
-De plus, si le réseau est accédé par une carte PCMCIA, <prgn>ipmasq</prgn> a
-besoin d'être démarré depuis <file>/etc/pcmcia/network.opts</file>. Consultez
-<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
-</sect1>
-
-<sect1>Points principaux de la configuration réseau pour une passerelle
-<p>
-Ensemble de programmes typique :
+Ensemble de programmes typique&nbsp;:
 <example>
 # apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail
 # apt-get install ssh cvs
 </example>
 <p>
-Ensuite, consultez les fichiers suivants :
+Ensuite, consultez les fichiers suivants&nbsp;:
 <example>
 /etc/init.d/dhcpd       (éditer pour avoir LAN = eth1)
 /etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) pour NFS
@@ -119,12 +90,164 @@ Ensuite, consultez les fichiers suivants :
 comme machines autorisées)
 </example>
 <prgn>bind</prgn> crée un cache DNS local et transforme l'hôte local en
-serveur DNS. Consultez le fichier <file>/etc/resolve.conf</file> :
+serveur DNS. Consultez le fichier <file>/etc/resolve.conf</file>&nbsp;:
 <example>
 nameserver 127.0.0.1
 search lan.aokiconsulting.com
 </example>
 </sect1>
+
+<sect id="netfilter">Configuration de Netfilter
+<p>
+Le projet netfilter/iptables est un sous-système de pare-feu pour Linux 2.4 et
+supérieur. Voir <url id="&netfilterhome;" name="Netfilter">, où de nombreux
+problèmes de configuration réseau sont expliqués.
+
+<sect1 id="netfilter-basics">Bases de Netfilter
+<p>
+Le traitement des paquets par Netfilter utilise 5 chaînes par défaut&nbsp;:
+PREROUTING, INPUT, FORWARD, OUTPUT, et POSTROUTING.
+<example>
+                routing
+                decision
+IN ------> PRE ---> ------> FORWARD -----> ----> POST -----> OUT
+interface  ROUTING  \       filter       /       ROUTING     interface
+           DNAT     |       tracking     ^       SNAT
+           REDIRECT |                    |      MASQUERADE
+                    v                    |
+                  INPUT                OUTPUT
+                    | filter             ^ filter,DNAT 
+                    v                    |
+                    \--&gt; Local Process --/
+                            user-space programs
+</example>
+
+<sect1 id="netfilter-table">Table Netfilter
+<p>
+Les paquets sont traités pour chaque chaîne par défaut selon la table
+suivante.
+<list compact>
+<item>filtre (filtre de paquets, défaut)
+<list compact>
+<item>INPUT (pour les paquets venant vers la machine)
+<item>FORWARD (pour les paquets routés par la machine)
+<item>OUTPUT (pour les paquets générés localement)
+</list>
+<item>nat (network address translation, translation d'adresse réseau)
+<list compact>
+<item>PREROUTING (pour modifier les paquets dès leur entrée)
+<item>OUTPUT (pour modifier les paquets générés localement avant le routage)
+<item>POSTROUTING (pour modifier les paquets à leur sortie)
+</list>
+<item>troncage (troncage d'adresse réseau, seulement après le noyau 2.4.18)
+<list compact>
+<item>les 5 chaînes par défaut
+</list>
+</list>
+
+<sect1 id="netfilter-target">Cibles Netfilter
+<p>
+Les règles de pare-feu ont plusieurs cibles&nbsp;:
+<list compact>
+<item>4 cibles de base&nbsp;:
+<list compact>
+<item>ACCEPT signifie qu'on laisse le paquet passer.
+<item>DROP signifie qu'on laisse tomber le paquet.
+<item>QUEUE signifie qu'on passe le paquet en espace utilisateur (si cela est
+supporté par le noyau).
+<item>RETURN signifie qu'on arrête le passage dans la chaîne et qu'on continue
+à la règle suivante de la chaîne (appelante) précédente.
+</list>
+<item>cibles étendues&nbsp;:
+<list compact>
+<item>LOG active l'enregistrement dans le journal.
+<item>REJECT renvoie un paquet d'erreur et laisse tomber le paqyet.
+<item>SNAT modifie l'adresse source du paquet et est utilisé seulement dans la
+chaîne POSTROUTING. (table nat seulement)
+<example compact>
+--to-source  ipaddr[-ipaddr][:port-port]
+</example>
+<item>MASQUERADE est la même chose que SNAT mais pour des adresses IP
+assignées dynamiquement (connexion téléphonique). (table nat seulement)
+<example compact>
+--to-ports port[-port]
+</example>
+<item>DNAT modifie l'adresse de destination du paquet et est utilisé dans les
+chaînes PREROUTING et OUTPUT, et les chaînes définies par l'utilisateur qui
+sont appelées seulement depuis ces chaînes. (table nat seulement)
+<example compact>
+--to-destination ipaddr[-ipaddr][:port-port]
+</example>
+<item>REDIRECT modifie l'adresse IP de destination pour envoyer le paquet vers
+la machine elle-même.
+<example compact>
+--to-ports port[-port]
+</example>
+</list>
+</list>
+
+<sect1 id="netfilter-command">Commande Netfilter
+<p>
+Les commandes de base de <prgn>iptables</prgn> sont&nbsp;:
+<example compact>
+iptables -N <var>chaine</var>                   # crée une <var>chaine</var>
+
+iptables -A <var>chaine</var> \                 # ajoute une règle à  <var>chaine</var>
+         -t <var>table</var> \                  # utilise <var>table</var> (filtre, nat, troncage)
+         -p <var>protocol</var> \               # tcp, udp, icmp, ou tous
+         -s <var>source-address[/mask]</var> \
+         --sport <var>port[:port]</var> \       # port source si -p est tcp ou udp
+         -d <var>destination-address[/mask]</var> \
+         --dport <var>port[:port]</var> \       # port destination si -p est tcp ou udp
+         -j <var>target</var> \                 # que faire si cela correspond
+         -i <var>in-interface-name</var> \      # pour INPUT,  FORWARD, PREROUTING
+         -o <var>out-interface-name</var>       # pour FORWARD, OUTPUT, POSTROUTING
+</example>
+
+<sect1 id="ip-masq">IP-masquerade
+<p>
+Les machines du LAN peuvent accéder à l'Internet à travers une passerelle qui
+utilise IP-masquerade (NAT) en partageant une seule adresse IP accessible
+depuis l'extérieur.
+<example>
+# apt-get install ipmasq
+</example>
+Appliquez les règles de l'exemple pour fortifier la protection
+<prgn>ipmasq</prgn>. Consultez
+<file>/usr/share/doc/ipmasq/examples/stronger/README</file>.  Pour l'image du
+noyau Debian 2.4, assurez-vous de charger les modules appropriés. Consultez
+<ref id="kernel-net">.
+<p>
+Pour l'image du noyau Debian 2.2, éditez <file>Z92timeouts.rul</file> dans
+<file>/etc/masq/rules</file> comme suit pour assurer une connexion plus longue
+aux sites distants (bon pour de gros emails, etc.)&nbsp;:
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - default
+# 1 day, 10 min, 10 min - longer example
+$IPCHAINS -M -S 86400 600 600
+</example>
+De plus, si le réseau est accédé par une carte PCMCIA, <prgn>ipmasq</prgn> a
+besoin d'être démarré depuis <file>/etc/pcmcia/network.opts</file>. Consultez
+<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
+</sect1>
+
+
+<sect1 id="ip-redirect">Rediriger une connexion SMTP (2.4)
+<p>
+Supposons que vous avez un PC portable qui est configuré pour utiliser un
+autre environnement réseau et que vous voulez utiliser votre logiciel de
+courrier électronique sans le reconfigurer.
+<p>
+En ajoutant les règles suivantes avec la commande <prgn>iptables</prgn> sur la
+passerelle, la connexio SMTP sera redirigée vers la passerelle.
+<example>
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25, INPUT is open
+</example>
+Pour une règle de redirection plus complexe, installez le paquet
+<package>ipmasq</package> et ajoutez <url id="&examples;"
+name="M30redirect.def"> au répertoire <file>/etc/ipmasq/rules/</file>.
 
 </sect>
 
@@ -135,27 +258,29 @@ pbrutsch@tux.creighton.edu) Voir le <url id="http://ds9a.nl/2.4Routing/"
 name="Manuel d'iproute"> pour les détails. Le contrôle de traffic peut aussi
 être intéressant.
 <p>
-Environnement :
+Environnement&nbsp;:
 <example>
 eth0: 192.168.1.2/24; gateway 192.168.1.1
 eth1: 10.0.0.2/24; gateway 10.0.0.1
 Pas de masquerading sur cette machine.
 </example>
-Un peu de magie :
-<example>
-# ip rule add from 192.168.1.2 lookup 1
-# ip rule add from 10.0.0.2 lookup 2
-# ip route add to default via 10.0.0.1 metric 0
-# ip route add to default via 192.168.1.1 metric 1
-# ip route add table 1 to 192.168.1.0/24 via eth0
-# ip route add table 1 to 10.0.0.2/24 via eth1
-# ip route add table 1 to default via 192.168.1.1
-# ip route add table 2 to 192.168.1.0/24 via eth0
-# ip route add table 2 to 10.0.0.2/24 via eth1
-# ip route add table 2 to default via 10.0.0.2
-</example>
+Un peu de magie&nbsp;:
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
+<p>
 [FIXME] Je n'ai jamais fait cela. Comment configurer une connexion RTC en
-cas de défaillance d'une connexion rapide ?
+cas de défaillance d'une connexion rapide&nbsp;? Envoyez-moi une rustine pour
+cela s'il-vous-plaît :)
 </sect>
 
 

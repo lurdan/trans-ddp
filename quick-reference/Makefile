@@ -230,10 +230,6 @@ endif
 	 install -p -m 644 $(MANUAL1).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL1)/ ;\
 	)
-# Sourceforge does not have auto language select Apache server.
-ifeq ("$(BUILD_TYPE)", "sf")
-	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL1)/
-endif
 # Ugly but until updating all the web pages, needs these symlinks
 ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; ln -sf $(MANUAL1) debian-reference
@@ -253,10 +249,6 @@ endif
 	 install -p -m 644 $(MANUAL2).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL2)/ ;\
 	)
-# Sourceforge does not have auto language select Apache server.
-ifeq ("$(BUILD_TYPE)", "sf")
-	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL2)/
-endif
 
 publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
