@@ -35,7 +35,7 @@ PUBLISHDIR := ../../../public_html/manuals.html
 #MANUAL := $(notdir $(shell pwd))
 MANUAL := reference
 LANGS := en fr it
-EXTS := html txt pdf pdf
+EXTS := html txt pdf ps
 else
 # default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
