@@ -11,8 +11,8 @@ export LC_ALL=C
 
 MANUAL1 := reference
 MANUAL2 := quick-reference
-LANGS1 := en fr it pt-br es de pl zh-tw zh-cn
-LANGS2 := en fr it pt-br es de pl zh-tw zh-cn
+LANGS1 := en fr it pt-br es de pl zh-tw zh-cn ja
+LANGS2 := en fr it pt-br es de pl zh-tw zh-cn ja
 BUILD_TYPE := package
 ENTFILES1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).ent)
 ENTFILES2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).ent)
@@ -70,21 +70,26 @@ clean:
 	-$(MAKE) "MANUAL1=$(MANUAL1)" "LANGS1=$(LANGS1)" \
 	 "MANUAL2=$(MANUAL2)" "LANGS2=$(LANGS2)" \
 	 "BUILD_TYPE=$(BUILD_TYPE)" clean
-	-cd $(CURDIR)/debian/ ; for xx in \
+	-set -e; cd $(CURDIR)/debian/ ; for xx in \
 	debian-reference \
 	debian-reference-common ; do \
 	rm -f $${xx}.README.Debian ; done
 
-	-cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
+	-cd $(CURDIR)/debian/ ; \
+	rm -f debian-reference-common.postinst
+
+	-set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
 	rm -f debian-reference-$${xx}.README.Debian \
 	      debian-reference-$${xx}.dirs \
-	      deian-reference-$${xx}.doc-base; \
+	      debian-reference-$${xx}.doc-base \
+	      debian-reference-$${xx}.postrm \
+	      debian-reference-$${xx}.postinst ; \
 	done
 
-	-cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
+	-set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
 	rm -f quick-reference-$${xx}.README.Debian \
 	      quick-reference-$${xx}.dirs \
-	      quick-reference-$${xx}.doc-base; \
+	      quick-reference-$${xx}.doc-base ; \
 	done
 
 	dh_clean
@@ -100,7 +105,66 @@ new:    clean
 #	cvs -d :ext:osamu@cvs.qref.sf.net:/cvsroot/qref export -d ../debian-reference -D tomorrow qref
 #	cvs -d :pserver:anonymous@cvs.qref.sf.net:/cvsroot/qref up
 
-install: build
+
+copyfiles:
+#	copy README.Debian for all the packages
+	set -e; cd $(CURDIR)/debian/ ; for xx in \
+	debian-reference debian-reference-common ; do \
+	cp README.Debian.all $${xx}.README.Debian ; done
+
+	cd $(CURDIR)/debian/ ; \
+	cp postinst-full     debian-reference-common.postinst
+	# debian-reference-common.prerm exists and removes everything
+
+	cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
+	cp README.Debian.all debian-reference-$${xx}.README.Debian ; \
+	cp postinst-full     debian-reference-$${xx}.postinst ; \
+	cp postrm-full       debian-reference-$${xx}.postrm ; \
+	done
+
+	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
+	cp README.Debian.all quick-reference-$${xx}.README.Debian ; \
+	done
+
+	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
+	case $$xx in \
+	en) LANG="English" ;;  \
+	de) LANG="German" ;;   \
+	fr) LANG="French" ;;   \
+	fi) LANG="Finnish" ;;  \
+	es) LANG="Spanish" ;;  \
+	it) LANG="Italian" ;;  \
+	ja) LANG="Japanese" ;; \
+	pl) LANG="Polish" ;; \
+	pt-br) LANG="Portuguese (Brazil)" ;; \
+	zh-tw) LANG="Chinese (Traditional)" ;; \
+	zh-cn) LANG="Chinese (Simplified)" ;; \
+	esac ; \
+	cp debian-reference.dirs.all debian-reference-$${xx}.dirs ; \
+	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
+	<debian-reference.doc-base-all  >debian-reference-$${xx}.doc-base ; \
+	done
+
+	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
+	case $$xx in \
+	en) LANG="English" ;;  \
+	de) LANG="German" ;;   \
+	fr) LANG="French" ;;   \
+	fi) LANG="Finnish" ;;  \
+	es) LANG="Spanish" ;;  \
+	it) LANG="Italian" ;;  \
+	ja) LANG="Japanese" ;; \
+	pl) LANG="Polish" ;; \
+	pt-br) LANG="Portuguese (Brazil)" ;; \
+	zh-tw) LANG="Chinese (Traditional)" ;; \
+	zh-cn) LANG="Chinese (Simplified)" ;; \
+	esac ; \
+	cp quick-reference.dirs.all quick-reference-$${xx}.dirs ; \
+	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
+	<quick-reference.doc-base-all  >quick-reference-$${xx}.doc-base ; \
+	done
+
+install: build copyfiles
 	dh_testdir
 	dh_testroot
 	dh_clean -k
@@ -111,130 +175,23 @@ install: build
 	    "BUILD_TYPE=$(BUILD_TYPE)" \
 	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-common/usr/share/doc/Debian \
 	    publish-examples
-	test -d $(CURDIR)/debian/debian-reference-common/usr/bin \
-	   || install -d -m 755 $(CURDIR)/debian/debian-reference-common/usr/bin
+
 	install -m 755 --preserve-timestamps debian-reference \
 	    $(CURDIR)/debian/debian-reference-common/usr/bin/debian-reference
 
-	$(MAKE) LANGS1=en "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-en/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
+	install -m 755 --preserve-timestamps bin/mkindexhtml \
+	    $(CURDIR)/debian/debian-reference-common/usr/share/debian-reference/mkindexhtml
 
-	$(MAKE) LANGS1=fr "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-fr/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=it "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-it/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=es "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-es/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=de "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-de/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=pt-br "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-pt-br/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=pl "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-pl/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=zh-tw "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-zh-tw/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS1=zh-cn "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-zh-cn/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
-
-	$(MAKE) LANGS2=en "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-en/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=fr "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-fr/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=it "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-it/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=es "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-es/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=de "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-de/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=pt-br "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-pt-br/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=pl "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-pl/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=zh-tw "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-zh-tw/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-	$(MAKE) LANGS2=zh-cn "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-zh-cn/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
-
-#	copy README.Debian for all the packages
-	cd $(CURDIR)/debian/ ; for xx in \
-	debian-reference debian-reference-common ; do \
-	cp README.Debian.all $${xx}.README.Debian ; done
-	cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
-	cp README.Debian.all debian-reference-$${xx}.README.Debian ; done
-	cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
-	cp README.Debian.all quick-reference-$${xx}.README.Debian ; done
-
-	cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
-	case $$xx in \
-	en) LANG="English" ;;  \
-	de) LANG="German" ;;   \
-	fr) LANG="French" ;;   \
-	fi) LANG="Finnish" ;;  \
-	es) LANG="Spanish" ;;  \
-	it) LANG="Italian" ;;  \
-	ja) LANG="Japanese" ;; \
-	pl) LANG="Polish" ;; \
-	pt-br) LANG="Portuguese (Brazil)" ;; \
-	zh-tw) LANG="Chinese (Traditional)" ;; \
-	zh-cn) LANG="Chinese (Simplified)" ;; \
-	esac ; \
-	sed  -e "s/@@/$$xx/" \
-	<debian-reference.dirs.all  >debian-reference-$${xx}.dirs ; \
-	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
-	<debian-reference.doc-base.all  >debian-reference-$${xx}.doc-base ; \
+	set -e; for xx in $(LANGS1); do \
+	$(MAKE) LANGS1=$${xx} "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-$${xx}/usr/share/doc/Debian \
+	    publish-html1 publish-txt1 publish-ps1 publish-pdf1; \
 	done
 
-	cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
-	case $$xx in \
-	en) LANG="English" ;;  \
-	de) LANG="German" ;;   \
-	fr) LANG="French" ;;   \
-	fi) LANG="Finnish" ;;  \
-	es) LANG="Spanish" ;;  \
-	it) LANG="Italian" ;;  \
-	ja) LANG="Japanese" ;; \
-	pl) LANG="Polish" ;; \
-	pt-br) LANG="Portuguese (Brazil)" ;; \
-	zh-tw) LANG="Chinese (Traditional)" ;; \
-	zh-cn) LANG="Chinese (Simplified)" ;; \
-	esac ; \
-	sed  -e "s/@@/$$xx/" \
-	<quick-reference.dirs.all  >quick-reference-$${xx}.dirs ; \
-	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
-	<quick-reference.doc-base.all  >quick-reference-$${xx}.doc-base ; \
+	set -e; for xx in $(LANGS2); do \
+	$(MAKE) LANGS2=$${xx} "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-$${xx}/usr/share/doc/Debian \
+	    publish-html2 publish-txt2 publish-ps2 publish-pdf2; \
 	done
 
 # Build architecture-independent files here.

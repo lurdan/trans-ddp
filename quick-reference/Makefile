@@ -14,6 +14,9 @@
 
 export TEXMFCNF=texmf:
 
+# do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
+.SUFFIXES:
+
 # Following default shall be edited by the coordinator for the entire
 # set of languages.  If a subsection owner wishes to override settings,
 # they can be overridden by running make with "make 'LANGS1=fi'" etc.. 
@@ -49,14 +52,14 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 endif
 
 # Locales for "distclean" target for the DDP:
-LANGSALL := en fr it es de pt-br pl zh-tw zh-cn fi
+LANGSALL := en fr it es de pt-br pl zh-tw zh-cn ja ru
 # Locale list of "publish" target for the DDP full documents:
-LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn
+LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru
 # Locale list of "publish" target for the DDP short documents:
-LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn
+LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru
 
 # Files which affect SGML generation (excluding *.sgml)
-SGMLENTS := custom.ent default.ent
+SGMLENTS := default.ent
 
 # All SGML source files
 SGMLSRCS := $(foreach lang, $(LANGS1), $(MANUAL1).$(lang).sgml) \
@@ -70,8 +73,7 @@ EXAMPLE := examples
 # List of examples to be copied
 EXAMPLES := $(wildcard $(EXAMPLE)/*)
 
-TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile README index.php
-
+TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile README 
 # =================================================================== #
 #                 Build target default part: Routine                  #
 # =================================================================== #
@@ -194,12 +196,14 @@ $(MANUAL2).%.sgml: $(MANUAL0).sgml
 # HTML
 
 $(MANUAL1).%.html.stamp: $(MANUAL1).%.sgml  $(MANUAL1).%.ent $(SGMLSRCS)
+	ln -sf fix.html.ent fix.ent
 	debiandoc2html $(BUILD_OPT) -t$(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL1).$*.html
 # since $(MANUAL1).%.html/index.%.html cannot be a target file
 	touch $(MANUAL1).$*.html.stamp
 
 $(MANUAL2).%.html.stamp: $(MANUAL2).%.sgml  $(MANUAL2).%.ent $(SGMLSRCS)
+	ln -sf fix.html.ent fix.ent
 	debiandoc2html $(BUILD_OPT) -t$(MANUAL2) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL2).$*.html
 # since $(MANUAL2).%.html/index.%.html cannot be a target file
@@ -208,10 +212,12 @@ $(MANUAL2).%.html.stamp: $(MANUAL2).%.sgml  $(MANUAL2).%.ent $(SGMLSRCS)
 # TXT
 
 $(MANUAL1).%.txt: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
+	ln -sf fix.txt.ent fix.ent
 	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
 	bin/fixtxt $* $(MANUAL1).$*.txt
 
 $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
+	ln -sf fix.txt.ent fix.ent
 	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
 	bin/fixtxt $* $(MANUAL2).$*.txt
 
@@ -236,27 +242,35 @@ pdftex.fmt: texmf/language.dat
 # DVI
 
 $(MANUAL1).%.dvi: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
+	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
+	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PS
 
 $(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
+	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
+	ln -sf fix.latex.ent fix.ent
 	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
 $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt
+                  pdflatex.fmt pdftex.fmt %/hyperref-full.cfg
+	ln -sf fix.latex.ent fix.ent
+	ln -sf $*/hyperref-full.cfg hyperref.cfg
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt
+                  pdflatex.fmt pdftex.fmt %/hyperref-quick.cfg
+	ln -sf fix.latex.ent fix.ent
+	ln -sf $*/hyperref-quick.cfg hyperref.cfg
 	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 # TAR
@@ -290,27 +304,8 @@ ifeq ("$(BUILD_TYPE)", "web")
 endif
 # Create index page
 ifneq ("$(BUILD_TYPE)", "package")
-	# Make index page for web
-	@{ \
-	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
-	echo "<html>" ;\
-	echo "<head>" ;\
-	echo "<meta http-equiv=\"content-type\" content=\"text/html; charset=iso-8859-1\">" ;\
-	echo "<title>Debian Reference</title>" ;\
-	echo "</head>" ;\
-	echo "<body>" ;\
-	echo "<hr>" ;\
-	echo "<h1>Debian Reference</h1>" ;\
-	echo "<hr>" ;\
-	echo "<dl>" ;\
-	} > $(PUBLISHDIR)/$(MANUAL1)/index.html
-	@{$(foreach lang,$(LANGS1), \
-	 . makeindexhtml "$(lang)" "$(MANUAL1)" ; ) } >> $(PUBLISHDIR)/$(MANUAL1)/index.html 
-	@{ \
-	echo "</dl>" ;\
-	echo "</body>" ;\
-	echo "</html>" ;\
-	} >> $(PUBLISHDIR)/$(MANUAL1)/index.html
+	. bin/mkindexhtml "Debian Reference" "$(MANUAL1)" "$(LANGSALL)"  \
+	> $(PUBLISHDIR)/$(MANUAL1)/index.html
 endif
 
 publish-html2: html2
@@ -329,29 +324,9 @@ endif
 	)
 # Create index page
 ifneq ("$(BUILD_TYPE)", "package")
-	# Make index page for web
-	@{ \
-	echo "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">" ; \
-	echo "<html>" ;\
-	echo "<head>" ;\
-	echo "<meta http-equiv=\"content-type\" content=\"text/html; charset=iso-8859-1\">" ;\
-	echo "<title>Debian Quick Reference</title>" ;\
-	echo "</head>" ;\
-	echo "<body>" ;\
-	echo "<hr>" ;\
-	echo "<h1>Debian Quick Reference</h1>" ;\
-	echo "<hr>" ;\
-	echo "<dl>" ;\
-	} > $(PUBLISHDIR)/$(MANUAL2)/index.html
-	@{$(foreach lang,$(LANGS2), \
-	 . makeindexhtml "$(lang)" "$(MANUAL2)" ; ) } >> $(PUBLISHDIR)/$(MANUAL2)/index.html 
-	@{ \
-	echo "</dl>" ;\
-	echo "</body>" ;\
-	echo "</html>" ;\
-	} >> $(PUBLISHDIR)/$(MANUAL2)/index.html
+	. bin/mkindexhtml "Debian Quick Reference" "$(MANUAL2)" "$(LANGSALL)" \
+	> $(PUBLISHDIR)/$(MANUAL2)/index.html
 endif
-
 
 publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
@@ -452,27 +427,42 @@ publish-tar: $(MANUAL0).tar.gz
 web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
+sf-proto:
+	$(MAKE) sf-clean    BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
+	$(MAKE) publish-all BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
+	$(MAKE) scp-all     BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
+
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn"
+	if [ "x$(LANGS)" = "x" ]; then \
+		LANGS="en fr it es pt-br de pl zh-tw zh-cn ja ru" ;\
+	fi ;\
+	$(MAKE) sf-proto \
+	 "LANGS1=$$LANGS" \
+	 "LANGS2=$$LANGS" 
 
 sf-test:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn" txt
+	$(MAKE) txt BUILD_TYPE=sf \
+	 "LANGS1=en fr it es pt-br de pl zh-tw zh-cn ja ru" \
+	 "LANGS2=en fr it es pt-br de pl zh-tw zh-cn ja ru"
 
 sf-clean:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn pl" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn pl" distclean 
-
-scp: publish-all scp-all
+	$(MAKE) distclean   BUILD_TYPE=sf \
+	 "LANGS1=en fr it es pt-br de pl zh-tw zh-cn ja ru" \
+	 "LANGS2=en fr it es pt-br de pl zh-tw zh-cn ja ru"
 
 scp-all:
+	$(MAKE) scp-init BUILD_TYPE=sf
+	$(MAKE) scp0     BUILD_TYPE=sf
+	$(MAKE) scp1     BUILD_TYPE=sf
+	$(MAKE) scp2     BUILD_TYPE=sf
+	$(MAKE) scp3     BUILD_TYPE=sf
+
+scp-init:
 	echo SCP all files
 #	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
-	make BUILD_TYPE=sf scp0
-	#sleep 1m
-	make BUILD_TYPE=sf scp1
-	#sleep 6m
-	make BUILD_TYPE=sf scp2
 
 scp0:
 	echo SCP README
@@ -486,6 +476,10 @@ scp1:
 	echo SCP $(MANUAL1) html
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.html \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+
+	echo SCP $(MANUAL1) $(EXAMPLE)
+	scp -prC $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/* \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
 
 	echo SCP $(MANUAL1) txt
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.txt \
@@ -516,16 +510,21 @@ scp2:
 	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.pdf \
 	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
+scp3: manual.html.stamp
+	echo SCP manual.html
+	scp -prC manual.html/*.html \
+	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/doc/
+
 #====[ validating SGML ]=======================================================
 validate:
 	set -x; for i in $(LANGS1); do $(MAKE) validate1-$$i ; done
 	set -x; for i in $(LANGS2); do $(MAKE) validate2-$$i ; done
 
-validate1-%: $(SGMLSRCS) $(MANUAL1)-%.ent 
-	nsgmls -gues -wall $(MANUAL1)-$*.sgml
+validate1-%: $(SGMLSRCS) $(MANUAL1).%.ent 
+	nsgmls -gues -wall $(MANUAL1).$*.sgml
 
-validate2-%: $(SGMLSRCS) $(MANUAL2)-%.ent 
-	nsgmls -gues -wall $(MANUAL2)-$*.sgml
+validate2-%: $(SGMLSRCS) $(MANUAL2).%.ent 
+	nsgmls -gues -wall $(MANUAL2).$*.sgml
 
 # check hyphenations created by LaTeX against {en,...}/validLaTeX.hyphen
 check-hyphen:
@@ -538,6 +537,36 @@ check-hyphen1-%: $(MANUAL1).%.dvi
 check-hyphen2-%: $(MANUAL2).%.dvi
 	hyphen_show $(MANUAL2).$*.dvi $*/validLaTeX.hyphen
 
+#====[ check all URLs ]========================================================
+check-urls:
+	for i in $(LANGS1); do $(MAKE) check-urls1-$$i ; done
+	for i in $(LANGS2); do $(MAKE) check-urls2-$$i ; done
+
+define CHECK_URLS # one argument $1: reference or quick-reference
+# Bug: Woody's wget hangs during http://localhost:631 check 
+	for file in $(1).$*.html/*.html; do \
+	  sed 's|http://localhost:631/|Ignore this wrong URL/|g' $$file | \
+	  wget --spider --non-verbose --force-html \
+	       --base=$(1).$*.html/ -i - 2>&1 | \
+          grep -v '^200 OK$$' | grep -v '^ *$$'; \
+	done || true
+endef
+
+check-urls1-%: $(MANUAL1).%.html.stamp
+	$(call CHECK_URLS,$(MANUAL1))
+
+check-urls2-%: $(MANUAL2).%.html.stamp
+	$(call CHECK_URLS,$(MANUAL2))
+
+#====[ manual ]================================================================
+
+manual.txt: manual.sgml
+	debiandoc2text manual.sgml
+
+manual.html.stamp: manual.sgml
+	debiandoc2html manual.sgml
+	touch manual.html.stamp
+	
 #====[ cleaning up ]===========================================================
 distclean: clean
 	make "PUBLISHDIR=~/public_html/" publish-clean
@@ -549,21 +578,30 @@ publish-clean:
 	rm -Rf $(PUBLISHDIR)/$(MANUAL2)
 	rm -f $(PUBLISHDIR)/debian-reference
 
+clean_SUFFIXES := txt ps dvi pdf info* log tex aux toc sasp* out tov tpt hyp
+
 clean:
-	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt,hyp}
-	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt,hyp}
+	rm -f $(addprefix $(MANUAL1).*.,$(clean_SUFFIXES))
+	rm -f $(addprefix $(MANUAL2).*.,$(clean_SUFFIXES))
 	rm -f *~ prior.aux pprior.aux *.log typescript README README.html
-	rm -f {latex,pdflatex,pdftex}.{fmt,log} *.tex[01]pdf *.tex[01]ps
-	rm -f $(MANUAL0).tar.gz
-	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent
-	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent date.ent
+	rm -f latex.fmt pdflatex.fmt pdftex.fmt
+	rm -f latex.log pdflatex.log pdftex.log
+	rm -f *.tex[01]pdf *.tex[01]ps
+	rm -f $(MANUAL0).tar.gz fix.ent hyperref.cfg
+	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent
+	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent
 	rm -rf $(MANUAL1)*.html *stamp
 	rm -rf $(MANUAL2)*.html *stamp
+	rm -f manual.txt
+	rm -rf manual.html
+	rm -f manual.html.stamp
 
 .PHONY: all html text txt ps pdf files tar sf \
 	html1 text1 txt1 ps1 pdf1 files1 tar1 sf1 \
 	html2 text2 txt2 ps2 pdf2 files2 tar2 sf2 \
-	publish publish-all publish-html publish-files publish-tar \
-	publish-index1 publish-index2 \
+	publish publish-all publish-tar \
+	publish-txt publish-html publish-ps publish-pdf \
+	publish-txt1 publish-html1 publish-ps1 publish-pdf1 \
+	publish-txt2 publish-html2 publish-ps2 publish-pdf2 \
 	clean distclean validate
 
