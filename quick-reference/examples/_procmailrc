@@ -1,7 +1,7 @@
 # ======================== Default ====================================
 # Defaults for procmail
 #
-# All delivery to Qmail style Maildir.  i.e. followed by /
+# All delivary to Qmail style Maildir.  i.e. followed by /
 # No lock needed
 
 MAILDIR=$HOME/Mail
@@ -15,6 +15,28 @@ LOGFILE=$MAILDIR/Maillog
 # f filter throgh the pipe
 # h Feed the header to the pipe (Default)
 # w wait
+
+# ======================== Remove funny   ===============================
+# check header
+:0
+# very very bad subject key words
+* 1^0 ^X-Advertisement
+* 1^0 ^Subject: *$
+* 1^0 ^Subject: *RE: *$
+* 1^0 ^Subject:.*\(no.*subject\)
+* 1^0 ^Subject:.*\(none\)
+* 1^0 ^Subject:	*subscribe
+* 1^0 ^Subject:	*unsubscribe
+* 1^0 ^Subject:	*ADV(ERTI|[^a-zA-Z])
+* 1^0 ^Subject:.*virus.*found
+* 1^0 ^Subject:.*virus.*Detected
+* 1^0 ^Subject:.*Virus.*Alert
+* 1^0 ^Subject:.*AntiVirus.*scan
+* 1^0 ^Subject:.*BUSINESS.*PROPOSAL
+* 1^0 ^Subject:.*STRICTLY.*CONFIDENTIAL
+* 1^0 ^Subject:.*URGENT.*ASISSTANCE
+* 1^0 ^Subject:	*I.*NEED.*YOUR.*ASSISTANCE
+/dev/null
 
 # ======================== Touch-up ===========================================
 
@@ -39,217 +61,69 @@ LOGFILE=$MAILDIR/Maillog
 * ! ^Content-type: multipart
 | formail -i "Content-Type: application/pgp; format=text; x-action=sign"
 
-# ======================== Absolute white list ================================
-# whitelist for closed list
+## For Multipart
+:0 HBfw
+* ^Content-Type:.*multipart
+* ! ^Content-Type:.*pgp-signature
+* ! ^Content-Type:.*pgp-encrypted
+* ! ^Content-Type:.*x-diff
+| formail -A "X-SPAM: MIME"
+
+## For HTML
+:0 HBfw
+* ^Content-Type:.*html
+* ! ^Content-Type:.*pgp-signature
+* ! ^Content-Type:.*pgp-encrypted
+* ! ^Content-Type:.*x-diff
+| formail -A "X-SPAM: HTML"
+
+# ======================== CRM114 FILTER ==========================
+# install crm114 package to deploy trainable SPAM filter
+#
+#:0fw: .msgid.lock
+# I do not need lock due to Maildir
+:0fw
+| /usr/bin/crm -u /home/osamu/crm114 mailfilter.crm
+  
 :0
-* 1^0 ^TO_.*bad@bad.debian.net
-* 1^0 ^TO_.*bad@bad.debian.net
-bad/
+* ^X-CRM114-Status: SPAM.*
+{
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[0-9]\.
+Xspam-crm-0/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9]\.
+Xspam-crm-1/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[4-9][0-9]\.
+Xspam-crm-2/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9][0-9]\.
+Xspam-crm-3/
+
+:0
+* ^X-SPAM: HTML
+Xspam-crm-x/
+
+:0
+* ^X-SPAM: MIME
+Xspam-crm-x/
+
+:0
+Xspam-crm/
+}
+# ======================== Absolute white list ================================
 
 # whitelist for Debian BTS mail
 :0
-# offset
-* -1^0
 # BTS
 * 1^0 ^Return-path:.*debbugs@master\.debian\.org
-# to me
-* 1^0 ^TO_.*osamu@debian\.org
+# From/to hitachi-ps.co.jp
+* 1^0 ^hitachi-ps.co.jp
 Inbox/
-
-
-# ======================== Drop bad SPAM immediately ==========================
-
-## by from headr
-:0
-* 1^0 ^Return-path:.*noresponderdeco@
-* 1^0 ^Return-path:.*<big@boss.com>
-* 1^0 ^From:.*fsshl@centurytel.net
-* 1^0 ^TO_.*@mail63\.csoft\.net
-* 1^0 ^TO_.*undisclosed.*recipient
-* 1^0 ^TO_.*Valued.*Customer
-* 1^0 ^TO_.*freedisk@aokiconsulting\.com
-* 1^0 ^TO_.*bogus@aokiconsulting\.com
-* 1^0 ^TO_.*nospam@aokiconsulting\.com
-* 1^0 ^TO_.*fsshl@centurytel.net
-* 1^0   relay[0-9]*\.uu\.net
-Xspam-address/
-
-# ======================== Mark SPAM featurs ==================================
-
-# check header
-:0 fw
-# safety offset
-* -10^0
-* -100^0 ^Return-path:.*debbugs@master\.debian\.org
-# Mail servers
-#* 5^0 ^Received: from unknown
-#* -5^0 ^Received:.*debian\.org
-# list of non-unix mailers
-* 10^0 ^X-Mailer: The Bat!
-* 5^0 ^X-Mailer: Microsoft
-* 5^0 ^X-Mailer: AOL
-* 5^0 ^User-Agent: QUALCOMM
-* 5^0 ^X-Mailer: Foxmail
-* 5^0 ^X-Mailer: Internet Mail Service
-* 5^0 ^X-Mailer: iPlanet
-* 5^0 ^X-Mailer: <IMail
-* 5^0 ^X-Mailer: CommuniGate
-* 5^0 ^X-Mailer: eGroups Message Poster
-# list of unix mailers
-* -20^0 ^User-Agent:.*Mutt
-* -20^0 ^X-Mailer:.*reportbug
-* -20^0 ^User-Agent:.*Emacs
-* -20^0 ^X-Mailer:.*emacs
-* -10^0 ^X-Mailer:.*Evolution
-* -10^0 ^User-Agent:.*KMail
-# Bad source address
-* 20^0 ^From: *$
-* 5^0 ^From:.*@yahoo\.
-* 5^0 ^From:.*@netscape\.
-* 5^0 ^From:.*@hotmail\.
-* 5^0 ^From:.*@korea\.com
-* 5^0 ^From:.*@msn\.com
-* 5^0 ^From:.*DR\.
-# very very bad subject key words
-* 25^0 ^Subject:[ 	]*subscribe
-* 25^0 ^Subject:[ 	]*unsubscribe
-* 25^0 ^Subject:[ 	]*ADV(ERTI|[^a-zA-Z])
-* 25^0 ^X-Advertisement
-# very bad subject key words
-* 20^0 ^Subject: *$
-* 20^0 ^Subject:[ 	]*As*istance
-* 20^0 ^Subject:[ 	]*Automated reply from
-# bad subject key words
-* 10^0 ^Subject:.*Never pay
-* 10^0 ^Subject:.*Lose Weight
-* 10^0 ^Subject:.*Virus Alert
-* 10^0 ^Subject:.*Please Respond
-* 10^0 ^Subject:.*increase business
-* 10^0 ^Subject:.*Visa Card
-* 10^0 ^Subject:.*Your help
-* 10^0 ^Subject:.*Get Your
-* 10^0 ^Subject:.*adult channel
-* 10^0 ^Subject:.*ADULT MOVIE
-* 10^0 ^Subject:.*FREE.*Cable
-* 5^0 ^Subject:.*!
-* 5^0 ^Subject:.*\$
-* 5^0 ^Subject:.*confidential
-* 5^0 ^Subject:.*Greetings
-* 5^0 ^Subject:.*Viagra
-* 5^0 ^Subject:.*Prozac
-* 5^0 ^Subject:.*Hello
-* 5^0 ^Subject:.*Thank
-* 5^0 ^Subject:.*Need
-* 5^0 ^Subject:.*Private
-* 5^0 ^Subject:.*URGENT
-* 5^0 ^Subject:.*Horny
-* 5^0 ^Subject:.*Fuck
-* 5^0 ^Subject:.*good day
-* 5^0 ^Subject:.*BLESSED
-* 5^0 ^Subject:.*Vital
-* 5^0 ^Subject:.*MORTGAGES
-* 5^0 ^Subject:.*Diet
-* 5^0 ^Subject:.*DIVIDEND
-* 5^0 ^Subject:.*prescription
-* 5^0 ^Subject:.*Prescribe
-* 5^0 ^Subject:.*drug
-* 5^0 ^Subject:.*seduction
-* 5^0 ^Subject:.*Product
-* 5^0 ^Subject:.*hahaha
-* 1^0 ^Subject:.*very
-* 1^0 ^Subject:.*value
-* 1^0 ^Subject:.*china
-* 1^0 ^Subject:.*important
-* 1^0 ^Subject:.*export
-* 1^0 ^Subject:.*Application
-| formail -A "X-SPAM: HEADER $="
-
-## no korean html
-:0 Hfw
-* ^Content-Type: text/.*ks_c_5601
-| formail -A "X-SPAM: MIME HTML Korean $=" 
-
-## no html
-:0 BHfw
-* ^Content-Type:.*html
-| formail -A "X-SPAM: MIME HTML"
-
-## no msword
-:0 BHfw
-* ^Content-Type:.*msword
-| formail -A "X-SPAM: MIME MSWORD"
-
-## no jpeg
-:0 BHfw
-* ^Content-Type:.*jpeg
-| formail -A "X-SPAM: MIME JPEG"
-
-## no zip
-:0 BHfw
-* ^Content-Type:.*zip
-| formail -A "X-SPAM: MIME ZIP"
-
-## no base64
-:0 BHfw
-* ^Content-Type:
-* ^Content-Transfer-Encoding:[ 	][ 	]*base64
-| formail -A "X-SPAM: MIME BASE64"
-
-## no exe
-:0 BHfw
-* ^Content-Type:.*exe
-| formail -A "X-SPAM: MIME EXE"
-
-## no pif
-:0 BHfw
-* ^Content-Type:.*pif
-| formail -A "X-SPAM: MIME PIF"
-
-## Asian codings Check body(B) and case sensitive(D)
-# if 5% are high bit characters
-# http://www3.sympatico.ca/walter.dnes/email/chinese/
-:0 BDfw
-# safety offset
-* -100^0
-# Maybe Japanese
-* -1000^1 ^TO_.*debian-japanese@debian.org
-* -1000^1 ^TO_.*@debian.or.jp
-* -10000^1 ^TO_.*osamu@aokiconsulting.com
-# char counter
-* -1^1 .
-# bad char counter
-*  2^1 =[0-9A-F][0-9A-F]
-* 20^1 [ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]
-* 20^1 [ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß]
-* 20^1 [àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ]
-* 20^1 =[A-F][0-9A-F]
-| formail -A "X-SPAM: ASIA 8B $="
-
-# If 50% of line contains asian 7 bit encoded
-:0 BDfw
-# safety offset
-* -10^0
-# Maybe Japanese
-* -10000^1 ^TO_.*debian-japanese@debian.org
-* -10000^1 ^TO_.*@debian.or.jp
-* -10000^1 ^TO_.*osamu@aokiconsulting.com
-# line counter
-* -10^1 ^.+$
-# 7 bit escape counter
-* 10^1 \$|\(
-# suspicious char counter (optional)
-* 2^1 [\$%!]
-| formail -A "X-SPAM: ASIA 7B $="
-
-# If 90% of line contains CAPITAL
-:0 BDfw
-# safety offset
-* -10^0
-# upper case
-* 1^1 [QWERTYUIOPASDFGHJKLZXCVBNM<>]
-# lower case
-* -10^1 [qwertyuiopasdfghjklzxcvbnm]
-| formail -A "X-SPAM: CAPITAL"
 
 # ======================= Mailing List ========================================
 
@@ -261,81 +135,47 @@ Xspam-address/
 * 1^0 ^X-Distribution:.*bulk
 {
 
-# White list
-
-:0
-* 1^0 ^Sender: owner-lsec@Linux-Consulting.com
-* 1^0 ^Sender: owner-sec@Linux-sec.net
-lsec/
-
-# ML ======================== Drop SPAM =======================================
-
-# If new post is with empty From/To/Subject, we may skip it.
-# Also we may skip autoresponders
-:0
-* ^X-SPAM: NOTME
-Xspam-ML-NOTME/
-
-:0
-* ^X-SPAM: MIME
-Xspam-ML-MIME/
-
-:0
-* ^X-SPAM: CAPITAL
-Xspam-ML-CAP/
-
-:0
-* ^X-SPAM: HEADER
-Xspam-ML-HEADER/
-
 # ML ======================== Delivary for Japanese list ======================
 
 :0
-* 1^0 ^TO_.*debian-devel@debian.or.jp
-* 1^0 ^Delivered-To:.*debian-devel@debian.or.jp
+* 1^0 ^Return-path:.*debian-devel-admin@debian.or.jp
 jp-debian-devel/
 
 :0
-* 1^0 ^TO_.*debian-private@debian.or.jp
-* 1^0 ^TO_.*debian-private-emergency@hp.debian.or.jp
-* 1^0 ^Delivered-To:.*debian-private@debian.or.jp
+* 1^0 ^Return-path:.*debian-private-admin@debian.or.jp
 jp-debian-private/
 
 :0
-* 1^0 ^TO_.*debian-users@debian.or.jp
-* 1^0 ^Delivered-To:.*debian-users@debian.or.jp
+* 1^0 ^Return-path:.*debian-users-admin@debian.or.jp
 jp-debian-users/
 
 :0
-* 1^0 ^TO_.*@debian.or.jp
-* 1^0 ^Delivered-To:.*@debian.or.jp
+* 1^0 ^Return-path:.*debian.*-admin@debian.or.jp
 jp-debian-something/
 
 :0
-* 1^0 ^TO_.*debian-japanese@debian.org
 * 1^0 ^Resent-Sender.*debian-japanese-request@lists.debian.org
 debian-japanese/
 
-# ML ======================== Block ASIAN characters ==========================
 
-:0
-* ^X-SPAM: ASIA
-Xspam-ML-ASIA/
-
-:0
-* ^X-SPAM:
-Xspam-ML/
-
-# ML ======================== Delivary for non-Japanese list ==================
-
+# ML ==============  Delivary for non-Japanese list ======================
 :0
 * ^Resent-Sender.*debian-user-request@lists.debian.org
-debian-user/
+{
+# Copy good posts separately
+:0 c
+* 1^0 ^From:.*Colin Watson
+* 1^0 ^From:.*Manoj Srivastav
+* 1^0 ^From:.*Joey Hess
+* 1^0 ^From:.*Rene Engelhard
+* 1^0 ^From:.*Jaldhar H\. Vyas
+* 1^0 ^From:.*Jamin W\. Collins
+* 1^0 ^From:.*Manoj Srivastava
+debian-user-gods/
 
 :0
-* ^Resent-Sender.*debian-devel-request@lists.debian.org
-* ^Subject:.*\[desktop\]
-debian-devel-desktop/
+debian-user/
+}
 
 :0
 * ^Resent-Sender.*debian-devel-request@lists.debian.org
@@ -346,12 +186,32 @@ debian-devel/
 debian-devel-announce/
 
 :0
+* ^Resent-Sender.*debian-bugs-rc-request@lists.debian.org
+debian-bugs-rc/
+
+:0
+* ^Resent-Sender.*debian-project-request@lists.debian.org
+debian-project/
+
+:0
+* ^Resent-Sender.*debian-curiosa-request@lists.debian.org
+debian-curiosa/
+
+:0
+* ^Resent-Sender.*debian-events-eu-request@lists.debian.org
+debian-events-eu/
+
+:0
 * ^Resent-Sender.*debian-testing-request@lists.debian.org
 debian-testing/
 
 :0
 * ^Resent-Sender.*debian-security-announce-request@lists.debian.org
 debian-security-announce/
+
+:0
+* ^Resent-Sender.*debian-tetex-maint-request@lists.debian.org
+debian-tetex-maint/
 
 :0
 * ^Resent-Sender.*debian-laptop@lists.debian.org
@@ -387,6 +247,14 @@ debian-news/
 debian-announce/
 
 :0
+* ^Resent-Sender.*debian-custom-request@lists.debian.org
+debian-custom/
+
+:0
+* ^Resent-Sender.*debian-desktop-request@lists.debian.org
+debian-desktop/
+
+:0
 * ^Resent-Sender.*debian-doc-request@lists.debian.org
 * ^Subject:.*cvs commit to ddp
 debian-doc-cvs/
@@ -417,6 +285,11 @@ debian-policy/
 * ^Resent-Sender.*debian-laptop-request@lists.debian.org
 #/dev/null
 debian-laptop/
+
+:0
+* ^Resent-Sender.*debian-qa-request@lists.debian.org
+#/dev/null
+debian-qa/
 
 :0
 * ^Resent-Sender.*debian-sgml-request@lists.debian.org
@@ -455,9 +328,10 @@ spi-bylaws/
 newbiedoc-discuss/
 
 :0
-* 1^0 ^Sender.*qref-developers-admin@lists.sourceforge.net
-* 1^0 ^From:.*qref-developers-admin@lists.sourceforge.net
-* 1^0 ^TO_.*qref-developers-admin@lists.sourceforge.net
+#* 1^0 ^Sender.*qref-developers-admin@lists.sourceforge.net
+#* 1^0 ^From:.*qref-developers-admin@lists.sourceforge.net
+#* 1^0 ^TO_.*qref-developers-admin@lists.sourceforge.net
+* 1^0 ^Return-path.*qref-developers-admin@lists.sourceforge.net
 qref-dev/
 
 :0
@@ -477,12 +351,17 @@ emacs/
 emacs/
 
 :0
-* ^Sender: private-admin@mentors.debian.net 
+#* ^Sender: private-admin@mentors.debian.net 
+* ^Return-path: private-admin@mentors.debian.net
 dm-opers/
 
 :0
 * ^Delivered-To:.*vim@vim.org
 vim/
+
+:0
+* 1^0 ^TO_.*bad@bad.debian.net
+bad/
 
 :0
 mailing-list/
@@ -492,77 +371,20 @@ mailing-list/
 
 # Whitelist address to accept
 :0
-* 1^0 ^TO_.*@bugs.debian.org
-* 1^0 ^TO_.*@packages.qa.debian.org
-* 1^0 ^Resent-Sender:.*master.debian.org
+* 1^0 ^TO_.*@bugs\.debian\.org
+* 1^0 ^TO_.*@packages\.qa\.debian\.org
+* 1^0 ^Resent-Sender:.*master\.debian\.org
 Inbox/
 
-# local condition - If not to me, then just assume spam
-:0BHfw
-* ! ^TO_(.*aokiconsulting\.com|.*@csoft\.net|.*osamu@users\.sourceforge\.net|.*osamu@debian\.org|osa@leary\.csoft\.net)
-| formail -A "X-SPAM: NOTME"
-
-# =========================== Drop SPAM =======================================
-
-# If new post is with empty From/To/Subject, we may skip it.
-# Also we may skip autoresponders
 :0
-* ^X-SPAM: NOTME
-Xspam-In-NOTME/
-
-:0
-* ^X-SPAM: CAPITAL
-Xspam-In-CAP/
-
-:0
-* ^X-SPAM: HEADER
-* ^X-SPAM: MIME
-Xspam-In-HEADMIME/
-
-:0
-* ^X-SPAM: HEADER
-Xspam-In-HEADER/
-
-:0
-* ^X-SPAM: MIME
-Xspam-In-MIME/
-
-# =========================== Deliver Japanese ================================
-
-:0
-* 1^0 ^TO_.*osamu@aokiconsulting\.com
-* 1^0 ^Delivered-To:.*osamu@aokiconsulting\.com
+* ^TO_.*osamu@aokiconsulting\.com
 Inbox-jp/
 
-# =========================== Block ASIAN characters ==========================
-
 :0
-* ^X-SPAM: ASIA
-Xspam-In-ASIA/
-
-:0
-* ^X-SPAM:
-Xspam-In/
-
-# =========================== Deliver non-Japanese ============================
-
-:0
-* 1^0 ^FROM_MAILER
-* 1^0 ^FROM_DAEMON
-Inbox-daemon/
-
-
-:0
-* 1^0 ^TO_.*debian.org
-* 1^0 ^TO_.*debian@aokiconsulting.com
-* 1^0 ^Delivered-To:.*debian@aokiconsulting.com
-* 1^0 ^TO_.*@csoft\.net
-* 1^0 ^Delivered-To:.*@leary\.csoft\.net
-* 1^0 ^TO_.*@leary\.csoft\.net
-* 1^0 ^TO_.*osamu@debian\.org
-* 1^0 ^TO_.*aokiconsulting\.com
+* 1^0 ^TO_.*debian@aokiconsulting\.com
 * 1^0 ^TO_.*osamu@debian\.org
 * 1^0 ^TO_.*osamu@users\.sourceforge\.net
+* 1^0 ^TO_.*staff@debianplanet\.org
 Inbox/
 
 :0
