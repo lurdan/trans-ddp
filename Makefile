@@ -17,6 +17,7 @@ SUBDIRS	:=	\
 		user			\
 		programmer		\
 		intro-i18n		\
+		java-faq		\
 		faq
 
 # dead (unmaintained) documentation, suitable for reaping
