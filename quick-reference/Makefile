@@ -6,7 +6,7 @@
 # The cannonical language, in which the original document is
 ORIG_LANG := en
 # All languages
-ALL_LANGS := en fr it
+ALL_LANGS := en fr it pt es
 # target languages
 LANGS := en
 # Target file type (html ps pdf txt tov info)
