@@ -8,7 +8,7 @@ shopt -s checkwinsize
 
 PS1='\u@\h:\W\$ '
 
-# Some more alias to avoid making mistakes:
+# Some more aliases to avoid making mistakes:
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'

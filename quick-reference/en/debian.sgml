@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.10 $"  -->
+<!-- CVS revision of this document "$Revision: 1.11 $"  -->
 
 <!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
 
@@ -28,9 +28,13 @@ aptitude & deity - Future replacements for dselect (GUI APT)
 </example>
 These are not equal-level tools. <prgn>dselect</prgn> runs on the top of APT
 (the command-line command is <prgn>apt-get</prgn>) and <prgn>dpkg</prgn>.
-When using <prgn>dselect</prgn>, make sure to update the status file (using
-[U]pdate) before selection if you have installed packages via
-<prgn>apt-get</prgn>.
+<p>
+When using <prgn>dselect</prgn>, <prgn>tasksel</prgn> or <prgn>dpkg</prgn>, 
+make sure to update the <file>/var/lib/dpkg/status</file> file from
+<tt>[U]pdate</tt> selection menu in <prgn>dselect</prgn> or from 
+shell command line "<tt>dselect update</tt>" in advance if you have 
+installed packages directly <prgn>apt-get</prgn> or similar programs
+such as <prgn>aptitude</prgn>.
 <p>
 As for package dependencies, <prgn>apt-get</prgn> automatically pulls 
 in packages with <em>recommends</em> but leaves packages with 
@@ -84,13 +88,15 @@ to "unstable" and selective downgrade to "stable" while tracking "testing".
 # apt-get remove --purge really-useless-old-package
 </example>
 <p>
-To downgrade all packages to stable, edit <file>/etc/apt/preferences</file> as follows:
+To downgrade all packages to stable, edit 
+<file>/etc/apt/preferences</file> as follows:
 <example>
 Package: *
 Pin: release a=stable
 Pin-Priority: 1001
 </example>
-and run <tt>apt-get upgrade</tt>, which forces downgrade due to Pin-priority &gt; 1000.
+and run "<tt>apt-get upgrade</tt>", which forces downgrade due to 
+Pin-priority &gt; 1000.
 </sect1>
 
 <sect1 id="apt-upgrade">Upgrade system with APT
@@ -103,6 +109,14 @@ Upgrade system with APT:
 # apt-get -u dist-upgrade    # pull all recommends and check dependency
 # apt-get -u dselect-upgrade # follow selection by dselect
 </example>
+Following sets <tt>-u</tt> option as the default action:
+<example>
+$ cat >> /etc/apt/apt.conf
+// Always show packages to be upgraded (-u).
+APT::Get::Show-Upgraded "true";
+^D
+</example>
+<p>
 Use the <tt>-s</tt> option to simulate upgrade without actual upgrade.
 <p>
 <prgn>dselect</prgn> offers a menu-driven interface over APT.
@@ -113,7 +127,8 @@ will offer alternatives to <prgn>dselect</prgn>.
 <sect1 id="bug-check">Check bugs in Debian and seek help
 <P>
 Usually most problems have already been recognized.  Check the following
-first (<prgn>lynx</prgn> and <prgn>w3m</prgn> work equally well):
+first (<prgn>lynx</prgn>, <prgn>links</prgn> and <prgn>w3m</prgn> work 
+equally well):
 <example>
 $ lynx &bugs;
 $ lynx &bugs;&lt;package-name&gt;   # if you know package name
@@ -183,7 +198,7 @@ system by just using <prgn>dpkg</prgn> without APT:
 # dpkg -i apt* dpkg* debconf*
 # dpkg -i *  (until no error occurs)
 </example>
-If a package is missing, get it by:
+If a package is missing, get it from <url id="&mirror-site;" name="mirror sites"> by:
 <example>
 # mc            # use "FTP link" pointing to Debian FTP server
 </example>
@@ -200,8 +215,20 @@ For a broken dependency, fix it or use:
 # dpkg --ignore-depends=package1,... -i packagefile.deb
 # dpkg --force-depends -i packagefile.deb
 # dpkg --force-depends --purge package
+# dpkg --force-confmiss -i packagefile.deb # Install missing conffile
 </example>
 </sect1>
+
+<sect1 id="rescue-var">Rescue system after erasing <file>/var</file>
+<p>
+If everything under <file>/var</file> directories are erased, you can
+recover control of system by:
+<example>
+# cd /
+# install -d /var/cache/apt/archives
+# install -d /var/cache/apt/archives/partial
+# apt-cache gencaches
+</example>
 
 <sect1 id="un-bootable">Install a package into an unbootable system
 <p>
@@ -282,7 +309,9 @@ You can also find package information in (I use <tt>mc</tt> to browse these):
 Use the following to reconfigure any already-installed package.
 <example>
 # dpkg-reconfigure --priority=medium package [...]
-# dpkg-reconfigure --all  # reconfigure all packages
+# dpkg-reconfigure --all   # reconfigure all packages
+# dpkg-reconfigure locales # generate any extra locales
+# dpkg-reconfigure --p=low xserver-xfree86 # reconfigure X server
 </example>
 Do this for <prgn>debconf</prgn> if you need to change the
 <prgn>debconf</prgn> dialog mode permanently.
@@ -334,10 +363,13 @@ hold a package through forcing automatic downgrade for <tt>apt-get -u upgrade
 package</tt> or <tt>apt-get -u dist-upgrade</tt>, add the following to
 <file>/etc/apt/preferences</file>:
 <example>
-Package: libc6*
+Package: libc6
 Pin: release a=stable
 Pin-Priority: 2000
 </example>
+Here "<tt>Package:</tt>" entry can not use entries such as "<tt>libc6*</tt>".  
+If you need to keep all binary packages related to the <package>glibc</package> 
+source package in a synchronized version, you need to list them explicitly.
 <p>
 The following will list packages on hold:
 <example>
@@ -455,6 +487,17 @@ system, you can use <prgn>alien</prgn> to convert it to your preferred
 package format and install it. It also supports LSB packages.
 </sect1>						 
 
+<sect1 id="debsums">Verify installed package files
+<p>
+<prgn>debsums</prgn> enables to verify installed package files against 
+MD5 checksums.  Some packages do not have available MD5 checksums.
+The temporary fix for sysadmins could be:
+<example>
+# cat >>/etc/apt/apt.conf.d/90debsums
+DPkg::Post-Install-Pkgs {"xargs /usr/bin/debsums -sg";};
+^D
+</example>
+per Joerg Wendland &lt;joergland@debian.org&gt;  (untested).
 </sect>
 
 <sect id="pecuriarities">Other Debian peculiarities
