@@ -4,6 +4,9 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
+# temporary workaround until www-master updates debiandoc-sgml
+export PATH:=../quick-reference/bin/:${PATH}
+
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
