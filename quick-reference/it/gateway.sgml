@@ -1,113 +1,1710 @@
-<!-- CVS revision of this document "$Revision: 1.12 $"  -->
-<!-- CVS revision of original english document "1.27"  -->
+<!-- CVS revision of this document "$Revision: 1.13 $"  -->
+<!-- CVS revision of original english document "1.239"  -->
 
-<chapt id="gateway">Costruire un gateway con un sistema &debian; 
+<chapt id="gateway">Configurare la rete
 <p>
-&debian; offre gli strumenti per costruire un gateway multiuso,
-in grado di padroneggiare NAT, posta, DHCP, DNS cache, HTTP proxy
-cache, CVS, NFS, e Samba per una LAN casalinga. Vedere <url id="&netfilterhome;" name="Netfilter">,
-dove molti argomenti sulla configurazione di rete vengono spiegati.
+<!-- I keep above id as gateway to have the same html file name. -->
+<!-- Once all translations are in sync, I may change it to network. -->
+Questo capitolo è focalizzato sull'amministrazione di rete in &debian;.
+per un'introduzione generale alla rete in GNU/Linux, leggete il
+<url id="&net-howto;" name="Net-HOWTO">.
+<p>
+Per permettere ad un host &debian; di accedere ad Internet, le sue
+interfacce di rete devono essere supportate dal kernel
+e propriamente configurate.
+<p>
+Il primo requisito è il supporto del kernel per i dispositivi di rete,
+tipo schede Ethernet, Wi-Fi e modem.  Per ottenere detto supporto
+potreste dover ricompilare il kernel, o aggiungere moduli ad esso, come
+descritto in <ref id="kernel">.
+<p>
+La configurazione dei dispositivi di rete è spiegata sotto.
+Le informazioni di questo capitolo sono state aggiornate per Sarge.
+Molte di esse non si applicano a distribuzioni precedenti.
+<!--
+I move these to comment, Thomas, please remove once you are ready
+<p>
+<list compact>
+<item>XXX FIXME XXX: Update HW config, Ethernet kernel module
+<item>XXX FIXME XXX: Add section to reconfigure network on initial install.
+</list>
+-->
 
-<sect>Configurazione di rete
+<sect id="net-basic">Le basi dell'IP networking
 <p>
-
-<sect1 id="ip-class">Configurazione dell'host per il gateway
+Un host &debian; può avere parecchie interfacce, ciscuna con il proprio
+indirizzo IP (Internet Protocol).
+Le interfacce possono essere di tipi differenti, inclusi:
+<list compact>
+<item>Loopback:  <tt>lo</tt>
+<item>Ethernet:  <tt>eth0</tt>, <tt>eth1</tt>, ...
+<item>Wi-Fi:  <tt>wlan0</tt>, <tt>wlan1</tt>, ...
+<footnote>
+Notate che un'interfaccia Wi-Fi è in realtà uno pseudonimo per un'interfaccia
+Ethernet che fornisce l'accesso ai parametri di configurazione
+specifici per Wi-Fi.
+Questi parametri vengono controllati mediante il programma <prgn>iwconfig</prgn>.
+</footnote>
+<item>Token Ring:  <tt>tr0</tt>, <tt>tr1</tt>, ...
+<item>PPP:  <tt>ppp0</tt>, <tt>ppp1</tt>, ...
+</list>
+Esiste una vasta gamma di altri dispositivi di rete disponibili,
+inclusi SLIP, PLIP (linea seriale e parallela IP),
+dispositivi "shaper" per controllare il traffico su certe interfacce,
+frame relay, AX.25, X.25, ARCnet, e LocalTalk.
 <p>
-Una LAN usa gli indirizzi IP per la seguente rete privata, per evitare
-interferenze con gli indirizzi IP provenienti da Internet.
+Ciascuna interfaccia connessa direttamente ad Internet (o a qualsiasi
+rete basata su IP) viene identificata da un indirizzo unico a 32 bit.
+<footnote>
+Ciò è vero se si usa la versione 4 di IP.
+In IPv6 gli indirizzi sono a 128 bit.
+Vedere <url id="&ipv6home;">.
+</footnote>
+L'indirizzo Ip può essere diviso in una parte relativa alla rete
+e ad una parte relativa all'host.
+Se prendete un indirizzo IP, impostate ad 1 i bit relativi alla rete
+e a 0 quelli relativi all'host, ottenete
+il net mask della rete.
+<p>
+tradizionalmente, le reti IP sono raggruppate in classi, le cui parti di
+indirizzo sono lunghe 8, 16 o 24 bit.
+<footnote>
+Questo sistema era rigido e portava alla perdita di molti indirizzi IP,
+così oggi le reti IPv4 sono allocate con indirizzi di lunghezza
+variabile.
+</footnote>
 <example>
-Classe A: 10.0.0.0                    con mask 255.0.0.0
-Classe B: 172.16.0.0 - 172.31.0.0     con mask 255.255.0.0
-Classe C: 192.168.0.0 - 192.168.255.0 con mask 255.255.255.0
+          Indirizzi IP                   net mask      lunghezza
+Classe A  1.0.0.0     - 126.255.255.255  255.0.0.0     =  /8
+Classe B  128.0.0.0   - 191.255.255.255  255.255.0.0   = /16
+Classe C  192.0.0.0   - 223.255.255.255  255.255.255.0 = /24
+</example>
+Gli indirizzi che non sono in questi intervalli vengono usati per scopi
+speciali.
+<p>
+Esistono intervalli in ciascuna classe che sono riservati per l'uso nelle
+local area network (LAN).
+Questi indirizzi sono garantiti non entrare in conflitto con qualsiasi
+indirizzo di Internet propriamente detto.
+(Per lo stesso ragionamento, se uno di essi viene assegnato ad un
+host, allora detto host non deve accedere direttamente ad Internet, ma
+attraverso un gateway che agisca come proxy per i singoli
+servizi od altrimenti esegua Network Address Translation.)
+Questi intervalli vengono forniti nella tabella seguente, insieme al
+numero di intervalli per ciascuna classe.
+<example>
+          indirizzi                  lunghezza quantità
+Class A   10.x.x.x                     /8      1
+Class B   172.16.x.x -  172.31.x.x     /16     16
+Class C   192.168.0.x - 192.168.255.x  /24     256
+</example>
+Il primo indirizzo di una rete IP è l'indirizzo della rete
+stessa.
+L'ultimo è l'indirizzo di broadcast per la rete.
+<footnote>
+L'indirizzo della rete si può ottenere mediante la funzione AND bit a bit
+eseguita su un indirizzo della rete e la net mask.
+Quello di broadcast, invece, mediante la funzione OR bit a bit di un indirizzo
+di rete con il complemento a 1 della net mask.
+</footnote>
+Tutti gli altri indirizzi della rete possono essere allocati agli host.
+Di questi, il primo o l'ultimo indirizzo vengono in genere allocati al
+gateway Internet per la rete.
+<p>
+La tablla d'instradamento contiene le informazioni del kernel su come
+inviare i pacchetti IP alle loro destinazioni.
+Ecco un esempio di tabella per un host &debian; su una
+LAN con indirizzo IP 192.168.50.x/24.
+L'host 192.168.50.1 (anch'esso sulla LAN) è un router per
+la rete aziendale 172.20.x.x/16
+e l'host 192.168.50.254 (anch'esso sulla LAN) è un router per
+Internet.
+<!-- I shrunk shell output within 72 characters                       -->
+<example>
+# route
+Kernel IP routing table
+Destination   Gateway        Genmask       Flags Metric Ref Use Iface
+127.0.0.0     *              255.0.0.0     U     0      0     2 lo
+192.168.50.0  *              255.255.255.0 U     0      0   137 eth0
+172.20.0.0    192.168.50.1   255.255.0.0   UG    1      0     7 eth0
+default       192.168.50.254 0.0.0.0       UG    1      0    36 eth0
+</example>
+<list compact>
+<item>
+La prima riga dopo l'intestazione dice che il traffico destinato alla
+rete <tt>127.x.x.x</tt>
+verrà reindirizzato attraverso <tt>lo</tt>, l'interfacia di loopback.
+<item>
+La seconda riga dice che il traffico destinato agli host sulla LAN
+verrà reindirizzato attraverso <tt>eth0</tt>.
+<item>
+La terza dice che il traffico destinato alla ret aziendale verrà
+reindirizzato verso il gateway <tt>192.168.50.1</tt>, sempre tramite <tt>eth0</tt>.
+<item>
+La quarta dice che il traffico destinato ad Internet verrà reindirizzato
+verso il gateway <tt>192.168.50.254</tt>, sempre tramite <tt>eth0</tt>.
+</list>
+Gli indirizzi IP nella tabella possono apparire anche come nomi,
+ottenuti guardando gli indirizzi in <file>/etc/networks</file>
+o usando il resolver della Libreria C.
+<p>
+In aggiunta al reindirizzamento, il kernel può eseguire network address
+translation, traffic shaping e filtering.
+<p>
+Vedere il <url id="&net-howto;" name="Net-HOWTO"> ed
+<url id="&net-howto-over;" name="altri HOWTO sul networking"> 
+per maggiori informazioni di base.
+
+<sect id="net-low">Configurazione della rete a basso livello
+<p>
+Gli strumenti tradizionali per la configurazione a basso livello dei sistemi
+GNU/Linux, sono <prgn>ifconfig</prgn> e <prgn>route</prgn>, che sono forniti
+dal pacchetto <package>net-tools</package>. Essi sono stati ufficialmente
+soppiantati da <prgn>ip</prgn>, fornito dal pacchetto
+<package>iproute</package>. Il programma <prgn>ip</prgn> funziona con
+Linux 2.2 ed oltre ed è più valido degli altri strumenti.
+Comunque, questi ultimi ancora funzionano e sono più familiari a molti
+utenti.
+
+<sect1 id="low-ifconfig">Configurazione a basso livello &ndash; <prgn>ifconfig</prgn> and <prgn>route</prgn>
+<p>
+Ecco un'illustrazione su come modificare l'indirizzo IP dell'interfaccia
+<tt>eth0</tt> da <tt>192.168.0.3</tt> a <tt>192.168.0.111</tt>
+e per rendere <tt>eth0</tt> il route alla rete <tt>10.0.0.0</tt>
+via <tt>192.168.0.1</tt>.
+Iniziamo lanciando <prgn>ifconfig</prgn> e <prgn>route</prgn> 
+senza argomenti, per mostrare lo stato attuale di tutte le interfacce di rete
+e del reindirizzamento.
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.3  Bcast:192.168.255.255  Mask:255.255.0.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     RX packets:23363 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:21798 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:100
+     RX bytes:13479541 (12.8 MiB)  TX bytes:20262643 (19.3 MiB)
+     Interrupt:9
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     UP LOOPBACK RUNNING  MTU:16436  Metric:1
+     RX packets:230172 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:230172 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:0
+     RX bytes:22685256 (21.6 MiB)  TX bytes:22685256 (21.6 MiB)
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask          Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.0.0      U     0      0     0 eth0
+default      192.168.0.1  255.255.255.255  UG    0      0     0 eth0
+</example>
+Prima disattiviamo l'interfaccia.
+<example>
+# ifconfig eth0 inet down
+# ifconfig
+lo   Link encap:Local Loopback
+  ... (la voce eth0 è sparita)
+# route
+  ... (le voci della tabella di reindirizzamento sono scomparse)
+</example>
+Poi, riattiviamola con il nuovo indirizzo IP e nuovo reindirizzamento.
+<example>
+# ifconfig eth0 inet up 192.168.0.111 \
+           netmask 255.255.255.0 broadcast 192.168.0.255
+# route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.1 dev eth0
+</example>
+Il risultato:
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.111  Bcast:192.168.0.255  Mask:255.255.255.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     ...
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     ...
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask        Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.255.0  U     0      0     0 eth0
+10.0.0.0     192.168.0.1  255.0.0.0      UG    0      0     0 eth0
 </example>
 <p>
-Per la configurazione IP, &debian; usa <file>/etc/network/interfaces</file>.
-<p>
-Per esempio, se <file>eth0</file> si connette ad Internet tramite un indirizzo
-IP fornito da DHCP e <file>eth1</file> si connette alla LAN,
-<file>/etc/network/interfaces</file> sarà impostato come segue (Woody e
-seguenti):
-<example>
-auto lo
-iface lo inet loopback
+Per maggiori informazioni, vedere <manref name="ifconfig" section="8"> e
+<manref name="route" section="8">.
 
-auto eth0 
+<sect1 id="low-ip">Configurazione a basso livello &ndash; <prgn>ip</prgn>
+<p>
+I comandi equivalenti per <prgn>ip</prgn> dei precedenti per <prgn>ifconfig</prgn>
+e <prgn>route</prgn> sono:
+<list compact>
+<item><tt>ip link show</tt>
+<item><tt>ip route list</tt>
+<item><tt>ip link set eth0 down</tt>
+<item><tt>ip addr del dev eth0 local 192.168.0.3</tt>
+<item><tt>ip addr add dev eth0 local 192.168.0.111/24 broadcast 192.168.0.255</tt>
+<item><tt>ip link set eth0 up</tt>
+<item><tt>ip route add dev eth0 to 10.0.0.0/8 src 192.168.0.111 via 192.168.0.1</tt>
+</list>
+<p>
+<prgn>Ip</prgn> stampa la sintassi dei suoi comandi se lanciato con
+l'argomento <tt>help</tt>.
+Per esempio, <tt>ip link help</tt> mostra:
+<example>
+Usage: ip link set DEVICE { up | down | arp { on | off } |
+                     dynamic { on | off } |
+                     multicast { on | off } | txqueuelen PACKETS |
+                     name NEWNAME |
+                     address LLADDR | broadcast LLADDR |
+                     mtu MTU }
+       ip link show [ DEVICE ]
+</example>
+Vedere anche <manref name="ip" section="8">.
+
+<sect1 id="low-wifi">Configrazione di un'interfaccia Wi-Fi.
+<p>
+Per le interfacce Wi-Fi, si usa il programma <prgn>iwconfig</prgn>, che è fornito dal
+pacchetto <package>wireless-tools</package> in aggiunta a
+<prgn>ifconfig</prgn> o <prgn>ip</prgn>.
+<p>
+Vedere <manref name="iwconfig" section="8">.
+
+<sect1 id="low-ppp">Configurare un'interfaccia PPP
+<p>
+Se accedete ad Internet attraverso un modem connesso alla linea telefonica
+analogica, allora la connessione viene negoziata mediante il Protocollo
+Punto-a-Punto (PPP).
+Si accede a tali connessioni come interfacce di rete
+<tt>ppp0</tt>, <tt>ppp1</tt> e così via.
+<p>
+L'interfaccia PPP viene gestita dal demone <prgn>pppd</prgn>,
+fornito dal pacchetto <package>ppp</package>.
+Ergo, per l'utente, configurare l'interfaccia PPP significa
+configurare <prgn>pppd</prgn>.
+
+<sect2 id="ppp-pppd">Configurare <prgn>pppd</prgn> manualmente
+<p>
+Affinchè una connessione di rete venga stabilita, si deve aprire una
+porta di comunicazione (in genere seriale), devono essere dati dei comandi
+ad un dispositivo di comunicazione (in gener un modem), si deve fare il numero
+telefonico, ci si deve autenticare presso un demone PPP esterno, si deve
+creare un'interfacia PPP e le tabelle di reindirizzamento devono essere
+modificate così che il traffico venga inviato sulla
+connessione.  <prgn>pppd</prgn> fa tutto ciò e, di conseguenza, ha un elenco
+molto lungo di opzioni operative. Esse sono
+descritte in <manref name="pppd" section="8">.
+<p>
+Su un sistema &debian;, le opzioni globali vengono impostate in
+<file>/etc/ppp/options</file>.
+Quelle specifiche per l'utente in <file>~/.ppprc</file>.
+Quelle che dipendono dalla porta utilizzata vengono immagazzinate
+in <file>/etc/ppp/options.<var>nomeporta</var></file>.
+Per esempio, ammettiamo che abbiate due modem&mdash;uno interno,
+Lucent LT modem, a cui si accede tramite /dev/LT-modem  ed uno esterno,
+a cui si accede tramite /dev/ttyS0.
+Create i seguenti file di opzioni.
+<example>
+# cat &gt; /etc/ppp/options.LT-modem &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-LT-modem"
+EOF
+# cat &gt; /etc/ppp/options.ttyS0 &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-ttyS0"
+EOF
+</example>
+Essi fanno riferimento ai seguenti script chat. Il primo,
+<file>/etc/chatscripts/setup-LT-modem</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATW2X2 S7=70 S11=55'
+OK AT
+</example>
+Il secondo <file>/etc/chatscripts/setup-ttyS0</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATL1M1Q0V1W2X4&amp;C1&amp;D2 S6=4 S7=70 S11=55 S95=63 S109=1 +FCLASS=0'
+OK AT
+</example>
+Il contenuto di questi file dipende dal vostro hardware, naturalmente.
+<p>
+Le opzioni possono essere anche date come argomenti di <prgn>pppd</prgn>.
+<p>
+In &debian; <prgn>pppd</prgn> vien lanciato in genere dal comando
+<prgn>pon</prgn>.
+Quando si usa <prgn>pon</prgn>, il primo argomento chiama un file
+in <file>/etc/ppp/peers/</file> che viene letto anche da
+<prgn>pppd</prgn>.
+<footnote>
+Questo file viene incluso usando l'opzione <tt>call</tt>.
+</footnote>
+Qui è dove impostate le opzioni specifiche per un particolare
+peer&mdash;per esempio un particolare Internet Service Provider (ISP).
+<p>
+Supponiamo, per esempio, che viaggiate tra Amstrdam e Den Haag.
+In ciascuna città avete accesso a due ISP&mdash;Planet e KPN.
+Per prima cosa, create un file di opzioni base per ciascun ISP.
+<example>
+# cat &gt; /etc/ppp/peers/KPN &lt;&lt;EOF
+remotename KPN
+noauth
+user kpn
+noipdefault
+ipparam KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet &lt;&lt;EOF
+remotename Planet
+auth
+user user3579@planet.nl
+noipdefault 
+mru 1000
+mtu 1000
+ipparam Planet
+EOF
+</example>
+Questi file impostano le opzioni che differiscono tra i due ISP.
+Quelle comuni ai due ISP possono essere messe in
+<file>/etc/ppp/options</file> o in uno dei file specifici per interfaccia,
+se appropriato.
+<p>
+Ora create i file per ciascun ISP, in ciascuna città.
+Nel nostro esempio l'unica differenza fra connettersi ad un ISP
+in un luogo e in un altro sta nel chatscript
+richiesto.
+(Essi sono diversi, poichè i numeri di accesso telefonico sono
+diverso.)
+<example>
+# cat &gt; /etc/ppp/peers/KPN-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-Amsterdam"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/KPN-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-DenHaag"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-Amsterdam"
+file /etc/ppp/peers/Planet
+EOF
+# cat &gt; /etc/ppp/peers/Planet-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-DenHaag"
+file /etc/ppp/peers/Planet
+EOF
+</example>
+Le direttive <tt>file</tt> includono ciascuno dei file
+mostrati prima.
+La direttiva <tt>connect</tt> specifica il comando che usa
+<prgn>pppd</prgn> per eseguire la connessione.
+In genere si usa il programma <prgn>chat</prgn> per ciò,
+adattando il chatscript all'ISP.
+Ecco quelli per Den Haag; quelli per 
+Amsterdam possono essere simili, tranne che per il numero telefonico,
+oppure possono differire se l'ISP offre lì i servizi attraverso
+un'altra compagnia.
+<example>
+# cat &gt; /etc/chatscripts/KPN-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676012321</var>
+CONNECT \d\c
+EOF
+# cat &gt; /etc/chatscripts/Planet-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676002505</var>
+CONNECT \d\c
+EOF
+</example>
+Per potervi connettere a questi ISP, avete bisogno dei nomi del client e delle
+password che <prgn>pppd</prgn> possa fornire al peer a richiesta.
+Questa informazione è contenuta o in
+<file>/etc/ppp/pap-secrets</file> (se si usa il protocollo PAP) o in
+<file>/etc/ppp/chap-secrets</file> (se è CHAP).
+Sebbene CHAP sia più sicuro, PAP è ancora più largamente usato.
+Siccome questi file contengono dei dati segreti, gruppo e resto del mondo non
+dovrebbero avere permessi in lettura o scrittura.
+Il formato di questi file è spiegato in
+<manref name="pppd" section="8">.
+Un "secret" (terzo campo) viene cercato nel file trovando il nome del
+client (primo campo) e/o il nome del server (secondo campo).
+Quando ci si collega ad un ISP, in genere non si conosce il nome del server,
+così si fornisce invece il nome del client; ciò viene fatto nelle righe
+<tt>user</tt> in <file>peers/KPN</file> e
+<file>peers/Planet</file> sopra.
+<example>
+# client name       server name  secret
+kpn                 *            kpn
+user3579@planet.nl  *            myfavoritepet
+</example>
+Vedere <file>&f-ppp-readme;</file> per maggiori informazioni.
+
+<sect2 id="ppp-pppconfig">Configurare <prgn>pppd</prgn> con <package>pppconfig</package>
+<p>
+Un modo veloce per configurare <prgn>pppd</prgn> è tramite il programma
+<prgn>pppconfig</prgn>, fornito dal pacchetto
+omonimo.
+<prgn>pppconfig</prgn> imposta i file come quelli sopra,
+dopo aver chiesto all'utente alcune domande, tramite un'interfaccia a menu.
+
+<sect2 id="ppp-wvdial">Configurare un'interfaccia PPP con <package>wvdial</package>
+<p>
+Un  approccio diverso all'uso di <prgn>pppd</prgn> è di lanciarlo da
+<prgn>wvdial</prgn>, fornito dal pacchetto
+<package>wvdial</package>.
+Invece di far lanciare a <prgn>pppd</prgn> <prgn>chat</prgn>
+per aprire e negoziare la connessione, <prgn>wvdial</prgn>
+esegue il numero e la negoziazione iniziale, poi lancia
+<prgn>pppd</prgn> per fare il resto.
+Dando solo numero telefonico, username e password a
+<prgn>wvdial</prgn> si ha successo nel compiere la connessione nella
+maggior parte dei casi.
+
+<sect id="net-name">Dare un nome al computer
+<p>
+
+<sect1 id="name-host">Hostname
+<p>
+Un sistema &debian; ha talvolta bisogno di identificarsi tramite un nome.
+All'uopo, il kernel mantiene un <strong>hostname</strong>.
+
+<p>
+Lo script di inizializzazione <file>/etc/init.d/hostname.sh</file> imposta l'
+hostname al boot (usando il comando <prgn>hostname</prgn>)
+al nome contenuto in <file>/etc/hostname</file>.
+Questo file deve contenere <strong>soslo</strong> l'hostname,
+non un nome di dominio pienamente qualificato.
+<p>
+Per mostrare l'hostname attuale, lanciate <prgn>hostname</prgn>
+senza argomenti.
+
+<sect1 id="name-mail">Mailname
+<p>
+Il <strong>mailname</strong> di un host è il nome che i programmi che hanno
+a che fare con la posta usano per identificare l'host.
+Il file <file>/etc/mailname</file> contiene questo nome, seguito
+da una riga vuota.
+Il mailname è in genere uno dei nomi dominio pienamente qualificati dell'host.
+Vedere <manref name="mailname" section="5">.
+<p>
+Quello che il destinatario di una mail vede nel campo <tt>From:</tt>
+di un messaggio inviato dal vostro host &debian; dipende da come sono configurati
+i vostri Mail User Agent (MUA) e Mail Transfer Agents (MTA).
+Supponiamo che un utente locale <tt><var>foo</var></tt> mandi un messaggio da un
+hos con mailname <tt><var>myhost.dom</var></tt>.
+Il campo <tt>From:</tt> della mail in uscita sarà:
+<list compact>
+<item>"<tt>From: <var>foo</var>@<var>myhost.dom</var></tt>"
+se il MUA non ha il campo <tt>From:</tt> impostato;
+<item>"<tt>From: <var>bar</var>@<var>myhost.dom</var></tt>"
+se il MUA ha il campo "<tt>From: <var>bar</var></tt>" impostato;
+<item>"<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>"
+se il MUA ha il campo "<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>"
+impostato;
+</list>
+Persino quando il MUA ha un campo <tt>From:</tt> impostato, il MTA può
+aggiungere un campo "<tt>Sender:<var>foo</var>@<var>herman.dom</var></tt>"
+per indicarne la sua vera origine.
+<p>
+Naturalmente, quando tutti i MTA coinvolti eseguono la riscrittura dell'indirizzo,
+come discusso in <ref id="addr-catchall"> e <ref id="addr-rewrite">,
+l'indirizzo visto dal destinatario può essere cambiato in qualsiasi cosa.
+
+<sect id="net-dns">Domain Name Service (DNS)
+<p>
+Gli host possono venire definiti per nome dominio e per indirizzo IP.
+Il DNS è un sistema client-server in cui i risolutori del nome consultano i
+nameserver per associare i nomi dominio con gli indirizzi IP ed altre
+proprietà degli host.
+La libreria GNU C <manref name="resolver" section="3">
+è anch'essa in grado di cercare gli indirizzi Ip nei file o di consultare i
+Network Information Services (NIS).
+<p>
+Per vedere quale nome dominio è associato con l'host locale, usate il
+comando <tt>hostname --fqdn</tt>.  Quasto mostra il primo nome dominio 
+pienamente qualificato che il risolutore trova per l'hostname
+locale.
+<footnote>
+Tecnicamente è il FQDN dato da
+<manref name="gethostbyname" section="2">
+per l'hostname dato da
+<manref name="gethostname" section="2">.
+</footnote>
+<p>
+
+<sect1 id="dns-resolver">Il risolutore
+<p>
+Il lavoro di scoprire quali indirizzi IP sono associati con un dominio
+particolare, è a carico del risolutore. Il più comunemente usato è il
+gruppo di funzioni che va sotto il nome di resolver
+(<manref name="resolver" section="3">)
+nella libreria GNU C.
+Un altro è il risolutore FireDNS, fornito da pacchetto
+<package>libfiredns</package>.
+<p>
+Come il risolutore LIBC risolva i nomi dipende dalla riga
+<tt>hosts</tt> nel file di configurazione
+<file>/etc/nsswitch.conf</file>.
+Questa riga elenca i servizi che dovrebbero essere usati per                       
+risolvere un nome: p. es.,
+<tt>dns</tt>, <tt>files</tt>, <tt>nis</tt>, <tt>nisplus</tt>.
+<footnote>
+Il controllo della risoluzione dei nomi è anche affidato al file di
+configurazione <file>/etc/host.conf</file>.
+La riga <tt>order</tt> in questo file elenca i metodi che devono essere
+usati per risolvere in nome: p. es.,
+<tt>bind</tt>, <tt>hosts</tt>, <tt>nis</tt>.
+Vedere <manref name="host.conf" section="5">.
+Penso che questa riga sia stata soppiantata da quella <tt>hosts</tt>
+in <file>nsswitch.conf</file>, ma non ne sono certo.
+</footnote>
+Vedere <manref name="nsswitch.conf" section="5">.
+Fintanto che si usa il servizio <tt>files</tt>, il comportamento del
+risolutore viene anche gestito dal file di configurazione
+<file>/etc/hosts</file>.
+Vedere <manref name="hosts" section="5">.
+<p>
+Tutti i file sopra descritti sono statici e possono essere modificati con
+il vostro editor preferito.
+<p>
+Fintanto che si usa il servizio <tt>dns</tt>, il comportamento delb
+risolutore viene gestito anche dal file di configurazione
+<file>/etc/resolv.conf</file>.
+Vedere <manref name="resolv.conf" section="5">.
+Una delle funzioni principali di <file>resolv.conf</file>
+è di elencare gli indirizzi IP dei nameserver che verranno contattati per
+risolvere il nome.
+Tale lista spesso dipende dal tipo di rete a cui ci si connette e
+queto tipo può cambiare nel tempo mentre il vostro
+computer sta funzionando.
+Programmi tipo <prgn>pppd</prgn> e <prgn>dhclient</prgn>
+sono in grado di manipolare <file>resolv.conf</file> per aggiungere e
+rimuovere righe, ma quaste funzionalità non funzionano sempre in maniera
+appropriata, entrando in conflitto una con l'altra.
+Il pacchetto <package>resolvconf</package> risolve il problema in maniera
+migliore, fornendo un'infrastruttura standard per aggiornare questo file.
+Vedere <ref id="dns-resolvconf">.
+<p>
+
+<sect1 id="dns-resolvconf">Gestire le informazioni del nameserver &ndash; <package>resolvconf</package>
+<p>
+Il pacchetto <package>resolvconf</package> fornisce un'infrastruttura per la
+gestione dinamica delle informazioni sui nameserver disponibili.
+Risolve l'annoso problema di come mantenere una lista dinamica di
+nameserver utilizzabile dal risolutore a dalle cache DNS.
+Resolvconf si pone come intermediario fra i programmi che controllano le
+interfacce di rete e forniscono le informazioni sul nameserver e le 
+applicazioni che necessitano di dette informazioni.
+<p>
+<package>resolvconf</package> è disegnato per lavorare senza alcuna
+necessità di configurazione manuale.
+Comunque, il pacchetto è abbastanza nuovo e può richiedere un intervento
+manuale per farlo funzionare in maniera appropriata.
+Ciò è sicuramente vero se avete personalizzato dei pacchetti in maniera da
+aggiornare <file>/etc/resolv.conf</file>:
+dovrete disabilitare le vostre modifiche.
+Vedere <url id="&f-resolvconf;"> for details.
+
+<sect1 id="dns-dnsmasq">Salvare i nomi cercati &ndash; <package>nscd</package>, <package>dnsmasq</package>, <package>pdnsd</package>, <package>bind9</package>
+<p>
+Se il vostro nameserver è lento a rispondere, allora potete usare
+<prgn>nscd</prgn> per mettere in cache i risultati delle ricerche ottenuti
+usando il risolutore <package>libc6</package>.
+<p>
+Se volete salvare i risultati per altri host sulla vostra rete locale,
+allora potreste voler utilizzare un caching forwarding nameserver
+tipo <package>dnsmasq</package> o <package>pdnsd</package>.
+<p>
+Se volete, potete anche usare <prgn>named</prgn> di <package>bind9</package>,
+per lo stesso scopo.
+E', però, un programma pesante per cui a meno che abbiate bisogno delle sue
+funzionalità avanzate, vi troverete meglio con uno dei pacchetti
+menzionati prima.
+<p>
+Tutti questi pacchetti funzionano bene con <package>resolvconf</package>.
+
+<sect1 id="dns-bind-server">Fornire un Domain Name Service &ndash; <package>bind</package>
+<p>
+Se dovete fornire un name service autoritativo per un dominio, allora
+avete bisogno di un nameserver con tutti i crismi, come
+<prgn>named</prgn>, fornito dal pacchetto <package>bind9</package>.
+<p>
+Se installate <package>bind9</package>, dovreste installare anche
+<package>dnsutils</package>.
+Potreste voler installare anche questi pacchetti di utilità:
+<package>bind9-host</package>;
+<package>dns-browse</package>;
+<package>dnscvsutil</package>;
+<package>nslint</package>.
+Ed anche il pacchetto con la documentazione:
+<package>bind9-doc</package>.
+Nonchè questi pacchetti per lo sviluppo:
+<package>libbind-dev</package>;
+<package>libnet-dns-perl</package>.
+Se configurate le interfacce con DHCP, allora troverete questo pacchetto
+utile:
+<package>dhcp-dns</package>.
+<p>
+Installate <package>bind9</package> o <prgn>dpkg-reconfigure</prgn> &ndash;
+atelo per le impostazioni di base.
+La configurazione consiste nella modifica di <file>named.conf</file>.
+In &debian; esso si trova in <file>/etc/bind/</file> ed è usato principalmente
+per definire le zone DNS di base;
+<tt>include</tt> altri due file:
+<file>named.conf.local</file>, usato per definire le zone locali e
+<file>named.conf.options</file>, usato per impostare le opzioni.
+(Quest'ultimo viene processato da <package>resolvconf</package> per produrre
+<file>/var/run/bind/named.options</file>, che è identico all'originale
+tranne che per la specificazione <tt>forwarders</tt>, che è una lista
+dei nameserver correntemente non
+disponibili.
+Per usarla modificate la riga <tt>include</tt> in
+<file>named.conf</file> in modo che comprenda
+<file>/var/run/bind/named.options</file>.
+Vedere <ref id="dns-resolvconf">.)
+<p>
+I file di database nominati in <file>named.conf*</file> senza un percorso
+completo vengono salvati in <file>/var/cache/bind/</file>.
+Questo è il posto giusto per salvare i file generati da
+<prgn>named</prgn>: per esempio, i database per le zone per le quali
+il demone è secondario.
+I file statici dei database <file>/etc/bind/</file> sono e devono essere
+riferiti in <file>named.conf</file> con il loro percorso completo.
+Vedere <url id="&f-bind9;"> for details.
+
+<sect id="net-dhcp">Configurare le interfacce di rete con DHCP
+<p>
+La configurazione a basso livello delle inetrfacce può essere automatizzata
+mediante il Dynamic Host Configuration Protocol (DHCP).
+Il vostro firewall, o router o il vostro ISP a larga banda possono fornire
+gli indirizzi IP ed altri parametri in questo modo.
+<p>
+Per falro funzionare dovete installare uno dei seguenti pacchetti:
+<list compact>
+<item><package>dhcp3-client</package> (versione 3, Internet Software Consortium)
+<item><package>dhcpcd</package> (Yoichi Hariguchi e Sergei Viznyuk)
+<item><package>pump</package> (Red Hat)
+</list>
+
+<package>pump</package> è semplice e largamente usato.
+<package>dhcp3-client</package> è complesso, ma ampiamente configurabile.
+<footnote>
+Da Aprile 2004 esiste anche un pacchetto <package>dhcp-client</package> 
+disponibile.
+Questo contiene la versione 2 del client ISC DHCP.
+Questo è stato soppiantato dalla versione 3, attualmente sotto forma di
+pacchetto <package>dhcp3-client</package>.
+I manutentori pensano di rinominare <package>dhcp3-client</package>
+in <package>dhcp-client</package> dopo il rilascio di Sarge.
+<p>
+Accertatevi di non avere installate le versioni sperimentali di
+<package>dhcp-client</package>.
+<package>ifupdown</package> non funziona con esse.
+</footnote>
+
+<sect id="net-high">Configurazione di rete ad alto livello in &debian;
+<p>
+Per semplificare la configurazione di rete, &debian; fornisce uno strumento
+di configurazione standard, che consiste nei programmi
+<prgn>ifup</prgn> ed <prgn>ifdown</prgn> e nel file
+<file>/etc/network/interfaces</file>.
+<footnote>
+Il formato di <file>/etc/network/interfaces</file> per le versioni attuali
+di <package>ifupdown</package> è legermente incompatibile con quello delle
+versioni precedenti di Potato.
+Lo script post-installazione di <package>ifupdown</package> dovrebbe
+aggiornare il file automaticamente, se necessario.
+Comunque è una buona idea controllare il file convertito.
+</footnote>
+Se scegliete <package>ifupdown</package> per la vostra configurazione di rete,
+allora <strong>non</strong> dovreste usare, di norma, anche i comandi
+a basso livello.
+<footnote>
+Ciò vuol dire nojn utlizzare nemmeno altri strumenti di configurazione ad
+alto livello, tipo <package>whereami</package>, che chiamano a loro volta
+strumenti a basso livello.
+</footnote>
+Il programma <package>ifupdown</package> è stato scritto con l'intento
+di utilizzarlo da solo per configurare e
+deconfigurare le interfacce di rete.
+<p>
+Per aggiornare la configurazione di un'interfaccia, fate così:
+<example>
+# ifdown eth0
+# editor /etc/network/interfaces  # modificatelo a piacimento
+# ifup eth0
+</example>
+<p>
+Per maggiori informazioni, vedere <manref name="interfaces" section="5">,
+<url id="&f-ifupdown;"> e
+<manref name="ifup" section="8">.
+
+<sect1 id="high-static">Configurare un'interfaccia con un indirizzo IP statico
+<p>
+Supponiamo vogliate configurare un'interfaccia Ethernet in maniera che abbia
+un indirizzo IP fisso di <tt>192.168.0.111</tt>.
+Esso inizia con <tt>192.168.0</tt>, quindi deve essere di una LAN.
+Supponiamo, inoltre, che <tt>192.168.0.1</tt> sia l'indirizzo del gateway ad
+Internet della LAN.
+Modificate <file>/etc/network/interfaces</file> in maniera che abbia un blocco
+di righe come questo:
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+</example>
+Potete configurare altri aspetti dell'interfaccia
+od eseguire altre azioni
+dopo averla attivata o prima di 
+disattivarla, specificando i comandi
+appropriati sulle righe "up" e "down".
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        up route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        down route del -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        up echo Interface $IFACE going up | /usr/bin/logger -t ifup
+        down echo Interface $IFACE Going down | /usr/bin/logger -t ifdown
+</example>
+In alternativa i comandi possono essere inseriti in script nelle directory
+<file>/etc/network/if-up.d</file> e
+<file>/etc/network/if-down.d</file>.
+Essi possono anche implementare opzioni più estese.
+Vedere <manref name="interfaces" section="5"> for details.
+Per esempio, il pacchetto <package>resolvconf</package> comprende degli
+script che vi permettono di aggiungere delle opzioni che specificano che le
+informazioni sul DNS vengano incluse in <file>/etc/resolv.conf</file>
+mentre l'interfaccia è attiva:
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        dns-search somedomain.org
+        dns-nameservers 195.238.2.21 195.238.2.22
+</example>
+L'argomento <tt>somedomain.org</tt> dell'opzione <tt>dns-search</tt>
+corrisponde all'argomento dell'opzione <tt>search</tt> in
+<manref name="resolv.conf" section="5">.
+Gli argomenti <tt>195.238.2.21</tt> e <tt>195.238.2.22</tt> dell'opzione
+<tt>dns-nameservers</tt> corrisponde agli argomenti delle opzioni
+<tt>nameserver</tt>.
+Altre opzioni riconosciute sono <tt>dns-domain</tt> e
+<tt>dns-sortlist</tt>.
+Vedere <ref id="dns-resolvconf">.
+
+<sect1 id="high-dhcp">Configurare un'interfaccia con DHCP
+<p>
+per configurare un'interfaccia con DHCP, modificate
+<file>/etc/network/interfaces</file> in maniera che comprenda una serie di
+righe come questa:
+<example>
+iface eth0 inet dhcp
+</example>
+Affinchè funzioni doverete avere installato uno dei client 
+DHCP menzionati in <ref id="net-dhcp">.
+
+<sect1 id="high-wifi">Configurare un'interfaccia Wi-Fi
+<p>
+Il pacchetto <package>wireless-tools</package> comprende uno script di
+aggancio <file>/etc/network/if-pre-up.d/wireless-tools</file>
+che gli rende possibile configurarare l'harware Wi-Fi (801.11a/b/g)
+prima che l'interfaccia venga attivata.
+La configurazione viene fatta con il programma <prgn>iwconfig</prgn>;
+vedere <manref name="iwconfig" section="8">.
+Per tutti i parametri possibili di <prgn>iwconfig</prgn>
+potete includere un'opzione in 
+<file>/etc/network/interfaces</file> con il nome del parametro preceduto
+da un prefisso "wireless-".
+Per esempio, per impostare l'ESSID di <tt>eth0</tt> a
+<tt>myessid</tt> e la chiave di cifratura a
+<tt>123456789e</tt> prima di attivare
+<tt>eth0</tt> mediante DHCP, modificate
+<file>/etc/network/interfaces</file> in maniera che comprenda una serie
+di righe tipo questa:
+<example>
+iface eth0 inet dhcp
+        wireless-essid myessid
+        wireless-key 123456789e
+</example>
+Notate che non dovreste usare questo metodo per impostare ESSID e chiave se
+state usando <prgn>waproamd</prgn> per questa interfaccia.
+Nel momento in cui <prgn>ifup</prgn> viene eseguito
+<prgn>waproamd</prgn> ha già impostato sia ESSID che chiave.
+Vedere <ref id="trigger-waproamd">.
+
+<sect1 id="high-ppp">Configurare un'interfaccia PPP
+<p>
+I programmi
+<prgn>ifup</prgn> e
+<prgn>ifdown</prgn>
+usano
+<prgn>pon</prgn> e
+<prgn>poff</prgn>
+per aggiungere e rimuovere le interfacce PPP, per cui leggete prima
+<ref id="low-ppp">.
+<p>
+Supponiamo che abbiate impostato PPP per funzionare con il peer <tt>myisp</tt>.
+Modificate <file>/etc/network/interfaces</file> in maniera che includa una serie 
+di righe come questa:
+<example>
+iface ppp0 inet ppp
+        provider myisp
+</example>
+In questo modo, <prgn>ifup ppp0</prgn> esegue
+<example>
+pon myisp
+</example>
+Sfortunatamente, non è al momento possibile fornire opzioni aggiuntive di
+<prgn>pppd</prgn> alle righe <tt>ppp</tt> in
+<file>/etc/network/interfaces</file>.
+<footnote>
+Vedere bug <url id="&bug-iud-pon-args;" name="#196877">.
+</footnote>
+<p>
+Non è attualmente possibile usare <package>ifupdown</package> per
+eseguire una configurazione ausiliaria delle interfacce PPP.
+Siccome <prgn>pon</prgn> termina prima che <prgn>pppd</prgn> abbia
+finito di stabilire la connessione,
+<prgn>ifup</prgn> eseguegli script <tt>up</tt> prima che l'interfaccia PPP
+sia pronta all'uso.
+Finchè questo baco
+<footnote>
+Vedere bug <url id="&bug-iud-ppp-wait;" name="#127786">.
+</footnote>
+non verrà risolto, resta la necessità di fare una configurazione ausiliaria
+in <file>/etc/ppp/ip-up</file> o in <file>/etc/ppp/ip-up.d/</file>.
+
+<sect1 id="high-pppoe">Configurare un'interfaccia PPPoE
+<p>
+Molti Internet Service Provider (ISP) con la larga banda usano PPP per
+negoziare le connessioni, anche se le macchine dei loro clienti sono connesse
+tramite reti Ethernet e/o ATM.
+Ciò si ottiene mediante PPP over Ethernet (PPPoE), che è una metodica per
+l'incapsulazione di flussi PPP all'interno di blocchi
+Ethernet.
+Supponiamo che il vostro ISP si chiami <tt><var>myisp</var></tt>.
+Per prima cosa configurate PPP e PPPoE per il peer <tt><var>myisp</var></tt>.
+Il modo più semplice è di installare il pacchetto
+<package>pppoeconf</package> e di lanciare
+<prgn>pppoeconf</prgn> da console.
+Poi modificate <file>/etc/network/interfaces</file> in maniera che includa 
+un serie di righe come questa:
+<example>
+iface eth0 inet ppp
+        provider <var>myisp</var>
+</example>
+<!--
+The better one is following but need verification
+<example>
+mapping eth0
+        script /root/bin/echo-ppp0
+
+iface ppp0 inet ppp
+        provider <var>myisp</var>
+</example>
+where,
+<example>
+# cat &gt; /root/bin/echo-ppp0 &lt;&lt;EOF
+# /bin/sh
+echo ppp0
+EOF
+# chmod 755 /root/bin/echo-ppp0
+</example>
+-->
+<p>
+Talvolta ci possono essere problemi con le Maximum Transmit Unit (MTU) con
+PPPoE su Digital Subscriber Line (DSL).
+Vedere <url id="&dsl-howto;" name="DSL-HOWTO"> for details.
+<p>
+Notate che se il vostro modem a larga banda contiene un router, allora
+sarà il modem/router a gestire la connessione PPPoE e ad apparire sul
+versante LAN come un semplice gateway Ethernet per
+Internet.
+
+<sect1 id="high-dual">Configurare più interfacce Ethernet per un gateway
+<p>
+Supponiamo che <file>eth0</file> sia connesso ad Internet
+con un indirizzo IP configurato mediante DHCP e che
+<file>eth1</file> sia connesso alla LAN con un indirizzo IP statico
+<tt>192.168.1.1</tt>.
+Modificate <file>/etc/network/interfaces</file> in maniera da comprendere una
+serie di righe come questa:
+<example>
 iface eth0 inet dhcp
 
-auto eth1 
 iface eth1 inet static 
-address 192.168.1.1 
-network 192.168.1.0
-netmask 255.255.255.0 
-broadcast 192.168.1.255
+        address 192.168.1.1 
+        netmask 255.255.255.0 
 </example>
-Date il seguente comando per aggiornare la configurazione di rete sulla base
-di un nuovo <file>/etc/network/interfaces</file>:
+Se attivale il NAT su questo host come descritto in <ref id="net-router">,
+allora potete condividere la connessione ad Internet con tutti gli altri host
+dell LAN.
+
+<sect1 id="high-virtual">Configurare le interfacce virtuali
+<p>
+Mediante le interfacce virtuali potete configurare una singola scheda Ethernet
+come interfaccia a parecchie sottoreti IP.
+Per esempio, ammettiamo che il vostro host sia sulla LAN della rete 192.168.0.x/24.
+Volete conneterlo ad Internet mediante un indirizzo IP pubblico fornito
+via DHCP usando la vostra scheda Ethernet già esistente.
+Modificate <file>/etc/network/interfaces</file> in maniera che comprenda una 
+serie di righe come questa:
 <example>
-# /etc/init.d/networking restart
+iface eth0 inet static
+        address 192.168.0.1
+        netmask 255.255.255.0
+        network 192.168.0.0
+        broadcast 192.168.0.255
+
+iface eth0:0 inet dhcp
 </example>
-Ricorda: il file <file>interfaces</file> di Woody o di rilasci successivi non
-è compatibile con Potato.
+L'interfaccia <tt>eth0:0</tt> è un'interfaccia virtuale.
+Quando viene attivata, verrà attivata consensualmente <tt>eth0</tt>.
+
+<sect id="net-reconf">Configurazione di rete mediante definizione delle interfacce logiche
 <p>
-Se il sistema utilizza una NIC PCMCIA,l'impostazione di rete deve avvenire
-tramite <file>/etc/pcmcia/network.opts</file> in Potato. In Woody questo problema è stato risolto.
+E' importante per il lettore comprendere la differenza fra un'
+<strong>interfaccia fisica</strong> ed un'
+<strong>interfaccia logica</strong>.
+<footnote>
+Questa terminologia è usata nella documentazione di
+<package>ifupdown</package>.
+</footnote>
+Un'interfaccia <strong>fisica</strong> è quella che abbiamo finora
+chiamato "l'interfaccia", la cosa che il kernel
+definisce
+<tt>eth0</tt>, <tt>eth1</tt>, <tt>ppp0</tt>, o quel che avete.
+Un'interfaccia <strong>logica</strong> è rappresentata da un gruppo di
+valori assegnati ai parametri variabili di un'
+interfacia fisica. Se lo trovate ostico,
+Sostituite l'espressione
+"configurato come interfaccia logica <var>X</var>"
+con l'espressione
+"configurato con il profilo dell'interfaccia <var>X</var>"
+quando leggete.
 <p>
-Se avete dubbi, controllate l'ouput dei seguenti comandi:
+Le definizioni <tt>iface</tt> in <file>/etc/network/interfaces</file>
+sono in realtà definizioni di interfacce logiche, non
+fisiche.
+<footnote>
+Notate che la interfacce chiamate sulle righe <tt>auto</tt> 
+devono essere fisiche, non logiche.
+</footnote>
+Se non vorrete mai riconfigurare le vostre interfacce, allora potete
+ignorare questo fatto, pocihè l'interfaccia fisica <var>foo</var> verrà 
+configurata in partenza come interfaccia logica <var>foo</var>.
+<p>
+Tuttavia, ammettiamo che il vostro computer sia un portatile che trasportate
+fra casa e lavoro. Quando lo connettete alla rete aziendale o alla LAN
+casalinga, dovete configurare <tt>eth0</tt> di conseguenza.
+<p>
+Definite prima due interfacce logiche, <tt>home</tt> e <tt>work</tt>
+(invece che <tt>eth0</tt>, come fatto prima), che descrivono come
+l'interfaccia deve essere configurata per la rete casalinga ed aziendale,
+rispettivamente.
+<example>
+iface home inet static
+        address 192.168.0.123
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+
+iface work inet static
+        address 81.201.3.123
+        netmask 255.255.0.0
+        gateway 81.201.1.1
+</example>
+Allora l'interfaccia fisica <tt>eth0</tt> può essere attivata per casa con
+la configurazione appropriata, specificando sulla riga di
+comando:
+<example>
+# ifup eth0=home
+</example>
+<p>
+Per riconfigurare <tt>eth0</tt> per il lavoro, date i comandi:
+<example>
+# ifdown eth0
+# ifup eth0=work
+</example>
+<p>
+Notate che con il file <file>interfaces</file> scritto nel modo precedente
+non sarà più possibile attivare <tt>eth0</tt> con il solo
+<tt>ifup eth0</tt>.
+La ragione sta nel fatto che <prgn>ifup</prgn> usa il nome dell'interfaccia
+fisica come nome predefinito di quella logica ed ora nel nostro esempio
+nessuna interfaccia logica <tt>eth0</tt> è definita.
+
+<sect id="net-magic-reconf">Magie della configurazione di rete
+<p>
+I nomi delle interfacce possono essere "mappati" come altri nomi quando
+gira <prgn>ifup</prgn>.
+Come ciò accada può essere fatto dipendere dalle circostanze. Perciò,
+<prgn>ifup</prgn> può essere configurato in maniera tale da attivare una
+data interfaccia fisica come interfaccia logica appropriata, scegliendo fra
+una serie di alternative predefinite.
+<p>
+La mappatura dei nomi delle interfacce avviene così:
+<list compact>
+<item>Se nessun nome di interfaccia logica è dato ad <prgn>ifup</prgn>
+da riga di comando, allora il nome della interfaccia fisica viene usato
+come nome iniziale di quella logica.
+<item>Se il nome dell'interfaccia logica corrisponde ad uno di un blocco
+generale di righe <tt>mapping</tt>, allora quella mappatura verrà applicata
+per generare un nuovo nome per l'interfaccia logica. Ciò avviene a turno per
+ogni blocco.
+<item>Se il nome finale dell'interfaccia logica è l'etichetta di una
+definizione di interfaccia logica  in <file>/etc/network/interfaces</file>,
+allora l'interfaccia fisica corrispondente verrà attivata come logica.
+Altrimenti <prgn>ifup</prgn> stampa un messaggio che è
+"Ignoring unknown interface" ed esce.
+</list>
+La sintassi del gruppo di righe <tt>mapping</tt> è:
+<example>
+mapping <var>glob-pattern</var>
+        script <var>script-name</var>
+        [map <var>script input</var>]
+</example>
+
+Lo script chiamato dal gruppo <tt>mapping</tt> viene sempre eseguito con
+il nome dell'interfaccia <strong>fisica</strong> come argomento e con il
+contenuto di tutte le righe seguenti "map" nel gruppo (senza la parola
+"map") fornitogli come standard 
+input.
+Lo script stampa il risultato della mappatura sul proprio standard output
+prima di uscire.
+<p>
+Per esempio, il blocco <tt>mapping</tt> seguente dice a
+<prgn>ifup</prgn> di attivare l'interfaccia <tt>eth0</tt> come interfaccia
+logica <tt>home</tt>.
+<example>
+mapping eth0
+        script /usr/local/sbin/echo-home
+</example>
+dove <prgn>/usr/local/sbin/echo-home</prgn> è:
+<example>
+#!/bin/sh
+echo home
+</example>
+<p>
+Poichè la mappatura è eseguita con uno script, è possibile scegliere
+automaticamente l'interfaccia logica &mdash;
+basandosi su una sorta di test.
+Vedere <ref id="high-guessnet"> per un esempio di ciò.
+
+<sect1 id="high-guessnet">Selezione delle interfacce logice con guessnet
+<p>
+Installate <package>guessnet</package>
+e poi aggiungete un blocco di righe come il seguente a
+<file>/etc/network/interfaces</file>:
+<example>
+mapping eth0
+        script guessnet-ifupdown
+        map home
+        map work
+</example>
+Ora, quando date <prgn>ifup eth0</prgn>, <prgn>guessnet</prgn>
+controlla se <tt>eth0</tt> può essere attivata come <tt>home</tt>
+o <tt>work</tt>.  Per far ciò usa le informazioni contenute nelle definizioni
+delle interfacce logiche.
+
+<sect1 id="high-laptop-net">Configurazione di rete automatica con laptop-net
+<p>
+Il pacchetto <package>laptop-net</package> usa un approccio diverso per la 
+riconfigurazione automatica della rete.
+Laptop-net non usa le interfacce logiche di <package>ifupdown</package>,
+ma ha il proprio sistema di configurazione, basato su "schemes"
+e "profiles".
+Laptop-net, però, usa <prgn>ifup</prgn> e <prgn>ifdown</prgn>
+per configurare le interfacce fisiche.
+Per maggiori informazioni consultate l'ottima documentazione in
+<package>laptop-net-doc</package>.
+
+<sect id="high-rename">Gestire nomi inconsistenti delle interfacce dati dal kernel
+<p>
+I nomi <tt>eth0</tt>, <tt>eth1</tt>, ecc.
+vengono assegnati dal kernel in maniera che possa creare
+le interfacce con il medesimo
+nome.
+mentre gli adattatori riconosciuti al boot sono in genere
+riconosciuti ogni volta nello stesso ordine e quindi ricevono gli
+stessi nomi ogni volta, lo stesso no vale per quelli
+che vengono inseriti a caldo. Questi possono venire riconosciuti
+in qualsiasi ordine e finire con nomi
+diversi assegnati dal kernel
+in occasioni differenti.
+<p>
+A causa di ciò, su un sistema in cui gli adattatori di rete vengono
+inseriti a caldo, non sempre vale la pena di definire delle interfacce logiche
+in <file>/etc/network/interfaces</file> con i nomi
+<tt>eth0</tt>, <tt>eth1</tt>, ecc. e di fidarsi della 
+mappatura predefinita.
+Invece, dovrete dare nomi distinti alle interfacce logiche ed usare uno
+dei metodi seguenti per decidere quale interfaccia
+può essere assegnata a quale
+adattatore.
+<p>
+Un metodo è di usare o l'utilità
+<prgn>nameif</prgn> (del pacchetto
+<package>net-tools</package>) o la più flessibile   
+<prgn>ifrename</prgn> (del pacchetto
+<package>ifrename</package>)
+per far assegnare al kernel i nomi alle interfacce in accorso con
+le proprietà degli adattori soggiacenti. Con tale schema,
+in effetti, il nome dell'interfaccia
+fisica può essere utilizzato per risalire a quale
+adattatore esso corrisponda.
+<p>
+Un altro metodo consiste nell'usare il meccanismo di mappatura di <prgn>ifup</prgn>
+in maniera tale che un'interfaccia logica venga scelta per
+attivarne una fisica sulla base
+di alcune caratteristiche tipiche del dato
+adattatore a cui corrisponde.
+<p>
+Ammettiamo, per esempio che avete due adattatori di rete diversi
+che usate con le reti <tt>net1</tt> e <tt>net2</tt>,
+rispettivamente. La directory
+<file>/usr/share/doc/ifupdown/examples/</file> contiene uno script di
+mappatura che può essere utilizzato per scegliere un'interfaccia logica
+basandosi sull'indirizzo del Media Access Controller (indirizzo MAC)
+dell'adattatore. Per prima cosa installate lo script nella directory
+appropriata.
+<example>
+# install -m770 /usr/share/doc/ifupdown/examples/match-mac-address.sh \
+   /usr/local/sbin/
+</example>
+Aggiungete,poi, un gruppo di righe come il seguente a
+<file>/etc/network/interfaces</file>:
+<example>
+mapping eth0
+        script /usr/local/sbin/match-mac-address.sh
+        map 02:23:45:3C:45:3C net1
+        map 00:A3:03:63:26:93 net2
+</example>
+Vedere <ref id="high-multistage-mapping"> per un esempio più complesso.
+<p>
+In entrambi i metodi applicati, la proprietà che viene usata più comunemente
+per identificare l'adattatore è l'indirizzo MAC.
+
+<sect id="net-trigger">Iniziare la configurazione di rete
+<p>
+Abbiamo visto come le interfacce possano essere configurate o riconfigurate.
+Ciò deve avvenire al momento giusto.  
+<p>
+Tradizionalmente, la rete veniva configurata durante la sequenza di avvio
+tramite lo script di inizio <file>/etc/rcS.d/S40networking</file> e veniva
+raramente riconfigurata.
+I servizi che dipendevano dalla rete venivano lanciati dopo nella
+sequenza di avvio.
+Allo spegnimento o al riavvio gli script venivano eseguiti nell'ordine
+inverso.
+<p>
+Ora, invece, c'è un trend in GNU e Linux verso il supporto di
+hardware e circostanze che cambiano in maniera dinamica.
+All'inizio venne aggiunto il supporto per le schede PCMCIA inseribili a caldo;
+più di recente è stato aggiunto il meccanismo <tt>hotplug</tt>, così che molte
+altre periferiche possono essere messe e tolte mentre il computer
+sta andando.
+Ciò comprende l'hardware di rete. Notate che i servizi che
+dipendono da hardware che viene inserito a caldo devono essere
+lanciati solo dopo il suo inserimento e fermati dopo la
+sua rimozione. Ciò significa che
+tali servizi devono essere tolti al controllo del sistema di avvio
+System V e messi sotto il controllo di
+<package>ifupdown</package>.
+<p>
+Per esempio, supponiamo che il servizio <tt>foo</tt>, controllato dallo script
+<file>/etc/init.d/foo</file> dipenda dalla interfaccia di rete riconfigurata
+dinamicamente <tt>eth0</tt>.
+<list compact>
+<item>Prima rimuovete <tt>foo</tt> dal controllo del sistema di avvio.
+Se usate il sistema <package>sysv-rc</package>, allora fate quanto
+segue.
+<footnote>
+Notate che ciò lascia il collegamento "stop".
+(<file>/etc/rc?.d/K??foo</file>) intatto.
+Vedere <ref id="runlevels"> per maggiori informazioni.
+</footnote>
+<example>
+# rm /etc/rc[2345].d/S??foo
+</example>
+<item>Poi, mettete <tt>foo</tt> sotto il controllo di
+<package>ifupdown</package> aggiungendo le opzioni <tt>up</tt> e <tt>down</tt>
+al gruppo <tt>eth0</tt> in
+<file>/etc/network/interfaces</file>, che contiene le chiamate allo script
+<tt>foo</tt>:
+<example>
+iface eth0 inet dhcp
+        up /etc/init.d/foo start
+        down /etc/init.d/foo stop
+</example>
+</list>
+
+<sect1 id="trigger-auto">Iniziare la configurazione di rete all'avvio
+<p>
+All'avvio lo script di inizio <prgn>/etc/rcS.d/S40networking</prgn> lancia il
+comando <prgn>ifup -a</prgn>.
+Ciò attiva tutte le interfacce fisiche elencate nei gruppi <tt>auto</tt>
+di <file>/etc/network/interfaces</file>.
+<p>
+Oggigiorno è spesso meglio gestire la configurazione di rete con metodi
+dinamici. Una volta che i meccanismi che supportano
+hardware dinamico sono in posizione, diventa più semplice anche gestire
+l'hardware statico come fosse
+dinamico.
+L'avvio può essere trattato, allora, come un altro evento hotplug.
+(Vedere <ref id="trigger-hotplug">.)
+<p>
+Comunque in quasi tutti i casi uno vuole che al meno l'interfaccia di loopback
+<tt>lo</tt> venga attivata all'avvio.
+Perciò assicuratevi che <file>/etc/network/interfaces</file>
+contenga i seguenti gruppi.
+<example>
+auto lo
+
+iface lo inet loopback
+</example>
+Potete elencare i nomi delle interfacce fisiche addizionali nei gruppi <tt>auto</tt>
+se volete attiavarli anche essi all'avvio.
+<strong>Mai</strong> elencare le interfacce PCMCIA nei gruppi <tt>auto</tt>.
+<prgn>Cardmgr</prgn> per PC;CIA viene lanciato più tardi nella sequenza
+d'avvio rispetto a <prgn>/etc/rcS.d/S40networking</prgn>.
+
+<sect1 id="trigger-hotplug">Iniziare la configurazione di rete &ndash; <package>hotplug</package>
+<p>
+Per il supporto hot-plug, installlate il pacchetto <package>hotplug</package>.
+<p>
+L'hardware di rete può essere inserito a caldo all'avvio o dopo che una
+scheda (p. es. PCMCIA) è stata inserita nel computer oppure dopo che un'
+utilità tipo <prgn>discover</prgn> è stata eseguita ed ha caricato i
+moduli necessari.
+<p>
+Quando il kernel riconosce del niovo hardware, inizializza il driver per
+esso e poi lancia il programma <prgn>hotplug</prgn> per 
+configurarlo.
+Se poi l'hardware viene rimosso, il kernel lancia di nuovo
+<prgn>hotplug</prgn> con variabili d'ambiente diversamente
+impostate.
+In &debian;, quando <prgn>hotplug</prgn> viene chiamato, esegue degli script
+in <file>/etc/hotplug/</file> e <file>/etc/hotplug.d/</file>.
+Vedere <manref name="hotplug" section="8"> per i dettagli.
+<p>
+Hardware di rete appena inserito viene configurato dallo script
+<file>/etc/hotplug/net.agent</file>.
+<footnote>
+Può anche essere configurato da script di aggancio che sono stati
+installati in <file>/etc/hotplug.d/net/</file>.
+I pacchetti <package>ifplugd</package> e <package>waproamd</package>, per
+esempio, installano i loro script qui.
+</footnote>
+Supponiamo che la vostra scheda di rete PCMCIA sia stata inserita, risultando
+l'interfaccia <tt>eth0</tt> disponibile per l'uso.
+<file>/etc/hotplug/net.agent</file> fa quanto segue
+<footnote>
+Dalla versione 0.0.20040329-4 o giù di lì,
+<package>hotplug</package> può essere messo in modalità in cui
+si comporta in maniera diversa da come è descritto
+qui.
+Uno di tali modi è il così detto "all", dove 
+<prgn>hotplug</prgn> attiva tutte le interfacce inserite a caldo.
+L'altra modalità è la così detta "auto", in cui
+<prgn>hotplug</prgn> attiva le interfacce solo se sono elencate nelle righe
+<tt>auto</tt> in <file>/etc/network/interfaces</file>.
+In queste modalità alternative <prgn>ifup</prgn> viene invocato senza il
+suffisso <tt>=hotplug</tt>.
+</footnote>
+:
+<example>
+ifup eth0=hotplug
+</example>
+A meno di aver aggiunto una definizione di una interfaccia logica, o una
+mappatura definita <tt>hotplug</tt> a <file>/etc/network/interfaces</file>,
+questo comando non produrrà nulla.
+Per fare sì che configuri <tt>eth0</tt>,
+aggiungete il gruppo seguente a
+<file>/etc/network/interfaces</file>:
+<example>
+mapping hotplug
+        script echo
+</example>
+Come spiegato in <ref id="net-reconf">, ciò mapperà il comando mostrato
+sopra in maniera che sia equivalente al seguente:
+<example>
+ifup eth0=eth0
+</example>
+<p>
+(<strong>Non</strong> includete un gruppo come questo se state usando
+delle istanze di <prgn>ifplugd</prgn> o <prgn>waproamd</prgn>
+lanciate da
+<prgn>hotplug</prgn> per controllare l'interfaccia.)
+<p>
+Se volete attivare solo <tt>eth0</tt> e nient'altro all'inserimento a caldo,
+allora usate <prgn>grep</prgn> al posto di
+<prgn>echo</prgn> come segue:
+<example>
+mapping hotplug
+        script grep
+        map eth0
+</example>
+Vedere <ref id="net-magic-reconf"> e
+<url id="&f-hotplug;">
+per altri consigli.
+
+<sect1 id="trigger-ifplugd">Iniziare la configurazione di rete &ndash; <package>ifplugd</package>
+<p>
+Il demone <prgn>ifplugd</prgn> attiva o disattiva un'interfaccia
+a seconda se l'hardware soggiacente sia connesso o meno
+alla rete. Il programma è in grado di riconoscere un cavo
+attivo connesso ad una interfaccia Ethernet
+o un punto di accesso associato ad una interfaccia Wi-Fi (sebbene
+<prgn>waproamd</prgn> sia probabilmente quello che volete usare in
+quest'ultimo caso).
+Quando <prgn>ifplugd</prgn> vede che lo stato del collegamento è cambiato,
+lancia uno script proxy che da predefinito chiama <prgn>ifup</prgn> o
+<prgn>ifdown</prgn>.
+
+<sect1 id="trigger-waproamd">Iniziare la configurazione di rete &ndash; <package>waproamd</package>
+<p>
+Il demone <prgn>waproamd</prgn> è come <prgn>ifplugd</prgn>, solo che è
+stato pensato per le schede Wi-Fi. Cerca attivamente i punti
+di accesso a cui l'hardware
+Wi-Fi è in grado di connettersi.
+Una volta che la connessione è stabilita, <prgn>waproamd</prgn> 
+lancia <prgn>ifup</prgn>.
+<p>
+Se usate <prgn>waproamd</prgn>, allora in via generale configurerete la
+scheda Wi-Fi tramite <prgn>waproamd</prgn> e non tramite le opzioni
+<tt>wireless-*</tt> in
+<file>/etc/network/interfaces</file>.
+
+<sect1 id="trigger-pcmcia">Configurazione di rete e PCMCIA
+<p>
+Esistono parecchi approcci possibili alla configurazione delle interfacce di
+rete PCMCIA (per i kernel 2.4 e 2.6).
+<list compact>
+  <item>Per le schede a 32 bit PCI (CardBus):
+    <list compact>
+      <item><package>ifupdown</package>
+      controllato da <package>hotplug</package>
+      <list compact> 
+       <item>In Woody e Sarge dovete abilitare localmente il 
+         controllo da parte di <package>hotplug</package> di 
+         <package>ifupdown</package>, aggiungendo una serie di
+         righe di mappatura a <file>/etc/network/interfaces</file>,
+         come descritto in <ref id="trigger-hotplug">.
+       </list>
+   </list>
+<item>Per schede ISA a 16 bit:
+  <list compact>
+    <item><package>ifupdown</package>
+      controllato da <package>hotplug</package>
+      con <package>pcmcia-cs</package> 
+      
+      <list compact>
+      <item><strong>raccomandato</strong>
+<!--
+      <item>For post-Sarge <package>pcmcia-cs</package>: 
+        You must make sure to set <tt>REFRAIN_FROM_IFUP=yes</tt> in
+	<file>/etc/default/pcmcia</file> to prevent 
+	<package>pcmcia-cs</package> from
+        interfering with <package>hotplug</package>
+-->
+      <item>In Woody e Sarge dovete disabilitare localmente  il
+      comportamento predefinito di <package>pcmcia-cs</package>
+      di prendere il controllo di <package>ifupdown</package>
+      aggiungendo la riga
+      <tt>exit 0</tt> all'inizio di <file>/etc/pcmcia/network</file>
+      Inoltre, dovete abilitare localmente il controllo da parte di
+      <package>hotplug</package> su <package>ifupdown</package> 
+      aggiungendo un gruppo di righe di mappatura a
+      <file>/etc/network/interfaces</file>, come descritto 
+      in <ref id="trigger-hotplug">.
+      </list>
+    <item><package>ifupdown</package>
+      controllato da <package>pcmcia-cs</package>
+      mediante il predefinito <file>/etc/pcmcia/network</file>
+      <list compact>
+      <item><strong>Deprecato</strong>, ma ancora il predefinito per Woody e Sarge
+      </list>
+    <item>strumenti a basso livello
+      controllati da <package>pcmcia-cs</package>
+      mediante codice speciale in <file>/etc/pcmcia/network</file>
+      <list compact>
+      <item><strong>Deprecato</strong>
+      <item>In Woody e Sarge
+      il codice speciale viene abilitato
+      modificando <file>/etc/pcmcia/network.opts</file>
+    </list> 
+  </list>
+</list>
+<p>
+L'approccio raccomandato per le schede a 16 bit si avvantaggia del fatto
+che il sottosistema hotplug Linux 2.4 ora supporta
+PCMCIA.
+<footnote>
+Nei rilasci precedenti di &debian; il modo standard di configurare le schede
+di rete PCMCIA era tramite gli script di aggancio di <prgn>cardmgr</prgn>
+<file>/etc/pcmcia/network</file> e
+<file>/etc/pcmcia/network.opts</file>.
+Essi erano stati sviluppati nell'era prima che Linux
+acquisisse una maggiore capacità di gestire l'hotplug più generale.
+<p>
+Alcuni ancora usano gli script di &debian; Woody nel loro stato predefinito
+in cui chiamano semplicemente <prgn>ifup</prgn> dopo che l'interfaccia è
+stata aggiunta e <prgn>ifdown</prgn> quando è stata
+rimossa.
+Come notato prima, è ora raccomandato l'uso di
+<package>hotplug</package> per fare ciò.
+<p>
+Altri ancora usano il metodo speciale di chiamare i comandi di configurazione
+a basso livello, che vengono attivati quando determinate variabili
+in <file>/etc/pcmcia/network.opts</file> vengono impostate a
+"<tt>y</tt>".
+Ciò ha parecchi problemi.
+E' afflitto da race conditions;
+funziona solo per schede a 16 bit;
+quello che fa è meglio lasciarlo fare a <package>ifupdown</package>.
+Di conseguenza, è deprecato.
+</footnote>
+<p>
+<!-- 
+  XXX FIXME XXX
+  I do not know to what extent 2.4 kernel needs pcmcia-cs.
+  But for now translate as below.  So we can chabge translation later too.
+-->
+Le schede di rete PCMCIA sono inseribili a caldo.
+Di conseguenza, qualsiasi che richiede l'accesso alla rete tramite
+loro, dovrebbe essere configurato in maniera da partire all'inserimento
+della scheda e terminare alla sua rimozione.
+In genere ciò si ottiene facendo sì che il servizio
+parta ad <tt>ifup</tt> e termini ad <tt>ifdown</tt>.
+Alcuni, tuttavia, scelgono di limitarsi all'inserzione a freddo
+della loro scheda PCMCIA:
+inseriscono la scheda prima di avviare il sistema
+e poi lanciano i servizi che richiedono l'accesso alla rete
+tramite la scheda
+nella sequenza di avvio.
+Se siete uno di questi, allora
+per assicurarvi che la scheda sia 
+pienamente configurata prima
+dell'avvio dei servizi
+dovete fare quanto segue:
+<list compact>
+<item>Impostare <tt>CARDMGR_OPTS="-f"</tt> in
+ <file>/etc/default/pcmcia</file> per forzare <prgn>cardmgr</prgn>  a girare
+ in foreground.
+<item>Rinominare <file>/etc/rc?.d/S20pcmcia</file>
+ a qualcosa tipo <file>/etc/rc?.d/S12pcmcia</file>.
+</list>
+Questo trucco funziona solo per le schede a 16 bit.
+<p>
+Notate che, se usate le schede a 16 bit, <package>pcmcia-cs</package>
+è ancora necessario.
+Il demone <prgn>cardmgr</prgn> che il pacchetto contiene è responsabile della gestione
+dei socket e del caricamento dei moduli.
+Non vogliamo solo che chiami i programmi di configurazione di rete
+via <file>/etc/pcmcia/network</file>.
+<p>
+Affinchè <prgn>cardmgr</prgn> funzioni correttamente, potreste dover
+modificare <file>/etc/pcmcia/config.opts</file>
+per configurare le risorse assegnate alle
+schede a 16 bit.
+Vedere <ref id="kernel-pcmcia"> ed il
+<url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">
+per maggiori informazioni.
+
+<sect id="high-multistage-mapping">Mappatura multilivello
+<p>
+Supponiamo che i vostri adattatori di rete siano dinamici e che abbiate
+abilitato la configurazione automatica come descritto in
+<ref id="trigger-hotplug">.
+Supponiamo anche che abbiate bisogno di mappare le interfacce logiche
+in "fisiche" a seconda sia dell'adattatore
+soggiacente all'interfaccia fisica
+(come descritto in <ref id="high-rename">)
+che della rete connessa all'interfaccia
+(come descritto, per esempio, in <ref id="high-guessnet">).
+Potete ottenere ciò con la mappatura multilivello.
+<p>
+Il primo livello prende il nome del gruppo <tt>hotplug</tt>
+e restituisce il nome dell'interfaccia assegnato dal kernel, se questa
+deve essere inserita dinamicamente.
+Il secondo livello prende un nome dell'interfaccia assegnato dal kernel
+e restituisce il nome di un adattatore.
+Il terzo livello mappa i nomi degli adattattori a nomi di interfacce 
+logiche, basandosi sul tipo di rete.
+<example>
+# Allow hotplug to bring up interfaces
+mapping hotplug
+	script echo
+
+# Determine whether interface is wired or Wi-Fi
+mapping eth?
+        script /usr/local/sbin/match-mac-address.sh
+        map 02:23:45:3C:45:3C wired
+        map 00:A3:03:63:26:93 wifi
+
+# Detect which wired network is available
+mapping wired
+        script guessnet-ifupdown
+        map work-wired
+        map home
+
+# Detect which Wi-Fi network is available
+mapping wifi
+        script ifscout
+        map starbucks
+        map work-wireless
+
+iface work-wired inet static
+	...
+</example>
+
+<sect id="net-service-conf">Configurazione dei servizi di rete
+<p>
+Una configurazione tipica dei servizi di rete di un desktop o di un server
+casalingo comprende:
+<list compact>
+<item>Il <em>super-server</em> Internet ed il wrapper demone TCP/IP, vedere
+<ref id="tcpd">.
+<list compact>
+<item><file>/etc/inetd.conf</file>
+</list>
+<item><package>ssh</package>: La shell sicura OpenSSH, vedere <ref id="ssh">.
+<list compact>
+<item><file>/etc/ssh/ssh_config</file>
+<item><file>/etc/ssh/sshd_config</file>
+</list>
+<item><package>exim</package>: mail transport agent, vedere 
+<ref id="name-mail"> e <ref id="mta">.
+<list compact>
+<item><file>/etc/exim/exim.conf</file>
+<item><file>/etc/mailname</file>
+<item><file>/etc/aliases</file>
+<item><file>/etc/email-addresses</file>
+</list>
+<item><package>fetchmail</package>: demone per ritirare la posta da un account
+POP3, vedere <ref id="fetchmail">. 
+<list compact>
+<item><file>/etc/fetchmailrc</file>
+</list>
+<item><package>procmail</package>: programma di distribuzione e filtro locale
+della posta, vedere <ref id="procmail">.
+<list compact>
+<item><file>~/.procmailrc</file>
+</list>
+<item>Hostname e DNS (proxy, cache, ...), vedere <ref id="name-host"> 
+e <ref id="net-dns">.
+<list compact>
+<item><file>/etc/host.conf</file>
+<item><file>/etc/hostname</file>
+<item><file>/etc/hosts</file>
+<item><file>/etc/hosts.allow</file>
+<item><file>/etc/hosts.deny</file>
+<item><file>/etc/resolv.conf</file>
+<item><file>/etc/bind/named.conf</file> (modificare)
+<item><file>/etc/bind/db.lan</file> (aggiungere per gli host della LAN)
+<item><file>/etc/bind/db.<var>192.168.0</var></file> (aggiungere per il LAN reverse)
+</list>
+<item>DHCP, vedere <ref id="net-dhcp">.
+<list compact>
+<item><file>/etc/dhcp3/dhclient.conf</file> (DHCP client)
+<item><file>/etc/default/dhcp3-server</file> (DHCP server)
+<item><file>/etc/dhcp3/dhcpd.conf</file> (DHCP server)
+</list>
+<item><package>cvs</package>: concurrent versions system, vedere <ref id="cvs">. 
+<list compact>
+<item><file>/etc/cvs-cron.conf</file>
+<item><file>/etc/cvs-pserver.conf</file>
+</list>
+<item><package>nfs-kernel-server</package>: network file system, vedere
+<ref id="nfs">. (per sistemi simil-unix)
+<list compact>
+<item><file>/etc/exports</file>
+</list>
+<item><package>samba</package>: condivisione file e stampanti per Windows, 
+vedere <ref id="samba"> and <ref id="smbmount">.
+<list compact>
+<item><file>/etc/samba/smb.conf</file>
+</list>
+<item>Printer daemon system, vedere <ref id="printer">.
+<list compact>
+<item><file>/etc/printcap</file> (per lpr)
+</list>
+<item><package>apache</package> e <package>apache2</package>: web server.
+<list compact>
+<item><file>/etc/apache/*</file>
+<item><file>/etc/apache2/*</file>
+</list>
+<item><package>squid</package>: web proxy cache server.
+<list compact>
+<item><file>/etc/squid/*</file>
+</list>
+</list>
+
+<!--
+XXX FIXME XXX: 
+The network service section needs more detailed contents.
+Volunteers are welcomed.  
+-->
+<!-- explain each types under sect1 -->
+<!-- equivalent ones under sect2 -->
+<!-- avoid duplication with tune.sgml -->
+<!-- this needs major rewrite -->
+<!-- Keep It Short and Simple (KISS) -->
+<!-- Use /bin/sh instead of English -->
+
+<sect id="net-trouble">Risoluzione dei problemi di rete
+<p>
+Se incontrate dei problemi, controllate l'output dei seguenti
+come prima presa di contatto:
 <example>
 # ifconfig
 # cat /proc/pci
 # cat /proc/interrupts
-# dmesg|more
+# dmesg | more
 </example>
-Talvolta DSL (PPPoE?) ha dei problemi col MTU.  fate riferimento all'LDP
-<url id="&dsl-howto;" name="DSL-HOWTO">.  
-Se avete problemi con siti web particolari, guardate <ref id="killecn">.
-</sect1>
-
-<sect1 id="ip-check">Tappe della configurazione di rete
+Vedere anche le sezioni seguenti <ref id="net-test">.
+<!-- add id="..." to corresponding 3 sect1 tags in tips.sgml -->
+<!-- That section should be moved here //JDTH -->
+<!-- Yes.  But when you do, do it for all languages and fix 
+ version tracking number if you can -->
 <p>
-Il set tipico di programmi:
-<example>
-# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
-# apt-get install ssh cvs
-</example>
-<p>
-Poi, controllate i seguenti file:
-<example>
-/etc/init.d/dhcpd       (modificate per servire solo LAN = eth1)
-/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) per NFS
-/etc/exports            (Necessario per NFS)
-/etc/bind/db.192.168.1  (aggiungere)
-/etc/bind/db.lan        (aggiungere)
-/etc/bind/named.conf    (modificare)
-/etc/resolv.conf        (modificare)
-/etc/hosts
-/etc/dhcpd.conf         (modificare per LAN = eth1)
-/etc/dhclient.conf      (modificare per forzare il DNS locale)
-/etc/samba/smb.conf
-/etc/exim/exim.conf
-/etc/mailname
-/etc/aliases
-/etc/squid.conf         (aggiungere tutti gli IP degli host della LAN sotto allowed)
-</example>
-<prgn>bind</prgn> crea una cache locale dei server DNS server e cambia DNS in
-localhost.  Controllate <file>/etc/resolv.conf</file>:
-<example>
-nameserver 127.0.0.1
-search lan.aokiconsulting.com
-</example>
-</sect1>
+Se avete problemi con certi siti web, vedete <ref id="killecn">.
 
-<sect id="netfilter">Configurare netfilter
+<sect id="net-router"> Costruire un gateway router
+<p>
+Un host &debian; può diventare una macchina gateway per tutti gli scopi che
+esegue Network Address Translation (NAT, anche noto come masquerading),
+trasferimento posta, DHCP, DNS caching, HTTP proxy caching, servizio CVS,
+servizio NFS e Samba.
+Vedere <ref id="ipmap"> per l'esempio di tale impostazione.
+
+<sect1 id="router-netfilter">Configurare Netfilter
 <p>
 Il progetto netfilter/iptables è un sottosistema di firewalling per
 Linux 2.4 e successivi.
 Vedere <url id="&netfilterhome;" name="Netfilter">,
 dove vengono spiegati molti argomenti relativi alla configurazione di rete.
 
-<sect1 id="netfilter-basics">Le basi di netfilter
+<sect2 id="netfilter-basics">Le basi di netfilter
 <p>
-Netfilter processa i pacchetti usando una catena di 5 table: 
+Netfilter processa i pacchetti usando una catena di 5 tabelle:
 PREROUTING, INPUT, FORWARD, OUTPUT, and POSTROUTING.
 <example>
                  decisione sul
@@ -124,9 +1721,9 @@ interfaccia ROUTING  \       tracciamento /       ROUTING     interfaccia
                              programmi nello user-space
 </example>
 
-<sect1 id="netfilter-table">La table di netfilter
+<sect1 id="netfilter-table">La tabella di netfilter
 <p>
-I pacchetti vengono processati ad ogni anello della catena, usando le seguenti table.
+I pacchetti vengono processati ad ogni catena, usando le seguenti tabelle.
 <list compact>
 <item>filter (filtro pacchetti, default)
 <list compact>
@@ -142,11 +1739,11 @@ I pacchetti vengono processati ad ogni anello della catena, usando le seguenti t
 </list>
 <item>mangle (mascherare il network address, valido solo dopo 2.4.18)
 <list compact>
-<item>tutti e 5 gli anelli della catena.
+<item>tutte e 5 le catene.
 </list>
 </list>
 
-<sect1 id="netfilter-target">I target di netfilter
+<sect2 id="netfilter-target">I target di netfilter
 <p>
 Le regole di firewall hanno parecchi target:
 <list compact>
@@ -163,18 +1760,18 @@ Le regole di firewall hanno parecchi target:
 <item>LOG attiva il kernel logging.
 <item>REJECT ritorna un pacchetto di errore e lascia cadere il pacchetto.
 <item>SNAT altera l'indirizzo di partenza del pacchetto, ed è usato solo 
-  nella catena POSTROUTING. (solo per la nat table)
+  nella catena POSTROUTING. (solo per la tabella nat)
 <example compact>
 --to-source  ipaddr[-ipaddr][:port-port]
 </example>
 <item>MASQUERADE è equivalente a SNAT, ma solo per le connessioni con IP dinamico 
-  (dialup). (solo per la nat table)
+  (dialup). (solo per la tabella nat)
 <example compact>
 --to-ports port[-port]
 </example>
 <item>DNAT modifica l'indirizzo di destinazione del pacchetto ed è usato nelle catene 
   PREROUTING ed OUTPUT ed in quelle definite dall'utente che vengono chiamate solo 
-  da quelle catene (PREROUTING ed OUTPUT). (solo per la nat table)
+  da quelle catene (PREROUTING ed OUTPUT). (solo per la tabella nat)
 <example compact>
 --to-destination ipaddr[-ipaddr][:port-port]
 </example>
@@ -186,37 +1783,37 @@ Le regole di firewall hanno parecchi target:
 </list>
 </list>
 
-<sect1 id="netfilter-command">I comandi di netfilter
+<sect2 id="netfilter-command">I comandi di netfilter
 <p>
 I comandi base di <prgn>iptables</prgn> sono:
 <example compact>
-iptables -N <var>catena</var> # crea una <var>catena</var>
+iptables -N <var>catena</var>       # crea una <var>catena</var>
 
-iptables -A <var>catena</var> \ # aggiunge una regola alla <var>catena</var>
--t <var>table</var> \ # usa una <var>table</var> (filter, nat, mangle) -p
-<var>protocollo</var> \ # tcp, udp, icmp, o tutti, -s
-<var>indirizzo-sorgente[/mask]</var> \ --sport <var>porta[:porta]</var> \ #
-porta sorgente se -p è tcp o udp -d <var>destination-address[/mask]</var> \
---dport <var>porta[:porta]</var> \ # porta di destinazione se -p è tcp o udp
--j <var>target</var> \ # cosa fare se corrisponde -i
-<var>nome-interfaccia-ingresso</var> \ # per INPUT, FORWARD, PREROUTING -o
-<var>nome-interfaccia-uscita</var> # per FORWARD, OUTPUT, POSTROUTING
+iptables -A <var>catena</var> \     # aggiunge una regola alla <var>catena</var>
+         -t <var>table</var> \ # usa una <var>table</var> (filter, nat, mangle) 
+	 -p <var>protocollo</var> \ # tcp, udp, icmp, o tutti, 
+	 -s <var>indirizzo-sorgente[/mask]</var> \ 
+	 --sport <var>porta[:porta]</var> \ # porta sorgente se -p è tcp o udp 
+	 -d <var>destination-address[/mask]</var> \
+         --dport <var>porta[:porta]</var> \ # porta di destinazione se -p è tcp o udp
+         -j <var>target</var> \ # cosa fare se corrisponde 
+	 -i <var>nome-interfaccia-ingresso</var> \ # per INPUT, FORWARD, PREROUTING 
+	 -o <var>nome-interfaccia-uscita</var> # per FORWARD, OUTPUT, POSTROUTING
 </example>
 
-
-
-<sect1>IP-masquerade
+<sect2 id="ip-masq">Network Address Translation
 <p>
-Le macchine in una LAN possono accedere all'esterno attraverso un gateway su
-cui gira IP-masquerade (NAT) mediante la condivisione di un unico indirizzo IP
-accessibile dall'esterno.
+Le macchine in una LAN possono accedere all'esterno attraverso un gateway che
+traduce gli indirizzi IP sulle LAN in indirizzi IP utilizzabili su
+Internet.
 <example>
 # apt-get install ipmasq
 </example>
-Applicate le rules come da esempio per rafforzare la protezione di <prgn>ipmasq</prgn>.  
-Vedere <file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
-Per la kernel-image-2.4 Debian, assicuratevi di caricare i moduli
-appropriati. Vedere <ref id="kernel-net"> per le configurazioni necessarie.
+Applicate le regole come da esempio per rafforzare la protezione di <prgn>ipmasq</prgn>.  
+Vedere <url id="&f-ipmasq-strong;">.
+Per la kernel-image-2.4 Debian di woody, assicuratevi di caricare i moduli
+appropriati. La versione di ipmasq di Sarge ha risolto questo problema.
+Vedere <ref id="kernel-net"> per le configurazioni necessarie.
 <p>
 Per la kernel-image-2.2 Debian, modificate <file>Z92timeouts.rul</file> in
 <file>/etc/masq/rules</file> come segue per assicurare una connessione più
@@ -224,22 +1821,23 @@ lunga ai siti remoti (buona per mail di grosse dimensioni, ecc.):
 <example>
 # tcp, tcp-fin, udp
 # 2hr, 10 sec, 160 sec - default
-# 1 day, 10 min, 10 min - più lungo, esempio
+# 1 day, 10 min, 10 min - più lungo, per esempio
 $IPCHAINS -M -S 86400 600 600
 </example>
 In più, se la rete è raggiunta tramite una NIC PCMCIA, <prgn>ipmasq</prgn>
-deve essere lanciato da <file>/etc/pcmcia/network.opts</file>. (leggete
-<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>)
-</sect1>
+deve essere lanciato da <file>/etc/pcmcia/network.opts</file>. (leggere:
+<url id="&f-ipmasq;">) o da <file>/etc/network/interfaces</file> 
+(leggere: <ref id="trigger-pcmcia"> e <ref id="net-trigger">).
 
-<sect1 id="ip-redirect">Redirigere una connessione SMTP (2.4)
+<sect2 id="ip-redirect">Redirigere una connessione SMTP (2.4)
 <p>
-Supponiamo che abbiate un portatile che è configurato per utilizzare altri parametri di LAN 
-e che vogliate usare il vostro agente di posta sul portatile senza doverlo riconfigurare. 
+Supponiamo che abbiate un portatile che è configurato per utilizzare altre LAN 
+e che vogliate usare il vostro agente di posta sul portatile 
+senza doverlo riconfigurare. 
 <p>
 Aggiungendo le regole seguenti tramite il comando 
 <prgn>iptables</prgn> alla macchina gateway redirigerà la connessione 
-SMTP alla macchina gateway.
+SMTP verso di essa.
 <example>
 # iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
            -p tcp --dport smtp --to-port 25 # smtp=25, INPUT is open
@@ -249,14 +1847,12 @@ Per una serie di regole di redirezione più completa, considerate l'installazione
 <url id="&examples;" name="M30redirect.def"> alla directory 
 <file>/etc/ipmasq/rules/</file>.
 
-</sect>
-
-<sect>Gestione di connessioni multiple di rete
+<sect1>Gestione di connessioni multiple di rete
 <p>
 [DA CORREGGERE] Regole di routing: (da Phil Brutsche
 <email>pbrutsch@tux.creighton.edu</email>) Vedere il <url
 id="&iproute;" name="manuale iproute"> per i
-dettagli. Il traffic control (tc) potrebbe anche risultare
+dettagli. Il traffic control (tc) potrebbe anche essere
 interessante.
 <p>
 L'ambiente:
@@ -266,21 +1862,21 @@ eth1: 10.0.0.2/24; gateway 10.0.0.1
 Nessun masquerading su questa macchina.
 </example>
 Alcune magie:
-<example>
-# ip rule add from 192.168.1.2 lookup 1
-# ip rule add from 10.0.0.2 lookup 2
-# ip route add to default via 10.0.0.1 metric 0
-# ip route add to default via 192.168.1.1 metric 1
-# ip route add table 1 to 192.168.1.0/24 via eth0
-# ip route add table 1 to 10.0.0.2/24 via eth1
-# ip route add table 1 to default via 192.168.1.1
-# ip route add table 2 to 192.168.1.0/24 via eth0
-# ip route add table 2 to 10.0.0.2/24 via eth1
-# ip route add table 2 to default via 10.0.0.2
-</example>
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
 [DA CORREGGERE] Non l'ho mai fatto personalmente. Come impostare una
 connessione dialup come riserva di una connessione veloce con la caratteristica di
-auto-dial? Patch sono ben accolte :)
+autodial? Patch sono ben accolte :)
 </sect>
 
 </chapt>
