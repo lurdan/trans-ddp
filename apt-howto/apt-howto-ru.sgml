@@ -1,0 +1,1421 @@
+<!doctype debiandoc system>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+
+<version>1.7.7 - March 2002</version>
+
+<abstract>
+Этот документ должен помочь пользователю разобраться с приципами
+работы с утилитой управления пакетами Debian, APT. Его цель - облегчить
+жизнь новым пользователям Debian и помочь тем, кто хочет получить более
+глубокие знания по администрированию системы. Документ был создан для
+проекта Debian для того, чтобы улучшить поддержку пользователей этого
+дистрибутива.
+</abstract>
+
+<copyright>
+<copyrightsummary>
+Copyright &copy; 2001 Gustavo Noronha Silva
+</copyrightsummary>
+<p>
+Это руководство лицензировано по положениям GNU FDL (Free Documentation
+License). Оно было написано в надежде, что будет полезным обществу, но
+при этом не дается никаких гарантий; вы пользуетесь им на свой риск.
+</copyright>
+
+<toc>
+
+<chapt>Введение
+<p>
+В начале был .tar.gz. Пользователи должны были сначала скомпилировать
+программы, которые они хотели использовать на своих системах GNU/Linux.
+Когда создавался Debian, возникла необходимость в системе управления
+пакетами, установленными на машине. Этой системе было дано имя 
+<prgn>dpkg</prgn>. Этот известный `пакет' первым появился на GNU/Linux,
+прежде чем Red Hat решил создать собственную систему `rpm'.
+<p>
+Затем перед создателями GNU/Linux быстро возникла новая дилемма. Им
+понадобился способ для быстрого, практического и эффективного пути установки
+пакетов, который должен автоматически обслуживать зависимости и сохранять
+настрочные файлы при обновлении. Тут снова, Debian вышел вперед и
+предложил миру APT, Advanced Packaging Tool, который затем был портирован
+Conectiva`ой для использования с rpm и был адаптирован некоторыми другими
+дистибутивами.
+<p>
+Это руководство не рассматривает apt-rpm, как называется порт APT от
+Conectiva, но "заплаты" к документу по этой теме приветствуются.
+</chapt>
+
+<chapt id="basico">Основная настройка
+
+<sect id="sources.list">Файл /etc/apt/sources.list
+<p>
+Как часть своей работы, APT использует файл, который содержит список 
+'источников', из которых могут быть скачаны пакеты. Это файл 
+<tt>/etc/apt/sources.list</tt>.
+<p>
+Обычно этот файл имеет следующий формат:
+
+<example>
+deb http://site.http.org/debian distribution раздел1 раздел2 раздел3
+deb-src http://site.http.org/debian distribution раздел1 раздел2 раздел3
+</example>
+
+Конечно, вышеприведенные записи являются просто примером и не должны
+использоваться. Первое слово в каждой строке, либо <tt>deb</tt>, либо
+<tt>deb-src</tt>, указывает тип архива: либо это двоичные (binary) пакеты 
+(<tt>deb</tt>), которые являются пред-компилированными пакетами, которые
+готовы к использованию, либо пакеты с исходными текстами (<tt>deb-src</tt>),
+которые являются первоначальными исходными текстами программ с управляющим 
+файлом Debian (<tt>.dsc</tt>) и файлом <tt>diff.gz</tt>, содержащим
+изменения, необходимые для `дебианизации' программы.
+<p>
+Обычно в sources.list помещается следующее:
+<example>
+# See sources.list(5) for more information, especialy
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable non-US
+</example>
+
+Эти строки необходимы для базовой установки Debian. Первая строка <tt>deb</tt>
+указывает на официальный архив, вторая - на не-США архив и третья - на архив
+обновлений безопасности Debian.
+<p>
+Две последние строки закомментированы (начинаются с `#'), так что apt-get 
+будет их игнорировать. Эти строки <tt>deb-src</tt> указывают на пакеты
+исходных текстов Debian. если вы часто скачиваете исходные тексты программ
+для тестированя и перекомпиляции, раскомментируйте их.
+<p>
+Файл <tt>/etc/apt/sources.list</tt> может содержать несколько типов строк.
+APT знает как обращаться с архивами типов <tt>http</tt>, <tt>ftp</tt>,
+<tt>file</tt> (локальные файлы, напр., каталог, содержащий смонтированную
+файловую систему ISO9660) и <tt>ssh</tt>, насколько я знаю.
+
+</sect>
+
+<sect id="dpkg-scanpackages">Как использовать APT локально
+<p>
+Иногда, вы можете располагать кучей пакетов .deb, которые вам хотелось
+бы устанавливать с помощью APT, чтобы зависимости обрабатывались
+автоматически.
+<p>
+Чтобы это сделать, создайте каталог и поместите в него .deb`ы, которые вам
+нужны. Например:
+<example>
+mkdir /root/debs
+</example>
+Теперь войдите в каталог /root, создайте пустой файл с любым именем.
+Для репозитория APT нужен файл, известный как "override", он может быть
+пустым, но он должен существовать. Для создания этого файла можно 
+использовать команду:
+<example>
+touch file
+</example>
+В этом файле вы можете определить какие-нибудь опции для перекрытия тех,
+которые приходят с пакетом. Это может выглядеть так:
+<example>
+package priority section
+</example>
+package - это имя пакета, priority - имеет значения low, medium или
+high, и section - это название раздела, в котором он находится. Можно
+оставить файл пустым.
+<p>
+Из каталога /root дайте команду:
+<example>
+dpkg-scanpackages debs file | gzip > debs/Packages.gz
+</example>
+В вышеприведенной команде, file - это упомянутый файл "override",
+команда генерирует файл debs/Packages.gz, который содержит различную 
+информацию о пакетах, которые используются APT. Чтобы использовать
+пакеты, наконец, добавьте в файл <tt>/etc/apt/sources.list</tt>:
+<example>
+deb file:/root debs/
+</example>
+После всех этих манипуляций вы можете использовать команды APT как обычно.
+Вы также можете создать и репозиторий для исходных текстов. Для этого
+используется та же процедура, но помните, что вам нужны файлы
+<tt>.orig.tar.gz</tt>, <tt>.dsc</tt> и <tt>.diff.gz</tt> в каталоге и 
+вместо Packages.gz надо использовать Sources.gz. Также нужно использовать
+другую программу - <prgn>dpkg-scansources</prgn>. Командная строка
+выглядит примерно так:
+<example>
+dpkg-scansources debs | gzip > debs/Sources.gz
+</example>
+Обратите внимание на то, что программе <prgn>dpkg-scansources</prgn> не нужен
+"override" файл. Строка в sources.list:
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">Определение наилучшего зеркала для включения в файл source.list: netselect, netselect-apt <p>
+Наиболее часто возникаемый вопрос, в основном у новичков: "какое зеркало
+Debian включать в <tt>sources.list</tt>?". Для выбора зеркала есть 
+множество способов. Эксперты вероятно пользуются сценариями, которые
+измеряют продолжительность ping`ов до некоторых заркал. Но такая программа
+для вас уже имеется: <strong>netselect</strong>.
+<p>
+Чтобу установить netselect, сделайте как обычно:
+<example>
+apt-get install netselect
+</example>
+При запуске программы без параметров отображается справка. При запуске
+с указанными в качестве параметров, разделенных пробелами, именами хостов
+(зеркал), она выдаст оценку и один из хостов. Эта оценка учитывает ожидаемую
+продолжительность пинга и количество переходов (хостов, которые должны быть
+пройдены до того, как пакеты дойдут до цели) и обратна пропорциональна
+ожидаемой скорости скачивания (т.е., чем она меньше, тем лучше). Программа
+указывает имя хоста, который имеет наименьшую оценку (полный список оценок
+можно просмотреть с помощью опции -vv ). См. пример: 
+<example>
+bash$ netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+bash$
+</example>
+Это означает, что из указанных в качестве параметров зеркал, наилучшим
+является <tt>ftp.debian.org.br</tt>, с оценкой 365. (Внимание!! Приведенные
+значения действительны только для моей машины, и для других машин все
+может быть совсем по-другому).
+<p>
+Сейчас, просто поместите найденное netselect зеркало в файл
+<tt>/etc/apt/sources.list</tt> (см. <ref id="sources.list">) и
+следуйте советам в <ref id="apt-get">.
+<p> <strong>Примечание:</strong> список зеркал можно всегда найти в файле
+<url id="http://www.debian.org/mirror/mirrors_full"
+name="http://www.debian.org/mirror/mirrors_full">. <p>
+Начиная с версии 0.3, пакет netselect включает сценарий 
+<strong>netselect-apt</strong>, который делает вышеописанные процедуры
+автоматически. Просто введите в качества параметра имя дерева дистрибутива
+(по умолчанию это stable) и файл <tt>sources.list</tt> будет настроен на
+наилучшие зеркала main и non-US и будет сохранен в текущем каталоге.
+Следующий пример генерирует sources.list стабильного дистрибутива:
+<example>
+bash$ ls sources.list
+ls: sources.list: File or directory not found
+bash$ netselect-apt stable
+(...)
+bash$ ls -l sources.list
+sources.list
+bash$
+</example>
+<strong>Помните:</strong> Файл <tt>sources.list</tt> генерируется в 
+текущем каталоге, и должен быть перемещен в каталог <tt>/etc/apt</tt>.
+<p>
+Далее следуйте советам в <ref id="apt-get">.
+</sect>
+
+<sect id="cdrom">Добавление CD-ROM в файл sources.list
+<p>
+Если вы предпочитает использовать для автоматической установки или обновления 
+пакетов с помощью ваш CD-ROM, то можете поместить его в файл 
+<tt>sources.list</tt>. Для этого используется программа <prgn>apt-cdrom</prgn>:
+
+<example>
+apt-cdrom add
+</example>
+
+Debian CD-ROM должен находиться в приводе. Программа смонтирует CD-ROM и,
+если диск является Debian CD, то найдет на нем информацию о пакетах.
+Если у вас CD-ROM необычной конфигурации, то вы можете использовать
+следующие опции:
+
+<example>
+-h           - справка к программе
+-d directory - точка монтирования CD-ROM
+-r           - Переименовать распознанный CD-ROM
+-m           - Не монтировать
+-f           - Ускоренный режим, не проверять пакеты файлов
+-a           - Thorough scan mode
+</example>
+
+Например:
+
+<example>
+apt-cdrom -d /home/kov/mycdrom add
+</example>
+
+Также вы можете идентифицировать CD-ROM без добавления его в список:
+
+<example>
+apt-cdrom ident
+</example>
+
+Обратите внимание, что эта программа работает только, если ваш CD-ROM
+правильно настроен в системном файле настроек <tt>/etc/fstab</tt>.
+</sect>
+
+</chapt>
+
+
+<chapt id="apt-get">Управление пакетами
+<sect id="update">Обновление списка доступных пакетов
+<p>
+Система пакетов использует собственную базу данных для слежения за
+установленными, не установленными и доступными для установки пакетами.
+Программа <prgn>apt-get</prgn> использует эту базу данных для определения
+пути установки пакетов, требуемых пользователем, и для определения того,
+какие дополнительные пакеты нужны, чтобы выбранные пакеты работал корректно.
+<p>
+Чтобы обновить этот список, вы должны использовать команду 
+<prgn>apt-get update</prgn>. Эта команда просматривает списки пакетов
+в архивах, указанных в файле <tt>/etc/apt/sources.list</tt>; см. более
+полные сведения об этом файле в <ref id="sources.list">.
+<p>
+Было бы неплохо запускать эту команду регулярно, чтобы ваша система всегда
+была в курсе об обновлениях доступных пакетов, особенно обновлениях
+безопасности.
+</sect>
+
+<sect id="install">Установка пакетов
+<p>
+Наконец-то, ожидание окончено! Ваш sources.list готов и списки доступных
+пакетов обновлены, теперь вам только остается дать команду <tt>apt-get</tt>,
+чтобы установить предпочитаемый пакет. Например, вы можете запустить:
+
+<example>
+apt-get install xchat
+</example>
+
+APT будет искать в своей базе данных наиболее свежие версии пакетов и
+будет скачивать их из соответствующих архивов так, как они указаны в
+<tt>sources.list</tt>. В случаях, когда пакет зависит от другого --
+как в варианте ниже -- APT проверит зависимости и установит необходимые
+пакеты. См. пример:
+
+<example>
+[root]@[/] # apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Пакет <package>nautilus</package> зависит от совместно-используемых
+библиотек, поэтому APT скачает их из архива. Если бы вы указали имена
+этих библиотек в командной строке <tt>apt-get</tt>, то APT не стал бы
+спрашивать у вас разрешения продолжать установку; он бы автоматически 
+решил, что вы хотите установить все эти пакеты.
+<p>
+Это означает, что APT запрашивает подтверждения только тогда, когда
+нужно установить пакеты, которые не были перечислены в командной строке.
+<p>
+Вам могут быть полезны следующие опции apt-get:
+
+<example>
+-h   справка
+-d   только загрузить - не устанавливать и не распаковывать архивы
+-s   ничего не делать реально, имитировать выполнение
+-y   предполагается ответ Yes на все вопросы, сами вопросы не выводить
+-f   продолжать, даже если проверка целостности не удачна
+-u   плюс ко всему показывать список обновленных пакетов
+</example>
+
+В одной строке можно задавать несколько пакетов. Скачанные из сети файлы
+помещаются в каталог для дальнейшей установки
+<tt>/var/cache/apt/archives</tt>.
+<p>
+Также, вы можете указывать пакеты для удаления в той же командной строке.
+Просто поместите '-' сразу после имени удаляемого пакета, например:
+
+<example>
+[root]@[/] # apt-get install nautilus gnome-panel-       
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Более подробную информацию об удалении пакетов можно найти в разделе
+<ref id="remove">.
+<p>
+Если вы обнаружили, что пакет испортился, или просто хотите переустановить
+файлы пакета той же версии, то вы можете использовать опцию
+<tt>--reinstall</tt>, например:
+
+<example>
+[root]@[/] # apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+
+При создании этого руководства APT имел версию 0.5.3, которая была текущей 
+версией в Debian `unstable' (<tt>sid</tt>) на время написания. Если вы
+установили эту версию, то вам доступны некоторые дополнительные возможности:
+вы можете использовать команды типа
+<tt>apt-get install пакет/дистрибутив</tt> для установки пакетов
+из указанных дистрибутивов, или <tt>apt-get install пакет=версия</tt>.
+Например:
+
+<example>
+apt-get install nautilus/unstable
+</example>
+
+установит nautilus из дистрибутива `unstable' (нестабильный), даже если
+вы работаете на `stable' (стабильном). Для 'distribution' допускаются 
+значения <tt>stable</tt>, <tt>testing</tt> и <tt>unstable</tt>.
+<p>
+<p>
+Вы можете предпочесть использование ключа <tt>-t</tt> для выбора
+целевого дистрибутива, указывающего <prgn>apt-get</prgn> предпочесть
+указанный дистрибутив при обработке зависимостей.
+<p>
+<em>ВАЖНО</em>: `unstable' версия Debian - это самая первая версия, в которой
+появляются новейшие версии пакетов Debian. Этот дистрибутив подвергается
+воздействию изменений, сделанных в пакетах, и маленьким, и большим, каждое
+из которых может воздействовать на множество пакетов или систему в целом.
+По этой причине, эта версия дистрибутива <em>не</em> должна использоваться
+неопытными пользователями или теми, кто ожидает стабильности.
+<p>
+Дистрибутив `testing' (тестируемый) несколько лучше `unstable' в отношении
+стабильности, но на производстве лучше все-таки использовать стабильный
+дистрибутив.
+</sect>
+
+<sect id="remove">Удаление пакетов
+<p>
+Если пакет вам больше не нужен, то вы можете удалить его из вашей системы,
+используя APT. Чтобы это сделать просто введите: 
+<tt>apt-get remove package</tt>.
+Например:
+
+<example>
+[root]@[/] # apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+Из вышеприведенного примера можно видеть, что APT также предлагает удалить
+пакеты, от которых зависит пакет, предлагаемый вами к удалению. Способа
+удалить пакет при помощи APT без удаления пакетов, от которых он зависит,
+нет.
+<p>
+Вышеприведенная команда <prgn>apt-get</prgn> удалит пакеты, но оставит их
+настроечные файлы, если они есть. Для полного удаления пакета запустите:
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+Обратите внимание на '*' после имен. Это указывает на то, что будут удалены
+настроечные файлы для каждого из этих пакетов.
+<p>
+Аналогично действию <tt>install</tt>, вы можете инвертировать действие
+<tt>remove</tt> для определенных пакетов. В случае удаления, если вы добавите
+знак <tt>'+'</tt> справа от имени пакета, то пакет будет установлен, а не
+удален.
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Обратите внимание на то, что <prgn>apt-get</prgn> распечатывает дополнительные
+пакеты, которые будут установлены (т.е., пакеты, которые будут установлены
+для правильной работы запрашиваемых к установке пакетов), удаляемые пакеты и
+затем пакеты, которые будут установлены (также включая дополнительные пакеты).
+</sect>
+
+<sect id="upgrade">Обновление пакетов
+<p>
+Обновления пакетов - это конек системы APT. Это может быть сделано одной
+командой: <tt>apt-get upgrade</tt>. Вы можете использовать эту команду для
+обновления пакетов в том же самом дистрибутиве, равно как и при обновлении
+существующего дистрибутива до нового, хотя для последнего действия 
+предназначена команда <tt>apt-get dist-upgrade</tt>; см. подробности в
+разделе <ref id="dist-upgrade">.
+<p>
+Эту команду полезно запускать с опцией <tt>-u</tt>. Эта опция заставляет
+APT показывать полный список пакетов, предназначенных для обновления.
+Без нее вы будете обновляться вслепую. APT последние версии каждого из
+пакетов и установит их в правильном порядке. Поэтому очень важно запустить
+перед этим <tt>apt-get update</tt>. См. раздел <ref id="update">.
+Вот пример:
+
+<example>
+[root]@[/] # apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Процесс очень прост. Обратите внимание, что в первых строках
+<tt>apt-get</tt> говорит, что некоторые пакеты были <tt>kept back</tt>. Это
+означает, что новые версии некоторых пакетов не будут установлены по
+некоторым причинам. Возможными причинами могут быть битые зависимости
+(пакет, от которого он зависит не доступен для скачивания) или новые 
+зависимости (пакет последней версии зависит от новых пакетов).
+<p>
+В первом случае прозрачного решения не существует. Для второго случая, 
+должна помочь команда <tt>apt-get install</tt> для указанного в вопросе
+пакета, так ка это приведет к скачиванию зависимости. Даже более прозрачное
+решение сосотоит в использовании <tt>dist-upgrade</tt>. См. раздел 
+<ref id="dist-upgrade">.
+</sect>
+
+<sect id="dist-upgrade">Обновление нового выпуска
+<p>
+Эта возможность APT позволяет вам обновлять всю систему Debian за один прием,
+или через Internet, или с нового CD (купленного или скачанного в виде образа
+ISO).
+<p>
+Это действие также используется при изменении отношений между установленными
+пакетами. Команда <tt>apt-get upgrade</tt> оставит эти пакеты нетронутыми
+(<tt>kept back</tt>).
+<p>
+Например, предположим, что вы используете выпуск 0 стабильной версии
+Debian и вы покупаете CD с выпуском 3. Вы можете использовать APT для
+обновления вашей системы с этого нового CD. Для этого используйте команду
+<prgn>apt-cdrom</prgn> (см. раздел <ref id="cdrom">) для добавления CD в ваш
+файл <tt>/etc/apt/sources.list</tt> и запустите <tt>apt-get dist-upgrade</tt>.
+<p>
+Важно иметь в виду, что APT всегда высматривает новейшие версии пакетов.
+Поэтому, если в вашем <tt>/etc/apt/sources.list</tt> были указаны архивы,
+которые имеют более новые версии пакетов, чем версия этого CD, то APT
+должен скачивать пакеты с них.
+<p>
+В примере из раздела <ref id="upgrade">, мы видели, что некоторые пакеты
+были <tt>kept back</tt>.  Сейчас мы решим эту проблему
+с помощью действия <tt>dist-upgrade</tt>:
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx 
+The following packages have been kept back
+  lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc 
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Обратите внимание, что сейчас пакеты были обновлены, а также установлены новые
+пакеты (новые зависимости пакетов). Обратите внимание также, что lilo
+по-прежнему остается <tt>kept back</tt>. Вероятно здесь более серьезная 
+причина, чем новая зависимость. Мы можем ее найти командой:
+
+<example>
+[root]@[/] # apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be REMOVED:
+  debconf-tiny 
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be upgraded
+  lilo 
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Как было указано выше, lilo имеет новый конфликт с пакетом
+<package>debconf-tiny</package>, который означает, что он не может быть 
+установлен (или обновлен) без удаления debconf-tiny.
+</sect>
+
+<sect id="dselect-upgrade">Использование APT с dselect
+<p>
+<prgn>dselect</prgn> - это программа, которая помогает пользователям 
+выбирать пакеты Debian для инсталляции. Он выглядит в чем-то громоздким и
+даже раздражает, но со временем вы можете привыкнуть к его консольному,
+основанному на ncurses интерфейсу.
+<p>
+Одной из особенностью dselect является ее умение работать с 
+"рекомендуемыми" и "предлагаемыми" пакетами при установке выбранных пакетов.
+Чтобы использовать эту программу, запустите <tt>`dselect'</tt> от имени root. 
+Выберите в качестве метода доступа 'apt'. В действительности в этом нет
+необходимости, но если вы не используете CD-ROM и хотите скачивать пакеты
+из Интернет, то это наилучший способ для dselect.
+<p>
+Чтобы достичь более глубоких знаний по эксплуатации dselect, прочтите
+документацию по dselect на странице Debian 
+<url id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+<p>
+Когда закончите выбирать в dselect, используйте команду:
+
+<example>
+apt-get -u dselect-upgrade
+</example>
+
+как в нижеприведенном примере:
+
+<example>
+[root]@[/] # apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy 
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images 
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Сравните это с результатом работы команды apt-get dist-upgrade на той же 
+системе:
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade   
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+Обратите внимание на то, что многие из вышеуказанных пакетов были установлены
+потому, что другие пакеты "предлагали" или "рекомендовали" их. Другие
+были установлены или удалены (в случае, например, lbxproxy) в результате
+сделанного нами выбора во время работы в dselect. Dselect может быть мощным
+инструментом, когда используется вместе с APT.
+</sect>
+
+<sect id="default-version">Как сохранить смешанную систему
+<p>
+Люди часто используют тестируемый дистрибутив, потому что он более
+сьабилен, чем нестабильный и более новый, чем стабильный. Однако
+пользователи, которые хотят работать с последними версиями некоторых
+пакетов, но при этом не доверяют им из-за боязни дестабилизировать всю 
+систему, имеют возможность работать со смешанными тестируемыми/стабильными
+системами. Или по-другому - более консервативным пользователям возможно
+нужна смешанная стабильная/тестируемая система.
+<p>
+Чтобы этого добиться, поместите следующую строку в 
+<file>/etc/apt/apt.conf</file>:
+
+<example>
+APT::Default-Release "testing";
+</example>
+
+<p>
+Затем, при установке пакетов из нестабильного дистрибутива, просто используйте
+ключ <tt>-t</tt>:
+
+<example>
+# apt-get -t unstable install <var>имя_пакета</var>
+</example>
+</sect>
+
+<sect id="apt-show-versions">Как обновлять пакеты из указанных версий Debian
+<p>
+<prgn>apt-show-versions</prgn> обеспечивает безопасный путь обновления системы
+для пользователей смешанных дистрибутивов, без получения лишних частей 
+нестабильного дистрибутива, чем это требуется в действительности. К примеру,
+можно обновить только нестабильные пакеты командой:
+<example>
+# apt-get install `apt-show-versions -u -b | grep unstable`
+</example>
+</sect>
+
+<sect id="pin">Как сохранять указанные версии установленных пакетов (сложный способ)
+<p>
+Могло случиться так, что вы изменяете что-то в пакете и не имеете времени
+или не хотите портировать эти изменения в новую версию программы. Или, к
+примеру, вы может быть просто собиретесь обновить ваш дистрибутив Debian до
+версии 3.0, на при этом хотите по-прежнему использовать некоторые пакеты
+из Debian 2.2. Вы можете "приколоть" (pin) установленные версии пакетов так,
+чтобы они не обновлялись.
+<p>
+Это делается просто. Вам всего лишь надо отредактировать файл
+<tt>/etc/apt/preferences</tt>.
+<p>
+Его формат прост:
+<example>
+Package: &lt;package&gt;
+Pin: &lt;pin definition&gt;
+Pin-Priority: &lt;pin's priority&gt;
+</example>
+<p>
+Например, чтобы предотвратить модификацию пакета <package>sylpheed</package>
+версии 0.4.99, которую я поправил на предмет "reply-to-list", я ввел следующее:
+<example>
+Package: sylpheed
+Pin: version 0.4.99*
+</example>
+Обратите внимание, что я использовал <tt>*</tt> (звездочка). Это "маска";
+она означает, что я хочу "приколоть" (pin) все версии, начиная с 0.4.99. 
+Это нужно потому, что в Debian-версиях пакетов в номере версии присутствует 
+"номер редакции Debian", а я не хочу отменять установку этих редакций.
+Так, например, версии 0.4.99-1 и 0.4.99-10 будут установлены, как только
+станут доступны. Обратите внимание, что если вы внесли свои изменения в пакет,
+то такой способ вам не подойдет.
+<p>
+Поле <tt>Pin-Priority</tt> необязательно; если оно не указано, то по умолчанию
+оно равно 989.
+<p>
+Давайте рассмотрим работу приоритетов. Приоритет менее 0 указывает, что
+пакет никогда не должен устанавливаться. Приоритет от 0 до 100 означает
+пакеты, которые не установлены и которые не имеют доступных версий. Они
+не входят в процесс выбора версий. Приоритет 100 назначается установленному 
+пакету - для замены установленной версии пакета другой версией, заменяющий
+пакет должен иметь приоритет выше 100.
+<p>
+Приоритеты выше 100 указывают, что пакет должен быть установлен. Обычно,
+установленная версия пакета изменяется только при обновлении до новой версии.
+Любые приоритеты от 100 до 1000 (включительно) определяют это типичное 
+поведение. Пакет с таким приоритетом не будет даунгрейдиться до доступной 
+версии с меньшим номером версии. Для примера, если у меня установлен
+sylpheed 0.5.3 и определен pin на sylpheed 0.4.99 с приоритетом 999,
+то пакет 0.4.99 <em>не</em> будт установлен из-за значения pin. Чтобы 
+можно было установить пакет меньшей версии, значение pin должно иметь 
+приоритет выше 1000.
+<p>
+Эта концепция придает мощь приложениям; допустим, что вы просто
+обновляете <tt>стабильную</tt> версию вашего дистрибутива Debian до 
+<tt>тестируемой</tt>, но затем пересматриваете это решение - возможно,
+<tt>тестируемой</tt> не "оттестирован" так как вам надо. Вы можете 
+определить pin по умолчанию используя маски в именах пакетов, чтобы
+вернуться к стабильной версии. Например:
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+<p>
+После этого, команда <tt>apt-get -u dist-upgrade</tt> понизит ваш версию
+вашего дистрибутива до стабильной.
+<p>
+pin может быть определен для <tt>version</tt>, <tt>release</tt>
+или <tt>origin</tt> пакета.
+<p>
+При указании pin для <tt>версий</tt>, как мы видели, для указания нескольких
+версий за один раз поддерживаются литеральные номера версий, равно как и 
+маски.
+<!-- what's available?  standard shell globs?  ?*[]   or more? -->
+<p>
+Опция <tt>release</tt> зависит от файла Release из репозитория APT или
+с CD. Эта опция может не использоваться вовсе, если вы используете репозитории
+пакетов, которые не обеспечивают этот файл. Вы можете увидеть содержимое 
+файлов Release, которые вы используете в каталоге
+<tt>/var/lib/apt/lists/</tt>. Параметры для опции release:
+<tt>a</tt> (archive -- архив), <tt>c</tt> (components -- компоненты),
+<tt>v</tt> (version -- версия), <tt>o</tt> (origin -- источник) и
+<tt>l</tt> (label -- метка).
+<p>
+Пример:
+<example>
+Package: *
+Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+Priority: 1001
+</example>
+В этом примере, мы выбираем версию 2.2* Debian (которая может быть 2.2r2,
+2.2r3 -- это "точечные выпуски", которые обычно включают исправления
+безопасности и другие важные обновления), <tt>стабильный</tt> репозиторий,
+раздел <tt>main</tt> (как противовес <tt>contrib</tt> или
+<tt>non-free</tt>) и источник и метку Debian. Источник (o=) определяет, кто
+создал данный файл Release, метка (l=) определяет имя дистрибутива: Debian 
+для самого Debian и Progeny для дистрибутива Progeny, например. Пример файла
+Release:
+<example>
+$ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+Archive: stable
+Version: 2.2r3
+Component: main
+Origin: Debian
+Label: Debian
+Architecture: i386
+</example>
+</sect>
+</chapt>
+
+<chapt id="helpers">Весьма полезные помощники
+<sect id="equivs">Как установить локально скомпилированные пакеты: equivs
+<p>
+Иногда, люди хотят использовать определенную версию программы, доступную
+только в исходных текстах, без пакета Debian. Но этому может помешать
+система пакетов. Предположим, вы хотите скомпилировать новую версию
+вашего почтового сервера. Все отлично, но многие пакеты в Debian зависят
+от MTA. Так как вы устанавливаете нечто, собранное вами вручную, то
+система пакетов об этом не будет знать.
+<p>
+Тут на сцену выходит весь в белом пакет <package>equivs</package>. Чтобы его
+использовать, установите пакет с тем же именем. Он создает пустой пакет,
+который содержит полный набор зависимостей, уведомляя таким образом систему 
+пакетов, что все зависимочти удовлетворены.
+<p>
+Прежде, чем мы начнем, хорошо бы сообщить вам, что есть более безопасные 
+способы компиляции программ, для которых уже есть пакеты Debian с различными
+опциями, и что в этом случае лучше не использовать equivs для замены
+зависимостей, если вы не уверены в том, что все делаете правильно.
+См. подробности в разделе <ref id="sourcehandling">.
+<p>
+Давайте вернемся к примеру с MTA, вы только что установили свежесобранный
+<prgn>postfix</prgn> и переходите к установке <package>mutt</package>.
+Сразу же вы обнаружите, что <package>mutt</package> нужен установленный
+MTA. Но ведь он у вас уже есть.
+<p>
+Зайдите в какой-нибудь каталог (<file>/tmp</file>, например) и запустите:
+
+<example>
+# equivs-control <var>name</var>
+</example>
+
+Замените <var>name</var> на имя управляющего файла, который вы создаете.
+Будет создан следующий файл:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;enter package name; defaults to equivs-dummy&gt;
+Version: &lt;enter version here; defaults to 1.0&gt;
+Maintainer: &lt;your name and email address; defaults to username&gt;
+Pre-Depends: &lt;packages&gt;
+Depends: &lt;packages&gt;
+Recommends: &lt;packages&gt;
+Suggests: &lt;package&gt;
+Provides: &lt;(virtual)package&gt;
+Architecture: all
+Copyright: &lt;copyright file; defaults to GPL2&gt;
+Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+Readme: &lt;README.Debian file; defaults to a generic one&gt;
+Extra-Files: &lt;additional files for the doc directory, commaseperated&gt;
+Description: &lt;short description; defaults to some wise words&gt;
+ long description and info
+ .
+ second paragraph
+</example>
+
+Нам просто нужно поправить его, как нам нужно. Формат полей и их описаний
+понятен визуально, так что давайте сделаем требуемое:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+Да, это все. <package>mutt</package> зависит от
+<package>mail-transport-agent</package>, это виртуальный пакет, обеспечиваемый
+всеми MTA, я мог бы использовать имя пакета
+ <package>mail-transport-agent</package>, но я придерживаюсь
+принятой схемы именования, используя Provides.
+<p>
+Сейчас вам нужно только построить пакет:
+
+<example>
+# equivs-build <var>name</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+И установите полученный <tt>.deb</tt> файл.
+<p>
+Очевидно, существует несколько применений для <prgn>equivs</prgn>.
+Одно из них, например, - создание пакета <tt>my-favorites</tt>, который 
+зависит от программ, которые вы обычно устанавливаете. Просто включите свое
+воображение, но будьте осторожны.
+<p>
+Важно заметить, что примеры управляющих файлов есть в каталоге
+<file>/usr/share/doc/equivs/examples</file>. Посмотрите их.
+</sect>
+
+<sect id="localepurge">Удаление неиспользуемых файлов локали: localepurge
+<p>
+Многие пользователи Debian используют только одну локаль. Бразильские
+пользователи Debian, например, обычно используют локаль <tt>pt_BR</tt>
+и не интересуются локалью <tt>es</tt>.
+<p>
+<package>localepurge</package> - это очень полезный инструмент для таких
+пользователей. Вы можете освободить много места, если оставите только те
+локали, которые вы действительно используете. Просто дайте команду
+<tt>apt-get install localepurge</tt>.
+<p>
+Пакет очень легко настраивается, debconf обеспечивает его пошаговую настройку.
+Однако будьте осторожны при ответе на первый вопрос, неправильный ответ может
+повлечь удаление всех файлов локалей, даже тех, которые вы используете. После 
+этого восстановить их можно будет только переустановкой всех пакетов, их 
+предоставляющих.
+</sect>
+
+<sect id="helper-show-versions">Как узнать, какие пакеты можно обновить
+<p>
+<prgn>apt-show-versions</prgn> - это программа, которая показывает, какие 
+пакеты в системе можно обновить и еще некоторую полезную информацию. Опция
+<tt>-u</tt> отображает список обновляемых пакетов:
+
+<example>
+$ apt-show-versions -u    
+libeel0/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+libeel-data/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+</example>
+</sect>
+
+</chapt>
+
+<chapt id="search">Получение информации о пакетах.
+<p>
+Для системы APT существует несколько оболочек, которые значительно упрощают 
+просмотр пакетов, которые доступны для установки или уже установлены, а также
+для поиска разделов, приоритетов, описания пакетов и т.д.
+<p>
+Но... наша цель состоит в изучении самого APT. Так как же найти имя пакета,
+который вам надо установить?
+<p>
+Для такой задачи мы располагаем несколькими ресурсами. Начнем с 
+<tt>apt-cache</tt>. Эта программа используется системой APT для управления 
+ее базами данных. Мы только вкратце оглядим ее более практические приложения.
+
+<sect id="cache">Нахождение имен пакетов
+<p>
+Например, допустим, что вы хотите вспомнить старые добрые денечки
+Atari 2600. Вы хотите использовать APT для установки эмулятора Atari и
+скачивания некоторых игр. Можете сделать так:
+
+<example>
+[root]@[/] # apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+Мы нашли несколько пакетов, имеющих отношение к тому, что нам требуется,
+вместе с краткими описаниями. Чтобы посмотреть более полные описания,
+можно дать команду:
+
+<example>
+[root]@[/] # apt-cache show stella  
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (>= 2.1), libstdc++2.10, xlib6g (>= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella - это portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+В этом выводе мы получили множество сведений о пакете, который вы хотите
+(или не хотите) установить, вместе с полным описанием пакета. Если пакет 
+уже установлен в системе или есть более новая версия, то вы увидите
+информацию об обоих версиях. Например:
+
+<example>
+[root]@[/] # apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (>= 2.2.1-2), debconf (>=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (<<1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (>= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+Обратите внимание, что первый в списке - доступный пакет, а второй - уже
+установленный. Для получения более общей информации о пакете, вы можете 
+использовать:
+
+<example>
+[root]@[/] # apt-cache showpkg penguin-command
+Package: penguin-command
+Versions: 
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends: 
+Dependencies: 
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+Provides: 
+1.4.5-1 - 
+Reverse Provides: 
+</example>
+
+А чтобы посмотреть только его зависимости:
+
+<example>
+[root]@[/] # apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+В общем, мы имеем полный арсенал для поиска имен нужных нам пакетов.
+</sect>
+
+<sect id="dpkg-search">Применение dpkg для поиска имен пакетов
+<p>
+Один из способов найти имя пакета - знать имя какого-либо важного файла,
+находящегося в этом пакете. Например, чтобы найти пакет, которому принадлежит
+некий файл <tt>".h"</tt>, нужный вам для компиляции, может запустить:
+
+<example>
+[root]@[/] # dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+или:
+
+<example>
+[root]@[/] # dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+Чтобы найти имя пакета, установленного в вашей системе, что полезно,
+например, если вы планируете почистить место на диске, дайте команду:
+
+<example>
+[root]@[/] # dpkg -l | grep mozilla
+ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+</example>
+
+Проблема этой команды в том, что она может "испортить" имя пакета. В примере
+выше, полное имя пакета <tt>mozilla-browser</tt>. Чтобы это исправить,
+вы можете изменить значение переменной окружения <tt>COLUMNS</tt>:
+
+<example>
+[kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+</example>
+
+или использовать описание или часть его следующим образом:
+
+<example>
+[root]@[/] # apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">Установка пакетов "по запросу"
+<p>
+Вы собираете пакет, и вдруг, бах! Ошибка из-за того, что нет какого-то там
+нужного файла <tt>.h</tt>. От такого поворота событий вас может спасти 
+программа <prgn>auto-apt</prgn>. Она запрашивает какие пакеты установить,
+если они нужны, останавливает соответствующий процесс и продолжает его после
+установки пакета.
+<p>
+Для этого, в основном, запустите:
+
+<example>
+auto-apt run command
+</example>
+
+Где `command' - это команда, при выполнении которой может обнаружиться
+отстутствие некоего файла. Например:
+
+<example>
+auto-apt run ./configure
+</example>
+
+Она запросит установку необходимых пакетов и вызовет apt-get автоматически.
+Если вы работаете в X, то графический интерфейс будет по умолчанию заменен на
+текстовый.
+<p>
+Auto-apt сохраняет базы данных в обновленном состоянии, чтобы быть более
+эффективной. Это достигается вызовом команд
+<tt>auto-apt update</tt>, <tt>auto-apt updatedb</tt> и
+<tt>auto-apt update-local</tt>.
+</sect>
+
+<sect id="apt-listchanges">Как получить информацию об изменениях в пакете.
+<p>
+Каждый пакет устанваливает в свой каталог документации 
+(<tt>/usr/share/doc/packagename</tt>) файл, называемый 
+<tt>changelog.Debian.gz</tt>, который содержит список изменений, сделанных в
+пакете в последней версии. Вы можете прочесть эти файлы, например, утилитой
+<tt>zless</tt>', но в общем-то не слишком удобно после полного обновления
+системы искать changelog`и для каждого обновленного пакета.
+<p>
+Можно автоматизировать эту задачу с помощью инструмента
+<prgn>apt-listchanges</prgn>. Для начала надо установить пакет
+<package>apt-listchanges</package>. В течение инсталляции, Debconf настроит
+его. Отвечайте на вопросы так, как вам будет удобнее.
+<p>
+Опция "Should apt-listchanges be automatically run by apt?" очень полезна,
+так как показывает список изменений, сделанных в каждом установленном при
+обновлении пакете, и позволяет вам проанализировать ситуацию перед тем, как 
+продолжить. Опция "Should apt-listchanges prompt for confirmation after 
+displaying changes?" запрашивает у вас разрешения продолжать после чтения
+списка изменений. Если вы скажете, что не хотите продолжать, то 
+apt-listchanges вернет ошибку и apt прервет установку.
+<p>
+После установки apt-listchanges, как только пакеты скачаются
+(или будут получены с CD или смонтированного диска) с помощью apt, можно
+будет смотреть списки изменений, сделанных в ранее установленных пакетах.
+</sect>
+</chapt>
+
+<chapt id="sourcehandling">Работа с пакетами исходных текстов
+<sect id="source">Скачивание пакетов исходных текстов
+<p>
+В мире свободного ПО общепринято изучать исходный код или доже делать
+исправления ошибок. Чтобы это делать, вы должны скачать исходный текст 
+программ. Система APT предлагает легкий путь для получения исходных текстов 
+пакетов для множества программ, составляющих дистрибутив, включая все файлы,
+необходимые для создания .deb-файлов программ.
+<p>
+Другой способ использования исходных текстов в Debian - адаптация более
+новых версий программ из, например, нестабильного дистрибутива для 
+использования со стабильным дистрибутивом. Сборка пакета в среде
+стабильного дистрибутива обечпечит генерацию .deb с зависимостями, 
+соответствующими пакетам, доступным в дистрибутиве.
+<p>
+Для этого запись <tt>deb-src</tt> в вашем файле
+<tt>/etc/apt/sources.list</tt> должна указывать на нестабильный дистрибутив.
+Она должна быть разрешена (раскомментирована). См. раздел 
+<ref id="sources.list">.
+<p>
+Для скачивания пакетов исходных текстов рекомендуется использовать команду:
+
+<example>
+apt-get source packagename
+</example>
+Команда должна скачать три файла: <tt>.orig.tar.gz</tt>, 
+<tt>.dsc</tt> и <tt>.diff.gz</tt>. В случае, если пакеты создавались 
+исключительно для Debian, последний из них не скачивается и первый файл не
+имеет вставки <tt>"orig"</tt> в своем имени.
+<p>
+Файл <tt>.dsc</tt> пользуется командой dpkg-source для распаковки пакета
+исходных текстов в каталог <var>packagename-version</var>. Внутри каждого
+скачанного пакета исходных текстов есть каталог <tt>debian/</tt>, который
+содержит файлы, необходимые для создания пакета .deb.
+<p>
+Для автоматического построения пакета из скачиваемых исходных текстов просто
+укажите ключ <tt>-b</tt> в командной строке, примерно так:
+
+<example>
+apt-get -b source имяпакета
+</example>
+
+Если вы рашаете не создавать .deb при скачивани, то вы можете создать его
+позже командой:
+
+<example>
+dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+из каталога, который был создан для пакета после скачивания.
+<p>
+Есть разница между методом <tt>source</tt> команды <prgn>apt-get</prgn> и
+ее другими методами. Метод <tt>source</tt> может быть использован обычными
+пользователями, без необходимости иметь права root. Файлы скачиваются
+в каталог, из которого вызывается команда <tt>apt-get source package</tt>.
+</sect>
+
+<sect id="build-dep">Пакеты, необходимые для компиляции пакетов исходных текстов
+<p>
+Обычно, для того, чтобы пакет можно было собрать, нужны некоторые 
+заголовочные файлы и совместно-используемые библиотеки. Все пакеты 
+.deb имеют в своих управляющих файлах поле 'Build-Depends:', которое
+указывает дополнительные пакеты, которые необходимы для построения пакета из
+исходных текстов.
+<p>
+APT имеет простой метод скачивания этих пакетов. Просто запустите 
+<tt>apt-get build-dep package</tt>, где `package' - это имя пакета, который
+вы собираетесь построить.  Например:
+
+<example>
+[root]@[/] # apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev 
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Будут установлены пакеты, необходимые для правильного построения пакета
+<package>gmc</package>. Важно отметить, что команда не ищет сам пакет 
+исходных текстов. По этой причине вам потребется скачать его отдельной
+командой <tt>apt-get source</tt>.
+</sect>
+</chapt>
+
+<chapt id="erros">Как исправлять ошибки
+<sect id="erros-comuns">Общие ошибки
+<p>
+Ошибки случаются зачастую из-за невнимательности пользователей. Далее будут
+рассмотрены несколько частых ошибок и методв их устранения.
+<p>
+Если вы получили пимерно такое сообщение при выполнении команды
+<tt>apt-get install package</tt>...
+
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+от вы забыли запустить <tt>apt-get update</tt> после последних изменений в
+файле <tt>/etc/apt/sources.list</tt>.
+<p>
+Ошибка выглядит вот так:
+
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+если вы пытаетесь воспользоваться любым другим методом <prgn>apt-get</prgn>,
+кроме <tt>source</tt>, не имея прав root.
+<p>
+Похожие ошибки могут возникать при запске двух копий программы 
+<prgn>apt-get</prgn> в одно и то же время, или даже если вы пытаетесь
+запустить <prgn>apt-get</prgn> одновременно с <prgn>dpkg</prgn>.
+Одновременно с другими можно запускать только метод <tt>source</tt>.
+<p>
+Если установка прервалась на середине процесса, и вы больше не можете ни
+установить, ни удалить пакеты, то попробуйте эти две команды:
+
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+И затем попробуйте снова. Может потребоваться запустить вторую из 
+вышеуказанных команд более одного раза. Это важный урок для тех любителей
+приключений, которые используют `unstable'.
+
+</sect>
+
+<sect id="help">Где мне искать помощь?
+<p>
+Если вы в тупике, посмотрите вполне доходчивую документацию для
+системы пакетов Debian. Вам могут помочь <tt>--help</tt>'ы и страницы 
+руководств, также как и документация в каталоге <tt>/usr/share/doc</tt>,
+например, в подкаталоге <tt>/usr/share/doc/apt</tt>.
+<p>
+Если документация вас не просвещает, то попробуйте поискать ответ в
+списках почтовой расылки Debian. Вы можете найти более подробную информацию
+об указанных списках рассылки на веб-сайте Debian: <url
+id="http://www.debian.org" name="http://www.debian.org">.
+<p>
+Помните, что эти списки и ресурсы должны использоваться только пользователями
+Debian; пользователи других систем найдут лучшую поддержку в ресурсах их
+собственных дистрибутивов.
+</sect>
+</chapt>
+
+<chapt id="distros">Какие дистрибутивы поддерживают APT?
+<p>
+Вот названия некоторых дистрибутивов, которые используют APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- это дистрибутив, в которым был разработан APT
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- это дистрибутив, который первым портировал APT для использования с rpm
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+</chapt>
+
+<chapt id="agradecimentos">Благодарности
+<p>
+Большое спасибо моим большим друзьям в проекте Debian-BR и в самом
+Debian, которые постоянно помогают мне и всегда придают сил для труда
+на благо человечества, также как и помогают мне в стремлении сохранить мир. :)
+<p>
+Также я хочу выразить свою благодарность CIPSGA за посильную помощь нашему
+проекту и всем свободным проектам, которые несут великие идеи.
+<p>
+
+И особые благодарности:
+<p>
+Yooseong Yang &lt;yooseong@debian.org&gt; - за перевод руководства на
+Korean.
+<p>
+Michael Bramer &lt;grisu@debian.org&gt; - за предложение включить раздел
+о сохранении указанных версий.
+<p>
+Bryan Stillwell &lt;bryan@bokeoa.com&gt; - за различные заплаты и исправления.
+<p>
+Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt; - за различные исправления и
+польский перевод.
+<p>
+Pablo Lorenzzoni &lt;spectra@debian.org&gt; - за написание раздела о
+netselect.
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt; - за перевод руководства на
+английский.
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt; - за вклад в список 
+дополнительных дистрибутивов, которые сейчас работают с APT:
+Mandrake, PLD и Vine.
+<p>
+Erik Rossen &lt;rossen@freesurf.ch&gt; - за совет с переменной COLUMNS
+для команды dpkg -l.
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt; - за совет использовать
+ -o Debug::pkgProblemResolver=yes.
+<p>
+Matt Kraai &lt;kraai@debian.org&gt; - за различные заплаты, советы и
+исправления.
+<p>
+Aaron M. Ucko &lt;ucko@debian.org&gt; - за вычитку и исправления.
+</chapt>
+
+<chapt id="novas">Новые версии этого руководства
+<p>
+Это руководство было создано для проекта 
+<url id="http://debian-br.cipsga.org.br" name="Debian-BR">,
+с целью ежедневной помощи проекту Debian.
+<p>
+Новые версии этого документа будут доступны на странице проекта 
+<url id="http://debian-br.cipsga.org.br/suporte/documentacao.html" 
+name="http://debian-br.cipsga.org.br/suporte/documentacao.html">. 
+<p>
+Комментарии и критику можно отправлять прямо мне на электронную почту
+<email>kov@debian.org</email>.
+</chapt>
+
+</book>
