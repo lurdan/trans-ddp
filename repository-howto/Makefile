@@ -35,6 +35,10 @@ $(manual).fo: $(sources)
 	xsltproc --catalogs -o $@ \
 	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/docbook.xsl \
 	$<
+	# workaround to avoid -4pc -4pc on top of each page which is currently
+	# only partially catched by
+	# /usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/pagesetup.xsl
+	sed 's/margin-left="1in - -4pc"/margin-left="1in"/g' $@ > $@.tmp && mv $@.tmp $@
 
 dvi: $(manual).dvi
 $(manual).dvi: $(manual).fo
