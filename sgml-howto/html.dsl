@@ -17,6 +17,9 @@
 (define %section-autolabel%
   ;; Are sections enumerated?
   #f)
+(define biblio-number
+  ;; Enumerate bibliography entries
+  #t)
 ;;(define %generate-legalnotice-link%
   ;; Should legal notices be a link to a separate file?
 ;;  #t)
