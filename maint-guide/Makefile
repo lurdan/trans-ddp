@@ -4,7 +4,7 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for maint-guide package build.
 
-MANUAL :=	$(notdir $(CURDIR))
+MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
