@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.5 $"  -->
-<!-- CVS revision of original english document "1.57"  -->
+<!-- CVS revision of this document "$Revision: 1.6 $"  -->
+<!-- CVS revision of original english document "1.64"  -->
 
 <chapt id="install"> Dicas para instalação do Sistema Debian
 
@@ -19,9 +19,14 @@ Potato, a maior parte dos seus conteúdos foi atualizada para
 
 <sect> Dicas para instalação de sistemas Linux em geral
 <p>
-Para minimizar os riscos associados aos pacotes "testing" e "unstable",
-é uma boa prática configurar seu principal sistema Linux para
-inicialização dual (dual boot) com outro pequeno sistema Linux estável.
+Usar os sabores <tt>testing</tt> ou <tt>unstable</tt> do &debian;
+envolve um risco adicional de ter bugs sérios. O risco pode ser
+gerenciado implementando um esquema de multi-inicialização com um sabor
+mais estável do &debian; ou implementando o truque legal do
+<prgn>chroot</prgn> com o mais estável como descrito em <ref
+id="chroot">. O último permitirá que você execute diferentes sabores do
+&debian; simultaneamente em consoles diferentes.
+<p>
 
 <sect1>O básico sobre a compatibilidade de hardware
 <p>
@@ -74,9 +79,25 @@ $ lspci -v |pager
 $ pager /proc/pci
 $ pager /proc/interrupts
 $ pager /proc/ioports
+$ pager /proc/bus/usb/devices
 </example>
 Estes comandos podem ser rodados durante o processo de instalação num
 terminal virtual teclando ALT-F2.
+<p>
+Para dispositivos USB, as classes de dispositivos são listadas em
+<file>/proc/bus/usb/devices</file> como <tt>Cls=<var>nn</var></tt>:
+<list compact>
+<item>Cls=00 : Sem uso
+<item>Cls=01 : Audio (alto-falante etc.)
+<item>Cls=02 : Comunicação (MODEM, NIC, ...)
+<item>Cls=03 : HID (Dispositivo de interface humana: teclado, mouse, joystick)
+<item>Cls=07 : Impressora
+<item>Cls=08 : Armazenamento de massa (FDD, drive CD/DVD, HDD, Flash, ...)
+<item>Cls=09 : Hub (hub USB)
+<item>Cls=255 : Específico de fabricante
+</list>
+Se a classe de um dispositivo não for 255, o Linux tem suporte ao
+dispositivo.
 </sect1>
 
 <sect1>Determinando o hardware de um PC por meio de outros SO's
@@ -97,7 +118,7 @@ antigas podem precisar ser configuradas sob o DOS e usadas em conformidade.
 
 <sect1>Um mito sobre o Lilo
 <p>
-Lilo está limitado a 1024 cilindros. &mdash;WRONG !
+Lilo está limitado a 1024 cilindros. &mdash;ERRADO !
 <p>
 O <prgn>lilo</prgn> mais recente, usado após a Debian Potato tem suporte
 a lba32. Se o BIOS de sua placa mãe é suficientemente recente para
@@ -323,7 +344,7 @@ A montagem do sistema de arquivos acima é realizada corretamente com o
 seguinte <file>/etc/fstab</file>:
 <example>
 
-# /etc/fstab: static file system information.
+# /etc/fstab: informação de sistema de arquivos estático
 #
 # file system   mount point     type    options                dump pass
 /dev/hda3       /               ext2    defaults,errors=remount-ro 0 1
@@ -332,22 +353,23 @@ proc            /proc           proc    defaults                0 0
 /dev/fd0        /floppy         auto    defaults,user,noauto    0 0
 /dev/cdrom      /cdrom          iso9660 defaults,ro,user,noauto 0 0
 #
-# keep partition separate
-/dev/hda7       /home           ext2    rw                      0 2
-/dev/hda8       /var            ext2    rw                      0 2
-/dev/hda6       /var/lib/cvs    ext2    rw                      0 2
-/dev/hda9       /usr            ext2    rw                      0 2
-/dev/hda10      /var/cache/apt/archives ext2    rw              0 2
+# manter partições separadas
+/dev/hda7       /home           ext2    defaults                0 2
+/dev/hda8       /var            ext2    defaults                0 2
+/dev/hda6       /var/lib/cvs    ext2    defaults                0 2
+# noatime aumentará velocidade de acesso a arquivo para leitura
+/dev/hda9       /usr            ext2    defaults,noatime        0 2
+/dev/hda10      /var/cache/apt/archives ext2    defaults        0 2
 
-# very big partition for proxy cache
+# partição muito grande para cache do proxy
 /dev/hda11      /var/spool/squid ext2   rw                      0 2
 
-# backup bootable DOS
+# DOS inicializável de segurança (backup)
 /dev/hda1       /mnt/dos        vfat    rw,noauto               0 0
-# backup bootable Linux system (not done)
+# sistema Linux inicializável de segurança (backup) (não feito)
 /dev/hda2       /mnt/linux      ext2    rw,noauto               0 0
 #
-# nfs mounts
+# montagens nfs
 mickey:/        /mnt/mickey     nfs     ro,noauto,intr          0 0
 goofy:/         /mnt/goofy      nfs     ro,noauto,intr          0 0
 # minnie:/ /mnt/minnie smbfs ro,soft,intr,credentials={filename} 0 2
@@ -598,6 +620,9 @@ Certifique-se que você tem:
 <item>"Support for USB", "Preliminary USB device filesystem",
       "UHCI or OHCI", e "USB HID Support" habilitados no kernel ou como
        módulos.
+<item>Instale o pacote <package>hotplug</package> e habilite
+     <tt>X11_USBMICE_HACK=true</tt> no arquivo
+     <file>/etc/default/hotplug.usb</file>
 </list>
 <p>
 Se você não está usando dvfs, crie um dispositivo nó (node)
@@ -608,7 +633,7 @@ Se você não está usando dvfs, crie um dispositivo nó (node)
 # mknod input/mice c 13 63
 </example>
 <p>
-Para mouses <strong>USB</strong> 3 botões típicos, as combinações de
+Para mouses <strong>USB</strong> com roda típicos, as combinações de
 configuração deveriam ser:
 <example>
 /etc/gpm.conf            | /etc/X11/X86Config-4
@@ -625,6 +650,26 @@ sample_rate=             |  Option     "Protocol" "IMPS/2"
 </example>
 <p>
 Veja <url id="&linuxusb;" name="Linux USB Project"> para mais informações.
+
+<sect1>Touch pad
+<p>
+Apesar de o touch pad no computador laptop emular um mouse de 2 botões
+PS/2 como seu comportamento padrão, o pacote <package>tpconfig</package>
+possibilita controle total do dispositivo. Por exemplo, configurando
+<tt>OPTIONS="--tapmode=0"</tt> no arquivo
+<file>/etc/default/tpconfig</file>, desabilita-se o incômodo
+comportamento de "clique por batida leve". Configure o arquivo
+<file>/etc/gpm.conf</file> como a seguir para usar tanto o touch pad
+como o mouse USB externo no console:
+<example>
+device=/dev/psaux
+responsiveness=
+repeat_type=ms3
+type=autops2
+append="-M -m /dev/input/mice -t autops2"
+sample_rate=
+</example>
+
 </sect>
 
 <sect>Configuração NFS
