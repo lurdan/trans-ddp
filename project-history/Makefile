@@ -59,6 +59,17 @@ $(MANUAL).en.ps: $(MANUAL).sgml
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
+# temporary debug code for www-master
+FORCE:
+ 
+$(MANUAL).ko.ps: FORCE
+	rm -f $(MANUAL).ko.{dvi,info*,log,tex,aux,toc,out,sasp*,tpt} 
+	debiandoc2latexps -v -k -l ko $(MANUAL).ko.sgml
+	@echo " ###### Content of $(MANUAL).ko.log: ##########"
+	cat $(MANUAL).ko.log
+	@echo " ###### End of content of $(MANUAL).ko.log ##########"
+	rm -f $(MANUAL).ko.{dvi,info*,log,tex,aux,toc,out,sasp*,tpt} 
+
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
