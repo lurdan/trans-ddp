@@ -24,7 +24,11 @@ publish:	$(MANUAL).html/index.html
 		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
 			$(PUBLISHDIR)/$(MANUAL)/
 
-$(MANUAL).html/index.html:	$(wildcard *.sgml)
+faqdynamic.ent:
+	echo "<!entity docdate \"$(shell date +'%-d %B %Y')\">" > faqdynamic.ent
+	echo "<!entity docversion \"CVS\">" >> faqdynamic.ent
+
+$(MANUAL).html/index.html:	$(wildcard *.sgml) faqdynamic.ent
 		debiandoc2html $(MANUAL).sgml
 
 # ensure our SGML is valid
@@ -34,6 +38,7 @@ validate:
 
 clean:
 		rm -rf $(MANUAL).html
+		rm -f faqdynamic.ent
 
 distclean:	clean
 
