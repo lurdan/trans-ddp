@@ -1,0 +1,1687 @@
+
+<appendix id="harden-step">循序渐进安全化
+
+<!--
+# I took the liberty to change this from "checklist" to
+# "process step by step" because this doesn't really have the
+# form of a checklist, and I had added a different sort of
+# checklist. The renaming is more to avoid confusion than
+# anything else. // era
+-->
+
+<p>下边是安装完成后, 来循序渐进的增强 Debian 2.2 GNU/Linux 系统的安全性.
+对于增强网络服务的安全性, 这是一种可行的方法. 这包括展示您的整个配置过程. 
+更多信息参见 <ref id="checklist">.
+
+<list>
+
+<item>安装系统时, 应当注意分区有关的信息, 包括本文档前边提到的. 
+完成基本安装后, 进入定制安装阶段. 不要 select task packages. 
+应当使用 shadow 密码.
+
+<item>使用 <prgn>dselect</prgn>, 删除在前边使用 [I]nstall 
+时安装了但是并不需要的软件包. 使得系统安装的软件包最少.
+
+<item>如前边 <ref id="security-update"> 阐明的, 从 security.debian.org 更新所有的软件包.
+
+<item>实现本手册前边提出的建议, 特边是用户限额, 登录定义和 <prgn>lilo</prgn>
+
+<item>构建一个系统当前运行服务的列表. 尝试:
+
+<example>
+  $ ps -aux
+  $ netstat -pn -l -A inet 
+  # /usr/sbin/lsof -i | grep LISTEN
+</example>
+
+执行第三行命令(以 root 运行), 您需要安装 <package>lsof-2.2</package>. 应当注意, 
+<prgn>lsof</prgn> 可以将 LISTEN 换做您的本地设定...
+
+<item>为了删除多余的服务, 首先应当确定服务是由什么软件包提供的, 它是如何启动的.
+这可以通过检查程序监听的 socket 来确定. 下边使用了 <prgn>lsof</prgn> 和
+<prgn>dpkg</prgn> 程序的脚本可以完成这一任务:
+
+<example>
+  #!/bin/sh
+  # FIXME: this is quick and dirty; replace with a more robust script snippet
+  for i in `sudo lsof -i | grep LISTEN | cut -d " " -f 1 |sort -u` ; do
+	  pack=`dpkg -S $i |grep bin |cut -f 1 -d : | uniq`
+	  echo "Service $i is installed by $pack";
+	  init=`dpkg -L $pack |grep init.d/ `
+	  if [ ! -z "$init" ]; then
+		   echo "and is run by $init"
+	  fi
+  done
+</example>
+
+<item>一旦发现了您不需要的任务, 删除相关软件包(使用 <prgn>dpkg --purge</prgn>), 
+或使用 <prgn>update-rc.d</prgn>(参阅 <ref id="disableserv">) 禁止服务在启动时自动运行.
+
+<item>对于 inetd 服务(由超级用户装入的), 检查在 <file>/etc/inetd.conf</file> 中启用了哪些服务:
+
+<example>
+  $ grep -v "^#" /etc/inetd.conf | sort -u
+</example>
+
+然后通过注释掉 <file>/etc/inetd.conf</file> 中的对应行, 将其禁用, 删除对应软件包, 或使用 <prgn>update-inetd</prgn>.
+
+<item>如果您使用了 wrapped 服务(它们使用
+<prgn>/usr/sbin/tcpd</prgn>), 根据您的服务策略, 检查
+<file>/etc/hosts.allow</file> 和 <file>/etc/hosts.deny</file> 文件的配置.
+
+<item>如果服务器使用了多个外部接口, 根据服务, 您可以限制服务只监听特定的接口.
+例如, 如果您只允许内网访问 FTP, 那么就配置 FTP 守护进程只监听您管理的接口, 而不是所有接口(即, 0.0.0.0:21).
+
+<item>重启计算机, 或使用下边的命令由单用户模式切换到多用户模式:
+
+<example>
+  $ init 1
+  (....)
+  $ init 2
+</example>
+
+<item>检查现在的服务, 并, 如果需要, 重复上边的步骤.
+
+<item>现在, 安装所需服务, 如果, 您还没有做好, 正确的配置它们...
+
+<item>使用下边的 shell 命令, 确定服务是以什么用户运行的:
+
+<example>
+  $ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`; \
+  > do user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; \
+  > echo "Service $i is running as user $user"; done
+</example>
+
+考虑用指定的用户/组运行这些服务, 为了增强安全性, 也可为它们设置 <prgn>chroot</prgn>.
+您可以通过修改启动服务的脚本 <file>/etc/init.d</file> 达到这个目的. Debian 中许多服务使用
+<prgn>start-stop-daemon</prgn>, 它们都有完成这种设置的选项
+(<tt>--change-uid</tt> 和 <tt>--chroot</tt>). 有关为服务设置 <prgn>chroot</prgn> 的警告信息:
+您可能需要将服务对应软件包(使用 dpkg -L)所安装的所有文件, 以及其依赖的软件包,
+置于  <prgn>chroot</prgn> 环境中. 有关配置 <prgn>ssh</prgn> 
+的 <prgn>chroot</prgn> 环境的信息, 参阅 <ref id="chroot-ssh-env">.
+
+<item>重复上边的步骤, 直至只有所希望的服务运行, 并且与希望的用户/组绑定.
+
+<item>测试安装的服务是否与期望相符.
+
+<item>使用漏洞评估扫描器(如 <package>nessus</package>)检查系统, 是否存在漏洞(即, 错误的配置, 旧版服务, 或不需要的服务).
+
+<item>安装基于网络或主机的入侵检测工具, 如
+<package>snort</package> 和 <package>logsentry</package>.
+
+<item>重复进行网络扫描和入侵检测校验, 直至确定系统运行正常.
+
+</list>
+
+<p>下边是更加偏执的做法:
+
+<list>
+
+<item>提高系统防火墙的性能, 只接受对所提供服务的连入访问, 并限制连出访问, 只允许授权的连接通行.
+
+<item>使用网络扫描器, 再次对系统进行漏洞评估.
+
+<item>使用网络扫描器, 检查系统指向外部站点的出站连接, 确保没有多余的连出连接.
+
+</list>
+
+<p>FIXME: 这个过程只是考虑增强服务的安全性, 而不是在用户级别上增强系统的安全性,
+包括检查用户权限的信息, SETUID 文件和使用 ext2 文件系统的冻结修改.
+
+
+<appendix id="checklist">配置清单
+
+<p>本附录以精简清单的形式简要地重申本手册中其它部分的一些内容. 这只是为那些已经阅读本文档的人做个快速的总结. 它还包括其它一些不错的清单, 如 <url
+id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.html"
+name="Securing Linux Step by Step"> 和 <url
+id="http://www.cert.org/tech_tips/usc20_full.html" name="CERT's Unix
+Security Checklist">.
+
+<!-- Order is slightly different from body text. Consider changing text? -->
+<!-- (FIXME) -->
+
+<p>FIXME: 这些内容基于手册的 1.4 版, 也许需要更新了..
+
+<list>
+	  <item>限制物理访问和启动
+	      <list>
+		<item>启用 BIOS 密码
+		<item>禁用 floppy/cdrom/... 启动
+		<item>设置 LILO 或 GRUB 密码(<file>/etc/lilo.conf</file> 或 <file>/boot/grub/menu.lst</file>, 分别); 检查LILO 或 GRUB 配置文件是否为只读保护.
+		<item>重写 MBR, 禁止 MBR 软驱启动后门(可能不是?)
+	      </list>
+	      
+	  <item>分区
+	      <list>
+		
+		<item>用户可写数据, 非系统数据, 和运行时频繁改变的数据与安装分区分离.
+		    
+		<item>在 <file>/etc/fstab</file> 中对 ext2 分区, 如 <file>/tmp</file> 设置 <tt>nosuid, noexec, nodev mount</tt> 选项.
+	      </list>
+	      
+	  <item>密码学和登陆安全
+	      
+	      <list>
+		<item>设置一个好的 root 密码
+		<item>对密码启用 shadow 和 MD5
+		<item>安装并使用 PAM
+		    
+		    <list>
+		      
+		      <item>增加PAM 对 MD5 的支持, 并确保(一般而言) <file>/etc/pam.d/</file> 下的文件中授权对机器的访问条目, 第二个域设为 <tt>requisite</tt> 或 <tt>required</tt>
+
+			  <!-- or is it third? (FIXME: check) -->
+			  
+		      <item>调整 <file>/etc/pam.d/login</file> 以使只允许本地 root 登陆.
+
+		      <item>在 <file>/etc/security/access.conf</file> 中标记 authorized tty:s ,通常配置此文件以尽量限制 root 登录.
+			  
+		      <item>如果要对每个用户设置限制, 增加 pam_limits.so.
+			  
+		      <item>调整 <file>/etc/pam.d/passwd</file>: 增大密码的最小长度设置(可能为 6 字符) 并启用 MD5
+	
+		      <item>如果需要, 在 <file>/etc/group</file> 中增加 wheel 组; 在 <file>/etc/pam.d/su</file> 中增加 pam_wheel.so group=wheel条目
+			  
+		      <item>适当的使用 pam_listfile.so 条目, 以习惯每个用户的控制
+			  
+		      <item>增加 <file>/etc/pam.d/other</file> 文件, 以设置更高的安全性. 
+
+		    </list>
+		    
+		<item>配置 <file>/etc/security/limits.conf</file>(注意 如果您使用 PAM, 则<file>/etc/limits</file>不会被使用)
+
+		<item>配置 <file>/etc/login.defs</file>; 还有, 如果您启用了 MD5 和/或 PAM, 确保在对应处也做了修改
+		    
+		<item>在 <file>/etc/ftpusers</file> 中禁止 root 的 ftp 访问
+		    
+		<item>禁止 root 的网络登录; 使用 <manref name="su" section="1"> 或 <manref name="sudo"  section="1">.(考虑安装 <package>sudo</package>)
+		    
+		<item>使用 PAM 登录时强制附加另外的限制?
+
+	      </list>
+
+	  <item>其它本地安全问题
+	      <list>
+		<item>调整内核(参见 <ref id="kernel-conf">)
+		    
+		<item>内核补丁(参见 <ref id="kernel-patches">)
+		    
+		<item>限制日志文件的访问(<file>/var/log/{last,fail}log</file>, Apache 日志)
+		    
+		<item>确保在 <file>/etc/checksecurity.conf</file> 中启用了 SETUID 检查
+		    
+		<item>考虑为一些日志文件设置只添加属性, 使用 chattr 设置配置文件为不可修改(只适于 ext2 文件系统)
+
+		<item>文件的完整性设置(参见 <ref id="check-integ">). 安装 <package>debsums</package>
+		    
+		<item>使用本地打印机记录日志?
+		    
+		<item>将您的配置烧录到可引导 CD 上并 boot off that?
+		    
+		<item>禁用内核模块?
+
+	      </list>
+	      
+	  <item>网络访问限制
+	      <list>
+
+		<item>安装和配置 <prgn>ssh</prgn>(建议在 <file>/etc/ssh/sshd_config</file> 中设置 PermitRootLogin No, 注意文章中的其它建议)
+		    
+		<item>考虑禁用或删除 <prgn>in.telnetd</prgn>
+		    
+		<item>通常, 使用 <prgn>update-inetd --disable</prgn> 禁用 <file>/etc/inetd.conf</file> 中无用的服务(或全部禁用 <prgn>inetd</prgn>, 或使用 <prgn>xinetd</prgn> 或 <prgn>rlinetd</prgn> 替换)
+		    
+		<item>禁用其它无用网网络服务; mail, ftp, DNS, WWW 等, 如果您不需要或不监听就不应让其运行.
+
+		<item>对于您需要的那些服务, 不要仅仅使用通用版本, 寻找引入 Debian(或从其它地方)的更加安全的版本.无论使用什么, 都应当了解其风险.
+
+		<item>为外部用户和守护进程设置 <prgn>chroot</prgn> jail.
+
+		<item>配置防火墙和 tcpwrappers(即 <manref name="hosts_access" section="5">); 注意文章中有关 <file>/etc/hosts.deny</file> 的技巧.
+		    
+		<item>如果运行了ftp, 设置您的ftpd服务器总是运行在<prgn>chroot</prgn> 了的用户家目录内
+		    
+		<item>如果运行了 X, 禁用 xhost 认证, 使用 <prgn>ssh</prgn> 替代; 最好禁用远程X 如果可以的话(为X命令行增加 -nolisten tcp 选项,通过在 <file>/etc/X11/xdm/xdm-config</file>中设置  requestPort 为 0, 关闭 XDMCP)
+		    
+		<item>禁用打印机的外部访问
+		    
+		<item>任何 IMAP 或 POP 会话都使用 SSL 或 <prgn>ssh</prgn> 隧道; 如果为远程邮件用户提供此项服务,安装 stunnel 
+		    
+		<item>配置日志主机, 并设置其它机器将日志发送到此主机(<file>/etc/syslog.conf</file>)
+		    
+		<item>增强 BIND, Sendmail, 和其它复杂守护进程的安全性.(运行在 <prgn>chroot</prgn> 中; 以非root pseduo 用户运行)
+
+		<item>安装 snort 或类似的日志工具.
+		    
+		<item>如果可能不要使用 NIS 和 RPC(禁用 portmap).
+		    
+	      </list>
+
+	  <item>策略问题
+	      <list>
+		
+		<item>培训用户了解您的策略. 当您禁止某些在其它系统通常可以使用的事项时, 提供文档, 解释如何使用其它的以达到近似的效果, 或更安全的方法.
+
+		<item>禁止使用明文密码的协议(<prgn>telnet</prgn>, <prgn>rsh</prgn> 和类似的; ftp, imap, http, ...).
+		    
+		<item>禁止使用 SVGAlib 的程序.
+		    
+		<item>启用磁盘配额.
+
+	      </list>
+	      
+	  <item>谨记的安全问题
+	      <list>
+		
+		<item>订阅安全邮件列表
+		    
+		<item>配置可以安全更新的 <package>apt</package>-- 在 <file>/etc/apt/sources.list</file> 中增加一条(或多条)有关 /http://security.debian.org/debian-security 的源
+		    
+		<item>并且谨记经常运行 <prgn>apt-get update ; apt-get upgrade</prgn>(或许可以设为一个 <prgn>cron</prgn> job?) 如 <ref id="security-update"> 所述.
+
+	      </list>
+
+	</list>
+
+<appendix id="snort-box">设定独立的 IDS
+
+<p>您可以很容易的使用 <package>snort</package> 配置用于 Debian 系统的入侵检测系统.
+
+<p>一些准则:
+
+<list>
+
+<item>安装一个基本的Debian 系统, 不要选择多余的软件包.
+
+<item>下载, 并手工(用 dpkg)安装必要的软件包(参见后边的需要安装的软件包列表).
+
+<item>下载并安装 ACID(Analysis Console for Intrusion Databases).
+
+
+</list>
+
+<p>当前用于 Debian 的软件包是 <package>acidlab</package>. 它为 snort 输出提供了一个图形化的 WWW 接口. 也可以从 <url id="http://www.cert.org/kb/acid/">, <url id="http://acidlab.sourceforge.net"> 或 <url id="http://www.andrew.cmu.edu/~rdanyliw/snort/"> 处下载. 您还可以阅读 <url
+id="http://www.tldp.org/HOWTO/Snort-Statistics-HOWTO/index.html" name="Snort Statistics HOWTO">.
+
+<p>这个系统至少应当设置两个接口: 一个接口联接管理用的内网(用于查看结果和维护系统), 和不分配IP地址的一个接口, 用于获取分析用的网络数据段.
+
+<p>标准的 Debian <file>/etc/network/interfaces</file> 文件通常用于配置网卡,因而不能使用, 因为 <prgn>ifup</prgn> 和 <prgn>ifdown</prgn> 程序需要一个 IP 地址. 可以简单的改用 <tt>ifconfig eth0 up</tt>.
+
+<p>除了基本的安装外, <package>acidlab</package> 还基于 <package>php4</package> 和 <package>apache</package> 软件包. 下载下边的软件包(注意: 版本和您使用的 Debian 的版本有关,这是 Debian <em>woody</em> 2001年9月的列表):
+
+<example>
+ACID-0.9.5b9.tar.gz
+adduser_3.39_all.deb
+apache-common_1.3.20-1_i386.deb
+apache_1.3.20-1_i386.deb
+debconf_0.9.77_all.deb
+dialog_0.9a-20010527-1_i386.deb
+fileutils_4.1-2_i386.deb
+klogd_1.4.1-2_i386.deb
+libbz2-1.0_1.0.1-10_i386.deb
+libc6_2.2.3-6_i386.deb
+libdb2_2.7.7-8_i386.deb
+libdbd-mysql-perl_1.2216-2_i386.deb
+libdbi-perl_1.18-1_i386.deb
+libexpat1_1.95.1-5_i386.deb
+libgdbmg1_1.7.3-27_i386.deb
+libmm11_1.1.3-4_i386.deb
+libmysqlclient10_3.23.39-3_i386.deb
+libncurses5_5.2.20010318-2_i386.deb
+libpcap0_0.6.2-1_i386.deb
+libpcre3_3.4-1_i386.deb
+libreadline4_4.2-3_i386.deb 
+libstdc++2.10-glibc2.2_2.95.4-0.010703_i386.deb
+logrotate_3.5.4-2_i386.deb
+mime-support_3.11-1_all.deb
+mysql-client_3.23.39-3_i386.deb
+mysql-common_3.23.39-3.1_all.deb
+mysql-server_3.23.39-3_i386.deb
+perl-base_5.6.1-5_i386.deb
+perl-modules_5.6.1-5_all.deb
+perl_5.6.1-5_i386.deb
+php4-mysql_4.0.6-4_i386.deb
+php4_4.0.6-1_i386.deb
+php4_4.0.6-4_i386.deb
+snort_1.7-9_i386.deb
+sysklogd_1.4.1-2_i386.deb
+zlib1g_1.1.3-15_i386.deb
+</example>
+
+<p>安装的软件包 (dpkg -l):
+<example>
+ii  adduser        3.39
+ii  ae             962-26
+ii  apache         1.3.20-1
+ii  apache-common  1.3.20-1
+ii  apt            0.3.19
+ii  base-config    0.33.2
+ii  base-files     2.2.0
+ii  base-passwd    3.1.10
+ii  bash           2.03-6
+ii  bsdutils       2.10f-5.1
+ii  console-data   1999.08.29-11.
+ii  console-tools  0.2.3-10.3
+ii  console-tools- 0.2.3-10.3
+ii  cron           3.0pl1-57.2
+ii  debconf        0.9.77
+ii  debianutils    1.13.3
+ii  dialog         0.9a-20010527-
+ii  diff           2.7-21
+ii  dpkg           1.6.15
+ii  e2fsprogs      1.18-3.0
+ii  elvis-tiny     1.4-11
+ii  fbset          2.1-6
+ii  fdflush        1.0.1-5
+ii  fdutils        5.3-3   
+ii  fileutils      4.1-2   
+ii  findutils      4.1-40
+ii  ftp            0.10-3.1
+ii  gettext-base   0.10.35-13
+ii  grep           2.4.2-1
+ii  gzip           1.2.4-33
+ii  hostname       2.07
+ii  isapnptools    1.21-2
+ii  joe            2.8-15.2  
+ii  klogd          1.4.1-2   
+ii  ldso           1.9.11-9   
+ii  libbz2-1.0     1.0.1-10
+ii  libc6          2.2.3-6
+ii  libdb2         2.7.7-8
+ii  libdbd-mysql-p 1.2216-2
+ii  libdbi-perl    1.18-1
+ii  libexpat1      1.95.1-5
+ii  libgdbmg1      1.7.3-27
+ii  libmm11        1.1.3-4
+ii  libmysqlclient 3.23.39-3
+ii  libncurses5    5.2.20010318-2
+ii  libnewt0       0.50-7  
+ii  libpam-modules 0.72-9
+ii  libpam-runtime 0.72-9  
+ii  libpam0g       0.72-9
+ii  libpcap0       0.6.2-1
+ii  libpcre3       3.4-1   
+ii  libpopt0       1.4-1.1
+ii  libreadline4   4.2-3 
+ii  libssl09       0.9.4-5   
+ii  libstdc++2.10  2.95.2-13 
+ii  libstdc++2.10- 2.95.4-0.01070
+ii  libwrap0       7.6-4   
+ii  lilo           21.4.3-2
+ii  locales        2.1.3-18
+ii  login          19990827-20
+ii  makedev        2.3.1-46.2
+ii  mawk           1.3.3-5
+ii  mbr            1.1.2-1 
+ii  mime-support   3.11-1 
+ii  modutils       2.3.11-13.1
+ii  mount          2.10f-5.1
+ii  mysql-client   3.23.39-3
+ii  mysql-common   3.23.39-3.1
+ii  mysql-server   3.23.39-3
+ii  ncurses-base   5.0-6.0potato1
+ii  ncurses-bin    5.0-6.0potato1
+ii  netbase        3.18-4  
+ii  passwd         19990827-20
+ii  pciutils       2.1.2-2
+ii  perl           5.6.1-5   
+ii  perl-base      5.6.1-5   
+ii  perl-modules   5.6.1-5
+ii  php4           4.0.6-4   
+ii  php4-mysql     4.0.6-4 
+ii  ppp            2.3.11-1.4
+ii  pppconfig      2.0.5
+ii  procps         2.0.6-5   
+ii  psmisc         19-2   
+ii  pump           0.7.3-2 
+ii  sed            3.02-5 
+ii  setserial      2.17-16
+ii  shellutils     2.0-7
+ii  slang1         1.3.9-1  
+ii  snort          1.7-9
+ii  ssh            1.2.3-9.3
+ii  sysklogd       1.4.1-2
+ii  syslinux       1.48-2
+ii  sysvinit       2.78-4  
+ii  tar            1.13.17-2  
+ii  tasksel        1.0-10 
+ii  tcpd           7.6-4     
+ii  telnet         0.16-4potato.1
+ii  textutils      2.0-2  
+ii  update         2.11-1    
+ii  util-linux     2.10f-5.1
+ii  zlib1g         1.1.3-15  
+</example>
+
+<appendix id="bridge-fw">设定网桥防火墙 
+
+<p>这些内容由 Francois Bayart 提供,以帮助用户使用 2.4.x kernel 和 <package>iptables</package> 配置Linux 网桥/防火墙. 内核的补丁代码已经成为 Linux 内核的标准, 因此不再需要额外的内核补丁.
+
+<!--
+The only features needed are the bridge
+firewall patch, available at <url name="sourceforge download page"
+id="http://bridge.sourceforge.net/download.html">.
+
+<p>For example, if you are using a 2.4.18 kernel, first install the
+kernel source package, then download the <url name="patch"
+id="http://bridge.sourceforge.net/devel/bridge-nf/bridge-nf-0.0.6-against-2.4.18.diff">
+and apply it, as shown in this example:
+
+<example>
+Zipowz:/usr/src# apt-get install kernel-source-2.4.18
+Zipowz:/usr/src# cd kernel-source-2.4.18
+Zipowz:/usr/src/kernel-source-2.4.18# patch -p1 < ../bridge-nf-0.0.6-against-2.4.18.diff 
+patching file include/linux/netfilter.h
+patching file include/linux/netfilter_ipv4.h
+patching file include/linux/skbuff.h
+patching file net/bridge/br.c
+patching file net/bridge/br_forward.c
+patching file net/bridge/br_input.c
+patching file net/bridge/br_netfilter.c
+patching file net/bridge/br_private.h
+patching file net/bridge/Makefile
+patching file net/Config.in
+patching file net/core/netfilter.c
+patching file net/core/skbuff.c
+patching file net/ipv4/ip_output.c
+patching file net/ipv4/netfilter/ip_tables.c
+patching file net/ipv4/netfilter/ipt_LOG.c
+</example>
+-->
+<p>配置内核提供必要的支持, 运行 <tt>make menuconfig</tt> 或 <tt>make menuconfig</tt>. 在 <em>Networking options</em> 部分, 启用下边的选项: 
+
+<example>
+[*] Network packet filtering (replaces ipchains)
+[ ]   Network packet filtering debugging (NEW)
+<*> 802.1d Ethernet Bridging
+[*]   netfilter (firewalling) support (NEW)
+</example>
+
+<p>小心: 您如果要应用一些防火墙规则, 必须禁用此项, 否则 <prgn>iptables</prgn> 不会工作.
+
+<example>
+[ ]   Network packet filtering debugging (NEW)
+</example>
+
+<p>其次, 添加在 <em>IP: Netfilter Configuration</em> 部分添加正确的选项. 然后. 编译并安装内核. 如果您想以  <em>Debian 的方式</em> 完成这些工作, 安装 <package>kernel-package</package> 软件包, 并运行 <prgn>make-kpkg</prgn> 以构建一个通常的 Debian 内核软件包, 然后用 dpkg 安装. 一旦完成新内核的编译和安装, 安装 <package>bridge-utils</package> 软件包.
+
+<p>完成这些步骤后, 您就可以完成网桥的配置了. 下边的部分给出两种不通的配置网桥的可用方法, 都给出了假定的网络映射和必要的命令.
+
+
+<sect>提供 NAT 和防火墙能力的网桥
+
+<p>这个配置使用桥梁作为带有网络地址转发(NAT)功能的防火墙, 用于保护服务器和内部局域网客户端. 下边给出的是网络布局图::
+
+<example>
+互联网 ---- 路由器 ( 62.3.3.25 ) ---- 网桥 (62.3.3.26 网关 62.3.3.25 / 192.168.0.1)
+                                          |
+                                          |
+                                          |---- WWW 服务器 (62.3.3.27 网关 62.3.3.25)
+                                          |
+                                          |
+                                         LAN --- Zipowz (192.168.0.2 网关 192.168.0.1)
+</example>
+
+<p>下边给出配置这个网桥的命令.
+
+<example>
+# Create the interface br0
+/usr/sbin/brctl addbr br0
+
+# Add the Ethernet interface to use with the bridge
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Start up the Ethernet interface
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Configure the bridge ethernet
+# The bridge will be correct and invisible ( transparent firewall ).
+# It's hidden in a traceroute and you keep your real gateway on the 
+# other computers. Now if you want you can config a gateway on your 
+# bridge and choose it as your new gateway for the other computers.
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+
+# I have added this internal IP to create my NAT 
+ip addr add 192.168.0.1/24 dev br0
+/sbin/route add default gw 62.3.3.25
+</example>
+
+<sect>提供防火墙能力的网桥
+
+<p>这种可能的配置用于系统用于为拥有公网IP地址的内外提供透明的防火墙.
+
+<example>
+互联网 ---- 路由器 (62.3.3.25) ---- 网桥 (62.3.3.26)
+                                        |
+                                        |
+                                        |---- WWW 服务器 (62.3.3.28 网关 62.3.3.25)
+                                        |
+                                        |
+                                        |---- 邮件服务器 (62.3.3.27 网关 62.3.3.25)
+</example>
+
+<p>以下命令为配置网桥的过程.
+
+<example>
+# Create the interface br0
+/usr/sbin/brctl addbr br0
+
+# Add the Ethernet interface to use with the bridge
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Start up the Ethernet interface
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Configure the bridge Ethernet
+# The bridge will be correct and invisible ( transparent firewall ).
+# It's hidden in a traceroute and you keep your real gateway on the 
+# other computers. Now if you want you can config a gateway on your
+# bridge and choose it as your new gateway for the other computers.
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+</example>
+
+<p>如果 traceroute Linux 邮件服务器, 您不会看到网桥. 如果想使用 <prgn>ssh</prgn> 访问网桥, 则必须拥有一个网关,或者首先联接到其它服务器, 如"邮件服务器". 然后通过内部网卡联接到网桥.</p>
+
+<sect>基本的 IPtables 规则'
+
+<p>这是基本规则的范例, 可用于任何的设定.
+
+<example>
+  iptables -F FORWARD
+  iptables -P FORWARD DROP
+  iptables -A FORWARD -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 -m state --state INVALID -j DROP
+  iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+  # Some funny rules but not in a classic Iptables sorry ...
+  # Limit ICMP 
+  # iptables -A FORWARD -p icmp -m limit --limit 4/s -j ACCEPT
+  # Match string, a good simple method to block some VIRUS very quickly
+  # iptables -I FORWARD -j DROP -p tcp -s 0.0.0.0/0 -m string --string "cmd.exe"
+
+  # Block all MySQL connection just to be sure
+  iptables -A FORWARD -p tcp -s 0/0 -d 62.3.3.0/24 --dport 3306 -j DROP
+
+  # Linux Mail Server Rules
+
+  # Allow FTP-DATA ( 20 ) , FTP ( 21 ) , SSH ( 22 ) 
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.27/32 --dport 20:22 -j ACCEPT
+
+  # Allow the Mail Server to connect to the outside
+  # Note: This is *not* needed for the previous connections 
+  # (remember: stateful filtering) and could be removed.
+  iptables -A FORWARD -p tcp -s 62.3.3.27/32 -d 0/0 -j ACCEPT
+
+  # WWW Server Rules
+
+  # Allow HTTP ( 80 ) connections with the WWW server
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 80 -j ACCEPT
+
+  # Allow HTTPS ( 443 ) connections with the WWW server
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 443 -j ACCEPT
+
+  # Allow the WWW server to go out
+  # Note: This is *not* needed for the previous connections 
+  # (remember: stateful filtering) and could be removed.
+  iptables -A FORWARD -p tcp -s 62.3.3.28/32 -d 0/0 -j ACCEPT
+</example>
+
+<appendix id="bind-chuser">修改Bind默认安装的示例脚本.
+
+<p>这个脚本自动修改 <prgn>bind</prgn> 名称服务器的默认安装, 使其<em>不必</em>以超级用户运行. 它将创建用于名称服务器的用户和组. 使用时应非常小心, 因为其未经过全面测试.
+
+<example>
+  #!/bin/sh
+  # Change the default Debian bind configuration to have it run
+  # with a non-root user and group.
+  #
+  # WARN: This script has not been tested throughly, please
+  # verify the changes made to the INITD script
+
+  # (c) 2002 Javier Fernandez-Sanguino Pe馻
+  #
+  #    This program is free software; you can redistribute it and/or modify
+  #    it under the terms of the GNU General Public License as published by
+  #    the Free Software Foundation; either version 1, or (at your option)
+  #    any later version.
+  #
+  #    This program is distributed in the hope that it will be useful,
+  #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  #    GNU General Public License for more details.
+  #
+  #     Please see the file `COPYING' for the complete copyright notice.
+  #
+
+  restore() {
+  # Just in case, restore the system if the changes fail
+	  echo "WARN: Restoring to the previous setup since I'm unable to properly change it."
+	  echo "WARN: Please check the $INITDERR script."
+	  mv $INITD $INITDERR
+	  cp $INITDBAK $INITD
+  }
+
+
+  USER=named
+  GROUP=named
+  INITD=/etc/init.d/bind
+  INITDBAK=$INITD.preuserchange
+  INITDERR=$INITD.changeerror
+  START="start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g $GROUP -u $USER"
+  AWKS="awk ' /start-stop-daemon --start/ { print \"$START\"; noprint = 1; }; /\/usr\/sbin\/ndc reload/ { print \"stop; sleep 2; start;\"; noprint = 1; } /\\\\$/ { if ( noprint != 0 ) { noprint = noprint + 1;} } /^.*$/ { if ( noprint != 0 ) { noprint = noprint - 1; } else { print \$0; } } '"
+
+  [ `id -u` -ne 0 ] && {
+	  echo "This program must be run by the root user"
+	  exit 1
+  }
+
+  RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+  if [ "$RUNUSER" = "$USER" ] 
+  then
+	  echo "WARN: The name server running daemon is already running as $USER"
+	  echo "ERR:  This script will not many any changes to your setup."
+	  exit 1
+  fi
+  if [ ! -f $INITD ]
+  then
+	  echo "ERR:  This system does not have $INITD (which this script tries to change)"
+	  RUNNING=`ps -eo fname |grep named`
+	   [ -z "$RUNNING" ] && \
+	      echo "ERR:  In fact the name server daemon is not even running (is it installed?)"
+	   echo "ERR:  No changes will be made to your system"
+	  exit 1
+  fi
+
+  # Check if named group exists
+  if [ -z "`grep $GROUP /etc/group`" ] 
+  then
+	  echo "Creating group $GROUP:"
+	  addgroup $GROUP
+  else
+	  echo "WARN: Group $GROUP already exists. Will not create it"
+  fi
+  # Same for the user
+  if [ -z "`grep $USER /etc/passwd`" ] 
+  then
+	  echo "Creating user $USER:"
+	  adduser --system --home /home/$USER \
+	  --no-create-home --ingroup $GROUP \
+	  --disabled-password --disabled-login $USER
+  else
+	  echo "WARN: The user $USER already exists. Will not create it"
+  fi
+
+  # Change the init.d script
+
+  # First make a backup (check that there is not already
+  # one there first)
+  if [ ! -f $INITDBAK ] 
+  then
+	  cp $INITD $INITDBAK
+  fi
+
+  # Then use it to change it
+  cat $INITDBAK |
+  eval $AWKS > $INITD
+
+  echo "WARN: The script $INITD has been changed, trying to test the changes."
+  echo "Restarting the named daemon (check for errors here)."
+
+  $INITD restart
+  if [ $? -ne 0 ] 
+  then
+	  echo "ERR:  Failed to restart the daemon."
+	  restore
+	  exit 1
+  fi
+
+  RUNNING=`ps -eo fname |grep named`
+  if [ -z "$RUNNING" ] 
+  then
+	  echo "ERR:  Named is not running, probably due to a problem with the changes."
+	  restore
+	  exit 1
+  fi
+
+  # Check if it's running as expected
+  RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+  if [ "$RUNUSER" = "$USER" ] 
+  then
+	  echo "All has gone well, named seems to be running now as $USER."
+  else
+	  echo "ERR:  The script failed to automatically change the system."
+	  echo "ERR:  Named is currently running as $RUNUSER."
+	  restore
+	  exit 1
+  fi
+
+  exit 0
+</example>
+
+<p>前面的脚本, 运行在 Woody(Debian 3.0)的 <prgn>bind</prgn> 上, 创建 'named'用户和组后,将会处理下边的 initd 文件:
+
+<example>
+  #!/bin/sh
+
+  PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+  test -x /usr/sbin/named || exit 0
+
+  start () {
+	  echo -n "Starting domain name service: named"
+	  start-stop-daemon --start --quiet \
+	      --pidfile /var/run/named.pid --exec /usr/sbin/named 
+	  echo "."	
+  }
+
+  stop () {
+	  echo -n "Stopping domain name service: named"
+	  # --exec doesn't catch daemons running deleted instances of named,
+	  # as in an upgrade.  Fortunately, --pidfile is only going to hit
+	  # things from the pidfile.
+	  start-stop-daemon --stop --quiet  \
+	      --pidfile /var/run/named.pid --name named
+	  echo "."	
+  }
+
+  case "$1" in
+      start)
+	  start
+      ;;
+
+      stop)
+	  stop
+      ;;
+
+      restart|force-reload)
+	  stop
+	  sleep 2
+	  start
+      ;;
+
+      reload)
+	  /usr/sbin/ndc reload
+      ;;
+
+      *)
+	  echo "Usage: /etc/init.d/bind {start|stop|reload|restart|force-reload}" >&2
+	  exit 1
+      ;;
+  esac
+
+  exit 0
+</example>
+
+<appendix id="fw-security-update">防火墙保护下的安全更新
+
+<p>标准安装完成后, 系统也许仍然存在一些漏洞. 除非您下载用于其它系统的漏洞修补包(或您有 security.debian.org 的本地镜像)系统必须连入互联网进行下载.
+
+<p>但是, 当您入互联网时, 您的系统就完全暴露了. 如果您的本地服务中有一个存在漏洞, 那么就有可能在您完成更新前被攻陷! 这似乎有点偏执, 但事实上, 源自<url id="http://www.honeynet.org"
+name="蜜罐项目"> 的分析表明系统被攻陷的时间不超过三天, 即使系统还不为公共所知(即没有公布 DNS 记录).
+
+<p>
+当对没有外部系统如防火墙保护的系统进行升级时, 可以正确的设置本地防火墙, 以阻止除更新以外的其它连接. 下边的例子给出如何设置本地防火墙, 仅允许源自 security.debian.org 的更新连接.
+
+<p>FIXME: 在 /etc/hosts 中 security.debian.org 的 IP 地址(因为否则您就需要 DNS 服务).
+
+<p>FIXME: 测试设置是否有效
+
+<p>FIXME: 这只适用于 HTTP URL 因为 ftp 可能需要 ip_conntrack_ftp 模块,或者使用 passive 方式.
+
+
+<example>
+  # iptables -F
+  # iptables -L
+  Chain INPUT (policy ACCEPT)
+  target     prot opt source               destination
+
+  Chain FORWARD (policy ACCEPT)
+  target     prot opt source               destination
+
+  Chain OUTPUT (policy ACCEPT)
+  target     prot opt source               destination
+  # iptables -P INPUT DROP
+  # iptables -P FORWARD DROP
+  # iptables -P OUTPUT DROP
+  # iptables -A OUTPUT -d security.debian.org --dport 80 -j ACCEPT
+  # iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+  # iptables -A INPUT -p icmp -j ACCEPT
+  # iptables -A INPUT -j LOG
+  # iptables -A OUTPUT -j LOG
+  # iptables -L
+  Chain INPUT (policy DROP)
+  target     prot opt source               destination
+  ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0          state RELATED,ESTABLISHED
+  ACCEPT     icmp --  0.0.0.0/0            0.0.0.0/0
+  LOG        all  --  anywhere             anywhere           LOG level warning
+
+  Chain FORWARD (policy DROP)
+  target     prot opt source               destination
+
+  Chain OUTPUT (policy DROP)
+  target     prot opt source               destination
+  ACCEPT     80   --  anywhere             security.debian.org
+  LOG        all  --  anywhere             anywhere           LOG level warning
+</example>
+
+<appendix id="chroot-ssh-env"><PRGN>SSH</PRGN> 的 <Prgn>chroot</Prgn> 环境
+
+<p>为 <PRGN>SSH</PRGN> 创建一个限制环境是一项坚苦的工作, 这由 <PRGN>SSH</PRGN> 为用户提供一个远程 shell 的事实可知, 其依赖关系和与其它服务不同. 因此, 您还必须考虑在此环境中那些程序用户可以使用. 如果您创建了这种文件结构, 如  <file>/var/chroot/ssh</file>, 您可以被 <prgn>chroot</prgn> 的 <prgn>ssh</prgn> 服务, 用下边的命令:
+
+<example>
+  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
+</example>
+
+<sect>环境的自动构建(简单的方式)
+
+<p>您可以使用 <package>makejail</package> 软件包很容易的创建一个限制环境, 因为它自动跟踪处理服务器守护进程(使用 <prgn>strace</prgn>), 并使它运行在一个受限制的环境中.
+
+<p>自动构建 <prgn>chroot</prgn> 环境程序的优势在于它能为 <prgn>chroot</prgn> 环境复制任何软件包(甚至下边的依赖包, 并能保证其完整性). 因此, 用户使用起来更加容易.
+
+<p>使用 <prgn>makejail</prgn> 提供的例子配置环境, 运行下边的命令:
+
+<example>
+  # makejail /usr/share/doc/makejail/examples/sshd.py
+</example>
+
+<p>阅读示例文件, 查看还对环境做了哪些修改. 其中一些修改, 譬如用户主目录的复制, 不能自动完成. 还有, 限制显示的敏感信息只能由一些指定用户从 <file>/etc/shadow</file> 或 <file>/etc/group</file> 复制.
+
+<p>以下示例环境已经过(简单)测试, 使用软件包提供的配置文件构建, 包括 <package>fileutils</package> 软件包:
+
+<example>
+.
+|-- bin
+|   |-- ash
+|   |-- bash
+|   |-- chgrp
+|   |-- chmod
+|   |-- chown
+|   |-- cp
+|   |-- csh -> /etc/alternatives/csh
+|   |-- dd
+|   |-- df
+|   |-- dir
+|   |-- fdflush
+|   |-- ksh
+|   |-- ln
+|   |-- ls
+|   |-- mkdir
+|   |-- mknod
+|   |-- mv
+|   |-- rbash -> bash
+|   |-- rm
+|   |-- rmdir
+|   |-- sh -> bash
+|   |-- sync
+|   |-- tcsh
+|   |-- touch
+|   |-- vdir
+|   |-- zsh -> /etc/alternatives/zsh
+|   `-- zsh4
+|-- dev
+|   |-- null
+|   |-- ptmx
+|   |-- pts
+|   |-- ptya0
+(...)
+|   |-- tty
+|   |-- tty0
+(...)
+|   `-- urandom
+|-- etc
+|   |-- alternatives
+|   |   |-- csh -> /bin/tcsh
+|   |   `-- zsh -> /bin/zsh4
+|   |-- environment
+|   |-- hosts
+|   |-- hosts.allow
+|   |-- hosts.deny
+|   |-- ld.so.conf
+|   |-- localtime -> /usr/share/zoneinfo/Europe/Madrid
+|   |-- motd
+|   |-- nsswitch.conf
+|   |-- pam.conf
+|   |-- pam.d
+|   |   |-- other
+|   |   `-- ssh
+|   |-- passwd
+|   |-- resolv.conf
+|   |-- security
+|   |   |-- access.conf
+|   |   |-- chroot.conf
+|   |   |-- group.conf
+|   |   |-- limits.conf
+|   |   |-- pam_env.conf
+|   |   `-- time.conf
+|   |-- shadow
+|   |-- shells
+|   `-- ssh
+|       |-- moduli
+|       |-- ssh_host_dsa_key
+|       |-- ssh_host_dsa_key.pub
+|       |-- ssh_host_rsa_key
+|       |-- ssh_host_rsa_key.pub
+|       `-- sshd_config
+|-- home
+|   `-- userX
+|-- lib
+|   |-- ld-2.2.5.so
+|   |-- ld-linux.so.2 -> ld-2.2.5.so
+|   |-- libc-2.2.5.so
+|   |-- libc.so.6 -> libc-2.2.5.so
+|   |-- libcap.so.1 -> libcap.so.1.10
+|   |-- libcap.so.1.10
+|   |-- libcrypt-2.2.5.so
+|   |-- libcrypt.so.1 -> libcrypt-2.2.5.so
+|   |-- libdl-2.2.5.so
+|   |-- libdl.so.2 -> libdl-2.2.5.so
+|   |-- libm-2.2.5.so
+|   |-- libm.so.6 -> libm-2.2.5.so
+|   |-- libncurses.so.5 -> libncurses.so.5.2
+|   |-- libncurses.so.5.2
+|   |-- libnsl-2.2.5.so
+|   |-- libnsl.so.1 -> libnsl-2.2.5.so
+|   |-- libnss_compat-2.2.5.so
+|   |-- libnss_compat.so.2 -> libnss_compat-2.2.5.so
+|   |-- libnss_db-2.2.so
+|   |-- libnss_db.so.2 -> libnss_db-2.2.so
+|   |-- libnss_dns-2.2.5.so
+|   |-- libnss_dns.so.2 -> libnss_dns-2.2.5.so
+|   |-- libnss_files-2.2.5.so
+|   |-- libnss_files.so.2 -> libnss_files-2.2.5.so
+|   |-- libnss_hesiod-2.2.5.so
+|   |-- libnss_hesiod.so.2 -> libnss_hesiod-2.2.5.so
+|   |-- libnss_nis-2.2.5.so
+|   |-- libnss_nis.so.2 -> libnss_nis-2.2.5.so
+|   |-- libnss_nisplus-2.2.5.so
+|   |-- libnss_nisplus.so.2 -> libnss_nisplus-2.2.5.so
+|   |-- libpam.so.0 -> libpam.so.0.72
+|   |-- libpam.so.0.72
+|   |-- libpthread-0.9.so
+|   |-- libpthread.so.0 -> libpthread-0.9.so
+|   |-- libresolv-2.2.5.so
+|   |-- libresolv.so.2 -> libresolv-2.2.5.so
+|   |-- librt-2.2.5.so
+|   |-- librt.so.1 -> librt-2.2.5.so
+|   |-- libutil-2.2.5.so
+|   |-- libutil.so.1 -> libutil-2.2.5.so
+|   |-- libwrap.so.0 -> libwrap.so.0.7.6
+|   |-- libwrap.so.0.7.6
+|   `-- security
+|       |-- pam_access.so
+|       |-- pam_chroot.so
+|       |-- pam_deny.so
+|       |-- pam_env.so
+|       |-- pam_filter.so
+|       |-- pam_ftp.so
+|       |-- pam_group.so
+|       |-- pam_issue.so
+|       |-- pam_lastlog.so
+|       |-- pam_limits.so
+|       |-- pam_listfile.so
+|       |-- pam_mail.so
+|       |-- pam_mkhomedir.so
+|       |-- pam_motd.so
+|       |-- pam_nologin.so
+|       |-- pam_permit.so
+|       |-- pam_rhosts_auth.so
+|       |-- pam_rootok.so
+|       |-- pam_securetty.so
+|       |-- pam_shells.so
+|       |-- pam_stress.so
+|       |-- pam_tally.so
+|       |-- pam_time.so
+|       |-- pam_unix.so
+|       |-- pam_unix_acct.so -> pam_unix.so
+|       |-- pam_unix_auth.so -> pam_unix.so
+|       |-- pam_unix_passwd.so -> pam_unix.so
+|       |-- pam_unix_session.so -> pam_unix.so
+|       |-- pam_userdb.so
+|       |-- pam_warn.so
+|       `-- pam_wheel.so
+|-- sbin
+|   `-- start-stop-daemon
+|-- usr
+|   |-- bin
+|   |   |-- dircolors
+|   |   |-- du
+|   |   |-- install
+|   |   |-- link
+|   |   |-- mkfifo
+|   |   |-- shred
+|   |   |-- touch -> /bin/touch
+|   |   `-- unlink
+|   |-- lib
+|   |   |-- libcrypto.so.0.9.6
+|   |   |-- libdb3.so.3 -> libdb3.so.3.0.2
+|   |   |-- libdb3.so.3.0.2
+|   |   |-- libz.so.1 -> libz.so.1.1.4
+|   |   `-- libz.so.1.1.4
+|   |-- sbin
+|   |   `-- sshd
+|   `-- share
+|       |-- locale
+|       |   `-- es
+|       |       |-- LC_MESSAGES
+|       |       |   |-- fileutils.mo
+|       |       |   |-- libc.mo
+|       |       |   `-- sh-utils.mo
+|       |       `-- LC_TIME -> LC_MESSAGES
+|       `-- zoneinfo
+|           `-- Europe
+|               `-- Madrid
+`-- var
+    `-- run
+        |-- sshd
+        `-- sshd.pid
+
+27 directories, 733 files
+</example>
+
+<sect>修补 <PRGN>SSH</PRGN> 启用 <prgn>chroot</prgn> 功能
+
+<p>Debian 的 <prgn>sshd</prgn> 不允许通过服务器限制用户的活动, 因为 <prgn>sshd2</prgn> 中(使用 'ChrootGroups' 或 'ChrootUsers', 参阅 <manref name="sshd2_config" section="5">)的商用程序缺乏 <prgn>chroot</prgn> 功能. 但是, 可以利用一个补丁来 <url id="http://bugs.debian.org/139047" name="Bug report 139047"> 增加此项功能. 这个补丁可能在 OpenSSH 的未来发行版中提供. 在 <url id="http://debian.home-dn.net/woody/ssh/"> 处 Emmanuel Lacour 提供了含有这种功能的 <prgn>ssh</prgn> deb 软件包. 虽然需要完成编译步骤.
+
+<p>在 <url id="http://mail.incredimail.com/howto/openssh/"> 处可以找到所有步骤的描述(虽然它是针对RedHat7.2 用户的, 几乎所有的内容都适用于 Debian). 打了补丁以后, 编辑 <file>/etc/passwd</file> 修改用户主目录为(注意 <tt>/./</tt>):
+
+<example>
+  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>这将限制通过 ssh 隧道的远程 shell 访问, 和通过 <prgn>ssh</prgn> 隧道进行的远程拷贝.
+
+<p>确保用户的 <prgn>chroot</prgn> 目录下包含了所有需要的程序和库文件. 这些文件的宿主应当是 root 以避免被用户篡改(在用户退出 <prgn>chroot</prgn> jail 时). 下边是一个范例:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
+
+<sect>手工构建环境(复杂的方式)
+
+<p>使用尝试-错误的方式, 通过监视 <prgn>sshd</prgn> 服务器和日志文件以确定必要的文件, 构建一个环境是可能的. 下边的环境, 由 José Luis Ledesma 提供, 是一个 <prgn>ssh</prgn> 的 <prgn>chroot</prgn> 环境下的文件列表:
+
+<footnote>
+Notice that there are no SETUID files. This makes it more difficult
+for remote users to escape the <prgn>chroot</prgn>
+environment. However, it also prevents users from changing their
+passwords, since the <prgn>passwd</prgn> program cannot modify the
+files <file>/etc/passwd</file> or <file>/etc/shadow</file>.
+</footnote>
+
+<example>
+.:
+total 36
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ./
+drwxr-xr-x 11 root root 4096 Jun 3 13:43 ../
+drwxr-xr-x 2 root root 4096 Jun 4 12:13 bin/
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 dev/
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 etc/
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 lib/
+drwxr-xr-x 2 root root 4096 Jun 4 12:35 sbin/
+drwxr-xr-x 2 root root 4096 Jun 4 12:32 tmp/
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 usr/
+./bin:
+total 8368
+drwxr-xr-x 2 root root 4096 Jun 4 12:13 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rwxr-xr-x 1 root root 109855 Jun 3 13:45 a2p*
+-rwxr-xr-x 1 root root 387764 Jun 3 13:45 bash*
+-rwxr-xr-x 1 root root 36365 Jun 3 13:45 c2ph*
+-rwxr-xr-x 1 root root 20629 Jun 3 13:45 dprofpp*
+-rwxr-xr-x 1 root root 6956 Jun 3 13:46 env*
+-rwxr-xr-x 1 root root 158116 Jun 3 13:45 fax2ps*
+-rwxr-xr-x 1 root root 104008 Jun 3 13:45 faxalter*
+-rwxr-xr-x 1 root root 89340 Jun 3 13:45 faxcover*
+-rwxr-xr-x 1 root root 441584 Jun 3 13:45 faxmail*
+-rwxr-xr-x 1 root root 96036 Jun 3 13:45 faxrm*
+-rwxr-xr-x 1 root root 107000 Jun 3 13:45 faxstat*
+-rwxr-xr-x 1 root root 77832 Jun 4 11:46 grep*
+-rwxr-xr-x 1 root root 19597 Jun 3 13:45 h2ph*
+-rwxr-xr-x 1 root root 46979 Jun 3 13:45 h2xs*
+-rwxr-xr-x 1 root root 10420 Jun 3 13:46 id*
+-rwxr-xr-x 1 root root 4528 Jun 3 13:46 ldd*
+-rwxr-xr-x 1 root root 111386 Jun 4 11:46 less*
+-r-xr-xr-x 1 root root 26168 Jun 3 13:45 login*
+-rwxr-xr-x 1 root root 49164 Jun 3 13:45 ls*
+-rwxr-xr-x 1 root root 11600 Jun 3 13:45 mkdir*
+-rwxr-xr-x 1 root root 24780 Jun 3 13:45 more*
+-rwxr-xr-x 1 root root 154980 Jun 3 13:45 pal2rgb*
+-rwxr-xr-x 1 root root 27920 Jun 3 13:46 passwd*
+-rwxr-xr-x 1 root root 4241 Jun 3 13:45 pl2pm*
+-rwxr-xr-x 1 root root 2350 Jun 3 13:45 pod2html*
+-rwxr-xr-x 1 root root 7875 Jun 3 13:45 pod2latex*
+-rwxr-xr-x 1 root root 17587 Jun 3 13:45 pod2man*
+-rwxr-xr-x 1 root root 6877 Jun 3 13:45 pod2text*
+-rwxr-xr-x 1 root root 3300 Jun 3 13:45 pod2usage*
+-rwxr-xr-x 1 root root 3341 Jun 3 13:45 podchecker*
+-rwxr-xr-x 1 root root 2483 Jun 3 13:45 podselect*
+-r-xr-xr-x 1 root root 82412 Jun 4 11:46 ps*
+-rwxr-xr-x 1 root root 36365 Jun 3 13:45 pstruct*
+-rwxr-xr-x 1 root root 7120 Jun 3 13:45 pwd*
+-rwxr-xr-x 1 root root 179884 Jun 3 13:45 rgb2ycbcr*
+-rwxr-xr-x 1 root root 20532 Jun 3 13:45 rm*
+-rwxr-xr-x 1 root root 6720 Jun 4 10:15 rmdir*
+-rwxr-xr-x 1 root root 14705 Jun 3 13:45 s2p*
+-rwxr-xr-x 1 root root 28764 Jun 3 13:46 scp*
+-rwxr-xr-x 1 root root 385000 Jun 3 13:45 sendfax*
+-rwxr-xr-x 1 root root 67548 Jun 3 13:45 sendpage*
+-rwxr-xr-x 1 root root 88632 Jun 3 13:46 sftp*
+-rwxr-xr-x 1 root root 387764 Jun 3 13:45 sh*
+-rws--x--x 1 root root 744500 Jun 3 13:46 slogin*
+-rwxr-xr-x 1 root root 14523 Jun 3 13:46 splain*
+-rws--x--x 1 root root 744500 Jun 3 13:46 ssh*
+-rwxr-xr-x 1 root root 570960 Jun 3 13:46 ssh-add*
+-rwxr-xr-x 1 root root 502952 Jun 3 13:46 ssh-agent*
+-rwxr-xr-x 1 root root 575740 Jun 3 13:46 ssh-keygen*
+-rwxr-xr-x 1 root root 383480 Jun 3 13:46 ssh-keyscan*
+-rwxr-xr-x 1 root root 39 Jun 3 13:46 ssh_europa*
+-rwxr-xr-x 1 root root 107252 Jun 4 10:14 strace*
+-rwxr-xr-x 1 root root 8323 Jun 4 10:14 strace-graph*
+-rwxr-xr-x 1 root root 158088 Jun 3 13:46 thumbnail*
+-rwxr-xr-x 1 root root 6312 Jun 3 13:46 tty*
+-rwxr-xr-x 1 root root 55904 Jun 4 11:46 useradd*
+-rwxr-xr-x 1 root root 585656 Jun 4 11:47 vi*
+-rwxr-xr-x 1 root root 6444 Jun 4 11:45 whoami*
+./dev:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+crw-r--r-- 1 root root 1, 9 Jun 3 13:43 urandom
+./etc:
+total 208
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rw------- 1 root root 0 Jun 4 11:46 .pwd.lock
+-rw-r--r-- 1 root root 653 Jun 3 13:46 group
+-rw-r--r-- 1 root root 242 Jun 4 11:33 host.conf
+-rw-r--r-- 1 root root 857 Jun 4 12:04 hosts
+-rw-r--r-- 1 root root 1050 Jun 4 11:29 ld.so.cache
+-rw-r--r-- 1 root root 304 Jun 4 11:28 ld.so.conf
+-rw-r--r-- 1 root root 235 Jun 4 11:27 ld.so.conf~
+-rw-r--r-- 1 root root 88039 Jun 3 13:46 moduli
+-rw-r--r-- 1 root root 1342 Jun 4 11:34 nsswitch.conf
+drwxr-xr-x 2 root root 4096 Jun 4 12:02 pam.d/
+-rw-r--r-- 1 root root 28 Jun 4 12:00 pam_smb.conf
+-rw-r--r-- 1 root root 2520 Jun 4 11:57 passwd
+-rw-r--r-- 1 root root 7228 Jun 3 13:48 profile
+-rw-r--r-- 1 root root 1339 Jun 4 11:33 protocols
+-rw-r--r-- 1 root root 274 Jun 4 11:44 resolv.conf
+drwxr-xr-x 2 root root 4096 Jun 3 13:43 security/
+-rw-r----- 1 root root 1178 Jun 4 11:51 shadow
+-rw------- 1 root root 80 Jun 4 11:45 shadow-
+-rw-r----- 1 root root 1178 Jun 4 11:48 shadow.old
+-rw-r--r-- 1 root root 161 Jun 3 13:46 shells
+-rw-r--r-- 1 root root 1144 Jun 3 13:46 ssh_config
+-rw------- 1 root root 668 Jun 3 13:46 ssh_host_dsa_key
+-rw-r--r-- 1 root root 602 Jun 3 13:46 ssh_host_dsa_key.pub
+-rw------- 1 root root 527 Jun 3 13:46 ssh_host_key
+-rw-r--r-- 1 root root 331 Jun 3 13:46 ssh_host_key.pub
+-rw------- 1 root root 883 Jun 3 13:46 ssh_host_rsa_key
+-rw-r--r-- 1 root root 222 Jun 3 13:46 ssh_host_rsa_key.pub
+-rw-r--r-- 1 root root 2471 Jun 4 12:15 sshd_config
+./etc/pam.d:
+total 24
+drwxr-xr-x 2 root root 4096 Jun 4 12:02 ./
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ../
+lrwxrwxrwx 1 root root 4 Jun 4 12:02 other -> sshd
+-rw-r--r-- 1 root root 318 Jun 3 13:46 passwd
+-rw-r--r-- 1 root root 546 Jun 4 11:36 ssh
+-rw-r--r-- 1 root root 479 Jun 4 12:02 sshd
+-rw-r--r-- 1 root root 370 Jun 3 13:46 su
+./etc/security:
+total 32
+drwxr-xr-x 2 root root 4096 Jun 3 13:43 ./
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ../
+-rw-r--r-- 1 root root 1971 Jun 3 13:46 access.conf
+-rw-r--r-- 1 root root 184 Jun 3 13:46 chroot.conf
+-rw-r--r-- 1 root root 2145 Jun 3 13:46 group.conf
+-rw-r--r-- 1 root root 1356 Jun 3 13:46 limits.conf
+-rw-r--r-- 1 root root 2858 Jun 3 13:46 pam_env.conf
+-rw-r--r-- 1 root root 2154 Jun 3 13:46 time.conf
+./lib:
+total 8316
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rw-r--r-- 1 root root 1024 Jun 4 11:51 cracklib_dict.hwm
+-rw-r--r-- 1 root root 214324 Jun 4 11:51 cracklib_dict.pwd
+-rw-r--r-- 1 root root 11360 Jun 4 11:51 cracklib_dict.pwi
+-rwxr-xr-x 1 root root 342427 Jun 3 13:46 ld-linux.so.2*
+-rwxr-xr-x 1 root root 4061504 Jun 3 13:46 libc.so.6*
+lrwxrwxrwx 1 root root 15 Jun 4 12:11 libcrack.so -> libcrack.so.2.7*
+lrwxrwxrwx 1 root root 15 Jun 4 12:11 libcrack.so.2 -> libcrack.so.2.7*
+-rwxr-xr-x 1 root root 33291 Jun 4 11:39 libcrack.so.2.7*
+-rwxr-xr-x 1 root root 60988 Jun 3 13:46 libcrypt.so.1*
+-rwxr-xr-x 1 root root 71846 Jun 3 13:46 libdl.so.2*
+-rwxr-xr-x 1 root root 27762 Jun 3 13:46 libhistory.so.4.0*
+lrwxrwxrwx 1 root root 17 Jun 4 12:12 libncurses.so.4 -> libncurses.so.4.2*
+-rwxr-xr-x 1 root root 503903 Jun 3 13:46 libncurses.so.4.2*
+lrwxrwxrwx 1 root root 17 Jun 4 12:12 libncurses.so.5 -> libncurses.so.5.0*
+-rwxr-xr-x 1 root root 549429 Jun 3 13:46 libncurses.so.5.0*
+-rwxr-xr-x 1 root root 369801 Jun 3 13:46 libnsl.so.1*
+-rwxr-xr-x 1 root root 142563 Jun 4 11:49 libnss_compat.so.1*
+-rwxr-xr-x 1 root root 215569 Jun 4 11:49 libnss_compat.so.2*
+-rwxr-xr-x 1 root root 61648 Jun 4 11:34 libnss_dns.so.1*
+-rwxr-xr-x 1 root root 63453 Jun 4 11:34 libnss_dns.so.2*
+-rwxr-xr-x 1 root root 63782 Jun 4 11:34 libnss_dns6.so.2*
+-rwxr-xr-x 1 root root 205715 Jun 3 13:46 libnss_files.so.1*
+-rwxr-xr-x 1 root root 235932 Jun 3 13:49 libnss_files.so.2*
+-rwxr-xr-x 1 root root 204383 Jun 4 11:33 libnss_nis.so.1*
+-rwxr-xr-x 1 root root 254023 Jun 4 11:33 libnss_nis.so.2*
+-rwxr-xr-x 1 root root 256465 Jun 4 11:33 libnss_nisplus.so.2*
+lrwxrwxrwx 1 root root 14 Jun 4 12:12 libpam.so.0 -> libpam.so.0.72*
+-rwxr-xr-x 1 root root 31449 Jun 3 13:46 libpam.so.0.72*
+lrwxrwxrwx 1 root root 19 Jun 4 12:12 libpam_misc.so.0 ->
+libpam_misc.so.0.72*
+-rwxr-xr-x 1 root root 8125 Jun 3 13:46 libpam_misc.so.0.72*
+lrwxrwxrwx 1 root root 15 Jun 4 12:12 libpamc.so.0 -> libpamc.so.0.72*
+-rwxr-xr-x 1 root root 10499 Jun 3 13:46 libpamc.so.0.72*
+-rwxr-xr-x 1 root root 176427 Jun 3 13:46 libreadline.so.4.0*
+-rwxr-xr-x 1 root root 44729 Jun 3 13:46 libutil.so.1*
+-rwxr-xr-x 1 root root 70254 Jun 3 13:46 libz.a*
+lrwxrwxrwx 1 root root 13 Jun 4 12:13 libz.so -> libz.so.1.1.3*
+lrwxrwxrwx 1 root root 13 Jun 4 12:13 libz.so.1 -> libz.so.1.1.3*
+-rwxr-xr-x 1 root root 63312 Jun 3 13:46 libz.so.1.1.3*
+drwxr-xr-x 2 root root 4096 Jun 4 12:00 security/
+./lib/security:
+total 668
+drwxr-xr-x 2 root root 4096 Jun 4 12:00 ./
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 ../
+-rwxr-xr-x 1 root root 10067 Jun 3 13:46 pam_access.so*
+-rwxr-xr-x 1 root root 8300 Jun 3 13:46 pam_chroot.so*
+-rwxr-xr-x 1 root root 14397 Jun 3 13:46 pam_cracklib.so*
+-rwxr-xr-x 1 root root 5082 Jun 3 13:46 pam_deny.so*
+-rwxr-xr-x 1 root root 13153 Jun 3 13:46 pam_env.so*
+-rwxr-xr-x 1 root root 13371 Jun 3 13:46 pam_filter.so*
+-rwxr-xr-x 1 root root 7957 Jun 3 13:46 pam_ftp.so*
+-rwxr-xr-x 1 root root 12771 Jun 3 13:46 pam_group.so*
+-rwxr-xr-x 1 root root 10174 Jun 3 13:46 pam_issue.so*
+-rwxr-xr-x 1 root root 9774 Jun 3 13:46 pam_lastlog.so*
+-rwxr-xr-x 1 root root 13591 Jun 3 13:46 pam_limits.so*
+-rwxr-xr-x 1 root root 11268 Jun 3 13:46 pam_listfile.so*
+-rwxr-xr-x 1 root root 11182 Jun 3 13:46 pam_mail.so*
+-rwxr-xr-x 1 root root 5923 Jun 3 13:46 pam_nologin.so*
+-rwxr-xr-x 1 root root 5460 Jun 3 13:46 pam_permit.so*
+-rwxr-xr-x 1 root root 18226 Jun 3 13:46 pam_pwcheck.so*
+-rwxr-xr-x 1 root root 12590 Jun 3 13:46 pam_rhosts_auth.so*
+-rwxr-xr-x 1 root root 5551 Jun 3 13:46 pam_rootok.so*
+-rwxr-xr-x 1 root root 7239 Jun 3 13:46 pam_securetty.so*
+-rwxr-xr-x 1 root root 6551 Jun 3 13:46 pam_shells.so*
+-rwxr-xr-x 1 root root 55925 Jun 4 12:00 pam_smb_auth.so*
+-rwxr-xr-x 1 root root 12678 Jun 3 13:46 pam_stress.so*
+-rwxr-xr-x 1 root root 11170 Jun 3 13:46 pam_tally.so*
+-rwxr-xr-x 1 root root 11124 Jun 3 13:46 pam_time.so*
+-rwxr-xr-x 1 root root 45703 Jun 3 13:46 pam_unix.so*
+-rwxr-xr-x 1 root root 45703 Jun 3 13:46 pam_unix2.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_acct.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_auth.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_passwd.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_session.so*
+-rwxr-xr-x 1 root root 9726 Jun 3 13:46 pam_userdb.so*
+-rwxr-xr-x 1 root root 6424 Jun 3 13:46 pam_warn.so*
+-rwxr-xr-x 1 root root 7460 Jun 3 13:46 pam_wheel.so*
+./sbin:
+total 3132
+drwxr-xr-x 2 root root 4096 Jun 4 12:35 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rwxr-xr-x 1 root root 178256 Jun 3 13:46 choptest*
+-rwxr-xr-x 1 root root 184032 Jun 3 13:46 cqtest*
+-rwxr-xr-x 1 root root 81096 Jun 3 13:46 dialtest*
+-rwxr-xr-x 1 root root 1142128 Jun 4 11:28 ldconfig*
+-rwxr-xr-x 1 root root 2868 Jun 3 13:46 lockname*
+-rwxr-xr-x 1 root root 3340 Jun 3 13:46 ondelay*
+-rwxr-xr-x 1 root root 376796 Jun 3 13:46 pagesend*
+-rwxr-xr-x 1 root root 13950 Jun 3 13:46 probemodem*
+-rwxr-xr-x 1 root root 9234 Jun 3 13:46 recvstats*
+-rwxr-xr-x 1 root root 64480 Jun 3 13:46 sftp-server*
+-rwxr-xr-x 1 root root 744412 Jun 3 13:46 sshd*
+-rwxr-xr-x 1 root root 30750 Jun 4 11:46 su*
+-rwxr-xr-x 1 root root 194632 Jun 3 13:46 tagtest*
+-rwxr-xr-x 1 root root 69892 Jun 3 13:46 tsitest*
+-rwxr-xr-x 1 root root 43792 Jun 3 13:46 typetest*
+./tmp:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:32 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+./usr:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+lrwxrwxrwx 1 root root 7 Jun 4 12:14 bin -> ../bin//
+lrwxrwxrwx 1 root root 7 Jun 4 11:33 lib -> ../lib//
+lrwxrwxrwx 1 root root 8 Jun 4 12:13 sbin -> ../sbin//
+</example>
+
+
+
+<appendix id="chroot-apache-env"><PRGN>Apache</PRGN> 的 <Prgn>chroot</Prgn> 环境
+
+<sect>介绍
+
+<p><prgn>chroot</prgn> 工具常用来限制一个守护进程在一个限制的目录树中. 您可以使用它使各个服务之间相互隔离. 这样软件的安全问题就不会影响到整个服务器. 当使用 <prgn>makejail</prgn> 脚本时, 设置, 和更新 chroot 目录树是非常简单的.</p>
+<p>FIXME: Apache 还可以使用  <url id="http://www.modsecurity.org"> 进行chroot, 其可以在
+  	 <package>libapache-mod-security</package> (for Apache 1.x) 和
+  	 <package>libapache2-mod-security</package> (for Apache 2.x) 中找到.
+  	 
+<sect1>许可证
+
+<p>此文档2002版权为 Alexandre Ratti 所有. 其遵从双重许可证, 在 GPL version 2 (GNU Public License) the GNU-FDL 1.2 (GNU 自由文档许可证)和包含在此手册中其明确的许可下发布 (源自<url id="http://www.gabuzomeu.net/alex/doc/apache/index-en.html"
+name="original document">).
+
+</sect1>
+</sect>
+
+<sect>安装服务器
+
+<p>此过程在提供 <prgn>makejail</prgn> 0.0.4-1(在 Debian/testing 中)的 Debian GNU/Linux 3.0 (Woody)上经过测试.
+
+<list>
+
+<item><p>以 <prgn>root</prgn> 登录, 创建 jail 目录:
+
+<example>
+$ mkdir -p /var/chroot/apache
+</example>
+
+ </item>
+
+ <item><p>创造一个用户和新组. 除了 chroot 了的 Apache 服务器用这个用户/组运行, 在此系统上不再做别的用途. 在这个例子中, 用户和组都叫 <prgn>chrapach</prgn>.
+
+ <example> 
+ $ adduser --home /var/chroot/apache --shell /bin/false \
+ --no-create-home --system --group chrapach
+ </example>
+
+<p>FIXME: 需要新的用户吗? (Apache 已经作为 apache 用户运行了) </p>
+
+  </item>
+
+  <item>象通常一样在 Debian 上安装 Apache: <tt>apt-get install
+apache</tt></item>
+
+<item>配置 Apache(例如定义您的子域, 等). 在 <file>/etc/apache/httpd.conf</file> 配置文件中, 将 <em>Group</em> 和 <em>User</em> 选项设为 <tt>chrapach</tt>, 重新启动 Apache, 确保服务运行正常. 然后, 停掉 Apache 守护进程.</item>
+
+<item>安装 <prgn>makejail</prgn>(现在 Debian/testing 中提供). 您还需要安装 <prgn>makejail</prgn> 会用到的 <prgn>wget</prgn> 和 <prgn>lynx</prgn>, 以测试 chroot 服务器: <tt>apt-get install makejail wget lynx</tt></item>
+
+<item>复制 Apache 示例配置文件到 <file>/etc/makejail</file> 目录:
+ <example> 
+ # cp/usr/share/doc/makejail/examples/apache.py /etc/makejail/ 
+ </example>
+
+</item>
+ 
+ <item>编辑 <file>/etc/makejail/apache.py</file>. 您需要修改 <em>chroot</em>, <em>users</em> 和 <em>groups</em> 选项. 运行这个版本的 <prgn>makejail</prgn>, 您还可以添加一个 <prgn>packages</prgn> 选项. 详见  <url
+id="http://www.floc.net/makejail/current/doc/" name="makejail
+documentation">. 下边是一个示例:
+
+<example>
+chroot=&quot;/var/chroot/apache&quot;
+testCommandsInsideJail=[&quot;/usr/sbin/apachectl start&quot;]
+processNames=[&quot;apache&quot;]
+testCommandsOutsideJail=[&quot;wget -r --spider http://localhost/&quot;,
+                         &quot;lynx --source https://localhost/&quot;]
+preserve=[&quot;/var/www&quot;,
+          &quot;/var/log/apache&quot;,
+          &quot;/dev/log&quot;]
+users=[&quot;chrapach&quot;]
+groups=[&quot;chrapach&quot;]
+packages=[&quot;apache&quot;, &quot;apache-common&quot;]
+userFiles=[&quot;/etc/password&quot;,
+           &quot;/etc/shadow&quot;]
+groupFiles=[&quot;/etc/group&quot;,
+            &quot;/etc/gshadow&quot;]
+forceCopy=[&quot;/etc/hosts&quot;,
+           &quot;/etc/mime.types&quot;]
+</example>
+
+<p><em>FIXME:</em> 一些选项似乎不能正确运行. 例如, <file>/etc/shadow</file> 和 <file>/etc/gshadow</file> 没有复制, 然而 <file>/etc/password</file> 和 <file>/etc/group</file> 是全部复制的, 而不是经过过滤.</p>
+ </item>
+ 
+<item>创造 chroot 目录树: <tt>makejail /etc/makejail/apache.py</tt></item>
+
+<item>如果 <file>/etc/password</file> 和 <file>/etc/group</file> 被全部复制, 键入:
+
+      <example>
+      $ grep chrapach /etc/passwd &gt; /var/chroot/apache/etc/passwd
+      $ grep chrapach /etc/group &gt; /var/chroot/apache/etc/group
+      </example>
+用过滤出的拷贝覆盖它们.</item>
+
+<item>复制网站的网页和日志文件到 jail 中. 这些文件都不是自动复制的.(参阅 <prgn>makejail</prgn> 配置文件中的 <em>preserve</em> 项).
+      <example>
+      # cp -Rp /var/www /var/chroot/apache/var
+      # cp -Rp /var/log/apache/*.log /var/chroot/apache/var/log/apache
+      </example>
+  </item>
+
+<item>编辑启动脚本为系统日志守护进程, 使其同时也监听 <file>/var/chroot/apache/dev/log</file> socket. 在 <file>/etc/init.d/sysklogd</file> 文件中, 用 <tt>SYSLOGD=&quot; -a /var/chroot/apache/dev/log&quot;</tt> 替换 <tt>SYSLOGD=&quot;&quot;</tt> 然后重启守护进程
+(<tt>/etc/init.d/sysklogd restart</tt>).</item>
+
+  <item> 编辑 Apache 的启动脚本(<file>/etc/init.d/apache</file>). 您可能需要适当地做对缺省的启动脚本做一些调整, 使其在 chroot 目录树中运行正常. 譬如:
+    <list>
+      <item>在文件顶部设置一新 <em>CHRDIR</em> 变量;</item>
+      <item>编辑 <em>start</em>, <em>stop</em>, <em>reload</em>, 
+        等部分;</item>
+      <item>增加一行用于在 jail 中加载和卸载 <file>/proc</file> 文件系统</item>
+    </list>
+<example>
+#! /bin/bash
+#
+# apache	Start the apache HTTP server.
+#
+
+CHRDIR=/var/chroot/apache
+
+NAME=apache
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+DAEMON=/usr/sbin/apache
+SUEXEC=/usr/lib/apache/suexec
+PIDFILE=/var/run/$NAME.pid
+CONF=/etc/apache/httpd.conf
+APACHECTL=/usr/sbin/apachectl 
+
+trap "" 1
+export LANG=C
+export PATH
+
+test -f $DAEMON || exit 0
+test -f $APACHECTL || exit 0
+
+# ensure we don't leak environment vars into apachectl
+APACHECTL="env -i LANG=${LANG} PATH=${PATH} chroot $CHRDIR $APACHECTL"
+
+if egrep -q -i "^[[:space:]]*ServerType[[:space:]]+inet" $CONF
+then
+    exit 0
+fi
+
+case "$1" in
+  start)
+    echo -n "Starting web server: $NAME"
+    mount -t proc proc /var/chroot/apache/proc
+    start-stop-daemon --start --pidfile $PIDFILE --exec $DAEMON \
+	--chroot $CHRDIR
+    ;;
+
+  stop)
+    echo -n "Stopping web server: $NAME"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" --oknodo
+    umount /var/chroot/apache/proc
+    ;;
+
+  reload)
+    echo -n "Reloading $NAME configuration"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" \
+	--signal USR1 --startas $DAEMON --chroot $CHRDIR
+    ;;
+
+  reload-modules)
+    echo -n "Reloading $NAME modules"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" --oknodo \
+	--retry 30
+    start-stop-daemon --start --pidfile $PIDFILE \
+	--exec $DAEMON --chroot $CHRDIR
+    ;;
+
+  restart)
+    $0 reload-modules
+    exit $?
+    ;;
+
+  force-reload)
+    $0 reload-modules
+    exit $?
+    ;;
+
+  *)
+    echo "Usage: /etc/init.d/$NAME {start|stop|reload|reload-modules|force-reload|restart}"
+    exit 1
+    ;;
+esac
+
+if [ $? == 0 ]; then
+	echo .
+	exit 0
+else
+	echo failed
+	exit 1
+fi
+</example>
+
+      <p><em>FIXME</em>: 第一个 Apache 进程应当以其它用户而不是 root 用户运行的(即, add --chuid chrapach:chrapach)? Cons: chrapache将需要对日志有写权限, 这非常不便.</p>
+  </item>
+
+  <item>在 <file>/etc/logrotate.d/apache</file> 中用 <tt>/var/chroot/apache/var/log/apache/*.log</tt> 替换  <tt>/var/log/apache/*.log</tt></item>
+
+
+  <item>启动 Apache(<prgn>/etc/init.d/apache start</prgn>), 并检查 jail 日志文件中的相关报告(<file>/var/chroot/apache/var/log/apache/error.log</file>). 如果您的配置更加复杂, (例如, 您同时还使用 PHP 和 MySQL), 文件可能会找不到. 如果一些文件 <prgn>makejail</prgn> 没有自动复制, 您可以在 <file>/etc/makejail/apache.py</file> 配置文件的 <em>forceCopy</em>(直接拷贝的文件) 或 <em>packages</em> (直接拷贝的整个软件包和它们的依赖包) 选项中列出.  </item>
+
+  <item> 
+    <p>键入 <tt>ps aux | grep apache</tt> 以确保 Apache 正在运行. 您应当看到如下类似内容:
+      <example>
+      root 180 0.0 1.1 2936 1436 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 189 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 190 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 191 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 192 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 193 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      </example>
+  </item>
+
+  <item>通过查看 <file>/proc</file> 文件系统来确认 Apache 在 chroot 环境下运行: <tt>ls -la /proc/<em>process_number</em>/root/.</tt>. 这里 <em>process</em> 是上边列出的 PID 号码(例如第二栏 189).应当列出限制目录树的内容:
+    <example>
+    drwxr-sr-x 10 root staff 240 Dec 2 16:06 .
+    drwxrwsr-x 4 root staff 72 Dec 2 08:07 ..
+    drwxr-xr-x 2 root root 144 Dec 2 16:05 bin
+    drwxr-xr-x 2 root root 120 Dec 3 04:03 dev
+    drwxr-xr-x 5 root root 408 Dec 3 04:03 etc
+    drwxr-xr-x 2 root root 800 Dec 2 16:06 lib
+    dr-xr-xr-x 43 root root 0 Dec 3 05:03 proc
+    drwxr-xr-x 2 root root 48 Dec 2 16:06 sbin
+    drwxr-xr-x 6 root root 144 Dec 2 16:04 usr
+    drwxr-xr-x 7 root root 168 Dec 2 16:06 var
+    </example>
+    <p>键入: <tt>ls -la /proc/`cat
+/var/chroot/apache/var/run/apache.pid`/root/.</tt> 自动完成整个测试</p>
+
+    <p><em>FIXME</em>: 增加其它的测试, 以确保 jail 被关闭了?</p>
+	</item>
+</list>
+
+<p>我喜欢这样的原因是因为设定 jail 不是很困难, 并且服务器可以通过下边两行更新:
+
+<example> 
+apt-get update &amp;&amp; apt-get install apache
+makejail /etc/makejail/apache.py
+</example>
+
+</sect>
+<sect>其它
+
+<p>如果您要寻找更多资料, 不妨考虑这些信息来源的大本营:
+<list>
+
+  <item><url id="http://www.floc.net/makejail/" name="makejail 的主页">, 这个程序是由 Alain Tesio 完成的</item>
+
+<!-- Not appropiate for this section 
+  <item><a href="http://www.easter-eggs.org/article242.html">Bind9 chroot&eacute; 
+    avec <prgn>makejail</prgn></a>, Pascal Brugier, easter-eggs.org, 21/03/2002</item>
+-->
+
+  <item><url id="http://www.nuclearelephant.com/papers/chroot.html"
+name="Chrooting daemons and system processes HOWTO"> by Jonathan, Network
+Dweebs, 21/10/2002</item>
+
+</list>
+</sect>
+</appendix>

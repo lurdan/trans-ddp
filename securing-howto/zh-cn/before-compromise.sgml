@@ -1,0 +1,461 @@
+
+<chapt>被攻陷之前
+
+<sect id="keep-up-to-date">系统的及时更新
+
+<p>您应当经常的进行系统安全更新. 就如 <url
+id="http://www.cs.umd.edu/~waa/vulnerability.html" name="paper by
+Bill Arbaugh">(发表于2001 IEEE 关于安全和保密的讨论会)中所述, 
+多数的 Exploit 源于已知漏洞没有及时的打上补丁. 更新的描述参见 <ref
+id="security-update">.
+
+<sect1>手动检查有效的安全更新
+<p>Debian  提供了一个用于检查系统是否需要更新的工具(参见后边的 Tiger), 
+但是很多用户更愿意手动检查是否有有效的安全更新. 
+
+<p>如果您如 <ref id="security-update"> 所述, 配置了系统. 那么, 仅需要:
+
+<example>
+# apt-get update
+# apt-get upgrade -s
+</example>
+
+<p>第一行将从您配置的源下载可用软件包列表. -s 将做一个模拟运行, 即并不真的下载, 并安装软件包, 
+而只是告诉您将会下载/安装哪些. 从输出中, 您可以知道 Debian 对哪些软件包做了修补, 可以做为一个安全更新. 例如:
+<example>
+# apt-get upgrade -s
+Reading Package Lists... Done
+Building Dependency Tree... Done
+2 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Inst cvs (1.11.1p1debian-8.1 Debian-Security:3.0/stable)
+Inst libcupsys2 (1.1.14-4.4 Debian-Security:3.0/stable)
+Conf cvs (1.11.1p1debian-8.1 Debian-Security:3.0/stable)
+Conf libcupsys2 (1.1.14-4.4 Debian-Security:3.0/stable)
+</example>
+<p>在这个例子中, 您可以看到系统需要更新 cvs 和 cupsys 软件包, 其在 <em>woody</em> 的安全站点上得到了修补. 
+如果您想要了解为什么需要这些软件包, 可以浏览 <url id="http://security.debian.org">, 
+检索与这些软件相关的最近张贴的安全公告. 在这个例子中,相关的安全公告是
+<url id="http://www.debian.org/security/2003/dsa-233" name="DSA-233"> (for cvs)
+和
+<url id="http://www.debian.org/security/2003/dsa-232" name="DSA-232"> (for cupsys)
+
+<sect1 id="cron-apt">使用 cron-apt 自动完成更新检查
+<p>自动安全更新的另一个办法是使用 <package>cron-apt</package>. 
+此软件包提供了一个定期更新系统的工具(使用 cron job). 它将按照默认更新软件包列表, 
+并下载新的软件包. 我也可以将其配置为发送邮件给系统管理员.
+<p>注意, 如果您打算自动更新系统(甚至仅仅下载软件包), 您也许想检查发行版, 如 <ref id="check-releases"> 所述. 
+否则, 您无法确保下载的软件包真的来自一个可信任的源.
+
+<sect1>使用 Tiger 自动检查安全更新
+
+<p>如果您正在寻找一个能够快速检查并报告系统安全漏洞的工具, 
+可以试试 <package>tiger</package> 软件包. 它提供了一套 Bourne shell 脚本, C 程序, 
+和用于完成安全审查的数据文件. Debian GNU/Linux 软件包针对 Debian 发行版, 做了一定的改进, 
+比 TAMU(甚至 TARA, ARSC 发行的一个 tiger 版本)的 Tiger 脚本提供了更多的功能. 
+更多信息,参见 README.Debian 文件和联机手册 <manref section="8" name="tiger">.
+
+<p><tt>deb_checkadvisories</tt> 脚本就是其中一个. 此脚本采用 DSA 列表, 
+检测  against the installed package base ,并依据 Debian 安全小组报告所有的存在漏洞的软件包. 
+除了轻微的变化外, 此 Tiger <tt>check_signatures</tt> 脚本将检查已知漏洞程序的 MD5sums 值.
+
+<p>因为 Debian 的当前版本并不提供已知漏洞程序的 MD5sums 值列表(被其它操作系统,如 sun Solaris 所使用 ), 
+故只能使用 <em>check-against-DSA</em> 方法. DSA 方法和 MD5sums 方法都存在签名必须经常更新的问题.
+
+<p>当前的解决方法是, 使用最新版本的 Tiger 软件包, 但是软件包的维护者可能不能在每个 DSA 发布时都产生一个新的版本. 
+还未被使用, 但可能将被使用的一个好的解决办法是, 从网上下载 DSAs, 制做列表, 然后运行检测. 这个 DSAs 是从维护者本地 CVS更新到最新, 其源自用于创建<url id="http://security.debian.org">(这是 web 服务器)的 WML 源.
+
+<p>用程序去分析通过电子邮件或者由 security.debian.org 获取的 DSAs, 
+然后用 'deb_checkadvisories' 生成的文件, 来确认漏洞是否值得注意. 并将其作为一个 <package>tiger</package> 的报告发送. 
+
+<p>提到的检测, 是指通过运行安装时完成配置的标准程序来完成(参阅 <file>/etc/tiger/cronrc</file>):
+
+<example>
+# Check for Debian security measures every day at 1 AM
+#
+1 * *   deb_checkmd5sums deb_nopackfiles deb_checkadvisories
+#
+</example>
+
+<p>您可能还要增加一个附加的检查, 它并不是标准 <prgn>cron</prgn> 脚本的一部分. 
+这是一个脚本<tt>检查补丁</tt>, 用下边的方法运行:
+
+<list>
+
+<item>运行 <tt># apt-get update</tt>
+
+<item>检查是否有新的软件包
+
+</list>
+
+<p>如果您正在运行一个 <em>stable</em> 系统, 添加 security.debian.org <prgn>apt</prgn> 源到
+<file>/etc/apt/sources.list</file>(如< ref id="security-update"> 所述), 
+这个脚本会告诉您是否有您需要安全的新软件包. 因为只有修改了的软件包才会安全更新, 故而您只会得到想要的
+
+<p>当然，如果您使用的是 <em>testing</em> 或 <em>sid/unstable</em> 系统, 将不能这样做, 
+因为当前新包可能比安全更新要多.
+
+<p>您可以添加下边的脚本用以检查 <prgn>cron</prgn> 的工作(在前面的配置文件中), 
+并且 <prgn>tigercron</prgn> 将会 mail(给在 <file>/etc/tiger/tigerrc</file> 中
+<tt>Tiger_Mail_RCPT</tt> 项设置的用户)新的软件包:
+
+<example>
+# Check for Debian security measures every day at 1 am
+#
+1 * *   deb_checkmd5sums deb_nopackfiles check_patches
+#
+</example>
+
+<sect1>安全更新的其它方法.
+
+<P>您也许还想查看一下 <url id="http://therapy.endorphin.org/secpack/" name="secpack">, 
+这是一个由 Fruhwirth Clemens 完成的非官方的程序, 用于从 security.debian.org 完成安全更新, 带有签名检查.
+
+<sect1>避免使用 unstable 分支
+
+<p>除非您想在漏洞出现的时候自己修补, 否则您<em>不</em>应该在生产级系统上使用 Debian 的 unstable 分支. 主要原因是 <em>unstable</em> 不存在安全更新(参见<ref
+id="sec-unstable">).
+
+<p>事实上, 一些安全问题可能出现在 unstable 中,但在 <em>stable</em> 版中<em>没有</em>. 
+这归结于那里提供的程序经常增加新的功能. 并且可能有些新的程序并未通过测试.
+
+<p>为了对 <em>unstable</em> 分支进行安全更新, 您可能必须全部更新到新版本(其影响远远不止对软件包). 
+尽管存在一些例外, 安全补丁通常只进入 <em>stable</em> 分支. 其主要想法是在更新之间不再加入<em>新的代码</em>, 
+主要进行修补重大问题.
+
+<sect1>避免使用 testing 分支
+
+<p>如果您正在使用 <em>testing</em> 分支，那么您则必须考虑一些有关可用安全更新的问题:
+
+<list>
+
+<item>当安全修复准备好后, 安全小组将补丁移植到 <em>stable</em>(因为 stable 通常为较小或较靠后的版本). 软件包维护者负责为 <em>unstable</em> 分支的软件包做准备, 这通常基于新的上游版本. 有时变动是几乎是同时进行, 有时某个发行版的更新提前一点. <em>stable</em> 发行版的软件包与 <em>unstable</em> 相比测试更加全面, 因为后者大多数情况下提供的为上游发行版的最新版(可能含有新的, 未知的 bug).
+
+<item>通常也有用于 <em>unstable</em> 的更新, 当软件包的维护者制作了一个新的软件包, 并且当安全小组制作了新的上载, 并公布了 DSA. 注意这两者都不会更改 <em>testing</em> 分支
+
+<item>在 <em>unstable</em> 的软件包中如果不存在(新的) bug, 几天后将被移入 <em>testing</em>. 
+通常为十天, 这主要取决于上载的优先级和软件包是否被锁定. 注意,  如果软件包被阻止进入 testing, 其上载优先级不会改变其进入时间.
+
+</list>
+
+根据发行版的发行状态, 这种方式可能会改变. 当一个发行版将要放出时, 安全小组或软件包维护者可能对 testing 直接提供更新.
+
+<sect1>自动完成 Debian GNU/Linux 系统的更新
+
+<p>首先，并不十分推荐自动更新, 因为管理员应当查阅 DSA, 并了解每次安全更新的影响.
+
+<p>如果要自动完成系统的更新, 您应该:
+
+<list>
+
+<item>配置 <prgn>apt</prgn>, 使您不想升级的软件包保持当前版本, 
+使用 <prgn>apt</prgn> 的 <em>pinning</em> 特性, 或者用 <prgn>dpkg</prgn> 或 <prgn>dpkg</prgn> 将其标记为<em>hold</em>.
+
+<p>你可以通过在 <file>/etc/apt/preferences</file>(参见 <manref section="5"
+name="apt_preferences">)中加入以下内容,将软件 pin 在指定版本之下:
+
+<example>
+  Package: *
+  Pin: release a=stable
+  Pin-Priority: 100
+</example>
+<p>FIXME: 检查这种配置的正确性.
+
+<item>或者如 <ref id="cron-apt"> 所述, 使用 cron-apt, 使其可以安装下载的软件包, 
+或者加入您自己的 <prgn>cron</prgn> 条目, 使其每天运行更新, 例如:
+
+<example>
+  apt-get update && apt-get -y upgrade
+</example>
+
+<tt>-y</tt> 选项将使得在更新过程中所有可能出现的提示 <prgn>apt</prgn> 都假设为 'yes'. 
+在某些情况下, 您可能想使用 <tt>--trivial-only</tt> 选项取代 <tt>--assume-yes</tt>(等同于 <tt>-y</tt>).
+
+<footnote>您也可能想使用 <tt>--quiet</tt>(<tt>-q</tt>)参数以减少 <prgn>apt-get</prgn> 的输出, 如果没有安装软件包, 就会中止产生的任何输出.</footnote>
+
+<item>配置 <prgn>cron</prgn> 使 <prgn>debconf</prgn> 在升级过程中不再要求任何输入, 
+以便 debconf 不会请求任何输入在升级期间，就象不需要交互一样. 
+<footnote>注意, 一些软件包<em>不能</em>使用 <prgn>debconf</prgn> 并且更新后的配置过程需要用户输入数据.</footnote>
+
+<item>检查 <prgn>cron</prgn> 的执行结果, 它将会通过mail发送给超级用户(除非修改了与 <tt>MAILTO</tt> 环境变量相关的脚本).
+
+</list>
+
+<p>使用 <tt>-d</tt>(或 <tt>--download-only</tt>)选项也许会更加安全, 
+这样只下载所需的软件包, 而并不安装. 然后如果 <prgn>cron</prgn> 执行的结果显示系统需要更新, 就手动完成.
+
+<p>为了完成这些工作, 需要正确配置系统以下载安全更新如<ref
+id="security-update">中建议的.
+
+<p>但是，如果没有经过仔细的分析, 并不推荐在 <em>unstable</em> 中这样做, 
+因为如果您安装到系统中的一个重要的软件包中存在严重 bug, 可能会使系统崩溃. 
+对于这种问题, <em>testing</em> 相对要好一点. 因为<em>严重</em>的 bug 在进入 testing 分支前有更多机会被检测出来.(尽管,您可能<em>没有</em>任何安全更新可用).
+
+<p>如果您使用一个混合版本, 即在 <em>stable</em> 版中安装有更新到 
+<em>testing</em> 或 <em>unstable</em> 版本的软件包, 
+您即可以使用 <prgn>apt-get</prgn> 升级时加入 <tt>--target-release</tt> 以 <em>只</em>升级您升级过的软件包,也可以修改 pinning 参数完成.
+<footnote>这是一个很常见的问题, 因为很多用户在使用一个 stable 系统的同时, 希望将一些软件包升级到 <em>unstable</em> 以获取最新功能. 这就需要成立一些项目加快解决 Debian 的 <em>stable</em> 之见问题的时间. </footnote>
+
+<sect id="periodic-integrity">周期性入侵检测 
+
+<P>通常完成安装后, 一条基本准则是(即, 如 <ref id="snapshot"> 所描述)应当经常进行系统完整性检查. 完整性检查有助于发现入侵者对文件系统的改动, 或系统管理的操作失误. 
+
+<P>如果可能, 完整性检查应当在离线状态<footnote>
+一个简单的方法是使用 Live CD, 比如 
+<url id="http://www.knoppix-std.org/" name="Knoppix Std">, 其同时为您的系统提供了文件完整性检查工具和数据库.
+</footnote>下完成. 这样, 就没有其它系统对操作系统形成干扰, 以避免导致错误的安全信息(即, false negatives), 例如被安装了 rootkits. 系统完整性检查依赖的数据库同样应当保存在只读介质上.
+
+<P>您可以考虑使用有效的文件系统完整性检查工具(如 ref id="check-integ"> 中所述)在线完成完整性检查, 如果离线完成这一工作不太可能. 但是, 除了使用只读数据库这一预防措施, 还要确保完整性检查工具(和操作系统内核)未被篡.
+
+<P>在完整性检测部分提到的一些工具, 比如 <prgn>aide</prgn>, <prgn>integrit</prgn> 或 <prgn>samhain</prgn> 已经可以完成周期性检查(在第一第二方案可通过 crontab, <prgn>samhain</prgn> 可以通过独立的守护进程)并可在文件系统发生改变时通过不同的渠道(通常为 e-mail, samhain 还可以发送页面, SNMP traps 或系统日志警告) 给管理员发送警告.
+
+<P>当然, 如果您对系统进行了安全更新, 应当重新制作系统快照, 以包容安全更新所产生的改动. 
+
+</sect>
+<sect id="intrusion-detect">设置入侵检测
+
+<p>Debian GNU/Linux 中提供入侵检测工具, 用于检测您本地系统或您私有网站中其他系统的不恰当或恶意活动. 
+如果系统非常重要, 或者您非常偏执, 这种预防是非常重要的. 入侵检测常用的方法有异常收集和特征匹配.
+
+<p>谨记, 为了使用介绍的工具真正改善系统的安全性, 您需要到位的报警和响应机制. 
+如果没有报警, 入侵检测将会非常费时.
+
+<p>当检测到一次特殊的攻击时, 多数的入侵检测工具要么使用 <prgn>syslogd</prgn> 记录事件, 
+要么要么发送邮件到 root 用户(邮件接收者是可以配置的). 管理员必须正确的配置这些工具, 
+以便错误的信息不会触发报警. 报警也许还表明当一次持续的攻击, 也许一天以后已经没用了, 
+因为攻击可能已经成功了. 因此要确保正确的处理报警的策略以及相应的技术机制应当到位.
+
+<p><url id="http://www.cert.org/tech_tips/intruder_detection_checklist.html"
+name="CERT's Intrusion Detection Checklist">提供了很多有趣的信息.
+
+<sect1>基于网络的入侵检测
+
+<p>基于网络的入侵检测工具监测在网络上传送的数据段, 并将其作为数据源. 
+具体就是审查网上的数据包, 看是否与某些特征匹配.
+
+<p><package>Snort</package> 是一个轻量级的数据包嗅探器或记录器, 使用攻击特征字典检测攻击. 
+它可以检测出各种各样的攻击和探测, 譬如缓冲溢出, 端口扫描, CGI 攻击, SMB 探测, 等等. 
+<prgn>snort</prgn> 还有实时报警的能力. 您可以将 <prgn>snort</prgn> 象用于主机一样用于您的网络. 
+使用 <tt>apt-get install snort</tt> 完成, 回答紧跟的问题, 并查看日志. 更大一点的安全框架<url id="http://www.prelude-ids.org" name="Prelude">
+
+<p>Debian 的 <package>snort</package> 软件包默认可以用于许多安全检测. 但您应当根据运行在您系统上的服务来定制设定. 您也许想添加针对这些服务的设定.
+
+<P><em>注意</em>: woody 提供的 snort 软件包有点老, 并且有很多 <url
+id="http://lists.debian.org/debian-devel/2003/debian-devel-200308/msg02105.html"
+name="问题">, 您可以使用维护者在 <url id="http://people.debian.org/~ssmeenk/snort-stable-i386/">
+处提供的 Snort 移植软件包
+
+<p>还有一些相对简单的工具可以用来检测网络入侵. <package>portsentry</package> 是一个很有趣的软件包, 
+它可以发现端口扫描并对端口扫描作出反应. 其它类似 <package>ippl</package> 或 <package>iplogger</package> 
+的一些工具也能检测一些 IP(TCP 和 ICMP)攻击, 即使他们不如 <prgn>snort</prgn>  性能高.
+
+<p>您可以用 Debian 提供的 <package>idswakeup</package> 软件包测试这些工具, 
+它是一个shell 脚本, 可以产生假警报, 并包括许多常见的攻击特征.
+
+<sect1>基于主机的入侵检测
+
+<p>基于主机的入侵检测包括在被检测的系统中加载软件, 其使用日志文件和/或系统的检测程序作为数据源. 
+它搜寻可疑的进程, 监视主机的访问, 也许甚至监控对重要文件的修改.
+
+<p><package>Tiger</package> 是一个较老的入侵检测工具, 从 Woody 开始就引入 Debian 了. 
+<prgn>Tiger</prgn> 提供与安全侵入有关的常规问题检查, 如密码强度, 文件系统问题, 
+通信进程, 以及其它可能危及 root 安全的方面. 这个软件包含的新的 Debian 相关安全检查有: 
+安装软件包, 不属于软件包的本地文件的 MD5sums 检查, 以及本地监听进程的分析.
+默认的安装设置 <prgn>tiger</prgn> 每天运行, 并生成关于可能危及系统的问题报告发送给超级用户.
+
+<p>日志分析工具，譬如 <package>logcheck</package> 也可用于检测试图的入侵. 参见 <ref id="custom-logcheck">.
+
+<p>另外，用于监测文件系统完整性的软件包(参见 <ref
+id="check-integ">)在检查一个安全系统的异常现象时也非常有用. 一个有效的侵入很可能会
+修改一些本地文件系统中的文件以绕过本地安全策略, 安装木马, 或创建用户. 
+这些事件通常可以通过使用文件系统完整性检查工具检测到.
+
+<sect>避免 root-kits
+
+<sect1 id="LKM">可加载内核模块 (LKM)
+
+<p>可加载内核模块是指包含动态可加载内核组件的文件, 用于扩展内核功能. 
+使用模块最大的好处是在添加另外的设备时, 如网卡或声卡, 不必修补内核源码, 并重新编译整个内核. 
+然而, 现在黑客将 LKMs 用于 root-kits(knark 和 adore),在 GNU/Linux 系统中开启后门.
+
+<p>LKM 后门比传统的 root-kits 更加先进和隐蔽. 可以隐藏进程, 文件, 目录, 甚至连接而不必修改二进制源码. 
+例如, 一个恶意的 LKM 可以迫使内核隐藏源自 <file>procfs</file> 的进程, 这样即使是著名的 <prgn>ps</prgn> 
+也不能列出关于系统的当前进程的准确信息.
+
+<sect1>检测 root-kits
+
+<p>有两种方法保护您的系统免受 LKM 伤害, 主动防护和被动防护. 
+检测工作可能是简单和轻松的, 或是麻烦和繁重的, 这和采取的方法有关.
+
+<sect2 id="proactive">主动防护
+
+<p>这种防护的好处是首先避免了对系统的破坏. <em>首先装载</em>一个设计好的 LKM, 
+以保护系统不受其它恶意 LKM 的破坏. 然后解除内核自身的能力. 例如, 完全解除可加载内核模块的能力. 
+注意, 但在这种情况下有些 rootkits 仍然可以运行, 有些是直接修改 <file>/dev/kmem</file>(kernel memory) 
+使其自身不会被探测到.
+
+<p>Debian GNU/Linux 仅提供很少的软件包用于挂载一个主动防御防护:
+
+<list>
+
+<item><package>kernel-patch-2.4-lsm</package> - LSM 是 Linux 的安全模块框架.
+
+<item><package>lcap</package> - 一个用于解除内核的<em>能力</em>(基于内核的访问控制)的友好用户界面, 
+使得系统更加安全. 例如, 运行 <tt>lcap CAP_SYS_MODULE</tt> 
+<footnote>
+这包括大约 28 个性能:
+<tt>CAP_BSET</tt>,
+<tt>CAP_CHOWN</tt>,
+<tt>CAP_FOWNER</tt>,
+<tt>CAP_FSETID</tt>,
+<tt>CAP_FS_MASK</tt>,
+<tt>CAP_FULL_SET</tt>,
+<tt>CAP_INIT_EFF_SET</tt>,
+<tt>CAP_INIT_INH_SET</tt>,
+<tt>CAP_IPC_LOCK</tt>,
+<tt>CAP_IPC_OWNER</tt>,
+<tt>CAP_KILL</tt>,
+<tt>CAP_LEASE</tt>,
+<tt>CAP_LINUX_IMMUTABLE</tt>,
+<tt>CAP_MKNOD</tt>,
+<tt>CAP_NET_ADMIN</tt>,
+<tt>CAP_NET_BIND_SERVICE</tt>,
+<tt>CAP_NET_RAW</tt>,
+<tt>CAP_SETGID</tt>, 
+<tt>CAP_SETPCAP</tt>,
+<tt>CAP_SETUID</tt>,
+<tt>CAP_SYS_ADMIN</tt>,
+<tt>CAP_SYS_BOOT</tt>,
+<tt>CAP_SYS_CHROOT</tt>,
+<tt>CAP_SYS_MODULE</tt>,
+<tt>CAP_SYS_NICE</tt>,
+<tt>CAP_SYS_PACCT</tt>,
+<tt>CAP_SYS_PTRACE</tt>,
+<tt>CAP_SYS_RAWIO</tt>,
+<tt>CAP_SYS_RESOURCE</tt>,
+<tt>CAP_SYS_TIME</tt>, and
+<tt>CAP_SYS_TTY_CONFIG</tt>. All of them can be de-activated to harden your
+kernel.
+</footnote>
+将会解除模块加载能力(即使是 root 用户). 
+<footnote>
+要完成这一操作, 您不一定要安装 <package>lcap</package>, 但是它比手动设置 <file>/proc/sys/kernel/cap-bound</file> 更简单.
+</footnote>
+关于能力的更多信息请翻阅 Jon Corbet 的 <url id="http://lwn.net/1999/1202/kernel.php3" 
+name="Kernel development"> 的LWM部分(1999年12月)
+
+</list>
+
+<p>如果您的 GNU/Linux 系统确实不需要那么多的内核特性, 您可能想在内核配置阶段取消可加载模块支持. 
+禁用可加载模块支持, 只要在构建内核的配置阶段或者在 <file>.config</file> 文件中设置 CONFIG_MODULES=n 就可以了. 
+这将能防止 LKM root-kits, 但是你也将丧失 Linux 内核的强大特性. 同时, 有时对可加载的支持是必须的, 
+禁用可加载模块可能会引起内核过载.
+
+<sect2>被动防护
+
+<p>被动防护的优点是不必重载系统资源. 其通过将系统与一个已知干净系统的清单 <file>System.map</file> 相比较. 
+当然, 被动防护只能在系统被攻克以后通知管理员.
+
+<p>可以使用 <package>chkrootkit</package> 软件包来完成对Debia中一些 root-kits 的检测. 
+<url name="Chkrootkit" id="http://www.chkrootkit.org"> 程序检查目标系统中的一些已知 root-kits 的特征, 
+不过检测结果并不是决定性的.
+
+<p>由 S0ftproject 小组提供的 <url name="KSTAT"
+id="http://www.s0ftpj.org/en/site.html"> (Kernel Security Therapy Anti Trolls) 是另一个很有用的工具. 
+KSTAT 检查目标主机的内核的内存区(<file>/dev/kmem</file>), 以协助系统管理员发现和删除恶意的 LKMs.
+
+<sect>天才/偏执的主意  &mdash; 您能做些什么
+
+<p>这大概是最不稳定和滑稽的部分, 因为我希望一些 "咄, 这听起来疯狂的" 的想法可以变成现实. 
+下边仅仅是一些增加安全的一些想法 &mdash; 天才, 偏执, 疯狂还是灵感, 这取决于您的视角.
+
+<list>
+
+<item>轻率的对待可插入认证模块 (PAM). 就象文章 Phrack 56 PAM 中说的一样, 
+PAM 最好是"您只是受您思维的限制", 这是真的, 设想一下 root 通过指纹或眼睛扫描或
+加密卡认证登陆(为什么我使用 或 连接词来代替 和 ?). 
+
+<item>法西斯式记录. 我把前面所做的关于日志的讨论称作"软件日志". 
+如果您想完成真正的日志, 就配置一台打印机, 并把所有的日志打印出来. 
+这听起来很滑稽, 但这样才可靠, 不会被篡改或删除.
+
+<item>光盘版本. 这个想法很好实现, 并更具安全性. 构建一个安全化的 Debian 发行版, 
+并带有合适的防火墙规则. 把它转换成可引导 ISO 影像, 然后烧录成光盘. 
+这样您就拥有了一个只读版本, 大约有600M空间用于服务. 只要确保所有需要写入的数据都是通过网络完成的就行了. 
+这样入侵者就不可能拥有系统的读/写权限, 并且入侵者的任何修改都不会影像重起后的系统.
+
+<item>禁用模块切换能力. 就象前边所谈论的, 当您在编译阶段禁用掉模块, 
+许多基于内核的后门就不可能实现, 因为它们中的大部分基于安装时对内核模块的修改.
+
+<item>通过串行电缆完成日志. (由Gaby Schilders 提供)只要服务器还提供串口, 
+设想一下专门用于一些服务的日志系统. 这个日志系统没有连入网络, 而是通过串口转换器
+(Cyclades 或类似的东西)同服务器相连. 现在您所有的服务的日志都转向串口, 只写属性. 
+日志设备只接源自串口的明文输入, 对日志文件为只写属性. 连接一个 CD/DVD 刻录机, 
+将日志文件刻到光盘上. 要是他们能生产出带自动换盘机的刻录机就好了... 
+这种方法具有更大容量, 并且光盘占用空间更少, 而不要直接将日志传送到打印机.
+
+<item> 使用 <prgn>chattr</prgn> 修改文件属性(源自 Jim Dennis 的 Tips-HOWTO). 
+安装一个干净的系统, 完成初始化配置后, 使用 <prgn>chattr</prgn> 程序带有 
+<tt>+i</tt> 属性将文件设为不可修改(文件不能删除, 重命名, 连接, 或写入). 
+考虑将 <file>/bin</file>, <file>/sbin/</file>,
+<file>/usr/bin</file>, <file>/usr/sbin</file>, <file>/usr/lib</file>目录下的文件
+和内核文件由 root 设置为此属性. 您也可以使用 <prgn>tar</prgn> 或类似的命令将 <file>/etc/</file>
+目录下的所有文件制作一个备份, 并将其标记为不可修改.
+
+<p>这个策略有助于您缩小以 root 登录所能造成的损害. 您不能直接重写一个文件, 
+您也不能用不慎使用的 <prgn>rm -fr</prgn> 命令(这仍会对您的数据造成很大破坏 &mdash; 
+但是您的 libraries 和 binaries 是安全的)将系统弄瘫痪.
+
+<p>这个策略也可使系统免受拒绝服务攻击(DoS), 或使其更加困难(因为大多数基于通过激活一些 SETUID 程序, 
+来重写一个文件,这<em>并不能避免随意的 shell 命令</em>).
+
+<p>在构建和安装各种系统程序期间不便使用此策略. 另一方面, 它会阻止 <prgn>make install</prgn> 重写文件. 
+当您忘记阅读 Makefile 文件,并用 <prgn>chattr -i</prgn> 将文件(和您要添加文件的目录)置为可读时 &dash; 
+make 命令将会失败, 您只能使用 <prgn>chattr</prgn> 命令, 然后重新运行. 您还可以很好的使用这种方法, 例如将您的旧程序和库文件, 移入一个 .old/ 目录或进行 tar 归档.
+
+<p>注意这个策略将会使您无法升级系统, 因为被更新的文件是无法重写的. 
+您也许需要一个脚本或机制使得在 <prgn>apt-get update</prgn> 前取消所有程序的不可修改标志.
+
+<item>使用 UTP 电缆时, 去掉2根或4根线, 使其只能进行 one-way 传输. 这样, 使用 UDP 包向做为安全日志服务器或信用卡存储系统的机器发送信息包.
+ 
+
+</list>
+
+<sect1>构建蜜罐
+
+<p>FIXME: 需要更多针对 Debian 的具体内容.
+
+<p>蜜罐(honeypot)是一个设计来让系统管理员用于学习黑客如何探测和利用一个系统的系统. 
+这个系统的设置目的是希望被探测, 攻击, 和潜在的利用. 通过学习黑客使用的工具和方法, 
+系统管理员可以更好的保护他们的系统和网络.
+
+<p>一个 Debian GNU/Linux 系统, 如果您花时间实施和监测它, 可以很容易地配置成一个蜜罐(honeypot). 
+简单的设定带有防火墙的假定服务, 和网络入侵探测器. 并把它放到互联网上, 然后等待. 
+注意如果系统被利用, 您应该及时获取警告(参见 <ref id="log-alerts">)以便您采取适当的措施和
+如果您觉得可以了时, 终止攻击. 当您配置蜜罐时, 有些软件包和问题需要考虑:
+
+<list>
+
+<item>您要使用的防火墙技术(由 Linux 内核提供).
+
+<item><package>syslog-ng</package>, 可用来从蜜罐发送日志到远程 syslog 服务器.
+
+<item><package>snort</package>, 用于抓取目标为蜜罐的网络流量, 并检测攻击.
+
+<item><package>osh</package>, 一个 SETUID root, 提高安全性, 限制 shell 的登录(参见后边的 Lance Spitzner 的文章).
+
+<item>当然，还有用于您蜜罐中所有假定服务的守护进程 (但<em>不要</em>安全化设置您的蜜罐).
+
+<item>Deception Toolkit, 用于伪装来抵御攻击.
+主页: <url id="http://www.all.net/dtk/" name="Deception Toolkit">
+
+<item>完整性检查 (参阅 <ref id="check-integ">) 和 
+Coroner 的用于攻击审计的 Toolkit(<package>tct</package>).
+
+</list>
+
+<p>在 Lanze Spitzner 的很棒的文章 <url
+id="http://www.net-security.org/text/articles/spitzner/honeypot.shtml"
+name="To Build a Honeypot">(源自 了解你的敌人 系列), 或 David Raikow 的 <url
+id="http://www.zdnetindia.com/techzone/resources/security/stories/7601.htm"
+name="Building your own honeypot"> 中, 您可以学到很多构建蜜罐的知识. 并且，<url
+id="http://project.honeynet.org/" name="Honeynet Project"> 也提供了珍贵的关于构建蜜罐和攻击检测的资料.

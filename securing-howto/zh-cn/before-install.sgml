@@ -1,0 +1,385 @@
+
+<chapt>安装前和安装过程中
+
+
+<sect id="bios-passwd">选择一个 BIOS 密码
+<p>
+在您的计算机上安装任何操作系统之前, 应当设置一个BIOS密码. 
+完成安装后(一旦您可以从硬盘引导)您应当返回 BIOS 并修改引导顺序, 禁止从软盘, 
+光盘, 和其它设备引导, 否则骇客只需物理接触, 使用引导磁盘就能访问您的整个系统. 
+
+<p>没有密码就无法引导相对要好一点. 如果您运行的是一个服务器, 这将非常有效, 
+因为不需要经常重起. 在此情况下, 重起时需要人工干预, 如果机器不是很容易接触, 则可能变得很不方便. 
+
+<p>注: 很多 BIOS 都有广为人知的默认密码, 并且有些程序还可以从 BIOS 中获取密码. 推论: 
+不要依靠这种方法来保证控制台访问的安全.
+
+<sect>系统分区
+
+<sect1>选择明智的分区方案
+<p>
+一份明智的分区方案依赖于机器的用途. 合理使用分区是一条不错的经验, 并注意一下因素:
+
+<list>
+<item>用户有写许可的任何目录树, 譬如 <file>/home</file>, <file>/tmp</file> 
+和 <file>/var/tmp/</file>, 应当放在单独的分区上. 这样可以减少用户通过填满您的 "/" 加载点的 DoS 以致使系统崩溃的风险(注: 这样讲并不是非常严谨, 因为总有些 root 用户的空间普通用户无法访问). 
+<footnote>
+有关这种使用 /temp 的攻击的一个很好的例子 
+<url id="http://www.hackinglinuxexposed.com/articles/20031111.html"
+name="The mysteriously persistently exploitable program (contest)">
+和
+<url id="http://www.hackinglinuxexposed.com/articles/20031214.html"
+name="The mysteriously persistently exploitable program explained">
+(注意,是与 Debian 相关的) 这是一个基本的攻击, 一个本地用户通过创建一个硬连接 
+<em>隐藏</em> 含有漏洞的 setuid 应用程序, 以有效的逃避由系统管理员进行的任何二进制程序本身的升级(或删除). Dpkg 对此最近做了修正(参阅 <url
+id="http://bugs.debian.org/225692" name="225692">) 但是如果分区设置不正确,其他的二进制程序
+(不是由软件包管理者控制的)仍很危险.
+</footnote>
+</item>
+
+<item>变化较大的分区, <file>/var</file>
+(特别是 <file>/var/log</file>)/var 应该放在一个独立的分区上. 在 Debian 系统中, 
+您创建的 <file>/var</file> 应当比在其它系统中稍大一点, 因为下载的软件包( apt 缓存)
+存放于 <file>/var/cache/apt/archives</file> 目录下.  
+
+<item>您打算安装 non-distribution 软件的任何分区都应是是独立的. 根据文件层次标准, 
+应当是 <file>/opt</file> 或 <file>/usr/local</file> 目录. 如果这些在独立分区上, 
+(必须)重装 Debian 系统时将不会被删除. 
+
+<item>从安全的角度考虑, 应当将静态数据放在独立的分区上, 并将此分区以只读的方式挂载. 
+将这些数据存放在只读介质上会更好. 后边会详细讲解.
+</list>
+
+<p>对于邮件服务器来说, 尤其重要的是应当把假脱机邮件( mail spool)放在一个独立的分区上. 
+远程用户(已知的或未知的)能塞满(<file>/var/mail</file> 和/或
+<file>/var/spool/mail</file>)假脱机邮件目录. 如果此目录放在独立的分区上, 这种情况将不会导致系统崩溃.
+否则(如果 spool 目录与 <file>/var</file> 在同一分区上)系统可能存在严重的问题:
+再也无法创建日志, 无法安装软件包, 一些程序甚至可能无法启动(如果它们使用 <file>/var/run</file> 目录).
+
+<p>某些情况下您可能无法确定是否需要独立的分区, 可以安装逻辑卷管理器(Logical Volume Manager)
+(<package>lvm-common</package> 和您的内核所需的二进制程序, 可能是 <package>lvm10</package>,
+<package>lvm6</package>, 或 <package>lvm5</package>), 使用 <tt>lvm</tt> 可以创造扩展多物理容量的卷组.
+
+<sect2>选择合适的文件系统
+
+<p>在系统分区过程中, 您还需要确定使用什么样的文件系统. Debian 系统安装默认的文件系统是 <tt>ext2</tt>. 
+但是, 推荐您使用日志文件系统, 譬如 <tt>ext3</tt>, <tt>reiserfs</tt>, <tt>jfs</tt> 或 <tt>xfs</tt>，
+当以下情况出现时, 可以将系统故障减到最小:
+
+<list>
+
+<item>为膝上电脑安装任何文件系统. 在意外的电池耗尽或因为硬件问题(如一般的 X 配置问题)
+引起系统锁死, 重起后可能丢失数据.
+
+<item>对于存放大量数据的系统来说(象邮件服务器, ftp服务器, 网络文件系统...)推荐使用这些分区格式. 
+这样, 系统出现故障的时候, 系统用于恢复和检查文件系统的时间就会大大缩短, 同时数据丢失的可能也会降低.
+
+</list>
+
+<p>抛开日志文件系统的性能问题(因为这有时能引起一场宗教战争), 通常最好使用 <tt>ext3</tt> 文件系统. 
+因为它与 <tt>ext2</tt> 向后兼容, 因此如果日志系统出现问题, 您可以将其禁用, 这样, 仍然存在一个可以工作的文件系统.
+并且, 如果您需要从引导盘(或 CDROM )恢复系统时就不必需要特定内核了. 如果是 kernel2.4, 则已经开始支持 
+<tt>ext3</tt>，如果使用 kernel2.2 可以在不使用日志功能的情况下启动系统. 如果您使用的是其它日志系统, 
+您会发现您除非使用带有必须内值模块的 Kernel2.4 才能恢复系统. 如果您使用 kernel2.2 的急救盘的, 
+那么访问 <tt>reiserfs</tt> 或 <tt>xfs</tt> 会更加困难.
+
+<p>无论怎样, 在 <tt>ext3</tt> 下数据完整性也许更好，因为它是真正的文件-数据记录, 而其它的仅仅是元-数据记录, 参见
+<url id="http://lwn.net/2001/0802/a/ext3-modes.php3">.
+
+
+<sect>准备好前不要连入互联网
+
+<p>系统在安装过程中不应该被连入互联网. 这听起来很蠢, 因为网络安装是最常用的方法. 
+系统安装后服务马上被激活, 如果系统连入互联网但服务没有被正确配置，那么您将面临着被攻击.
+
+<p>同时应当注意到您所安装软件包中的一些服务可能存在着未被修复的安全漏洞. 
+如果您的系统是由老版本安装的, 通常会是如此(象 CD ROM). 在这种情况下，安装完成前您的系统是非常脆弱的!
+
+<p>因为 Debian 的安装和升级可以通过互联网来完成, 可能您认为使用它的这个特性进行安装是个不错的主意. 
+如果系统用于直接连入互联网(且没有防火墙或 NAT 的保护), 那么安装过程最好不要与互联网相连, 而是使用本地软件
+包镜象进行安装和安全升级. 您可以使用 Debian 的工具(如果是 Debian 系统)在其它和互联网相连的系统上设置
+软件包镜象, 譬如 <package>apt-move</package> 或 <package>apt-proxy</package>, 或其它的常见镜象工具, 
+来提供安装源. 如果不能实现, 您可以通过设置防火墙规则, 来限制在安装过程中对系统的访问
+(参见 <ref id="fw-security-update">).
+
+<sect>设置root密码
+<p>
+设置一个好的 root 密码是拥有一个安全系统的最基本的要求. <manref section="1" name="passwd"> 中有一些
+关于如何设置一个好密码的提示. 也可以使用密码生成程序来完成这些工作(参见 <manref section="1" name="passwd">).
+
+<p>在互联网上有很多有关选择好密码的信息; Eric Wolfram 的 <url name="How to: Pick a Safe Password"
+  	 id="http://wolfram.org/writing/howto/password.html"> 和
+  	 Walter Belgers 的 <url name="Unix Password Security"
+  	 id="http://www.ja.net/CERT/Belgers/UNIX-password-security.html">
+	是其中很不错的总结性和理论性的文章.
+
+
+<sect>激活 shadow 密码和 MD5 密码
+<p>
+在安装过程的最后, 您将被询问是否使用 shadow 密码. 
+回答, 是, 那么密码将会被保存在 <file>/etc/shadow</file> 文件中. 只有 root 用户和 shaodow 组
+才能访问此文件, 因此这个文件将不会被非法获取拷贝进行破解. 您任何时候都可以使用 <tt>shadowconfig</tt> 
+在 shadow 密码和普通密码间切换.
+
+
+<p>更多信息参阅
+<url
+name="Shadow Password"
+id="http://www.tldp.org/HOWTO/Shadow-Password-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/Shadow-Password.txt.gz</file>).
+
+<p>此外, 安装过程中将被询问是否要使用 MD5 对密码进行哈希运算. 这样做很棒, 
+因为可以使用更长的密码和更好的加密. MD5 允许密码长度大于8个字符. 因此这样设置是非常明智的, 
+这将给攻击者破解系统密码带来更大难度. 如果你安装的是最新的 <package>password</package> 软件包,
+MD5 密码将是默认设置. 安装完成后任何时候您都可以用 <prgn>dpkg-reconfigure -plow
+passwd</prgn> 修改这一设置. 您可以使用使用其 $1$ 前缀 来重新组织 <file>/etc/shadow</file> 文件中的密码.
+
+<p>这事实上是修改 <file>/etc/pam.d</file> 目录下的所有文件，以包含 md5 的一下行替换密码行:
+<example>
+      password required pam_unix.so md5 nullok obscure min=6 max=16
+</example>
+<p>如果 <tt>max</tt> 的设置值不大于8, 则更改不会生效. 更多信息见 <ref id="auth-pam">.
+
+<p>注: 在Debian默认配置中, 既使激活 MD5 密码, 也不会修改已设置的 <tt>max</tt> 值.
+
+<sect>运行最少服务需求
+
+<p>服务就是程序, 如 ftp 服务器和 web 服务. 因为它们必需 <em>侦听</em> 连接请求, 
+并响应服务, 这样外部计算机就可以和您的计算机建立连接. 服务器有时候是非常脆弱的(即, 可能在遭受一次攻击后瘫痪), 
+因此存在安全风险.
+
+<p>您不应该在您的机器安装不需要的服务. 每个安装的服务都可能在您的计算机上产生新的，或许不明显(或不知道)的安全漏洞.
+
+<p>如您所知, 当安装了某个服务, 缺省情况下是被其激活的. 缺省的 Debian 系统的安装, 
+是不安装任何服务的, 运行的服务涉及的范围是很小的, 如果不需要网络服务将更小. 
+Debian2.1 不如 Debian 2.2 紧凑(一些 <prgn>inetd</prgn> 服务是激活的), Debian 2.2 安装后 rpc portmapper 是激活的. 默认安装 Rpc 是因为运行在一个给定的系统上很多服务的运行需要它的支持, 如 NFS. 但是, 删除它是很容易的, 
+如何操作,参阅 <ref id="disableserv"> .
+
+<p>当您在 Debian GNU/Linux 系统中安装一个新的网络相关的服务(守护进程), 有两种方式将其激活: 
+通过 <prgn>inetd</prgn> 超级守护进程(即在 <file>/etc/inetd.conf</file> 中加入一行)或
+通过一个独立的程序将自身与您的网络接口绑定. 独立程序由 <file>/etc/init.d</file> 目录下的文件控制, 
+通过 SysV 机制在启动时使用 <file>/etc/rc?.d/*</file> 下的连接来启用相应的服务 (更多信息参阅
+<file>/usr/share/doc/sysvinit/README.runlevels.gz</file>).
+
+<p>如果您想要保留一些服务但又很少使用他们, 可以使用 update-commands, 如通过 <prgn>update-inetd</prgn> 和 
+<prgn>update-rc.d</prgn>命令将它们从启动过程中删除.
+
+
+<sect1 id="disableserv">禁用守护进程服务
+
+<p>用一个守护进程服务非常简单. 有以下不同的方法:
+<list>
+
+<item>删除 <file>/etc/rc${runlevel}.d/</file> 目录下的链接或将其更名(即不以 'S' 开头)
+
+<item>更名脚本文件 (<file>/etc/init.d/_service_name_</file>) 为其它文件
+(如 <file>/etc/init.d/OFF._service_name_</file>)
+
+<item>取消
+<file>/etc/init.d/_service_name_</file> 文件的可执行属性.
+
+
+<item>编辑 <file>/etc/init.d/_service_name_</file> 脚本使其立即停止.
+
+</list>
+
+<p>您可以手动或者使用 <tt>update-rc.d</tt> (见 <manref section="8"
+name="update-rc.d">) 删除 <file>/etc/rc${runlevel}.d/</file> 目录下的对应链接.
+例如, 您可以在多用户运行模式下执行下边的命令禁用一个服务:
+
+<example>
+  update-rc.d stop XX 2 3 4 5 .
+</example>
+
+<p>请注意, 如果您<em>不是</em>是使用 <package>file-rc</package>, <tt>update-rc.d -f _service_ remove</tt> 将不会正常工作, 因为链接删除后, 重新安装或升级软件包, 这些链接会重新产生(这大概不是您所希望的). 
+如果您认为这似乎不太正常, 也许你是对的(参阅 <url
+id="http://bugs.debian.org/67095" name="Bug 67095">). 手册页中:
+
+<example>
+  如果文件 /etc/rcrunlevel.d/[SK]??name 已经存在, update-rc.d 将不会对其做任何操作. 
+  这样便于系统管理员重新整理链接, 如果他们保留了至少一个链接,就不必重写了. 
+</example>
+
+<p>如果您使用 <package>file-rc</package> 则关于服务启动的所有信息由一个共同的配置文件处理和维护, 既使软件包从系统中删除.
+
+<p>您可以使用 <package>rcconf</package> 提供的 TUI (文本用户界面)很容易的实现这一操作(<prgn>rcconf</prgn> 可以
+工作在 <package>file-rc</package> 和正常 System V 运行级别下).
+
+<p>其他(不推荐)的禁用服务的方法: <tt>chmod 644 /etc/init.d/daemon</tt> (启动时会给出一个错误信息), 
+或修改 <file>/etc/init.d/daemon</file> 脚本(在开始处添加一行: <prgn>exit 0</prgn> 或将 <tt>start-stop-daemon</tt> 部分注释掉). 
+因为 <file>init.d</file> 的文件为配置文件, 在升级后不会被覆盖掉.
+
+<p>很不幸, 与其它 (UNIX) 操作系统不同, Debian 中的服务无法通过修改<file>/etc/default/_servicename_</file> 下的文件来禁用.
+
+<p>FIXME: 增加更多关于处理使用 file-rc 出来守护进程的内容
+
+<sect1 id="inetd">禁用 <prgn>inetd</prgn> 服务
+<p>
+现在, 您应当检查一下是否真的需要 <prgn>inetd</prgn> 守护进程. inetd 一直是对内核不足的一个补偿, 但是那些问题已经在最新的内核中得到了解决. 可能会因为 <prgn>inetd</prgn> 而存在拒绝服务(它将会极大的增加机器的负载), 并且很多人喜欢直接使用守护进程而不是通过 <prgn>inetd</prgn> 加载. 如果您仍然想使用 <prgn>inetd</prgn> 类的服务, 请使用更加结构化的 inet 守护进程 如 <prgn>xinetd</prgn> 或 <prgn>rlinetd</prgn> 或 <prgn>rlinetd</prgn>.
+
+<p>
+您应当停掉您系统中所有不必要的服务,如 <prgn>echo, chargen, discard, daytime, time, talk, ntalk</prgn> 和 
+被认为极不安全的 r-services (<prgn>rsh, rlogin</prgn> 和 <prgn>rcp</prgn>)(用ssh替代).
+
+<p>您可以通过直接编辑<file>/etc/inetd.conf</file> 来禁用服务, 但 Debian 提供一个更好的选择: <tt>update-inetd</tt>(当您要启用服务的时候会更方便). 您可以通过执行下边的命令来改变文件设置并重起守护进程以删除 <prgn>telnet</prgn> 服务(这样 <prgn>telnet</prgn> 就被禁用了):
+
+<example>
+  /usr/sbin/update-inetd --disable telnet
+</example>
+<!-- # /etc/init.d/inetd restart Not needed since the manpage says update-inetd
+sends a SIGHUP, commented out as suggested by Dariusz Puchalak -->
+
+<p>如果您想保留一项服务, 但又不想让其监听您的主机的所有IP地址, 那么您可以使用 <prgn>inetd</prgn> 的非归档特性
+(服务名称用 service@ip 代替)或者使用其他的 <prgn>inetd</prgn> 守护进程如 <prgn>xinetd</prgn>.
+
+<sect>安装最少数量的需求软件
+
+<p>Debian 带有 <em>大量的</em> 软件，例如 Debian 3.0 <em>woody</em> 发行版有6张CD包括数以万计软件包. 
+面对这么多的软件,尽管原有的基本系统是很精简的，您可能也会一时头脑发热，安装了比本来需要的多得多的软件.
+<footnote>例如, 在 Debian woody 中, 系统至少 40Mbs, 尝试一下:
+<example>
+  $ size=0
+  $ for i in `grep -A 1 -B 1 "^Section: base" /var/lib/dpkg/available |
+  grep -A 2 "^Priority: required" |grep "^Installed-Size" |cut -d : -f 2
+  `; do size=$(($size+$i)); done
+  $ echo $size
+  34234
+</example>
+</footnote>.
+
+<p>您已经知道了系统的用途(不是吗?), 因此应该只安装真正需要的软件. 
+安装的任何多余的工具都可能被试图破坏系统的用户或外部入侵者所利用(或通过可利用服务执行远端代码).
+
+<p>例如, 开发工具( C 编译器)或解释型语言(譬如 <prgn>perl</prgn>, <prgn>python</prgn>, <prgn>tcl</prgn>..., 其中 perl 在后面还会讲到) 
+可以帮助攻击者破坏系统做很多事情:
+
+<list>
+<item>允许他提升权限. 这非常容易, 例如，如果装有调试器和编译器,就可以在本地系统运行 exploits, 并进行调试 !
+
+<item>提供攻击者将系统作为 <em>跳板</em>, 攻击其他系统的工具
+<footnote>
+许多入侵的目的仅仅是获取资源用于非法活动(拒绝式服务攻击, spam, ftp 服务欺骗, dns pollution...)而不是从入侵的系统中获取机密数据.
+</footnote>
+
+</list>
+
+<p>当然, 一个入侵者通过本地 shell 下载他们的工具并运行, 即使是 shell 本身也能做出复杂的程序. 
+删除不必要的软件并不能 <em>避免</em> 问题的发生, 但是可以增加入侵者入侵的难度(并且有可能放弃它转而寻找更容易的目标). 
+因此, 如果在生产系统中安装了用于远程攻击的工具(参阅 <ref id="vuln-asses">), 就不要期望入侵者不会利用它. 
+
+<sect1>删除 Perl
+
+<p>您必须认识到在 Debian 系统中删除 <prgn>perl</prgn> 并不那么容易(实际上可能相当困难) 
+因为许多系统工具都要用到它. 并且, <package>perl-base</package>是:<em>Priority: required</em>(这个不言自明了吧).
+但也不是办不到, 前提是您将不能在您的系统中运行任何 <prgn>perl</prgn> 应用程序; 
+还必须欺骗软件包管理系统认为您的系统中安装了 <package>perl-base</package>，即使并没安装. <footnote>您可以使用 <package>equivs</package> 构建(在其他系统上)一个虚拟包
+</footnote>
+
+<p>哪些程序使用 <prgn>perl</prgn>? 运行下边的命令您自己可以看到:
+
+<example>
+  $ for i in /bin/* /sbin/* /usr/bin/* /usr/sbin/*; do [ -f $i ] && {
+  type=`file $i | grep -il perl`; [ -n "$type" ] && echo $i; }; done
+</example>
+
+<p>输出的程序是的优先级是
+<em>required</em> 或 <em>important</em>:
+
+<list>
+<item><file>/usr/bin/chkdupexe</file> of package
+<package>util-linux</package>.
+
+<item><file>/usr/bin/replay</file> of package
+<package>bsdutils</package>.
+
+<item><file>/usr/sbin/cleanup-info</file> of package
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/dpkg-divert</file> of package
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/dpkg-statoverride</file> of package
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/install-info</file> of package
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/update-alternatives</file> of package
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/update-rc.d</file> of package
+<package>sysvinit</package>.
+
+<item><file>/usr/bin/grog</file> of package
+<package>groff-base</package>.
+
+<item><file>/usr/sbin/adduser</file> of package
+<package>adduser</package>.
+
+<item><file>/usr/sbin/debconf-show</file> of package
+<package>debconf</package>.
+
+<item><file>/usr/sbin/deluser</file> of package
+<package>adduser</package>.
+
+<item><file>/usr/sbin/dpkg-preconfigure</file> of package
+<package>debconf</package>.
+
+<item><file>/usr/sbin/dpkg-reconfigure</file> of package
+<package>debconf</package>.
+
+<item><file>/usr/sbin/exigrep</file> of package
+<package>exim</package>.
+
+<item><file>/usr/sbin/eximconfig</file> of package
+<package>exim</package>.
+
+<item><file>/usr/sbin/eximstats</file> of package
+<package>exim</package>.
+
+<item><file>/usr/sbin/exim-upgrade-to-r3</file> of package
+<package>exim</package>.
+
+<item><file>/usr/sbin/exiqsumm</file> of package
+<package>exim</package>.
+
+<item><file>/usr/sbin/keytab-lilo</file> of package
+<package>lilo</package>.
+
+<item><file>/usr/sbin/liloconfig</file> of package
+<package>lilo</package>.
+
+<item><file>/usr/sbin/lilo_find_mbr</file> of package
+<package>lilo</package>.
+
+<item><file>/usr/sbin/syslogd-listfiles</file> of package
+<package>sysklogd</package>.
+
+<item><file>/usr/sbin/syslog-facility</file> of package
+<package>sysklogd</package>.
+
+<item><file>/usr/sbin/update-inetd</file> of package
+<package>netbase</package>.
+
+</list>
+
+<p>因此, 没有Perl, 除非你在 shell 脚本里重新编制这些程序, 否则您将不能处理任何软件包
+(因此您将不能升级系统, 这不是<em>一件好事情</em>).
+
+<p>如果您确定从 Debian 基本系统中删除 Perl, 并且您有比较宽松的时间, 
+递交错误报告, 以及 shell 脚本程序作为以前的软件包(作为补丁)的替代.
+
+<sect>阅读 Debian 的安全邮件列表
+
+<p>浏览一下 debian 安全公告的邮件列表, 此处 Debian 安全小组发布对已发行软件包的公告和修正, 
+或发邮件给<url id="mailto:debian-security@lists.debian.org">, 您可以参与 Debian 安全相关问题的讨论, 并不属于浪费时间.
+
+<p>为了收到重要的安全升级公告, 可以发送一封主题为 "subscribe" 的邮件到 
+<url name="debian-security-announce-request@lists.debian.org"
+id="mailto:debian-security-announce-request@lists.debian.org">. 你也可以通过网页 
+<url name="http://www.debian.org/MailingLists/subscribe"
+id="http://www.debian.org/MailingLists/subscribe"> 来订阅这个邮件列表. 
+
+<p>此邮件列表容量非常低, 并且通过订阅您可以非常及时的得到 Debian 公布的安全更新警告. 
+这样就可以及时的下载新的修正了安全问题的软件包, 这对维护一个安全的系统非常重要 (详细描述参见 <ref id="security-update"> )
+
