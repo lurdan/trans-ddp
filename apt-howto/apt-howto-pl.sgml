@@ -1,0 +1,1090 @@
+<!doctype debiandoc system>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+
+<version>1.5 - sierpieñ 2001</version>
+
+<abstract>
+Ten dokument ma zamiar dobrze wyja¶niæ u¿ytkownikowi zasadê dzia³ania narzêdzia
+do zarz±dzania pakietami Debiana jakim jest APT. Jego celem jest uczynienie
+³atwiejszym ¿ycia nowym u¿ytkownikom Debiana oraz pomoc tym jego u¿ytkownikom,
+którzy chcieliby lepiej rozumieæ administrowanie systemem pakietów. Zosta³ on
+stworzony w ramach projektu Debian, aby pomóc w polepszeniu wsparcia dla
+u¿ytkowników tej dystrybucji.
+</abstract>
+
+<copyright>
+<copyrightsummary>
+Copyright &copy; 2001 Gustavo Noronha Silva
+</copyrightsummary>
+<p>
+Ten podrêcznik jest objêty licencj± GNU FDL (Free Documentation License).
+Zosta³ on napisany w nadziei, ¿e bêdzie u¿yteczny dla spo³eczno¶ci u¿ytkowników
+Debiana, ale nie udziela siê na niego ¿adnej gwarancji; u¿ywaj go wy³±cznie na
+w³asne ryzyko.
+</copyright>
+
+<toc>
+
+<chapt>Wprowadzenie
+<p>
+Na pocz±tku by³ plik .tar.gz. U¿ytkownicy musieli kompilowaæ ka¿dy program,
+który chcieli u¿ywaæ w ich systemach GNU/Linux. Kiedy stworzono Debiana uznano
+za niezbêdne w³±czenie do systemu metody zarz±dzania pakietami zainstalowanymi
+na komputerze pracuj±cym pod jego kontrol±. Ten system zarz±dzania pakietami
+nazwano <prgn>dpkg</prgn>. Tak wiêc s³ynne pojêcie `pakietu' wesz³o do systemów
+GNU/Linux zanim firma Red Hat zdecydowa³a siê stworzyæ swój w³asny system `rpm'.
+<p>
+Nowy dylemat szybko zaj±³ uwagê twórców systemu GNU/Linux. Oni potrzebowali
+bardzo szybkiego, praktycznego i sprawnego sposobu instalowania pakietów, który
+automatycznie zarz±dza³by zale¿no¶ciami miêdzy pakietami i troszczy³ siê o ich
+pliki konfiguracyjne w czasie zastêpowania nowymi wersjami. I znów to w³a¶nie
+Debian wprowadzi³ ten sposób i tak oto narodzi³ siê APT (Advanced Packaging
+Tool), który zosta³ przez firmê Conectiva przystosowany do wspó³pracy z
+pakietami rpm, a nastêpnie wykorzystany tak¿e przez inne dystrybucje.
+<p>
+Ten podrêcznik nie opisuje apt-rpm, jak nazwano wersjê APT-a zmodyfikowan±
+przez firmê Conectiva, ale "³aty" do tego dokumentu, które by to robi³y s±
+mile widziane.
+</chapt>
+
+<chapt id="basico">Podstawowa konfiguracja
+
+<sect id="sources.list">Plik /etc/apt/sources.list
+<p>
+Do czê¶ci swoich operacji APT u¿ywa pliku zawieraj±cego listê `¼róde³', z
+których mog± byæ pobierane pakiety. Tym plikiem jest <tt>/etc/apt/sources.list</tt>.
+<p>
+Wpisy w tym pliku maj± nastêpuj±cy format:
+
+<example>
+deb http://site.http.org/debian dystrybucja sekcja1 sekcja2 sekcja3
+deb-src http://site.http.org/debian dystrybucja sekcja1 sekcja2 sekcja3
+</example>
+
+Oczywi¶cie powy¿sze wpisy s± fikcyjne i nie powinny byæ u¿ywane. Pierwszym
+s³owem w ka¿dej linii jest <tt>deb</tt> lub <tt>deb-src</tt>, które wskazuje
+typ archiwum. Mówi ono czy archiwum zawiera pakiety binarne (<tt>deb</tt>),
+czyli skompilowane ju¿ pakiety, których zazwyczaj u¿ywamy czy pakiety ¼ród³owe
+(<tt>deb-src</tt>), którymi s± oryginalne ¼ród³a programów wraz z plikiem
+zawieraj±cym opis (<tt>.dsc</tt>) oraz plikiem przechowuj±cym zmiany potrzebne
+do `zdebianizowania' programu (<tt>.diff.gz</tt>).
+<p>
+Zwykle plik sources.list zawiera domy¶lnie nastêpuj±ce wpisy:
+<example>
+# See sources.list(5) for more information, especialy
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable non-US
+</example>
+
+Linie te s± potrzebne do podstawowej instalacji Debiana. Pierwsza linia ze
+s³owem <tt>deb</tt> wskazuje na oficjane archiwum, druga na archiwum non-US
+a trzecia na archiwum z uaktualnieniami pakietów zwi±zanych z bezpieczeñstwem
+Debiana.
+<p>
+Dwie ostatnie linie s± wykomentowane (za pomoc± znaku `#' na pocz±tku linii),
+wiêc apt-get po prostu je zignoruje. To s± linie ze s³owem <tt>deb-src</tt>,
+które wskazuj± na pakiety ¼ród³owe Debiana. Je¶li czêsto pobierasz ¼ród³a
+programów do testowania ich lub rekompilacji, to odkomentuj te linie.
+<p>
+Plik <tt>/etc/apt/sources.list</tt> mo¿e zawieraæ kilka typów linii. APT wie
+jak sobie radziæ z archiwami typu <tt>http</tt>, <tt>ftp</tt>, <tt>file</tt>
+(lokalne pliki, np. katalog zawieraj±cy zamontowany system plików ISO9660).
+
+</sect>
+
+<sect id="dpkg-scanpackages">Jak u¿ywaæ APT-a lokalnie
+<p>
+Czasami masz du¿o pakietów .deb, które chcia³by¶ u¿ywaæ. APT pomo¿e Ci je
+zainstalowaæ i automatycznie rozwi±¿e problemy z zale¿no¶ciami.
+<p>
+Aby to zrobiæ stwórz najpierw katalog i umie¶æ w nim pliki .deb, które chcesz
+zindeksowaæ, np.:
+ 
+<example>
+mkdir /root/debs
+</example>
+
+Nastêpnie wewn±trz katalogu /root stwórz pusty plik o dowolnej nazwie. Musisz
+tak zrobiæ poniewa¿ repozytorium APT-a potrzebuje pliku zwanego "uniewa¿nionym".
+Mo¿e on byæ pusty, ale musi istnieæ. Do stworzenia tego pliku mo¿esz u¿yæ
+nastêpuj±cej komendy:
+
+<example>
+touch plik
+</example>
+
+Wewn±trz tego pliku mo¿esz zdefiniowaæ jakie¶ opcje uniewa¿niaj±ce inne, które
+by³y dostarczone wraz z pakietem. Wygl±da to nastêpuj±co:
+
+<example>
+pakiet priorytet sekcja
+</example>
+
+`pakiet' jest nazw± pakietu, `priorytet' mo¿e przybieraæ warto¶ci `low',
+`medium' lub `high', a `sekcja' jest nazw± sekcji, do której nale¿y pakiet.
+Plik ten mo¿na te¿ zostawiæ pustym.
+<p>
+Wci±¿ w katalogu /root wydaj polecenie:
+
+<example>
+dpkg-scanpackages debs plik | gzip > debs/Packages.gz
+</example>
+
+W powy¿szej linii `plik' jest "uniewa¿nionym" plikiem, za¶ komenda tworzy plik
+debs/Packages.gz, zawieraj±cy ró¿ne informacje na temat pakietów, które s±
+u¿ywane przez APT-a. Aby móc u¿ywaæ pakietów w pliku <tt>/etc/apt/sources.list</tt>
+dodaj liniê:
+
+<example>
+deb file:/root debs/
+</example>
+
+Teraz ju¿ mo¿esz u¿ywaæ poleceñ APT-a tak, jak zwykle. Mo¿esz tak¿e stworzyæ
+repozytorium ¼ród³owe. W tym celu musisz wykonaæ tak± sam± procedurê jak
+wcze¶niej. Pamiêtaj tak¿e, ¿e bêdziesz potrzebowa³ w katalogu plików
+<tt>.orig.tar.gz</tt>, <tt>.dsc</tt> and <tt>.diff.gz</tt> oraz ¿e repozytorium
+musi siê nazywaæ Sources.gz zamiast Packages.gz. Równie¿ program do jego tworzenia
+jest inny. Nazywa siê on <prgn>dpkg-scansources</prgn>. Linia komend powinna
+wygl±daæ nastêpuj±co:
+
+<example>
+dpkg-scansources debs | gzip > debs/Sources.gz
+</example>
+
+Zauwa¿, ¿e program <prgn>dpkg-scansources</prgn> nie potrzebuje pliku
+"uniewa¿nionego". Do pliku <tt>/etc/apt/sources.list</tt> powinni¶my wpisaæ:
+
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">Podejmowanie decyzji, który serwer lustrzany najlepiej umie¶ciæ
+w pliku sources.list: netselect
+<p>
+Czêsto zadawanym pytaniem, zw³aszcza przez nowych u¿ytkowników Debiana, jest:
+"który serwer lustrzany z pakietami powininiem umie¶ciæ w pliku <tt>sources.list</tt>?".
+Jest wiele sposobów pozwalaj±cych wybraæ serwer lustrzany. Eksperci zapewne
+u¿ywaj± skryptów mierz±cych obci±¿enie ró¿nych serwerów. Istnieje jednak
+program, który zrobi to dla nas, a który nazywa siê <strong>netselect</strong>.
+<p>
+Aby zainstalowaæ program netselect, jak zwykle wydajemy polecenie:
+
+<example>
+apt-get install netselect
+</example>
+
+Uruchomienie programu netselect bez podania parametrów spowoduje wy¶wietlenie
+pomocy ekranowej. Gdy jednak uruchomimy go podaj±c jako argument listê,
+oddzielonych spacj±, stacji (serwerów lustrzanych), to otrzymamy w wyniku
+jedn± z podanych maszyn. Wynik ten zale¿y od przybli¿onego czasu powrotu
+wysy³anych do stacji pakietów IP (tzw. ping) oraz od ilo¶ci stacji po¶rednich
+(przez które te pakiety "przechodz±" zanim dotr± do celu) i jest odwrotnie
+proporcjonalny do przybli¿onej prêdko¶ci pobierania (zatem, im mniejszy, tym
+lepiej). Zwrócona w wyniku stacja ma najmniejszy wynik. Spójrz na poni¿szy
+przyk³ad:
+
+<example>
+bash$ netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+bash$
+</example>
+
+Oznacza to, ¿e spo¶ród serwerów lustrzanych podanych jako parametry programu
+netselect, najlepszym okaza³ siê <tt>ftp.debian.org.br</tt>, który uzyska³
+wynik 365 (Uwaga!! Ten test zosta³ wykonany na moim komputerze a trasa,
+któr± pokonuj± pakiety IP zale¿y od miejsca, do którego pod³±czony jest nasz
+komputer. Uzyskana warto¶æ niekoniecznie bêdzie prawdziw± prêdko¶ci± na innych
+komputerach).
+<p>
+Gdy uruchomimy netselect z parametrem <strong>-vv</strong>, to zwróci on
+listê z wynikami uzyskanymi przez wszystkie badane stacje. Spójrz na
+poni¿szy przyk³ad:
+
+<example>
+bash$ netselect -vv ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+ftp.debian.org                         499 ms  22 hops   77% ok ( 7/ 9) [ 2054]
+http.us.debian.org                     366 ms  21 hops  100% ok (10/10) [ 1134]
+ftp.at.debian.org                      396 ms  25 hops   90% ok ( 9/10) [ 1540]
+download.unesp.br                     9999 ms  30 hops    0% ok
+ftp.debian.org.br                       91 ms  11 hops   80% ok ( 8/10) [  365]
+  365 ftp.debian.org.br
+bash$
+</example>
+
+Pokazuje on taki sam wynik jak przedtem, ale prezentuje tak¿e statystyki
+pozosta³ych stacji. Druga kolumna zawiera, mierzony w milisekundach, szacunkowy
+czas powrotu datagramów (tzw. ping), trzecia kolumna pokazuje ilo¶æ stacji
+po¶rednich, czwarta wyra¿on± w procentach ilo¶æ pakietów, które zosta³y wys³ane
+do stacji i powróci³y od niej, a ostatnia wynik.
+<p>
+<strong>Uwaga:</strong> listê z serwerami lustrzanymi mo¿emy zawsze znale¼æ
+w pliku README.mirrors.txt umieszczonym w katalogu debian/ na ka¿dym z
+serwerów lustrzanych (na przyk³ad <url id="http://http.us.debian.org/debian/README.mirrors.txt"
+name="http://http.us.debian.org/debian/README.mirrors.txt">).
+</sect>
+
+<sect id="cdrom">Dodawanie CD-ROM-u do pliku sources.list
+<p>
+Je¶li raczej u¿ywasz napêdu CD-ROM do instalowania pakietów lub
+automatycznego uaktualniania Twojego systemu przy pomocy APT-a,
+to mo¿esz go umie¶ciæ w pliku <tt>sources.list</tt>. Aby to zrobiæ,
+mo¿esz u¿yæ programu <prgn>apt-cdrom</prgn> w poni¿szy sposób:
+
+<example>
+apt-cdrom add
+</example>
+
+z umieszczon± w napêdzie CD-ROM p³yt± z pakietami Debiana. Polecenie
+te zamontuje napêd i poszuka na p³ycie informacji na temat pakietów.
+Je¶li konfiguracja Twojego CD-ROM-u jest troche nietypowa, mo¿esz
+tak¿e u¿yæ nastêpuj±cych opcji:
+
+<example>
+-h         - Pomoc ekranowa do programu
+-d katalog - Katalog, w którym montowany jest CD-ROM
+-r         - Zmiana nazwy rozpoznanego CD-ROM-u
+-m         - Bez montowania
+-f         - Tryb szybki, bez sprawdzania plików z pakietami
+-a         - Tryb dok³adnego przeszukiwania
+</example>
+
+Na przyk³ad:
+
+<example>
+apt-cdrom -d /home/kov/mycdrom add
+</example>
+
+Mo¿esz tak¿e zidentyfikowaæ swój CD-ROM, bez dodawania go do listy:
+
+<example>
+apt-cdrom ident
+</example>
+
+Zwróæ uwagê, ¿e ten program bêdzie dzia³a³ tylko wtedy, gdy Twój CD-ROM
+jest w³a¶ciwie skonfigurowany w systemowym pliku <tt>/etc/fstab</tt>. 
+</sect>
+</chapt>
+
+<chapt id="apt-get">Zarz±dzanie pakietami
+<sect id="update">Uaktualnianie listy dostêpnych pakietów
+<p>
+System zarz±dzania pakietami u¿ywa w³asnej bazy danych, w której przechowuje
+informacje o tym, które pakiety s± zainstalowane, które nie i które s±
+dostêpne do instalacji. Program <prgn>apt-get</prgn> u¿ywa w³a¶nie tej bazy
+danych, aby dowiedzieæ siê jak zainstalowaæ pakiety na ¿yczenie u¿ytkownika i
+jakie dodatkowe pakiety s± potrzebne, aby te wybrane przez u¿ytkownika
+dzia³a³y prawid³owo.
+<p>
+Aby uaktualniæ t± bazê danych nale¿y u¿yæ komendy <prgn>apt-get update</prgn>.
+Przeszuka ona archiwa umieszczone w pliku <tt>/etc/apt/sources.list</tt>;
+zobacz sekcjê <ref id="sources.list">, aby uzyskaæ wiêcej informacji na temat
+tego pliku.
+<p>
+Dobrym nawykiem jest uruchamiaæ t± komendê dosyæ regularnie, aby stale
+informowaæ swój system o mo¿liwych uaktualnieniach pakietów, zw³aszcza tych
+zwi±zanych z jego bezpieczeñstwem.
+</sect>
+
+<sect id="install">Instalacja pakietów
+<p>
+W koñcu proces, na który wszyscy czekali¶my! Gdy ju¿ mamy plik sources.list
+z list± ¼róde³ pakietów i wiemy jakie pakiety chcemy uaktualniæ, to wszystko
+co musimy zrobiæ, to uruchomiæ program <tt>apt-get</tt>, który pobierze pakiety,
+które zamierzamy zainstalowaæ. Dla przyk³adu mo¿esz go wywo³aæ nastêpuj±co:
+
+<example>
+apt-get install xchat
+</example>
+
+APT poszuka w swojej bazie danych najnowszej wersji pakietu i pobierze go z
+odpowiedniego archiwum, które podano w pliku <tt>sources.list</tt>. Gdyby
+okaza³o siê, ¿e pakiet ten zale¿y od innego, tak jak w powy¿szym przyk³adzie, to
+APT sprawdzi zale¿no¶ci i zainstaluje potrzebne pakiety. Spójrz na ten przyk³ad:
+
+<example>
+[root]@[/] # apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Pakiet <package>nautilus</package> zale¿y od kilku wymienionych bibliotek
+wspó³dzielonych, dlatego APT pobierze je z archiwum. Gdyby¶ poda³ nazwy tych
+bibliotek jako parametr wywo³ania programu <tt>apt-get</tt>, to APT nie
+zapyta³by Ciê czy chcesz kontynuowaæ, gdy¿ automatycznie za³o¿y³by, ¿e chcia³e¶
+je zainstalowaæ.
+<p>
+Oznacza to, ¿e APT tylko wtedy pyta Ciê o potwierdzenie, gdy z powodu zale¿no¶ci
+miêdzy pakietami konieczne jest zainstalowanie tak¿e innych pakietów ni¿ te
+podane przez Ciebie po to, aby zale¿no¶ci te zosta³y spe³nione.
+<p>
+U¿yteczne mog± byæ nastêpuj±ce opcje programu apt-get:
+
+<example>
+-h  Pomoc ekranowa do programu
+-d  Tylko pobranie pakietu, BEZ instalacji lub rozpakowania archiwum
+-f  Próba kontynuowania, nawet je¶li sprawdzenie integralno¶ci koñczy siê niepowodzeniem
+-s  Bez akcji. Wykonuje symulacjê polecenia
+-y  Zak³ada odpowied¼ `Tak' na wszystkie zapytania i nie pyta o potwierdzenie
+-u  Wy¶wietla równie¿ listê uaktualnionych pakietów
+</example>
+
+W jednej linii mo¿na podaæ wiele pakietów do instalacji. Pliki pobrane z sieci
+s± umieszczane do pó¼niejszej instalacji w katalogu <tt>/var/cache/apt/archives</tt>.
+<p>
+Mo¿esz tak¿e w tej samej linii wymieniæ pakiety, które chcesz usun±æ. Po prostu
+umie¶æ znak '-' bezpo¶rednio za nazw± pakietu do usuniêcia, tak jak pokazano
+poni¿ej:
+
+<example>
+[root]@[/] # apt-get install nautilus gnome-panel-
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Aby dowiedzieæ siê wiêcej na temat usuwania pakietów, zobacz sekcjê <ref id="remove">.
+<p>
+Gdyby¶ w jaki¶ sposób uszkodzi³ zainstalowany pakiet, albo po prostu chcia³
+ponownie zainstalowaæ t± sam± wersjê pakietu, mo¿esz u¿yæ opcji <tt>--reinstall</tt>,
+jak pokazano poni¿ej:
+
+<example>
+[root]@[/] # apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Do tworzenia tego podrêcznika u¿ywano APT-a w wersji 0.5.3, która w czasie pisania
+by³a aktualn± wersj± w `niestabilnym' Debianie (<tt>sid</tt>). Je¶li zainstalowa³e¶
+t± wersjê, to masz do dyspozycji dodatkow± funkcjonalno¶æ: mo¿esz u¿ywaæ polecenia
+w formie <tt>apt-get install pakiet/dystrybucja</tt> do instalowania pakietu ze
+specyficznej dystrybucji lub w formie <tt>apt-get install pakiet=wersja</tt>, aby
+zainstalowaæ ¿±dan± wersjê pakietu. Na przyk³ad:
+
+<example>
+apt-get install nautilus/unstable
+</example>
+
+Polecenie zainstaluje pakiet nautilus z `niestabilnej' wersji dystrybucji,
+nawet wtedy gdy u¿ywasz wersji `stabilnej'. Dopuszczalnymi warto¶ciami, które
+mo¿e przybieraæ `dystrybucja' s± <tt>stable</tt> (`stabilna'), <tt>testing</tt>
+(`testowa') i <tt>unstable</tt> (`niestabilna').
+<p>
+<em>WA¯NE</em>: `niestabilna' wersja Debiana to wersja, do której w pierwszej
+kolejno¶ci trafiaj± najnowsze wersje pakietów .deb. W tej dystrybucji widoczne
+s± wszystkie zmiany pakietów, od tych drobnych do tych bardzo powa¿nych, które
+wp³ywaj± na wiele innych pakietów, a nawet ca³y system. Z tego powodu ta wersja
+dystrybucji <em>nie</em> powinna byæ u¿ywana przez niedo¶wiadczonych u¿ytkowników
+oraz tych, którzy potrzebuj± stabilnego systemu.
+<p>
+Wersja `testowa' dystrybucji jest trochê lepsza od `niestabilnej' pod wzglêdem
+stabilno¶ci, ale systemy produkcyjne powinny u¿ywaæ wersji `stabilnej'.
+</sect>
+
+<sect id="remove">Usuwanie pakietów
+<p>
+Je¶li nie chcesz ju¿ d³u¿ej u¿ywaæ jakiego¶ pakietu, mo¿esz go usun±æ ze
+swojego systemu za pomoc± APT-a. Aby to zrobiæ, po prostu wpisz:
+<tt>apt-get remove pakiet</tt>. Na przyk³ad:
+
+<example>
+[root]@[/] # apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+Jak widaæ na powy¿szym przyk³adzie, APT troszczy siê tak¿e o usuniêcie
+pakietów, które zale¿± od pakietu, który chcesz odinstalowaæ. Za pomoc±
+APT-a nie mo¿na usun±æ pakietu bez usuniêcia tych pakietów, które zale¿± od
+niego.
+<p>
+Uruchamiaj±c program <prgn>apt-get</prgn> w taki sposób jaki pokazano powy¿ej
+spowodujemy usuniêcie pakietów, ale je¶li posiada³y one pliki konfiguracyjne,
+to pozostan± one nadal w systemie. Aby ca³kowicie usun±æ pakiet uruchom
+<prgn>apt-get</prgn> w nastêpuj±cy sposób:
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+Zwróæ uwagê na znak '*' na koñcu nazwy pakietów. Sygnalizuje on, ¿e pliki
+konfiguracyjne ka¿dego z pakietów tak¿e zosta³y usuniête.
+<p>
+Analogicznie jak dla metody <tt>install</tt>, mo¿esz z opcj± <tt>remove</tt>
+u¿yæ symbolu, który odwróci jej znaczenie. W przypadku usuwania pakietów,
+je¶li za nazw± pakietu umie¶cisz znak <tt>'+'</tt>, to zostanie on zainstalowany,
+a nie usuniêty.
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Zauwa¿, ¿e program <prgn>apt-get</prgn> wy¶wietla dodatkowe pakiety, które
+zostan± zainstalowane (tzn. te pakiety, których instalacja jest potrzebna do
+poprawnego dzia³ania pakietów, które chce zainstalowaæ u¿ytkownik), pakiety
+które zostan± usuniête i te, które zostan± zainstalowane (ponownie w³±czaj±c
+dodatkowe pakiety).
+</sect>
+
+<sect id="upgrade">Aktualizacja pakietów
+<p>
+Mo¿liwo¶æ aktualizacji pakietów to wielkie osi±gniêcie systemu APT. Odbywa
+siê to za pomoc± pojedyñczej komendy: <tt>apt-get upgrade</tt>. Mo¿esz jej
+u¿yæ zarówno do aktualizacji pakietów z tej samej dystrybucji, jak i by
+zaktualizowaæ ca³± dystrybucjê, chocia¿ do tego celu jest raczej preferowana
+komenda <tt>apt-get dist-upgrade</tt>; zobacz sekcjê <ref id="dist-upgrade">,
+je¶li chcesz siê wiêcej dowiedzieæ na ten temat.
+<p>
+Warto uruchomiæ t± komendê z opcj± <tt>-u</tt>. Spowoduje ona, ¿e APT
+wy¶wietli kompletn± listê pakietów, które zostan± zaktualizowane. Bez niej
+nie bêdziesz wiedzia³ jakie pakiety aktualizujesz. APT pobierze najnowsze
+wersje ka¿dego pakietu i zainstaluje je w odpowiedniej kolejno¶ci. Bardzo
+wa¿ne jest uruchamianie <tt>apt-get update</tt> zawsze przed wydaniem
+polecenia <tt>apt-get upgrade</tt>. Zobacz sekcjê <ref id="update">, aby
+dowiedzieæ siê wiêcej szczegó³ów na jego temat. Spójrz tak¿e na poni¿szy
+przyk³ad:
+
+<example>
+[root]@[/] # apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Proces uaktualniania pakietów jest bardzo prosty. Zauwa¿, ¿e w pierwszych
+kilku liniach APT informuje, które pakiety zostan± <tt>pozostawione nietkniête</tt>.
+Oznacza to, ¿e istniej± nowsze wersje tych pakietów, ale z jakich¶ powodów nie
+zostan± zainstalowane. Przyczynami takiego stanu mog± byæ zepsute zale¿no¶ci
+(pakiet, od którego zale¿y nie ma dostêpnej wersji do pobrania) lub nowe
+zale¿no¶ci (pakiet w ostatniej wersji zale¿y od nowego pakietu).
+<p>
+W pierwszym przypadku nie ma prostego rozwi±zania. W drugim wystarczy
+uruchomiæ komendê <tt>apt-get install</tt>, aby zainstalowaæ specyficzny
+pakiet wraz z zale¿no¶ciami. Jeszcze prostszym rozwi±zaniem jest u¿ycie
+komendy <tt>dist-upgrade</tt>. Zobacz sekcjê <ref id="dist-upgrade">, aby
+dowiedzieæ siê wiêcej na ten temat.
+</sect>
+
+<sect id="dist-upgrade">Aktualizacja do nowego wydania
+<p>
+Ta zdolno¶æ APT-a pozwala Ci uaktualniæ ca³y system Debian za jednym razem,
+zarówno poprzez sieæ Internet jaki i z nowej p³yty CD (nabytej lub pobranej
+w postaci obrazu ISO).
+<p>
+Jest ona równie¿ u¿ywana, gdy ulegaj± zmianie relacje pomiêdzy zainstalowanymi
+pakietami. Dziêki poleceniu <tt>apt-get upgrade</tt>, pakiety te pozostan±
+w spokoju (<tt>pozostawione nietkniête</tt>).
+<p>
+Dla przyk³adu, przypu¶æmy ¿e u¿ywamy wydania numer 0 stabilnej wersji Debiana
+i kupujemy p³ytê CD z wydaniem numer 3. Mo¿emy u¿yæ APT-a do aktualizacji
+systemu z tej nowej p³yty CD. W tym celu najpierw u¿yj programu <prgn>apt-cdrom</prgn>
+(wiêcej szczegó³ów w sekcji <ref id="cdrom">), aby dodaæ t± p³ytê do pliku
+<tt>/etc/apt/sources.list</tt>, a nastêpnie uruchom program <tt>apt-get dist-upgrade</tt>.
+<p>
+Jest wa¿n± rzecz± zauwa¿enie, ¿e APT zawsze szuka najnowszych wersji pakietów.
+Dlatego, je¶li Twój plik <tt>/etc/apt/sources.list</tt> zawiera listê archiwów
+z nowszymi wersjami pakietów ni¿ na p³ycie CD, to APT nie pobierze ich z p³yty,
+lecz w³a¶nie stamt±d.
+<p>
+W przyk³adzie pokazanym w sekcji <ref id="upgrade"> widzieli¶my, ¿e czê¶æ pakietów
+zosta³a <tt>pozostawiona nietkniêta</tt>. Teraz mo¿emy rozwi±zaæ ten problem
+w³a¶nie za pomoc± metody <tt>dist-upgrade</tt>:
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx 
+The following packages have been kept back
+  lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc 
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Zauwa¿ teraz, ¿e pakiety zostan± zaktualizowane i ¿e zostan± te¿ zainstalowane
+nowe pakiety (nowe zale¿no¶ci tych pakietów). Zauwa¿ równie¿, i¿ lilo wci±¿
+<tt>pozostaje nietkniête</tt>. Przyczyn± tego problemu jest zapewne co¶ wiêcej
+ni¿ nowa zale¿no¶æ. Odnajdziemy j± uruchamiaj±c:
+
+<example>
+[root]@[/] # apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be REMOVED:
+  debconf-tiny 
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be upgraded
+  lilo 
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Jak widaæ powy¿ej, lilo ma nowy konflikt z pakietem <package>debconf-tiny</package>,
+który uniemo¿liwia jego instalacjê (lub uaktualnienienie) bez usuniêcia
+pakietu debconf-tiny.
+</sect>
+
+<sect id="dselect-upgrade">U¿ywanie APT-a razem z programem dselect
+<p>
+<prgn>dselect</prgn> jest programem, który pomaga u¿ytkownikom Debiana
+wybraæ pakiety, które chc± zainstalowaæ. Jest uwa¿any za nieco skomplikowany
+i do¶æ nieciekawy, ale je¶li nabierzesz wprawy, to bêdziesz siê swobodnie
+pos³ugiwa³ jego konsolowym interfejsem.
+<p>
+Jedn± z cech programu dselect jest to, ¿e informuje o tym, które jeszcze
+pakiety Debiana s± "zalecane" i "proponowane" do zainstalowania. Aby
+u¿yæ tego programu, jako root uruchom <tt>`dselect'</tt>. Wybierz 'apt'
+jako metodê dostêpu. Nie jest to w rzeczywisto¶ci niezbêdne, ale je¶li
+nie u¿ywasz CD-ROM-u i chcesz pobieraæ pakiety z Internetu, to jest to
+najlepszy sposób u¿ywania dselecta.
+<p>
+Aby jeszcze lepiej zrozumieæ w jaki sposób u¿ywaæ dselecta, przeczytaj
+dokumentacje do niego, któr± mo¿na znale¼æ na stronie <url id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+<p>
+Po wybraniu pakietów przy pomocy dselecta, u¿yj:
+
+<example>
+apt-get -u dselect-upgrade
+</example>
+
+tak, jak to pokazano na przyk³adzie poni¿ej:
+
+<example>
+[root]@[/] # apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy 
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images 
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Porównaj to z tym, co widzisz, gdy uruchamiasz <tt>apt-get dist-upgrade</tt>
+w tym samym systemie.
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+Zwróæ uwagê, i¿ wiele z powy¿szych pakietów bêdzie instalowana, poniewa¿
+s± "zalecane" lub "proponowane" przez inne. Pozosta³e pakiety bêd± instalowane
+lub usuniête (np. w przypadku pakietu lbxproxy) zgodnie z naszym wyborem,
+którego dokonali¶my przy u¿yciu dselecta. Dselect mo¿e byæ naprawdê
+potê¿nym narzêdziem, gdy jest u¿ywany razem z APT-em.
+</sect>
+</chapt>
+
+<chapt id="search">Jak dowiedzieæ siê nazwy pakietu?
+<p>
+Jest wiele programów typu front-end dla systemu APT, które bardzo u³atwiaj±
+pobieranie listy pakietów dostêpnych do instalacji i ju¿ zainstalowanych,
+pozwalaj± dowiedzieæ siê do jakiej sekcji nale¿y pakiet, jaki jest jego
+priorytet, jaki ma opis, itd.
+<p>
+Ale... naszym celem jest nauczyæ siê pos³ugiwania siê czystym APT-em.
+Zatem w jaki sposób dowiedzieæ siê nazwy pakietu, który chcemy zainstalowaæ?
+<p>
+Mamy wiele ¶rodków do tego zadania. Zacznijmy od programu <tt>apt-cache</tt>.
+Jest on u¿ywany przez system APT do zarz±dzania jego baz± danych. Przyjrzymy
+siê krótko jego bardziej praktycznym zastosowaniom.
+
+<sect id="cache">Odnajdywanie nazw pakietów
+<p>
+Dla przyk³adu przypu¶æmy, ¿e chcemy powspominaæ o starych, dobrych czasach
+Atari 2600. Najpierw chcemy u¿yæ APT-a do instalacji emulatora Atari, a
+nastêpnie do pobrania kilku gier dla niego. Mo¿emy to zrobiæ nastêpuj±co:
+
+<example>
+[root]@[/] # apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+Znale¼li¶my kilka pakietów powi±zanych z tym, czego szukamy, wraz z ich
+krótkimi opisami. Aby uzyskaæ wiêcej informacji na temat okre¶lonego
+pakietu, mo¿esz wtedy u¿yæ:
+
+<example>
+[root]@[/] # apt-cache show stella  
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (>= 2.1), libstdc++2.10, xlib6g (>= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella is a portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+Otrzymali¶my w wyniku wiele szczegó³ów na temat pakietu, który chcemy
+(lub który nie chcemy) zainstalowaæ, razem z jego pe³nym opisem. Je¶li
+pakiet jest ju¿ zainstalowany w systemie i jest tam jego nowsza wersja, 
+to zobaczysz informacje na temat obu wersji. Na przyk³ad:
+
+<example>
+[root]@[/] # apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (>= 2.2.1-2), debconf (>=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (<<1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (>= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+Zauwa¿, ¿e pierwszy z pakietów na li¶cie jest pakietem dostêpnym, a drugi ju¿
+zainstalowanym. Aby otrzymaæ wiêcej ogólnych informacji na temat pakietu,
+mo¿esz u¿yæ:
+
+<example>
+[root]@[/] # apt-cache showpkg penguin-command
+Package: penguin-command
+Versions: 
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends: 
+Dependencies: 
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+Provides: 
+1.4.5-1 - 
+Reverse Provides: 
+</example>
+
+I aby dowiedzieæ siê od jakich pakietów on zale¿y:
+
+<example>
+[root]@[/] # apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+Podsumowuj±c, mamy wiele sposobów, których mo¿emy u¿yæ, aby dowiedzieæ siê
+nazwy pakietu, który chcemy zainstalowaæ.
+</sect>
+
+<sect id="dpkg-search">U¿ywanie programu dpkg do dowiadywania siê nazwy pakietów
+<p>
+Jednym ze sposobów dowiedzenia siê nazwy pakietu jest poznanie nazwy wa¿nego
+pliku umieszczonego wewn±trz pakietu. Dla przyk³adu, aby znale¼æ pakiet,
+który jest dostarczany ze szczególnym plikiem nag³ówkowym <tt>".h"</tt>
+potrzebnym do jego kompilacji mo¿esz uruchomiæ:
+
+<example>
+[root]@[/] # dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+lub:
+
+<example>
+[root]@[/] # dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+Aby dowiedzieæ siê nazwy u¿ytecznych pakietów zainstalowanych w Twoim systemie,
+na przyk³ad, gdy zamierzasz doprowadziæ do porz±dku Twój twardy dysk, mo¿esz u¿yæ:
+
+<example>
+[root]@[/] # dpkg -l | grep mozilla
+ii  mozilla-browse 0.8-0.1        Mozilla Web Browser
+</example>
+
+Problemem zwi±zanym z t± komend± mo¿e byæ "obciêcie" przez ni± nazwy pakietu.
+W powy¿szym przyk³adzie pe³n± nazw± pakietu jest <tt>mozilla-browser</tt>.
+Aby poradziæ sobie z tym, mo¿esz u¿yæ opisu pakietu lub jego czê¶ci tak, jak
+pokazano poni¿ej:
+
+<example>
+[root]@[/] # apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">Jak zainstalowaæ pakiety "na ¿±danie"?
+<p>
+Kompilujesz program, a¿ tu nagle bêc! Wyst±pi³ b³±d, poniewa¿ potrzebny jest
+plik nag³ówkowy <tt>.h</tt>, którego nie masz. Program <prgn>auto-apt</prgn>
+mo¿e Ciê uchroniæ od takich sytuacji. Pyta Ciê on czy zainstalowaæ pakiety,
+które s± potrzebne, zatrzymuj±c dany proces i kontynuuj±c go, gdy pakiet jest
+instalowany.
+<p>
+Wszystko, co musisz zrobiæ, to uruchomiæ:
+
+<example>
+auto-apt run komenda
+</example>
+
+Gdzie `komenda' jest komend±, której mo¿e potrzebowaæ jaki¶ niedostêpny plik.
+Na przyk³ad:
+
+<example>
+auto-apt run ./configure
+</example>
+
+Polecenie zapyta Ciê czy zainstalowaæ potrzebne pakiety i automatycznie
+wywo³a program apt-get. Je¶li u¿ywasz X Window, graficzny interfejs zast±pi
+domy¶lny interfejs tekstowy.
+<p>
+Auto-apt u¿ywa bazy danych, które musz± byæ uaktualniane, aby program dzia³a³
+skutecznie. Jest to osi±gane poprzez wywo³ywanie poleceñ <tt>auto-apt update</tt>,
+<tt>auto-apt updatedb</tt> i <tt>auto-apt update-local</tt>.
+</sect>
+</chapt>
+
+<chapt id="sourcehandling">Praca z pakietami ¼ród³owymi
+<sect id="source">Pobieranie pakietów ¼ród³owych
+<p>
+W ¶wiecie wolnego oprogramowania jest rzecz± powszechn± studiowaæ kod ¼ród³owy
+programów, a nawet dokonywaæ w nim zmian, aby wyeliminowaæ b³êdy. Aby to zrobiæ,
+musisz pobraæ ¼ród³o programu. APT dostarcza Ci ³atwego sposobu uzyskiwania
+kodów ¼ród³owych wielu programów zawartych w dystrybucji, w³±czaj±c w to
+wszystkie pliki potrzebne do stworzenia pakietu .deb dla danego programu.
+<p>
+Innym powszechnym zastosowaniem ¼róde³ Debiana jest przystosowanie nowszej
+wersji programu, pochodz±cej np. z niestabilnej dystrybucji, aby u¿yæ go
+w wersji stabilnej. Zamiast pakietu stabilnego mo¿na skompilowaæ ¼ród³a i
+wygenerowaæ pakiety .deb z zale¿no¶ciami przystosowanymi do pakietów
+dostêpnych w tej dystrybucji.
+<p>
+Aby to osi±gn±æ, wpis ze s³owem <tt>deb-src</tt> na pocz±tku linii w Twoim pliku
+<tt>/etc/apt/sources.list</tt> powinien wskazywaæ na archiwum niestabilne.
+Oczywi¶cie powinien on byæ tak¿e w³±czony (tzn. odkomentowany). Zobacz sekcjê
+<ref id="sources.list">, aby dowiedzieæ siê wiêcej szczegó³ów.
+<p>
+Aby pobraæ pakiet ¼ród³owy, u¿yjemy nastêpuj±cej komendy:
+
+<example>
+apt-get source pakiet
+</example>
+
+Komenda ta pobierze trzy pliki: <tt>.orig.tar.gz</tt>, <tt>.dsc</tt> i <tt>.diff.gz</tt>.
+W przypadku pakietów tworzonych specjalnie dla Debiana nie bêdzie pobierany ostatni
+plik, a pierwszy zwykle nie ma w nazwie s³owa <tt>"orig"</tt>.
+<p>
+Plik <tt>.dsc</tt> jest u¿ywany przez program dpkg-source do rozpakowania ¼róde³
+pakietu w katalogu <var>pakiet-wersja</var>. Wewn±trz ka¿dego pobranego
+pakietu istnieje katalog <tt>debian/</tt>, zawieraj±cy pliki niezbêdne do stworzenia
+pakietu .deb.
+<p>
+Aby automatycznie zbudowaæ pakiet w czasie pobierania jego ¼róde³, po prostu dodaj
+do komendy opcjê <tt>-b</tt> tak, jak pokazano to poni¿ej:
+
+<example>
+apt-get -b source pakiet
+</example>
+
+Je¶li nie zdecydowa³e¶ siê tworzyæ pakietu .deb w czasie pobierania jego ¼róde³,
+mo¿esz zrobiæ to pó¼niej za pomoc± polecenia:
+
+<example>
+dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+uruchomionego wewn±trz katalogu, który zosta³ utworzony dla pakietu po jego
+pobraniu.
+<p>
+Istnieje ró¿nica pomiêdzy metod± <tt>source</tt> programu <prgn>apt-get</prgn>,
+a jego innymi metodami. Metoda <tt>source</tt> mo¿e byæ u¿ywana przez zwyk³ych
+u¿ytkowników, nie posiadaj±cych uprawnieñ roota. Pliki s± pobierane do katalogu
+z którego wywo³ano komendê <tt>apt-get source pakiet</tt>.
+</sect>
+
+<sect id="build-dep">Pakiety potrzebne do kompilowania pakietów ¼ród³owych
+<p>
+Zwykle specyficzne pliki nag³ówkowe i biblioteki wspó³dzielone musz± byæ obecne,
+aby mo¿na by³o skompilowaæ pakiet ¼ród³owy. Wszystkie pakiety .deb maj± pole w
+plikach kontroluj±cych, które nazywa siê 'Build-Depends:'. Pole te wskazuje,
+które dodatkowe pakiety s± niezbêdne, aby mo¿na by³o zbudowaæ pakiet z jego
+¼róde³.
+<p>
+APT jest wyposa¿ony w ³atwy sposób pobierania tych pakietów. Po prostu uruchom
+komendê <tt>apt-get build-dep pakiet</tt>, gdzie `pakiet' jest nazw± pakietu,
+który zamierzasz zbudowaæ. Na przyk³ad:
+
+<example>
+[root]@[/] # apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev 
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Pakiety, które zostan± zainstalowane s± pakietami potrzebnymi do prawid³owego
+zbudowania pakietu <package>gmc</package>. Bardzo wa¿n± rzecz± do zauwa¿enia jest
+fakt, ¿e komenda nie szuka pakietu ze ¼ród³ami programu, który ma byæ skompilowany.
+Dlatego musisz wcze¶niej uruchomiæ polecenie <tt>apt-get source</tt>, aby
+osobno je pobraæ.
+</sect>
+</chapt>
+
+<chapt id="distros">Które dystrybucje wspieraj± APT-a?
+<p>
+Poni¿ej zamieszczono nazwy dystrybucji, które u¿ywaj± APT-a
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- to dla tej dystrybucji zosta³ stworzony APT
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- to by³a pierwsza dystrybucja, która zaadoptowa³a APT-a do pracy z pakietami .rpm
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://www.pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+</chapt>
+
+
+<chapt id="erros">Jak radziæ sobie z b³êdami
+<sect id="erros-comuns">Najczêstsze b³êdy
+<p>
+B³êdy zawsze bêd± siê zdarza³y, wiele z nich jest spowodowana przez u¿ytkowników,
+którzy nie zachowuj± uwagi w czasie pracy z APT-em. Poni¿ej zamie¶ci³em najczê¶ciej
+zg³aszane b³êdy oraz informacje jak sobie z nimi radziæ.
+<p>
+Je¶li próbujesz uruchomiæ <tt>apt-get install package</tt> i zobaczysz komunikat
+jak poni¿ej:
+
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 Arquivo ou diretório não encontrado)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+to znaczy, ¿e zapomnia³e¶ uruchomiæ <tt>apt-get update</tt> po ostatnich
+zmianach, których dokona³e¶ w pliku <tt>/etc/apt/sources.list</tt>.
+<p>
+Je¶li b³±d wygl±da nastêpuj±co:
+
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+gdy próbujesz u¿yæ której¶ metody polecenia <prgn>apt-get</prgn> z wyj±tkiem
+metody <tt>source</tt>, to znaczy, ¿e próbujesz j± uruchomiæ jako zwyk³y u¿ytkownik
+i ¿e nie masz niezbêdnych uprawnieñ roota.
+<p>
+Ten b³±d jest podobny do tego powy¿ej i ma miejsce, gdy uruchamiasz w tym samym
+czasie dwie kopie programu <prgn>apt-get</prgn> lub gdy próbujesz uruchomiæ
+<prgn>apt-get</prgn>, gdy aktywny jest proces programu <prgn>dpkg</prgn>. Jedyn±
+metod±, która mo¿e byæ równocze¶nie u¿yta z inn± jest metoda <tt>source</tt>.
+<p>
+Je¶li instalacja zostanie przerwana w trakcie trwania i nie jest ju¿ mo¿liwa
+ani instalacja, ani usuniêcie pakietów, spróbuj wtedy u¿yæ tych dwóch komend:
+
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+I spróbuj jeszcze raz. Mo¿e byæ niezbêdne uruchomienie drugiej z komend wiêcej
+ni¿ jeden raz. To jest wa¿na uwaga dla tych, którzy u¿ywaj± wersji `niestabilnej'.
+</sect>
+
+<sect id="help">Gdzie mogê znale¼æ pomoc?
+<p>
+Je¶li popad³e¶ ju¿ w zw±tpienie, zajrzyj do obszernej dokumentacji na temat
+systemu pakietów Debiana. Opcja <tt>--help</tt> programów i ich podrêczniki
+mog± byæ ogromnie pomocne dla Ciebie. Wiele informacji mo¿na te¿ znale¼æ w
+dokumentacji zawartej w katalogu <tt>/usr/share/doc</tt>, np. w katalogu
+<tt>/usr/share/doc/apt</tt>.
+<p>
+Gdy nawet ta dokumentacja nie zdo³a Ci pomóc, spróbuj poszukaæ odpowiedzi
+na listach dyskusyjnych Debiana. Wiêcej informacji na temat poszczególnych
+list u¿ytkowników mo¿na znale¼æ na stronie Debian: <url id="http://www.debian.org" 
+name="http://www.debian.org">.
+<p>
+Pamiêtaj, ¿e listy te i zasoby powinny byæ u¿ywane tylko przez u¿ytkowników
+Debiana; u¿ytkownicy innych systemów znajd± lepsze wsparcie w zasobach ich
+w³asnej dystrybucji.
+</sect>
+</chapt>
+
+<chapt id="agradecimentos">Podziêkowania
+<p>
+Wielkie podziêkowania sk³adam moim wspania³ym przyjacielom z projektu Debian-BR
+i samego projektu Debian, tym którzy s± sta³± pomoc± dla mnie, zawsze daj± mi
+si³ê do kontynuowania pracy dla ludzkiego po¿ytku i pomagaj± mi w moim celu
+jakim jest ratowanie ¶wiata. :)
+<p>
+Chcia³bym tak¿e podziêkowaæ CIPSGA za olbrzymi± pomoc udzielon± naszemu
+projektowi i wszystkim wolnym projektom, które zrodzi³y siê z wielkich idei.
+<p>
+I specjalne podziêkowania dla: 
+<p>
+Pablo Lorenzzoni &lt;spsectra@debian.org&gt; - za napisanie sekcji na temat netselecta.
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt; - za przet³umaczenie tego podrêcznika
+na jêzyk angielski.
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt; - za dostarczenie listy
+innych dystrybucji, które teraz w³±czy³y APT-a: Mandrake, PLD and Vine.
+</chapt>
+
+<chapt id="novas">Nowe wersje tego podrêcznika
+<p>
+Ten podrêcznik zosta³ stworzony dla projektu <url id="http://debian-br.sourceforge.net"
+name="Debian-BR"> z zadaniem niesienia pomocy w codziennym u¿ywaniu Debiana.
+<p>
+Nowe, oryginalne wersje tego dokumentu bêd± dostêpne na stronie projektu pod
+adresem <url id="http://debian-br.sourceforge.net/documentacao.html" 
+name="http://debian-br.sourceforge.net/documentacao.html">.
+<p>
+Komentarze i krytyczne uwagi mog± byæ wysy³ane bezpo¶rednio do mnie na adres 
+<email>kov@debian.org</email>.
+</chapt>
+
+</book>
