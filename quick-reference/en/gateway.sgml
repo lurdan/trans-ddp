@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.30 $"  -->
+<!-- CVS revision of this document "$Revision: 1.31 $"  -->
 
 <chapt id="gateway">Network configuration
 <p>
@@ -25,8 +25,6 @@ I move these to comment, Thomas, please remove once you are ready
 <list compact>
 <item>XXX FIXME XXX: Update HW config, Ethernet kernel module
 <item>XXX FIXME XXX: Add section to reconfigure network on initial install.
-<item>XXX FIXME XXX: Add section for Wi-Fi iwconfig
-<item>XXX FIXME XXX: Add section for IPv4/IPv6 addresses
 </list>
 -->
 
@@ -56,6 +54,10 @@ Every network interface connected directly to the Internet (or to
 any IP-based network) is identified by a unique IP address.
 The 32 bit IP (v4) address can be divided into the part
 that addresses the network and the part that addresses the host.
+<footnote>
+The new upcoming Internet Protocol Version 6 uses 128 bit
+address space instead.  See <url id="&ipv6home;">.
+</footnote>
 <p>
 If you take an IP address, set to 1 the bits that are part of
 the network address and set to 0 the bits that are part of the host
@@ -154,8 +156,7 @@ works with Linux 2.2 and higher and is more capable than the old
 tools.  However, the old tools still work and are more familiar to
 many users.
 
-<sect1 id="low-ifconfig">Low level network configuration &ndash;
-<prgn>ifconfig</prgn> and <prgn>route</prgn>
+<sect1 id="low-ifconfig">Low level network configuration &ndash; <prgn>ifconfig</prgn> and <prgn>route</prgn>
 <p>
 Here is an illustration of how to change the IP address of interface
 <tt>eth0</tt> from
@@ -227,8 +228,7 @@ For more information see <manref name="ifconfig" section="8">,
 <manref name="route" section="8">, <manref name="ip" section="8">,
 and <manref name="iwconfig" section="8">.
 
-<sect1 id="low-ip">Low level network configuration &ndash;
-<prgn>ip</prgn>
+<sect1 id="low-ip">Low level network configuration &ndash; <prgn>ip</prgn>
 <p>
 
 <!--- XXX FIXME XXX -->
@@ -384,9 +384,29 @@ ABORT ERROR
 OK-AT-OK ATDT 0676002505
 CONNECT \d\c
 </example>
+To be able to connect to these ISPs you need client names and
+passwords that <prgn>pppd</prgn> can supply to the peer on demand.
+This information is stored either in
+<file>/etc/ppp/pap-secrets</file> (if the PAP protocol is used) or
+<file>/etc/ppp/chap-secrets</file> (if the CHAP protocol is used).
+Although CHAP is more secure, PAP is still more widely used.
+Because these files contain secrets, group and world should not
+have permission to read or write them.
+The format of these files is explained in
+<manref name="pppd" section="8">.
+A secret (third field) is looked up in the file by finding
+the client name (first field) and/or the server name (second field).
+When connecting to an ISP one generally doesn't know the server
+name, so one supplies a client name instead; this was done on the
+<tt>user</tt> lines in <file>peers/KPN</file> and
+<file>peers/Planet</file> above.
+<example>
+# client name       server name  secret
+kpn                 *            opensesame
+user3579@planet.nl  *            myfavoritegal
+</example>
 
-<sect1 id="low-pppconfig">Configuring a PPP interface using
-<prgn>pppconfig</prgn>
+<sect1 id="low-pppconfig">Configuring a PPP interface using <package>pppconfig</package>
 <p>
 A quick way to configure ppp interfaces is to use the
 <package>pppconfig</package> package.
@@ -397,8 +417,7 @@ interface.
 If you choose to use the <package>resolvconf</package>
 then select "None" in the "Configure Nameservers" screen.
 
-<sect1 id="low-wvdial">Configuring a PPP interface in &debian;
-using <prgn>wvdial</prgn>
+<sect1 id="low-wvdial">Configuring a PPP interface in &debian; using <package>wvdial</package>
 <p>
 A different approach to using <prgn>pppd</prgn> is to run it
 from <prgn>wvdial</prgn> which comes in the
@@ -411,104 +430,100 @@ Given only phone number, username, and password
 <prgn>wvdial</prgn> succeeds in making the connection
 in most cases.
 
-<sect id="net-dns">Domain Name Service
+<sect id="net-hostname">Host name
 <p>
-Almost all computers connected to the Internet have one or more
-fully qualified domain names.  As you no doubt know, a fully
-qualified domain name is written as a string of alphanumeric
-characters separated by dots.  The first string is the host name
-and everything after the first dot is the domain name.
-
-<sect1 id="dns-hostname">Host name and DNS domain name
+Sometimes a &debian; host needs to identify itself by name.
 <p>
 The initscript <file>/etc/init.d/hostname.sh</file> sets the
-host name at boot time (using the <prgn>hostname</prgn>
+hostname at boot time (using the <prgn>hostname</prgn>
 command) to the name stored in <file>/etc/hostname</file>.
 This file should contain <strong>only</strong> the host name,
-<strong>not</strong> the fully qualified domain name.
-The domain name, and so also the fully qualified domain name,
-of a host are determined by the resolver (see below).
+not a NDS fully qualified domain name.
 <p>
 To print out the current host name run <prgn>hostname</prgn>
 without an argument.
+
+<sect id="dns-mailname">Mail name
 <p>
-Suppose you want to call your host "ermine" and ermine is
-to be connected to network "mydomain.org".
-The <file>/etc/hostname</file> file should contain
-<example>
-ermine
-</example>
-and the <file>/etc/hosts</file> file should include
-<example>
-# IP-address canonical-fqdn alias
-192.168.1.10 ermine.mydomain.org ermine
-</example>
+SOMETHING ABOUT /etc/mailname SHOULD GO HERE.
+
+<sect id="net-dns">Domain Name Service (DNS)
 <p>
-The command <prgn>hostname --fqdn</prgn> prints out the first
-fully qualified domain name of this host that is known to the
-resolver.
+Hosts are referred to by domain name as well as by IP address.
+DNS is a client-server system in which name resolvers consult
+nameservers in order to associate domain names with IP addresses
+and other properties of hosts.
+The GNU C Library resolver (<manref name="resolver" section="3">)
+can also look up IP addresses in files and in NIS.
+<p>
+To see what IP address is associated with the local host,
+use the <prgn>hostname --fqdn</prgn> command.  This prints out
+the first fully qualified domain name that the resolver finds
+for the local hostname.
 (Technically, it is the FQDN returned by
 <manref name="gethostbyname" section="2">
 for the host name returned by
 <manref name="gethostname" section="2">.)
-
-<sect1 id="dns-mailname">Mail name
 <p>
-SOMETHING ABOUT /etc/mailname SHOULD GO HERE.
 
-<sect1 id="dns-resolver">The C Library resolver
+<sect1 id="dns-resolver">The resolver
 <p>
 The job of finding out what IP addresses are associated with a
-particular domain name is the job of the C Library
-<manref name="resolver" section="3">
-or a substitute such as FireDNS
-which comes in the <package>libfiredns</package> package.
+particular domain name is the job of the resolver.
+The most commonly used resolver is the set of functions that go
+by that name in the GNU C Library
+(<manref name="resolver" section="3">).
+Another is the FireDNS resolver which comes in the
+<package>libfiredns</package> package.
 <p>
-The behavior of the resolver is governed by the <tt>hosts</tt>
-line in the <file>/etc/nsswitch.conf</file> configuration file.
-This line
-lists in order the services that should be used
+How the LIBC resolver resolves names is governed by the
+<tt>hosts</tt> line in the <file>/etc/nsswitch.conf</file>
+configuration file.
+This line lists the services that should be used
 to perform a host name lookup: e.g.,
 <tt>dns</tt>, <tt>files</tt>, <tt>nis</tt>, <tt>nisplus</tt>.
 See <manref name="nsswitch.conf" section="5">.
-<p>
-The behavior of the resolver is also governed by the
-<file>/etc/host.conf</file> configuration file.
-The <tt>order</tt> line in this file
-lists in order the methods that should be used
-to perform a host name lookup:
+<footnote>
+How the resolver resolves names is also alleged to be governed by
+the <file>/etc/host.conf</file> configuration file.
+The <tt>order</tt> line in this file lists the methods
+that should be used to perform a host name lookup:
 <tt>bind</tt>, <tt>hosts</tt>, <tt>nis</tt>.
 See <manref name="host.conf" section="5">.
-<p>
-I presume one of these takes precedence over the other but
-I haven't yet found anything that explains this.
-<p>
-Insofar as the <tt>files</tt> service or the <tt>hosts</tt> method
-is used, the behavior of the resolver is also governed by the
+I believe that this line has been superseded by the <tt>hosts</tt>
+<file>nsswitch.conf</file> but I am not sure.
+</footnote>
+Insofar as the <tt>files</tt> service is used, the behavior
+of the resolver is also governed by the
 <file>/etc/hosts</file> configuration file.
 See <manref name="hosts" section="5">.
 <p>
 All of the above files are static and can be edited with your
 favorite editor.
 <p>
-Insofar as the <tt>dns</tt> service or the <tt>bind</tt> method
-is used, the behavior of the resolver is also governed by the
+Insofar as the <tt>dns</tt> service is used, the behavior
+of the resolver is also governed by the
 <file>/etc/resolv.conf</file> configuration file.
 See <manref name="resolv.conf" section="5">.
-One of the important functions of <file>/etc/resolv.conf</file>
+One of the important functions of <file>resolv.conf</file>
 is to list the IP addresses of nameservers that will be
 contacted to resolve the name.
-This list often has to depend upon the network environment.
-For this reason you may need to install the
-<package>resolvconf</package> package as described in
-<ref id="dns-resolvconf">.
+This list often has to depend upon the network environment
+and the network environment may change from time to time
+while your computer is running.
+Programs such as <prgn>pppd</prgn> and <prgn>dhclient</prgn>
+are able to manipulate <file>resolv.conf</file> to add and
+remove lines, but these features do not always work properly
+and they conflict with one another.
+The <package>resolvconf</package> package solves the problem
+better by providing a standard framework for updating this file.
+See <ref id="dns-resolvconf">.
 <p>
 
-<sect1 id="dns-resolvconf">Managing nameserver information &ndash; resolvconf
+<sect1 id="dns-resolvconf">Managing nameserver information &ndash; <package>resolvconf</package>
 <p>
 The <package>resolvconf</package> package provides a framework
-for dynamic management of information about available
-DNS nameservers.
+for dynamic management of information about available nameservers.
 It solves the long standing problem of how to maintain dynamic
 lists of nameservers for the resolver and DNS caches to use.
 Resolvconf sets itself up as the intermediary between programs
@@ -526,27 +541,32 @@ will have to disable those scripts before installing
 <p>
 See the package <file>README</file> for more information.
 
-<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; dnsmasq
+<sect1 id="dns-dnsmasq">Caching looked-up names &ndash; <package>dnsmasq</package>
 <p>
 Unless your nameserver has to be authoritative for a domain you
-are better off running a caching-only nameserver.
-<package>dnsmasq</package> is a good example.
+are better off running a caching forwarding local nameserver
+such as <package>dnsmasq</package>.
 If you use it with <package>resolvconf</package> then there is
-normally nothing to configure.
+normally nothing you need to configure.
 
-<sect1 id="dns-bind-cache">Caching looked-up names &ndash; bind
+<sect1 id="dns-bind-cache">Caching looked-up names &ndash; <package>bind</package>
 <p>
-If you wish, <package>bind9</package> or <package>bind</package>
-can also be used as a caching nameserver.  This also works best
-with <package>resolvconf</package> installed, but at the time
-of writing this (September 2003) you have to do some manual
-configuration to make it work.
+If you wish you can also use <package>bind</package> or <package>bind9</package>
+as a caching forwarding local nameserver.
+It also works with <package>resolvconf</package>,
+but at the time of writing this (September 2003) you have to do
+some manual configuration to make it work.
 Read the <file>README</file> file in the
 <package>resolvconf</package> package for instructions.
 
-<sect1 id="dns-bind-server">Providing Domain Name Service &ndash; bind
+<sect1 id="dns-bind-server">Providing Domain Name Service &ndash; <package>bind</package>
 <p>
-Install these basic packages:
+If you need to provide authoritative name service for a domain
+then you need a fully fledged nameserver such as
+<prgn>bind</prgn> which comes in the 
+<package>bind</package> or <package>bind9</package> package.
+<p>
+Install these basic packages (for <package>bind9</package>):
 <package>bind9</package>;
 <package>dnsutils</package>.
 You may also want to install these utility packages:
@@ -562,26 +582,25 @@ You may also want to install these development packages:
 If you configure interfaces using DHCP then you may find this package
 useful:
 <package>dhcp-dns</package>.
-
-<sect2 id="bind-server-setup">Setting up <package>bind</package>
 <p>
 Install <package>bind9</package> or <prgn>dpkg-reconfigure</prgn> it
 to do the basic set-up.
-Configuration consists of editing the <file>named.conf</file>.
-In &debian; this file is found in <file>/etc/bind/</file> and is
-split up into three files:
-<file>named.conf</file> defines basic zones and <tt>includes</tt>
-<file>named.conf.local</file> and
-<file>named.conf.options</file>.
-(The latter is processed by <package>resolvconf</package> to
+Configuration consists of editing <file>named.conf</file>.
+In &debian; this file is found in <file>/etc/bind/</file> and 
+is used mainly to define the basic DNS zones;
+it <tt>includes</tt> two other files:
+<file>named.conf.local</file>, used for defining local zones, and
+<file>named.conf.options</file>, used for setting options.
+The latter is processed by <package>resolvconf</package> to
 produce <file>/var/run/bind/named.options</file> which is
-the same as <file>named.conf.options</file> except that the
-<tt>forwarders</tt> specification is a list of the currently
-available non-local nameservers.
-To make use of this, change the <tt>include</tt> line in
+the same as the original except that the <tt>forwarders</tt>
+specification is a list of the currently available non-local
+nameservers.
+(To make use of this, change the <tt>include</tt> line in
 <file>named.conf</file> so that it includes
 <file>/var/run/bind/named.options</file>.
 See <ref id="dns-resolvconf">.)
+<p>
 Database files named in <file>named.conf*</file> without a full
 pathname will be stored in <file>/var/cache/bind/</file>.
 This is the right place to store files generated by
@@ -590,61 +609,6 @@ the daemon is secondary.
 Static database files in <file>/etc/bind/</file> are and must be
 referred to in <file>named.conf</file> by their full path names.
 Read the package <file>README.Debian</file> for details.
-
-<sect2 id="bind-server-newdomain">Adding a domain
-<p>
-To add a new domain add the following at the bottom of
-<file>named.conf.local</file>:
-<example>
-zone "newdomain.com" {
-        type master;
-        file "yourdomain.db";
-};
-     
-zone "100.168.192.in-addr.arpa" {
-        type master;
-        file "192.rev";
-};
-</example>
-Replace <tt>yourdomain.com</tt> with the name of the domain
-for which you are going to provide name service and replace
-<tt>100.168.192.in-addr.arpa</tt> with the subnet for which
-you will provide reverse domain name service.
-(Note the name of the reverse lookup zone: it is the numeric
-IP address of the network in reverse order followed by
-<tt>.in-addr.arpa</tt>.
-<p>
-A <tt>type</tt> <tt>master</tt> nameserver is authoritative
-for the domain.
-Other systems can be setup to perform zone-transfers of that
-domain.
-Zone-transfers are transfers of information to another DNS
-server so that that server can also look up names for the
-domain.
-A <tt>type</tt> <tt>slave</tt> nameserver gets its information
-from another nameserver.
-<p>
-Information is stored in the named <tt>file</tt>.
-<p>
-You can restrict the IP addresses of host able to perform
-zone transfers from your host by adding a statement like the
-following inside the options statement in
-<file>/etc/bind/named.conf.options</file>.
-<example>
-allow-transfer "192.168.100.1";  
-</example>
-Note that this does not restrict who can use your server
-to look up names&mdash;one who can do zone transfers.
-
-<sect2 id="bind-server-primary">Setting up a
-primary DNS server
-<p>
-<!--- XXX FIXME XXX -->
-
-<sect2 id="bind-server-secondary">Setting up a
-secondary DNS server
-<p>
-<!--- XXX FIXME XXX -->
 
 <sect id="net-dhcp">Configuring network interfaces using DHCP
 <p>
@@ -758,9 +722,6 @@ See bug <url id="&bug-iud-pon;" name="#196877">.
 
 <sect1 id="high-pppoe">Configure a PPPoE interface
 <p>
-XXX FIXME XXX: I should control ppp through ifupdown and not directly by
-pon/poff.
-<p>
 Many broadband Internet Service Providers (ISPs) use PPP to negotiate
 connections even though your host is connected to them through 
 Ethernet and/or ATM networks.  This is accomplished by means of the
@@ -786,6 +747,11 @@ as a simple Ethernet gateway to the Internet.
 Although Woody installer does not have menu for PPPoE, its installer
 contains all needed packages.  So use shell console to set up network
 during inital instalation.
+<!--
+I should start connection through <package>ifupdown</package>
+infrastructure and do not start connection directly by the
+<package>ppp</package> init script.  This may need to be elaborated.
+-->
 
 <sect1 id="high-wifi">Configuring a Wi-Fi (802.11a/b/g) interface
 <p>
@@ -1046,8 +1012,7 @@ iface lo inet loopback
 You can list additional physical interface names after <tt>lo</tt>
 if you want them to be brought up on boot too.
 
-<sect1 id="trigger-hotplug">Triggering network configuration &ndash;
-<prgn>hotplug</prgn>
+<sect1 id="trigger-hotplug">Triggering network configuration &ndash; <package>hotplug</package>
 <p>
 The addition of the <package>hotplug</package> mechanism is part
 of a general trend in GNU and Linux toward supporting hardware that
@@ -1127,8 +1092,8 @@ configuration commands that is implemented in
 <file>/etc/pcmcia/network</file> and
 <file>/etc/pcmcia/network.opts</file>.
 The problems with this system are that it duplicates what
-<package>ifupdown</package> already does, does it rather badly,
-and only works for 16-bit PCMCIA cards.
+<package>ifupdown</package> already does and only works for
+16-bit PCMCIA cards.
 Consequently it is deprecated.
 <p>
 The easiest thing to do is to disable the 
@@ -1139,48 +1104,36 @@ mechanism as described in <ref id="trigger-hotplug">.
 To disable the <package>pcmcia-cs</package> mechanism for
 configuring network interfaces, make sure that none of the
 environment variables WHEREAMI, DHCLIENT, PUMP, BOOTP or DHCP
-is to "y" in <file>/etc/pcmcia/network.opts</file>.
-Comment out or delete the last paragraph of <file>network.opts</file>
-which redefines start_fn() and stop_fn().
-<footnote>
-These definitions stomp on the user's definitions
-(see bug report <url id="&bug-cs-whereami;" name="#178269">)
-after failing to check for the presence of hotplug properly
-(see bug report <<url id="&bug-cs-hotplug;" name="#171464">).
-</footnote>
+is set to "y" in <file>/etc/pcmcia/network.opts</file>.
+(When the package is first installed all these variables are
+set to "n".)
+Also make sure that start_fn() and stop_fn() are
+<strong>not</strong> defined.
+When the package is first installed the
+<file>/etc/pcmcia/network.opts</file> file
+<strong>does</strong> define these functions at the end
+of the file.
+Edit <file>/etc/pcmcia/network.opts</file> so that these
+definitions are removed, disabled or commented out.
+<p>
 Note that we still want <prgn>cardmgr</prgn> to load the 
-correct driver modules for us.
-Also, because not all drivers have proper power management
-support, you may want <prgn>cardmgr</prgn> to "eject" the
-card before suspend and "insert" it again after resume;
-set <tt>apm=eject</tt> in <file>/etc/pcmcia/apm.opts</file>
-to make this happen.
-<p>
-<prgn>hotplug</prgn> brings up any hot plugged interface with
-a simple <tt>ifup <var>iface</var></tt> command.  If the
-logical interface name as which the interface will be configured
-has to depend on the specific card that is installed then you
-can use a mapping script that chooses a logical interface name
-based on properties of the card.
-Look at
-<file>/usr/share/doc/ifupdown/examples/get-mac-address.sh</file>
-for an example of such a script.
+correct driver modules for us and to manage the cards.
+We just don't want it calling network configuration programs.
 
-<sect1 id="trigger-ifplugd">Triggering network configuration &ndash;
-<prgn>ifplugd</prgn>
+<sect1 id="trigger-ifplugd">Triggering network configuration &ndash; <package>ifplugd</package>
 <p>
-<prgn>ifplugd</prgn> brings an interface up or down according to
+<package>ifplugd</package> brings an interface up or down according to
 whether its underlying hardware is or is not plugged in to a network.
 The program can detect a live cable connected to an Ethernet
 interface or an access point associated to a Wi-Fi interface.
 (As of September 2003 Wi-Fi access point detection does not work
 perfectly with all Wi-Fi cards.)
-When ifplugd sees that the state of the link has changed it runs
+When <prgn>ifplugd</prgn> sees that the state of the link has changed it runs
 <prgn>ifup</prgn> or <prgn>ifdown</prgn>.
 <p>
-<prgn>ifplugd</prgn> works well in combination with
-<prgn>hotplug</prgn>.
-Set up <prgn>hotplug</prgn> so that when an interface is detected
+<package>ifplugd</package> works well in combination with
+<package>hotplug</package>.
+Set up <package>hotplug</package> so that when an interface is detected
 it starts <prgn>ifplugd</prgn> for that interface; when the
 interface is removed it stops <prgn>ifplugd</prgn> for that
 interface.
@@ -1235,7 +1188,7 @@ Then check the following files:  Needs to rewrite.
 /etc/squid.conf         (add all LAN host IPs as allowed)
 </example>
 <p>
-XXX FIXME XXX: More info
+<!-- XXX FIXME XXX: More info -->
 
 <sect id="net-client-conf">Network client daemon configuration
 <p>
@@ -1243,7 +1196,7 @@ XXX FIXME XXX: More info
 # apt-get install procmail fetchmail 
 </example>
 <p>
-XXX FIXME XXX: More info
+<!-- XXX FIXME XXX: More info -->
 
 <sect id="net-trouble">Network troubleshooting
 <p>
