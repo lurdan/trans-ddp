@@ -15,7 +15,7 @@ PUBLISHDIR :=	../../../public_html/manuals.html
 all:		publish
 
 # This target installs the generated HTML in the published directory.
-publish:	$(MANUAL).html
+publish:	$(MANUAL).html/index.html
 # 		fail if there is no PUBLISHDIR
 		[ -d $(PUBLISHDIR) ] || exit 1
 		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
@@ -23,7 +23,7 @@ publish:	$(MANUAL).html
 		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
 			$(PUBLISHDIR)/$(MANUAL)/
 
-$(MANUAL).html:	$(wildcard *.sgml)
+$(MANUAL).html/index.html:	$(wildcard *.sgml)
 		debiandoc2html $(MANUAL).sgml
 
 # ensure our SGML is valid
