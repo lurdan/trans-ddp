@@ -1,6 +1,6 @@
 # Makefile, used for the DDP manuals.sgml area
 
-MANUAL		:= $(shell basename $(shell pwd))
+MANUAL		:= $(notdir $(shell pwd))
 PUBLISHDIR	:= ../../../public_html/manuals.html
 
 publish:	build
