@@ -15,7 +15,7 @@
    </author>
   -->
 
-   <version>version 1.0.2, 10 June 2001.</version>
+   <version>version 1.2, 5 April 2002.</version>
 
    <copyright>
    <copyrightsummary>Copyright &copy; 1998-2001 Josip Rodin.</copyrightsummary>
@@ -575,89 +575,127 @@
 
   <chapt id="dreq">Required stuff under debian/
 
-  <p>There is a new subdirectory under the program's main directory
-  (`gentoo-0.9.12'), it is called `debian'. There are a number of files
-  in this directory. We will be editing these in order to customize
+  <p>There is a new subdirectory under the program's source directory,
+  it's called `debian'. There are a number of files in this directory that
+  we should edit in order to customize
   the behavior of the package. The most important of them are `control',
   `changelog', `copyright' and 'rules', which are required for all packages.
 
   <sect id="control">`control' file
 
-  <p>This file contains various values which dpkg and dselect will use to
-  manage the package. Here is the control file dh_make creates for us.
+  <p>This file contains various values which <prgn/dpkg/, <prgn/dselect/ and
+  other package management tools will use to manage the package.
+
+  <p>Here is the control file dh_make creates for us:
 
   <p><example>
   1  Source: gentoo
   2  Section: unknown
   3  Priority: optional
   4  Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
-  5  Standards-Version: 3.0.1
-  6
-  7  Package: gentoo
-  8  Architecture: any
-  9  Depends: ${shlibs:Depends}
-  10 Description: &lt;insert up to 60 chars description&gt;
-  11  &lt;insert long description, indented with spaces&gt;
+  5  Build-Depends: debhelper (>> 3.0.0)
+  6  Standards-Version: 3.5.2
+  7
+  8  Package: gentoo
+  9  Architecture: any
+  10 Depends: ${shlibs:Depends}
+  11 Description: &lt;insert up to 60 chars description&gt;
+  12  &lt;insert long description, indented with spaces&gt;
   </example>
   (I've added the line numbers.)
 
-  <p>Lines 1-5 are the control information for the source package. Line 1
-  is the name of the source package.
+  <p>Lines 1-6 are the control information for the source package.
 
-  <p>Line 2 is the section of the distribution this package goes into. 
-  As you may have noticed, Debian is divided in sections: main (the free
+  <p>Line 1 is the name of the source package.
+
+  <p>Line 2 is the section of the distribution the source package goes into. 
+
+  <p>As you may have noticed, Debian is divided in sections: main (the free
   software), non-free (the not really free software) and contrib (free
   software that depends on non-free software). Under those, there are
   logical subsections that describe in short what packages are in.
   So we have `admin' for administrator-only programs, `base' for the
   basic tools, `devel' for programmer tools, `doc' for documentation,
   `libs' for libraries, `mail' for e-mail readers and daemons, `net' for
-  network apps and daemons, `x11' for X11 specific programs, and many more.
+  network apps and daemons, `x11' for X11 programs that don't fit anywhere
+  else, and many more.
 
-  <p>Let's change it then to x11.
+  <p>Let's change it then to x11. (A "main/" prefix is implied so we can
+  omit it.)
 
-  <p>Line 3 describes how important it is that the user install this package.
-  Section and priority are actually only used by dselect when it sorts
-  packages and selects defaults, and they can (and most probably will be)
-  overridden by our FTP maintainers. See the Policy manual for guidance on
-  what to set these fields to.
+  <p>Line 3 describes how important it is that the user installs this package.
+  See the Policy manual for guidance on what to set this field to. The
+  "optional" priority will usually work for new packages.
+
+  <p>Section and priority are used by frontends like <prgn/dselect/ when
+  they sort packages and select defaults. Once you upload the package to
+  Debian, the value of these two fields can be overridden by the archive
+  maintainers, in which case you will be notified by email.
   
-  <p>As it is a normal priority package, we'll leave it as optional.
+  <p>As this is a normal priority package and doesn't conflict with anything
+  else, we'll leave it as "optional".
 
-  <p>Line 4 is the name and email address of the maintainer.
+  <p>Line 4 is the name and email address of the maintainer. Make sure that
+  this field includes a valid "To: " header for an email, because after you
+  upload it, the bug tracking system will use it to deliver bug emails to
+  you. Avoid using commas, ampersands and parenthesis.
 
-  <p>Line 5 is the version of the Debian Policy standards this package follows
-  (two major versions of the installed debian-policy package).
+  <p>Line 5 is the version of the Debian Policy standards this package
+  follows, the versions of the Policy manual you read while making your
+  package.
 
-  <p>If some non-standard compiler or other tool is needed to build your
-  package, you should add here a `Build-Depends' line and list the
-  required packages. For more information on this, read the Packaging Manual
-  (section 8.7) and documentation of the `build-essential' package.
+  <p>The 6th line includes the list of packages required to build your
+  package. Some packages like gcc and make are implied, see the
+  <package/build-essential/ package for details. If some non-standard
+  compiler or other tool is needed to build your package, you should add
+  it to the `Build-Depends' line. Multiple entries are separated with
+  commas; read on for the explanation of binary dependencies to find out
+  more about the syntax of this field.
 
-  <p>Line 7 is the name of the binary package.
+  <p>You can also have Build-Depends-Indep, Build-Conflicts and other fields
+  here. This data will be used by the Debian automatic package building
+  software in order to create binary packages for other computer platforms.
+  See the Policy manual for more information about the build-dependencies
+  and the Developers' Reference for more information about these other
+  platforms (architectures) and how to port software to them.
+
+  <p>Here's a hack you can use to find out which packages your package needs
+  to be built:
+  <example>
+  strace -f -o /tmp/log ./configure
+  # or make instead of ./configure, if the package don't use autoconf
+  for x in `dpkg -S $(grep open /tmp/log|perl -pe 's!.* open\(\"([^\"]*).*!$1!' |grep "^/"| sort | uniq| grep -v "^\(/tmp\|/dev\|/proc\)" ) 2>/dev/null|cut -f1 -d":"| sort | uniq`; do echo -n "$x (>=" `dpkg -s $x|grep ^Version|cut -f2 -d":"` "), "; done
+  </example>
+
+  <p>Gentoo also happens to require <package/xlibs-dev/,
+  <package/libgtk1.2-dev/ and <package/libglib1.2-dev/ to build, so we'll
+  add them here next to <package/debhelper/.
+
+  <p>Line 7 is the name of the binary package. This is usually the same as
+  the name of the source package, but it doesn't necessarily have to be that
+  way.
 
   <p>Line 8 describes the CPU architecture the binary package can be compiled
-  for. We can leave this as "any" because <manref name="dpkg-gencontrol"
+  for. We'll leave this as "any" because <manref name="dpkg-gencontrol"
   section="1"> will fill in the appropriate value for any machine this
-  package gets compiled on (see the Developer's Reference for explanation on
-  what porting packages is). If your package is architecture independent
+  package gets compiled on.
+
+  <p>If your package is architecture independent
   (for example, a shell or Perl script, or a document), change this to
-  "all", and read later in <ref id="rules"> about using `binary-indep'
+  "all", and read later in <ref id="rules"> about using the `binary-indep'
   rule instead of `binary-arch' for building the package.
 
   <p>Line 9 shows one of the most powerful features of the Debian packaging
   system. Packages can relate to each other in various ways. Apart from
   Depends:, other relationship fields are Recommends:, Suggests:,
-  Pre-Depends:, Conflicts:, Provides:, and Replaces: .
+  Pre-Depends:, Conflicts:, Provides:, and Replaces:.
 
-  <p>The package management tools such as dpkg, dselect or APT (and its
-  front-ends) usually behave the same way when dealing with these relations;
-  if not, it will be explained.
+  <p>The package management tools usually behave the same way when dealing
+  with these relations; if not, it will be explained.
   (see <manref name="dpkg" section="8">, <manref name="dselect" section="8">,
-  <manref name="apt" section="8">, <manref name="console-apt" section="8">,
-  <manref name="gnome-apt" section="8">)
+  <manref name="apt" section="8">, <manref name="aptitude" section="1"> etc.)
 
-  <p>This is what they usually mean:
+  <p>This is what the dependencies mean:
 
   <p><list>
   <item>Depends:
@@ -666,16 +704,17 @@
   cause severe breakage) unless a particular package is present.</item>
 
   <item>Recommends:
-  <p>Dselect will not install your package unless the packages it recommends
-  are installed. Dpkg and APT should let you do it, though. Use this for
-  packages that are not strictly necessary but are typically used with your
+  <p>Frontends such as dselect or aptitude will prompt you to install the
+  recommended packages along with your package; dselect will even insist. 
+  dpkg and apt-get will ignore this field, though. Use this for packages
+  that are not strictly necessary but are typically used with your
   program.</item>
 
   <item>Suggests:
-  <p>When a user installs your program, dselect will prompt him to install
-  any package it suggests. Dpkg and APT shouldn't care much. Use this for
-  packages which will work nicely with your program but are not at all
-  necessary.</item>
+  <p>When a user installs your program, all frontends will likely prompt
+  them to install the suggested packages. dpkg and apt-get won't care. Use
+  this for packages which will work nicely with your program but are not at
+  all necessary.</item>
 
   <item>Pre-Depends:
   <p>This is stronger than Depends:. The package will not be installed
@@ -687,76 +726,89 @@
   <item>Conflicts:
   <p>The package will not be installed until all the packages it conflicts
   with have been removed. Use this if your program absolutely will not run
-  (or will cause severe breakage) if a particular package is present.</item>
+  or will cause severe problems if a particular package is present.</item>
 
   <item>Provides:
   <p>For some types of packages where there are multiple alternatives
-  virtual names have been defined. You can get the full list in
-  /usr/share/doc/debian-policy/virtual-package-names-list.text.gz file.
+  virtual names have been defined. You can get the full list in the
+  /usr/share/doc/debian-policy/virtual-package-names-list.txt.gz file.
   Use this if your program provides a function of an existing virtual
   package.</item>
 
   <item>Replaces:
   <p>Use this when your program replaces files from another package, or
   completely replaces another package (used in conjunction with Conflicts:).
-  Files from the named packages will be removed before installing yours.
+  Files from the named packages will be overwritten with the files from your
+  package.
   </item>
   </list>
 
   <p>All these fields have uniform syntax. They are a list of package names
   separated by commas. These package names may also be lists of alternative
-  package names, separated by vertical bar symbols <tt>|</tt> (pipe symbols).
-  The fields may restrict their applicability to particular versions of each
-  named package. These versions are listed in parentheses after each
+  package names, separated by vertical bar symbols `<tt>|</tt>' (pipe symbols).
+
+  <p>The fields may restrict their applicability to particular versions of
+  each named package. These versions are listed in parentheses after each
   individual package name, and they should contain a relation from the list
   below followed by the version number. The relations allowed are:
   <tt>&lt;&lt;</tt>, <tt>&lt;=</tt>, <tt>=</tt>, <tt>&gt;=</tt> and
   <tt>&gt;&gt;</tt> for strictly earlier, earlier or equal, exactly equal,
-  later or equal and strictly later, respectively.
-  
-  <p>The last feature you need to know about is $(shlibs:Depends). This will
-  be automatically generated by <manref name="dh_shlibdeps" section="1"> and
-  filled in by <manref name="dh_gencontrol" section="1"> with the names of
-  any shared libraries your program uses, such as libc6 or xlib6g, so you
-  don't have to specify them yourself. Having said all that, we can leave
-  line 9 exactly as it is now.
+  later or equal and strictly later, respectively. For example,
 
-  <p>Line 10 is where the list of suggestions go. Here it's only `file',
+  <p><example>
+  Depends: foo (>= 1.2), libbar1 (= 1.3.4)
+  Conflicts: baz
+  Recommends: libbaz4 (>> 4.0.7)
+  Suggests: quux
+  Replaces: quux (<< 5), quux-foo (<= 7.6)
+  </example>
+  
+  <p>The last feature you need to know about is ${shlibs:Depends}.
+  After your package has been built and installed into the temporary
+  directory, <manref name="dh_shlibdeps" section="1"> will scan it for
+  binaries and libraries, determine their shared library dependencies and
+  detect which packages they are in, such as libc6 or xlib6g. It'll pass
+  on the list to <manref name="dh_gencontrol" section="1"> which will fill
+  it in the right place, and you won't have to worry about this yourself.
+
+  <p>Having said all that, we can leave line 9 exactly as it is now, and
+  insert another line after it saying <tt>Suggests: file</tt>, 
   because gentoo can use some features provided by that program/package.
 
   <p>Line 11 is the short description. Most people screens are 80 columns
   wide so this shouldn't be longer than about 60 characters. I'll change
-  it to "A fully GUI configurable GTK+ file manager".
+  it to "A fully GUI configurable X file manager using GTK+".
 
   <p>Line 12 is where the long description goes. This should be a paragraph
-  which gives more detail about the package. Column 1 of each line should
-  be empty. There must be no blank lines, but you can put a . (dot) in a
-  column to simulate that. Also, there must be no more that one blank line
-  after the long description.
+  which gives more details about the package. Column 1 of each line should
+  be empty. There must be no blank lines, but you can put a single . (dot)
+  in a column to simulate that. Also, there must be no more that one blank
+  line after the long description.
 
-  <p>Here is the updated control file:
+  <p>Finally, here is the updated control file:
 
   <p><example>
   1  Source: gentoo
   2  Section: x11
   3  Priority: optional
   4  Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
-  5  Standards-Version: 3.0.1
-  6
-  7  Package: gentoo
-  8  Architecture: any
-  9  Depends: ${shlibs:Depends}
-  10 Suggests: file
-  11 Description: A fully GUI configurable GTK+ file manager
-  12  gentoo is a file manager for Linux written from scratch in pure C. It
-  13  uses the GTK+ toolkit for all of its interface needs. gentoo provides
-  14  100% GUI configurability; no need to edit config files by hand and re-
-  15  start the program. gentoo supports identifying the type of various
-  16  files (using extension, regular expressions, or the 'file' command),
-  17  and can display files of different types with different colors and icons.
-  18  .
-  19  gentoo borrows some of its look and feel from the classic Amiga file
-  20  manager "Directory OPUS" (written by Jonathan Potter).
+  5  Build-Depends: debhelper (>> 3.0.0), xlibs-dev, libgtk1.2-dev, libglib1.2-dev
+  6  Standards-Version: 3.5.2
+  7
+  8  Package: gentoo
+  9  Architecture: any
+  10 Depends: ${shlibs:Depends}
+  11 Suggests: file
+  12 Description: A fully GUI configurable GTK+ file manager
+  13  gentoo is a file manager for Linux written from scratch in pure C. It
+  14  uses the GTK+ toolkit for all of its interface needs. gentoo provides
+  15  100% GUI configurability; no need to edit config files by hand and re-
+  16  start the program. gentoo supports identifying the type of various
+  17  files (using extension, regular expressions, or the 'file' command),
+  18  and can display files of different types with different colors and icons.
+  19  .
+  20  gentoo borrows some of its look and feel from the classic Amiga file
+  21  manager "Directory OPUS" (written by Jonathan Potter).
   </example>
   (I've added the line numbers.)
 
