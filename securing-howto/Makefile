@@ -12,6 +12,8 @@ PUBLISHDIR := ../../../public_html/manuals.html
 #MANUAL = $(notdir $(shell pwd))
 MANUAL = securing-debian-howto
 
+LNPUBDIRMAN=$(PUBLISHDIR)/$(MANUAL)/
+
 # The cannonical language, in which the original document is
 ORIG_LANG=en
 # list of langs (above the canonical one)
@@ -132,7 +134,7 @@ publish-html: $(HTMLDIRS)
 	  name=`echo $(file) | sed 's/$(MANUAL).html\///'`; \
 	  link=`echo $$name|sed 's/.$(ORIG_LANG).html$$/.html/'`;\
 	  echo "$$link -> $$name";\
-	  ln -sf $(PUBLISHDIR)/$(MANUAL)/$$name\
+	  ln -sf $(LNPUBDIRMAN)$$name\
 	        $(PUBLISHDIR)/$(MANUAL)/$$link;\
 	 )
 
@@ -150,7 +152,7 @@ publish-files: $(ALLFILES)
 	 install -p -m 644 $(MANUAL).$(ORIG_LANG).$(ext)\
 	                   $(PUBLISHDIR)/$(MANUAL)/;\
 	 \
-	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
+	 ln -sf $(LNPUBDIRMAN)$(MANUAL).$(ORIG_LANG).$(ext)\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
 
@@ -168,7 +170,7 @@ publish-ps: ps
 	 install -p -m 644 $(MANUAL).$(ORIG_LANG).ps\
 	                   $(PUBLISHDIR)/$(MANUAL)/
 	 # make the symlinks for ps
-	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
+	 ln -sf $(LNPUBDIRMAN)$(MANUAL).$(ORIG_LANG).ps\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
 
 
