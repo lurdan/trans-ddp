@@ -219,7 +219,7 @@ publish-files: $(ALLFILES)
 	)
 	# make the symlinks for $(FILEEXTS)
 	@$(foreach ext,$(FILEEXTS),\
-	 ln -sf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL)-$(ORIG_LANG).$(ext)\
+	 ln -sf $(MANUAL)-$(ORIG_LANG).$(ext)\
 	        $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
 
