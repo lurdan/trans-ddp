@@ -21,6 +21,7 @@ sources_noncjk := $(filter-out $(MANUAL).ja.sgml,$(sources))
 #	debiandoc2html -c -l $* $<
 html:
 	@if [ $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
+          rm -r $(MANUAL).en.html; \
           echo debiandoc2html -c -l en $(MANUAL).sgml; \
           debiandoc2html -c -l en $(MANUAL).sgml; \
           mv $(MANUAL).html $(MANUAL).en.html; \
