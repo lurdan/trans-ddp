@@ -20,14 +20,18 @@ html:
 	@for i in *.??*.sgml; do \
           j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
           langfoo=`echo $$lang | tr 'A-Z_' 'a-z-'`; \
+	  langbar=`echo $$lang | perl -pe 's/(\w\w)-(\w\w)/"$$1_".uc($$2)/e'`; \
 	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$langfoo.html ]; then \
-            echo debiandoc2html -c -l $$lang $$i "($$langfoo)"; \
-            debiandoc2html -c -l $$lang $$i; \
+            echo debiandoc2html -c -l $$langbar $$i "($$langfoo)"; \
+            debiandoc2html -c -l $$langbar $$i; \
           fi; \
-        done
+	done
 
 # generating plain text
 txt text: $(patsubst %.sgml,%.txt,$(wildcard *.??*.sgml))
+
+$(MANUAL).pt-br.txt: $(MANUAL).pt-br.sgml
+	debiandoc2text -l pt_BR $<
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
@@ -36,12 +40,24 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 texfriendly := $(filter-out $(MANUAL).ko.sgml,$(filter-out $(MANUAL).ja.sgml,$(wildcard *.??*.sgml)))
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
+$(MANUAL).pt-br.ps: $(MANUAL).pt-br.sgml
+	debiandoc2latexps -l pt_BR $<
+
+$(MANUAL).el.ps: $(MANUAL).el.sgml
+	@echo Locale 'el' not yet supported
+	
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
 # generating Portable Document Format
 pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
 
+$(MANUAL).pt-br.pdf: $(MANUAL).pt-br.sgml
+	debiandoc2latexpdf -l pt_BR $<
+
+$(MANUAL).el.pdf: $(MANUAL).el.sgml
+	@echo Locale 'el' not yet supported
+	
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $* $<
 
