@@ -1,6 +1,8 @@
 #
 # Makefile for the Progeny Debian Manual
 #
+#  Do nothing but stay in CVS for record :)
+#
 #====[ customization ]=========================================================
 ##### CONF PART 
 
@@ -15,7 +17,8 @@ PUBLISHDIR := ../../../public_html/manuals.html
 #====[ publishing to the DDP web pages ]=======================================
 #publish: publish-html
 publish:
-	rm -Rf $(PUBLISHDIR)/$(MANUAL)
+	echo "Hey, policy say no to publish this in DDP :)"
+#	rm -Rf $(PUBLISHDIR)/$(MANUAL)
 
 # After running once, I will stop this.
 #----[ publish html ]----------------------------------------------------------
