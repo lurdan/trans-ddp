@@ -7,7 +7,7 @@ SOURCES		:= $(wildcard *.sgml)
 
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		     $(filter-out developers-reference.ja.pdf, \
-		       $(foreach langext,.ja .fr, \
+		       $(foreach langext,, \
 		         $(foreach fmt,html txt,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
@@ -22,8 +22,12 @@ install_file	:= install -m 644 -p
 
 MAX_TEX_RECURSION := 5
 
-.PHONY:	all
-all:    $(TARGETS)
+.PHONY:	all dropold
+all:    $(TARGETS) dropold
+
+dropold:
+	-rm -rf developers-reference.ja.html developers-reference.fr.html
+
 
 .PHONY: validate
 validate:	$(addsuffix .validate,$(SOURCES))
