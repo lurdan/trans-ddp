@@ -6,13 +6,29 @@
 
 ##### CONF PART 
 # this can and will be overriden by a higher level makefile
+
+HTDOCS := $(notdir $(patsubst %/,%, $(dir $(shell pwd))))
+ifeq ("$(HTDOCS)", "manuals.sgml")
+# DDP site or checked out source from DDP
 PUBLISHDIR := ../../../public_html/manuals.html
-MANUAL = $(notdir $(shell pwd))
+MANUAL := $(notdir $(shell pwd))
+else
+ifeq ("$(HTDOCS)", "htdocs")
+# qref.sourceforge.net
+PUBLISHDIR := ./
+MANUAL := qref
+else
+# default: checked out source from qref.sourceforge.net
+PUBLISHDIR := $$HOME/public_html
+MANUAL := qref
+endif
+endif
 
 # The cannonical language, in which the original document is
 ORIG_LANG=en
 # list of langs (above the canonical one)
 LANGS=fr it
+#LANGS=
 
 # Because Latex is hard to work with, I just to do text for now
 # When it is not a problem to enable others, we should enable the rest.
@@ -59,6 +75,9 @@ date.ent:
 # generate entities which are dynamically defined by the settings of this
 # build run, generally set in the top-level config file (always make)
 dynamic.ent::
+	@#echo H===$(HTDOCS)===
+	@#echo M===$(MANUAL)===
+	@#echo M===$(PUBLISHDIR)===
 	: > $@                       # clear the file
 	@echo "<!entity language \"$(TLANG)\">" >> $@
 	@echo "<!entity % lang-$(TLANG) \"INCLUDE\">" >> $@
@@ -68,23 +87,25 @@ dynamic.ent::
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
 #
+# I know.  But for now, I need to avoid circular dependence. (OA)
+#
 # Create starting SGML for each language from template
 # Actual contents are in language segrigated subdirectory
 # generic rules for all the languages to each language
-$(MANUAL).%.sgml: $(MANUAL).sgml 
+$(MANUAL).%.sgml: qref.sgml 
 	sed -e "s/@@@@/$*/g" $< > $(MANUAL).$*.sgml
 
 #----[ generating HTML ]-------------------------------------------------------
 # for orig_lang
 $(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.ent
-	debiandoc2html -l $(ORIG_LANG) -c $<
+	debiandoc2html -l $(ORIG_LANG) -c $< 2>_html.error
 
 # for translated languages
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
-$(MANUAL).%.html: $(MANUAL).%.sgml
-	debiandoc2html -l $* -c $<
+$(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.ent
+	debiandoc2html -l $* -c $< 2>_html.$*.error
 	@echo "cleaning up file extensions";\
 	for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
@@ -99,12 +120,12 @@ $(MANUAL).%.html: $(MANUAL).%.sgml
 
 #----[ generating plain text ]-------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml
-	debiandoc2text -l $(ORIG_LANG) -c $<
+$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.ent
+	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
 
 # for translated languages
-$(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $* $<
+$(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.ent
+	debiandoc2text -l $* $< 2>_txt.$*.error
 
 #----[ generating tov ]--------------------------------------------------------
 # for orig_lang
@@ -146,15 +167,14 @@ $(MANUAL).%.pdf: $(MANUAL).%.sgml
 #publish: publish-html publish-files 
 # publish-file is disabled since the files do not compile cleanly to
 # PS/PDF.
-publish: publish-html
+publish: publish-html publish-files
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
-	rm -rf $(PUBLISHDIR)/qref # Sorry, I made a junk tree, removed
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	 # install any translated html
+	# install all html
 	$(foreach lang,$(ORIG_LANG) $(LANGS),\
 	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
 #	# excuse me for ugly script (skip CVS directory)
@@ -162,20 +182,6 @@ publish-html: $(HTMLDIRS)
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
 	install -p -m 644  --preserve-timestamps \
 	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
-
-######### 
-	 # install original html
-	 #install -p -m 644 $(MANUAL).html/*.html \
-	 #                  $(PUBLISHDIR)/$(MANUAL)/
-	 # make the simlinks for html files
-	 #@$(foreach file,$(wildcard  $(MANUAL).html/*.html),\
-	 # name=`echo $(file) | sed 's/$(MANUAL).html\///'`; \
-	 # link=`echo $$name|sed 's/.$(ORIG_LANG).html$$/.html/'`;\
-	 # rm -f $$link; \
-	 # echo "$$link -> $$name";\
-	 # ln -s $(PUBLISHDIR)/$(MANUAL)/$$name\
-	 #       $(PUBLISHDIR)/$(MANUAL)/$$link;\
-	 #)
 
 #----[ publish the files ]-----------------------------------------------------
 publish-files: $(ALLFILES)
@@ -224,13 +230,10 @@ clean distclean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
 	rm -rf $(MANUAL)*.html
 	rm -f $(MANUAL).??.sgml 
+	rm -f *.error
+	rm -f dynamic.ent date.ent
 
-# Needed for Quick-Reference
-# This is done in order to maintain coherence with Osamu's setup
-# (in SourceForge's CVS) and keep it DDP-standard (long names)
-$(MANUAL).sgml : qref.sgml
-	cp $< $@ 
 
 .PHONY: all html txt ps\
-	publish publish-html publish-txt publish-ps\
+	publish publish-html publish-files publish-txt publish-ps\
 	clean distclean validate 
