@@ -24,7 +24,7 @@ publish: all
 	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
 
 validate:
-	nsgmls -ges -wall $(manual).sgml
+	nsgmls -ges -wall $(manual).$(currentlang).sgml
 
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
