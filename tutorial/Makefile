@@ -1,6 +1,6 @@
 
 
-all : debian-tutorial.tar.gz
+all : debian-tutorial.tar.gz debian-tutorial.text.gz debian-tutorial.ps.gz
 
 outputs : debian-tutorial.ps debian-tutorial.text debian-tutorial.html
 
@@ -23,11 +23,24 @@ debian-tutorial.tar : ChangeLog outputs COPYING
 debian-tutorial.tar.gz : debian-tutorial.tar
 	gzip --force debian-tutorial.tar	
 
+debian-tutorial.ps.gz : debian-tutorial.ps
+	cp -f debian-tutorial.ps debian-tutorial.ps.tmp
+	gzip --force debian-tutorial.ps.tmp
+	mv debian-tutorial.ps.tmp.gz debian-tutorial.ps.gz	
+	chmod 644 debian-tutorial.ps.gz
+
+debian-tutorial.text.gz : debian-tutorial.text
+	cp -f debian-tutorial.text debian-tutorial.text.tmp
+	gzip --force debian-tutorial.text.tmp
+	mv debian-tutorial.text.tmp.gz debian-tutorial.text.gz	
+	chmod 644 debian-tutorial.text.gz	
+
 clean : 
 	/bin/rm -r debian-tutorial.html
 	/bin/rm debian-tutorial.text
 	/bin/rm debian-tutorial.ps
-	/bin/rm CHANGELOG
+	/bin/rm debian-tutorial.text.gz
+	/bin/rm debian-tutorial.ps.gz
 
 
 
