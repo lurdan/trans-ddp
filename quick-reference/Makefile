@@ -444,8 +444,9 @@ clean:
 	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
 	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
 	rm -f *~ prior.aux pprior.aux tar.gz.log
-	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent $(MANUAL1).tar.gz
-	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent date.ent $(MANUAL2).tar.gz
+	rm -f $(MANUAL0).tar.gz
+	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent
+	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent date.ent
 	rm -rf $(MANUAL1)*.html *stamp
 	rm -rf $(MANUAL2)*.html *stamp
 

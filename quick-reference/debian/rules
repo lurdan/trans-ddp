@@ -9,12 +9,16 @@
 export DH_COMPAT=3
 export LC_ALL=C
 
-MANUAL := debian-reference
-LANGS := en fr it
+MANUAL1 := reference
+MANUAL2 := quick-reference
+LANGS1 := en fr it es
+LANGS2 := en
 BUILD_TYPE := package
-ENTFILES := $(foreach lang,$(LANGS),dynamic.$(lang).ent)
+ENTFILES1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).ent)
+ENTFILES2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).ent)
+ENTFILES := $(ENTFILES1) $(ENTFILES2)
 
-dynamic.%.ent:
+$(MANUAL1).%.ent:
 	echo "<!entity language \"$*\">"       > $@
 	echo "<!entity % lang-$* \"INCLUDE\">" >> $@
 	echo "<!entity docversion \"$(shell \
@@ -27,6 +31,26 @@ dynamic.%.ent:
 		dpkg-parsechangelog | \
 		grep '^Date: ' | \
 		sed 's/^Date: *//')\">" >> $@
+	echo "<!entity % f-ref   \"INCLUDE\">" >> $@ 
+	echo "<!entity % q-ref   \"IGNORE\">" >> $@ 
+
+
+$(MANUAL2).%.ent:
+	echo "<!entity language \"$*\">"       > $@
+	echo "<!entity % lang-$* \"INCLUDE\">" >> $@
+	echo "<!entity docversion \"$(shell \
+		LC_ALL=C \
+		dpkg-parsechangelog | \
+		grep '^Version: ' | \
+		sed 's/^Version: *//')\">" >> $@
+	echo "<!entity docdate \"$(shell \
+		LC_ALL=C \
+		dpkg-parsechangelog | \
+		grep '^Date: ' | \
+		sed 's/^Date: *//')\">" >> $@
+	# if "Debian Quick Reference" (20 page max)
+	echo "<!entity % f-ref   \"IGNORE\">" >> $@ 
+	echo "<!entity % q-ref   \"INCLUDE\">" >> $@
 
 
 configure: configure-stamp
@@ -41,7 +65,9 @@ build: build-stamp
 build-stamp: configure-stamp 
 	dh_testdir
 	# Add here commands to compile the package.
-	$(MAKE) "MANUAL=$(MANUAL)" "LANGS=$(LANGS)" "BUILD_TYPE=$(BUILD_TYPE)" html txt pdf ps
+	$(MAKE) "MANUAL1=$(MANUAL1)" "LANGS1=$(LANGS1)" \
+	        "MANUAL2=$(MANUAL2)" "LANGS2=$(LANGS2)" \
+	        "BUILD_TYPE=$(BUILD_TYPE)" html txt pdf ps
 	touch build-stamp
 
 clean:
@@ -49,34 +75,69 @@ clean:
 	dh_testroot
 	rm -f build-stamp configure-stamp
 	# Add here commands to clean up after the build process.
-	-$(MAKE) "MANUAL=$(MANUAL)" "LANGS=$(LANGS)" "BUILD_TYPE=$(BUILD_TYPE)" clean
+	-$(MAKE) "MANUAL1=$(MANUAL1)" "LANGS1=$(LANGS1)" \
+	 "MANUAL2=$(MANUAL2)" "LANGS2=$(LANGS2)" \
+	 "BUILD_TYPE=$(BUILD_TYPE)" clean
 	dh_clean
 
 refresh: clean
 	dh_testdir
 	dh_testroot
 # 	cvs -d :ext:osamu@cvs.qref.sf.net:/cvsroot/qref up
-	cvs -d :pserver:anonymous@cvs.qref.sf.net:/cvsroot/qref up
+#	cvs -d :pserver:anonymous@cvs.qref.sf.net:/cvsroot/qref up
+
+new:    clean
+#	rm ../debian-refernce
+#	cvs -d :ext:osamu@cvs.qref.sf.net:/cvsroot/qref export -d ../debian-reference -D tomorrow qref
+#	cvs -d :pserver:anonymous@cvs.qref.sf.net:/cvsroot/qref up
 
 install: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
+# above create installdirs for first binary package debian-reference
+# make symlink to README.Debian.gz (always big enough to be compressed
+	cd $(CURDIR)/debian/debian-reference/usr/share/doc/debian-reference ; \
+	ln -sf ../debian-reference-common/README.Debian debian-reference.README.Debian
 
-	# Add here commands to install the package into debian/debian-reference.
-	$(MAKE) LANGS=en "MANUAL=$(MANUAL)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-common/usr/share/doc \
+
+	# Add here commands to install the package into debian/debian-reference-??.
+	$(MAKE) LANGS1=en "MANUAL1=$(MANUAL1)" "MANUAL2=$(MANUAL2)" \
+	    "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-common/usr/share/doc/Debian \
 	    publish-examples
-	$(MAKE) LANGS=en "MANUAL=$(MANUAL)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-en/usr/share/doc \
-	    publish-html publish-txt publish-ps publish-pdf
-	$(MAKE) LANGS=fr "MANUAL=$(MANUAL)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-fr/usr/share/doc \
-	    publish-html publish-txt publish-ps publish-pdf
-	$(MAKE) LANGS=it "MANUAL=$(MANUAL)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-it/usr/share/doc \
-	    publish-html publish-txt publish-ps publish-pdf
+	test -d $(CURDIR)/debian/debian-reference-common/usr/bin \
+	   || install -d -m 755 $(CURDIR)/debian/debian-reference-common/usr/bin
+	install -m 755 --preserve-timestamps debian-reference \
+	    $(CURDIR)/debian/debian-reference-common/usr/bin/debian-reference
+
+	$(MAKE) LANGS1=en "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-en/usr/share/doc/Debian \
+	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
+	cd $(CURDIR)/debian/debian-reference-en/usr/share/doc/debian-reference-en ; \
+	ln -s ../debian-reference-common/README.Debian README.Debian
+	$(MAKE) LANGS1=fr "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-fr/usr/share/doc/Debian \
+	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
+	cd $(CURDIR)/debian/debian-reference-fr/usr/share/doc/debian-reference-fr ; \
+	ln -s ../debian-reference-common/README.Debian README.Debian
+	$(MAKE) LANGS1=it "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-it/usr/share/doc/Debian \
+	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
+	cd $(CURDIR)/debian/debian-reference-it/usr/share/doc/debian-reference-it ; \
+	ln -s ../debian-reference-common/README.Debian README.Debian
+	$(MAKE) LANGS1=es "MANUAL1=$(MANUAL1)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-es/usr/share/doc/Debian \
+	    publish-html1 publish-txt1 publish-ps1 publish-pdf1
+	cd $(CURDIR)/debian/debian-reference-es/usr/share/doc/debian-reference-es ; \
+	ln -s ../debian-reference-common/README.Debian README.Debian
+
+	$(MAKE) LANGS2=en "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
+	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-en/usr/share/doc/Debian \
+	    publish-html2 publish-txt2 publish-ps2 publish-pdf2
+	cd $(CURDIR)/debian/quick-reference-en/usr/share/doc/quick-reference-en ; \
+	ln -s ../debian-reference-common/README.Debian README.Debian
 
 
 # Build architecture-independent files here.
@@ -94,7 +155,7 @@ binary-indep: build install
 #	dh_installmime
 #	dh_installinit
 	dh_installcron
-	dh_installman
+	dh_installman -p debian-reference-common debian-reference.1
 	dh_installinfo
 #	dh_undocumented
 	dh_installchangelogs 

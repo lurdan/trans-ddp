@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.34 $"  -->
+<!-- CVS revision of this document "$Revision: 1.35 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
 <p>
@@ -304,10 +304,11 @@ append="hdx=ide-scsi ignore=hdx"
 Here the location of the CD-writer, which is accessed through the ide-scsi driver,
 is indicated by <tt>hdx</tt>, where <em>x</em> represents one of the following:
 <example>
+hda          for a master on the first IDE port
 hdb          for a slave on the first IDE port
 hdc          for a master on the second IDE port
 hdd          for a slave on the second IDE port
-hde ... hdh  for a drive on an external IDE port
+hde ... hdh  for a drive on an external IDE port or ATA66/100 IDE port
 </example>
 Type the following commands as root to activate after finishing all the
 configuration:
@@ -510,6 +511,10 @@ or,
 
 <sect id="x">The X program
 <p>
+X environment is provided by <url id="&xfree86home;" name="Xfree86">.
+There are 2 major versions of X server available on &debian; system: 
+V3.x and V4.x.
+<p>
 <taglist>
 <tag><ref id="xsrvr">
 <item>a program on a local host that displays an X window and/or desktop 
@@ -567,80 +572,208 @@ than <prgn>ssh -X</prgn>.
 All remote connection methods, except <prgn>ssh</prgn>, require TCP/IP
 connection enabled on the X server.  See <ref id="xtcp">.
 
-<sect1 id="configuring-x">Configure XFree86 4.x
-<!-- Is this stuff valid for v3 too? If not, add a separate section for -->
-<!-- v3. -->
+<sect1 id="x-system">X system packages
 <p>
-There are two meta-packages that can be used to install all of the necessary
-dependencies for XFree86: <package>x-window-system</package> and
-<package>x-window-system-core</package>.  For most cases,
-<package>x-window-system</package> is the package to install.
+There are few (meta)packages provided to ease the install of X
+system in Woody.
+<taglist>
+<tag><package>x-window-system-core</package>
+<item>
+This metapackage provides the essential components for a standalone
+workstation running the X Window System.  It provides the X libraries, an X
+server <package>xserver-xfree86</package>, a set of fonts, and a group of 
+basic X clients and utilities.
+
+<tag><package>x-window-system</package> 
+<item>
+This metapackage provides substantially all the components of the X Window
+System as developed by the XFree86 Project, as well as a set of historically
+popular accessory programs. (Notably, it depends on
+<package>x-window-system-core</package>, <package>twm</package>, and 
+<package>xdm</package>, i.e., no need to install 
+<package>x-window-system-core</package> if you install this.)
+
+<tag><package>xserver-common-v3</package> 
+<item>
+Files and utilities common to XFree86 3.x X servers (X3)
+
+<tag><package>xserver-*</package> 
+<item>
+Supplimental X3 server packages to support hardware not supported by
+the new X4 server for whatever reason.  Some old ATI mach64 are not 
+supported in X4, some video card hangs badly in woody version of X4, etc.
+(For available packages, use <tt>apt-cache search xserver-|less</tt>.
+All of these X3 servers depend on <package>xserver-common-v3</package>.)
+</taglist>
 <p>
-To enable hardware detection in the XFree86 package configuration stage,
-install the packages <package>discover</package>, <package>mdetect</package>,
-and <package>read-edid</package> prior to installing XFree86.
-<!-- I'm not sure what exactly these packages do since I configured X without -->
-<!-- the help of these packages.  All I know is that dexconf will try to use -->
-<!-- them if available.  Anyone else have anything to add? -->
+For most cases, <package>x-window-system</package> is the package to install.
+(If you want console login, be sure to disable <package>xdm</package>
+as described in <ref id="no-x-start">.)
+
+<sect1 id="hdetect-x">Hardware detection packages for X server
 <p>
-With the assistance of hardware detection, XFree86's configuration script,
-<prgn>dexconf</prgn>, should create a useable
-<file>/etc/X11/XF86Config-4</file> file.  To add user customizations, do not
-edit the file between the text:
+To enable hardware detection during the X configuration stage,
+install the following packages prior to installing X system.:
+<list>
+<item><package>discover</package> &mdash; hardware identification system.
+<item><package>mdetect</package> &mdash; mouse device autodetection tool.
+<item><package>read-edid</package> &mdash; hardware information-gathering 
+ tool for VESA PnP monitors.
+</list>
+
+<sect1 id="xsrvr">X server
+<p>
+See <manref name="XFree86" section="1x"> for X server information.
+<p>
+Invoke X server from a local console:
+<example>
+$ startx -- :&lt;display&gt; <var>vtXX</var>
+e.g.:
+$ startx -- :1 vt8 -bpp 16
+... start on vt8 connected to localhost:1 with 16 bpp mode
+</example>
+Arguments given after <tt>--</tt> are for the X server.
+<p>
+Note, when using a <file>~/.xserverrc</file> script to customize X
+server start up process, be sure to  <tt>exec</tt> the real X server.
+Failing to do this can make the X server slow to start and exit. For
+example:
+<example>
+#!/bin/sh
+exec /usr/bin/X11/X -dpi 100 -nolisten tcp
+</example>
+
+<sect2 id="config-x4">Configure X4 server
+<p>
+To (re-)configure X4 server,
+<example>
+# dpkg-reconfigure --priority=low xserver-common
+# dpkg-reconfigure --priority=low xserver-xfree86
+</example>
+will generate <file>/etc/X11/XF86Config-4</file> file 
+and configure X using script <prgn>dexconf</prgn>.
+
+<sect2 id="config-x3">Configure X3 server
+<p>
+To (re-)configure X3 server,
+<example>
+# dpkg-reconfigure --priority=low xserver-common-v3
+# dpkg-reconfigure --priority=low xserver-mach64
+</example>
+will generate <file>/etc/X11/XF86Config</file> file 
+and configure X using script <prgn>xf86config-v3</prgn>.
+
+<sect2 id="manual-config-x">Manually configure X4 server
+<p>
+To add user customizations, <strong>do not edit the configuration file 
+between the text</strong> (This is X4):
+<!-- FIXME for X3 -->
 <example>
 ### BEGIN DEBCONF SECTION
 [snip]
 ### END DEBCONF SECTION
 </example>
 <p>
-Instead, add the customizations before the text.  For example, to use a custom
+Instead, <strong>add the customizations before the text</strong>.  For example, to use a custom
 video device, add something resembling the following text to the <em>top</em>
 of the file:
 <example>
-  Section "Device"
-      Identifier        "Custom Device"
-      Driver            "ati"
-      Option            "NoAccel"
-  EndSection
+Section "Device"
+  Identifier        "Custom Device"
+  Driver            "ati"
+  Option            "NoAccel"
+EndSection
 
-  Section "Screen"
-      Identifier  "Custom Screen"
-      Device      "Custom Device"
-      Monitor     "Generic Monitor"
-      DefaultDepth 24
-      Subsection "Display"
-          Depth       8
-          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
-      EndSubsection
-      Subsection "Display"
-          Depth       16
-          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
-      EndSubsection
-      Subsection "Display"
-          Depth       24
-          Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
-      EndSubsection
-  EndSection
+Section "Screen"
+  Identifier  "Custom Screen"
+  Device      "Custom Device"
+  Monitor     "Generic Monitor"
+  DefaultDepth 24
+  Subsection "Display"
+    Depth       8
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+  Subsection "Display"
+    Depth       16
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+  Subsection "Display"
+    Depth       24
+    Modes       "1280x960" "1152x864" "1024x768" "800x600" "640x480"
+  EndSubsection
+EndSection
 
-  Section "ServerLayout"
-      Identifier        "Custom"
-      Screen            "Custom Screen"
-      InputDevice       "Generic Keyboard" "CoreKeyboard"
-      InputDevice       "Configured Mouse" "CorePointer"
-  EndSection
+Section "ServerLayout"
+    Identifier        "Custom"
+    Screen            "Custom Screen"
+    InputDevice       "Generic Keyboard" "CoreKeyboard"
+    InputDevice       "Configured Mouse" "CorePointer"
+EndSection
 </example>
 
-<sect1 id="reconf-x">Reconfigure XFree86
+<sect1 id="xclnt">X client
 <p>
-Re-configure X by:
-<list compact>
-<item><tt>dpkg-reconfigure --priority=low xserver-xfree86   # X4</tt>
-<item><tt>dpkg-reconfigure --priority=low xserver-common-v3 # X3</tt>
-</list>
+Most X client programs can be started with a command like this:
+<example>
+client $ xterm -geometry 80x24+30+200 -fn 6x10 -display <var>hostname</var>:0 &amp;
+</example>
+Here, the optional command-line arguments mean:
+<list>
+<item><tt>-geometry <var>WIDTH</var>x<var>HEIGHT</var>+<var>XOFF</var>+<var>YOFF</var></tt>: 
+the initial size and location of the window.
 
-<sect1 id="custom-x">Customize X session
+<item><tt>-fn <var>FONTNAME</var></tt>: the font to use for displaying text.
+ <tt><var>FONTNAME</var></tt> can be:
+<list compact>
+<item>a14: Normal size font
+<item>a24: Large size font
+<item>... (check available fonts with <tt>xlsfont</tt>.)
+</list>
+<item><tt>-display <var>displayname</var></tt>: the name of the X server to use. 
+ <tt><var>displayname</var></tt> can be:
+<list compact>
+<item><tt><var>hostname</var>:<var>D.S</var></tt> means screen <tt><var>S</var></tt> on display
+ <tt><var>D</var></tt> of host <tt><var>hostname</var></tt>; the X server for this display is
+listening to TCP port 6000+D.
+
+<item><tt><var>host</var>/unix:<var>D.S</var></tt> means screen <tt><var>S</var></tt> on display 
+<var>D</var> of host <tt><var>host</var></tt>; the X server for this display is 
+listening to UNIX domain socket
+<file>/tmp/.X11-unix/XD</file> (so it's only reachable from <tt><var>host</var></tt>).
+
+<item><tt><var>:D.S</var></tt> is equivalent to 
+<tt><var>host</var>/unix:<var>D.S</var></tt>, where <tt><var>host</var></tt> is the local hostname.
+</list>
+</list>
 <p>
-X session can be started by:
+The default <tt><var>displayname</var></tt> for the X client program (application side) 
+can be set by the DISPLAY environment variable.  For example, prior to 
+running an X client program, executing one of the following commands 
+achieves this:
+<example>
+$ export DISPLAY=:0 
+        # The default, local machine using the first X screen
+$ export DISPLAY=<var>hostname.fulldomain.name</var>:0.2
+$ export DISPLAY=localhost:0
+</example>
+Its start up can be customized by <file>~/.xinitrc</file>.  For example:
+<example>
+xrdb -load $HOME/.Xresources
+xsetroot -solid gray &amp;
+xclock -g 50x50-0+0 -bw 0 &amp;
+xload -g 50x50-50+0 -bw 0 &amp;
+xterm -g 80x24+0+0 &amp;
+xterm -g 80x24+0-0 &amp;
+twm
+</example>
+As described in <ref id="custom-x">, this overrides everything normal 
+execution of Xsession does when started from <prgn>startx</prgn>.
+Use this approach only as the last resort.
+</sect1>
+
+<sect1 id="x-session">X session
+<p>
+X session (X server + X client) can be started by:
 <list compact>
 <item><prgn>startx</prgn>: wrapper script command for <prgn>initx</prgn> to
       start X server and client from Linux character console.   If
@@ -651,6 +784,9 @@ X session can be started by:
       client, and to control login from GUI screen.  
       <file>/etc/X11/Xsession</file> is directly executed.
 </list>
+The console can be made available as <ref id="no-x-start">.
+
+<sect2 id="custom-x">Custom X session
 <p>
 The default start up script <file>/etc/X11/Xsession</file> is 
 effectively a combination of
@@ -727,142 +863,93 @@ section="1x">.
 User customized keymaps and pointer button mappings in X can be specified 
 in <file>~/.xmodmaprc</file>.  See <manref name="xmodmap" section="1x">.
 
-<sect1 id="s-w-manager">Start a particular X session/window manager
+<sect2 id="s-w-manager">Start a particular X session/window manager
 <p>
 Following the principle described at <ref id="custom-x">,
-user specific X session/window manager can be activated by setting
-the content at the end of <file>~/.xsession</file> file as follows.
+user specific X session/window manager can be activated by installing
+package indicated and setting the content at the end of 
+<file>~/.xsession</file> file as follows.
+(I like blackbox for the simple style and the fast speed.):
 
 <list>
-<item>default X session manager (See <ref id="alternatives">.)
-<example>
-exec /usr/bin/x-session-manager
-</example>
-
-<item>default X window manager (See <ref id="alternatives">.)
-<example>
-exec /usr/bin/x-window-manager
-</example>
-
-<item>GNOME session manager
-<example>
-exec /usr/bin/gnome-session
-</example>
-
-<item>KDE session manager
-<example>
-exec /usr/bin/kde2
-</example>
-
-<item>Windowmaker window manager
-<example>
-exec /usr/bin/wmaker
-</example>
-
-<item>FVWM2 window manager
-<example>
-exec /usr/bin/fvwm2
-</example>
-
-<item>Blackbox window manager
-<example>
-exec /usr/bin/blackbox
-</example>
-
-<item>...
-<example>
-exec /usr/bin/<var>any-window-manager</var>
-</example>
-
+<item>default X session manager. 
+<list compact>
+<item>See <ref id="alternatives">.
+<item><tt>exec /usr/bin/x-session-manager</tt>
+</list>
+<item>default X window manager. 
+<list compact>
+<item>See <ref id="alternatives">.
+<item><tt>exec /usr/bin/x-window-manager</tt>
 </list>
 
-<sect1 id="xsrvr">X server
-<p>
-See <manref name="XFree86" section="1x"> for X server information.
-<p>
-To (re)configure X4 in Woody, run:
-<example>
-# dpkg-reconfigure --p=low xserver-xfree86
-</example>
-<p>
-Invoke X server from a local console:
-<example>
-$ startx -- :&lt;display&gt; <var>vtXX</var>
-e.g.:
-$ startx -- :1 vt8 -bpp 16
-... start on vt8 connected to localhost:1 with 16 bpp mode
-</example>
-Arguments given after <tt>--</tt> are for the X server.
-<p>
-Note, when using a <file>~/.xserverrc</file> script to customize X
-server start up process, be sure to  <tt>exec</tt> the real X server.
-Failing to do this can make the X server slow to start and exit. For
-example:
-<example>
-#!/bin/sh
-exec /usr/bin/X11/X -dpi 100 -nolisten tcp
-</example>
-</sect1>
+<item>GNOME session manager. (loaded)
+<list compact>
+<item>Install package: <package>gnome-session</package>
+<item><tt>exec /usr/bin/gnome-session</tt>
+</list>
 
-<sect1 id="xclnt">X client
+<item>KDE session manager. (loaded)
+<list compact>
+<item>Install package: <package>kdebase</package> (or 
+<package>kdebase3</package> for KDE3)
+<item><tt>exec /usr/bin/kde2</tt>
+</list>
+
+<item>Blackbox window manager. (lightweight).
+<list compact>
+<item>Install package: <package>blackbox</package>
+<item><tt>exec /usr/bin/blackbox</tt>
+</list>
+
+<item>IceWM window manager. (lightweight)
+<list compact>
+<item>Install package: <package>icewm</package>
+<item><tt>exec /usr/bin/X11/icewm</tt>
+</list>
+
+<item>FVWM2 vitrual window manager. 
+<list compact>
+<item>Install package: <package>fvwm</package>
+<item><tt>exec /usr/bin/fvwm2</tt>
+</list>
+
+<item>Windowmaker window manager.
+<list compact>
+<item>Install package: <package>wmaker</package>
+<item><tt>exec /usr/bin/wmaker</tt>
+</list>
+
+<item>Enlightenment window manager (loaded).
+<list compact>
+<item>Install package: <package>enlightenment</package>
+<item><tt>exec /usr/bin/enlightenment</tt>
+</list>
+
+</list>
+See <url id="&windomanagerhome;" name="Window Managers for X">.
+
+
+<sect2 id="kde-gnome">Setup KDE/GNOME environment
 <p>
-Most X client programs can be started with a command like this:
-<example>
-client $ xterm -geometry 80x24+30+200 -fn 6x10 -display <var>hostname</var>:0 &amp;
-</example>
-Here, the optional command-line arguments mean:
+In order to setup full KDE/GNOME environment, following 
+metapackage are  useful:
 <list>
-<item><tt>-geometry <var>WIDTH</var>x<var>HEIGHT</var>+<var>XOFF</var>+<var>YOFF</var></tt>: 
-the initial size and location of the window.
-
-<item><tt>-fn <var>FONTNAME</var></tt>: the font to use for displaying text.
- <tt><var>FONTNAME</var></tt> can be:
-<list compact>
-<item>a14: Normal size font
-<item>a24: Large size font
-<item>... (check available fonts with <tt>xlsfont</tt>.)
+<item>KDE: install<package>kde</package> package
+<item>GNOME: install<package>gnome</package> package
 </list>
-<item><tt>-display <var>displayname</var></tt>: the name of the X server to use. 
- <tt><var>displayname</var></tt> can be:
-<list compact>
-<item><tt><var>hostname</var>:<var>D.S</var></tt> means screen <tt><var>S</var></tt> on display
- <tt><var>D</var></tt> of host <tt><var>hostname</var></tt>; the X server for this display is
-listening to TCP port 6000+D.
-
-<item><tt><var>host</var>/unix:<var>D.S</var></tt> means screen <tt><var>S</var></tt> on display 
-<var>D</var> of host <tt><var>host</var></tt>; the X server for this display is 
-listening to UNIX domain socket
-<file>/tmp/.X11-unix/XD</file> (so it's only reachable from <tt><var>host</var></tt>).
-
-<item><tt><var>:D.S</var></tt> is equivalent to 
-<tt><var>host</var>/unix:<var>D.S</var></tt>, where <tt><var>host</var></tt> is the local hostname.
-</list>
-</list>
+Installing these packages with tools which handle <tt>recommends</tt>,
+such as <prgn>dselect</prgn> and <prgn>aptitudes</prgn>, provides you 
+with richer choices of softwares than just installing these with 
+<prgn>apt-get</prgn>.
 <p>
-The default <tt><var>displayname</var></tt> for the X client program (application side) 
-can be set by the DISPLAY environment variable.  For example, prior to 
-running an X client program, executing one of the following commands 
-achieves this:
-<example>
-$ export DISPLAY=:0 
-        # The default, local machine using the first X screen
-$ export DISPLAY=<var>hostname.fulldomain.name</var>:0.2
-$ export DISPLAY=localhost:0
-</example>
-Its start up can be customized by <file>~/.xinitrc</file>.  For example:
-<example>
-xrdb -load $HOME/.Xresources
-xsetroot -solid gray &amp;
-xclock -g 50x50-0+0 -bw 0 &amp;
-xload -g 50x50-50+0 -bw 0 &amp;
-xterm -g 80x24+0+0 &amp;
-xterm -g 80x24+0-0 &amp;
-twm
-</example>
-As described in <ref id="custom-x">, this overrides everything normal 
-execution of Xsession does when started from <prgn>startx</prgn>.
-Use this approach only as the last resort.
-</sect1>
+If you want console login, be sure to disable X display managers,
+such as <package>kdm</package>, <package>gdm</package>, and 
+<package>wdm</package>, which may be pulled-in by the dependencied, 
+as described in <ref id="no-x-start">.
+<p>
+If you want to have GNOME as the system default over KDE, make sure to
+configure <prgn>x-session-manager</prgn> as <ref id="alternatives">.
 
 <sect1 id="xtcp">TCP/IP connection to X
 <p>
@@ -1663,7 +1750,7 @@ if [ -z "$XAUTHORITY" ]; then
 fi
 
 # Japanese locale as default, C locale as backup
-LANG=ja_JP.eucJP:C     
+LANG=ja_JP.eucJP     
 export LANG
 # make sure to over write en_US.ISO-8859-1 used in console
 LC_CTYPE=ja_JP.eucJP

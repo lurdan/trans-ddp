@@ -1,0 +1,105 @@
+#!/bin/sh
+# POSIX complient script to search browser
+set -e
+#set -x
+
+# list of usable language (Order matters, last one win)
+LANGEXLIST="es it fr en"
+BDOCUMENTSTEM="/usr/share/doc/Debian/reference/reference"
+CBROWSERLIST="/usr/bin/links /usr/bin/w3m /usr/bin/lynx"
+XBROWSERLIST="/usr/bin/mozilla /usr/bin/X11/galeon /usr/bin/gnome-help-browser /usr/bin/amaya /usr/bin/X11/netscape"
+
+#echo check browsers environment var exist or not >&2
+# Sanity check
+if [ $BROWSER ] && (type $BROWSER >/dev/null 2>/dev/null); then
+  echo "$0: WWW browser (BROWSER=$BROWSER) does not exist." >&2
+  exit 1
+fi
+#echo check browsers exist or not >&2
+# X environment
+if [ "$DISPLAY" ]; then
+  echo check X browsers exist or not in X environment >&2
+  if ! [ $BROWSER ]; then
+    for BROWSER in $XBROWSERLIST; do
+      if [ -x $BROWSER ]; then
+        break
+      fi
+    done
+  fi
+  if ! [ $BROWSER ]; then
+    for BROWSER in $CBROWSERLIST; do
+      if [ -x $BROWSER ]; then
+	BROWSER="/usr/bin/x-terminal-emulator -e $BROWSER"
+        break
+      fi
+    done
+  fi
+
+# Console environment
+fi
+if ! [ $BROWSER ]; then
+  echo check console browsers exist or not >&2
+  for BROWSER in $CBROWSERLIST; do
+    if [ -x $BROWSER ]; then
+      break
+    fi
+  done
+fi
+
+if [ $LC_MESSAGES ]; then
+ LANGEX=${LC_MESSAGES%%_*}i
+elif [ $LANG ]; then
+ LANGEX=${LANG%%_*}
+else
+ LANGEX="en"
+fi
+
+if [ "$LANGEX" == "C" ] || [ "$LANGEX" == "POSIX" ] ; then
+ LANGEX="en"
+fi
+
+if [ "$LANGEX" == "pt" ] ; then
+ LANGEX="pt-br"
+fi
+
+unset LANGX
+# First perfect match
+for LANGEXX in $LANGEXLIST; do
+  if [ "$LANGEXX" == "$LANGEX" ] &&
+     [ -e "$BDOCUMENTSTEM.$LANGEXX.html" ] ; then
+    LANGX=$LANGEXX
+    echo "$BDOCUMENTSTEM.$LANGEiXX.html exist :-)"
+    break
+  fi
+done
+
+# Second, best available
+if ! [ "$LANGX" ] ; then
+  for LANGEXX in $LANGEXLIST; do
+    if [ -e "$BDOCUMENTSTEM.$LANGEXX.html" ] ; then
+      LANGX=$LANGEXX
+      echo "$BDOCUMENTSTEM.$LANGEXX.html exist :-)"
+    fi
+  done
+fi
+
+if ! [ "$LANGX" ] ; then
+  echo "$0: Data file with (LANGUAGE=$$LANGEX) does not exist." >&2
+ exit 1
+fi
+
+# Default document to look.
+BDOCUMENT="file://$BDOCUMENTSTEM.$LANGX.html"
+
+# start browser or search engine (message to stderr)
+echo -n "Starting " >&2
+basename $BROWSER >&2
+
+if [ $1 ]; then
+  echo $BROWSER $1 >&2
+  $BROWSER $1
+else
+  echo $BROWSER $BDOCUMENT >&2
+  $BROWSER $BDOCUMENT
+fi
+
