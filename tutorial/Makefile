@@ -1,53 +1,88 @@
+# Makefile for a manual in the Debian Documentation Project manuals.sgml
+# tree.
 
+# The directory in which this makefile resides must also contain a file
+# called <directoryname>.sgml, which is the top-level file for the manual
+# in this directory.
 
-all : debian-tutorial.tar.gz debian-tutorial.text.gz debian-tutorial.dvips.gz debtut.txt
+# What is the current manual's name
+# MANUAL :=	$(shell basename $(shell pwd))
+MANUAL :=	debian-tutorial
 
-outputs : debian-tutorial.text debian-tutorial.html debian-tutorial.dvips
+# Where are we publishing to?
+#  (this can be overriden by a higher level makefile)
+PUBLISHDIR :=	../../../public_html/manuals.html
 
-debian-tutorial.dvips : debian-tutorial.sgml
-	debiandoc2dvips debian-tutorial.sgml
+# What do we want by default?
+all:		publish
 
-debian-tutorial.text : debian-tutorial.sgml
-	debiandoc2text debian-tutorial.sgml
+# This target installs the generated HTML in the published directory.
+publish:	$(MANUAL).html/index.html
+# 		fail if there is no PUBLISHDIR
+		[ -d $(PUBLISHDIR) ] || exit 1
+		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
+			$(PUBLISHDIR)/$(MANUAL)/
 
-debian-tutorial.html : debian-tutorial.sgml
-	debiandoc2html debian-tutorial.sgml
+$(MANUAL).html/index.html:	$(wildcard *.sgml)
+	debiandoc2html $(MANUAL).sgml
 
-debian-tutorial.tar : ChangeLog outputs COPYING
-	chmod 644 debian-tutorial.text debian-tutorial.dvips ChangeLog
-	chmod 755 debian-tutorial.html
-	chmod 644 debian-tutorial.html/*
-	tar --create --file=debian-tutorial.tar debian-tutorial.dvips debian-tutorial.text debian-tutorial.html debian-tutorial.sgml ChangeLog COPYING
-	chmod 644 debian-tutorial.tar
+# ensure our SGML is valid
+#   (add this to $(MANUAL).html rule to prevent building if not)
+validate:
+	nsgmls -gues $(MANUAL).sgml
 
-debian-tutorial.tar.gz : debian-tutorial.tar
-	gzip --force debian-tutorial.tar	
+# Old targets, modified by joy to replace actual name with variable,
+# and other minor stuff.
 
-debian-tutorial.dvips.gz : debian-tutorial.dvips
-	cp -f debian-tutorial.dvips debian-tutorial.dvips.tmp
-	gzip --force debian-tutorial.dvips.tmp
-	mv -f debian-tutorial.dvips.tmp.gz debian-tutorial.dvips.gz	
-	chmod 644 debian-tutorial.dvips.gz
+all-old : $(MANUAL).tar.gz $(MANUAL).text.gz $(MANUAL).dvips.gz debtut.txt
 
-debian-tutorial.text.gz : debian-tutorial.text
-	cp -f debian-tutorial.text debian-tutorial.text.tmp
-	gzip --force debian-tutorial.text.tmp
-	mv -f debian-tutorial.text.tmp.gz debian-tutorial.text.gz	
-	chmod 644 debian-tutorial.text.gz	
+outputs : $(MANUAL).text $(MANUAL).html $(MANUAL).dvips
 
-debtut.txt : debian-tutorial.text
-	cp -f debian-tutorial.text debtut.txt
+$(MANUAL).dvips : $(MANUAL).sgml
+	debiandoc2dvips $(MANUAL).sgml
+
+$(MANUAL).text : $(MANUAL).sgml
+	debiandoc2text $(MANUAL).sgml
+
+$(MANUAL).html-old : $(MANUAL).sgml
+	debiandoc2html $(MANUAL).sgml
+
+$(MANUAL).tar : ChangeLog outputs COPYING
+	chmod 644 $(MANUAL).text $(MANUAL).dvips ChangeLog
+	chmod 755 $(MANUAL).html
+	chmod 644 $(MANUAL).html/*
+	tar --create --file=$(MANUAL).tar $(MANUAL).dvips $(MANUAL).text $(MANUAL).html $(MANUAL).sgml ChangeLog COPYING
+	chmod 644 $(MANUAL).tar
+
+$(MANUAL).tar.gz : $(MANUAL).tar
+	gzip --force $(MANUAL).tar
+
+$(MANUAL).dvips.gz : $(MANUAL).dvips
+	cp -f $(MANUAL).dvips $(MANUAL).dvips.tmp
+	gzip --force $(MANUAL).dvips.tmp
+	mv -f $(MANUAL).dvips.tmp.gz $(MANUAL).dvips.gz	
+	chmod 644 $(MANUAL).dvips.gz
+
+$(MANUAL).text.gz : $(MANUAL).text
+	cp -f $(MANUAL).text $(MANUAL).text.tmp
+	gzip --force $(MANUAL).text.tmp
+	mv -f $(MANUAL).text.tmp.gz $(MANUAL).text.gz	
+	chmod 644 $(MANUAL).text.gz	
+
+debtut.txt : $(MANUAL).text
+	cp -f $(MANUAL).text debtut.txt
 	todos debtut.txt
 	chmod 644 debtut.txt
 
 clean : 
-	/bin/rm -r debian-tutorial.html
-	/bin/rm debian-tutorial.text
-	/bin/rm debian-tutorial.dvips
-	/bin/rm debian-tutorial.text.gz
-	/bin/rm debian-tutorial.dvips.gz
+	/bin/rm -rf $(MANUAL).html
+	/bin/rm $(MANUAL).text
+	/bin/rm $(MANUAL).dvips
+	/bin/rm $(MANUAL).text.gz
+	/bin/rm $(MANUAL).dvips.gz
 
+distclean:	clean
 
-
-
-
+.PHONY: all publish clean distclean validate
