@@ -31,19 +31,39 @@
   (if (equal? %visual-acuity% "large-type")
       3cm 
       2cm))
-;; TODO: DOESN'T WORK :-(
 (define bop-footnotes
   ;; Make "bottom-of-page" footnotes?
   #t)
+
 (define %section-autolabel% 
   ;; Are sections enumerated?
-  #f)
+  #t)
+;; Returns the depth of auto TOC that should be made at the nd-level
+;(define (toc-depth nd)
+;  (if (string=? (gi nd) (normalize "book"))
+;      3
+;      (if (string=? (gi nd) (normalize "article"))
+;          3
+;          1)))
+
 (define %show-comments%
   ;; Display Comment elements?
   #f)
 (define %hyphenation%
   ;; Allow automatic hyphenation?
   #t)
+
+(define (article-titlepage-recto-elements)
+  (list (normalize "title")
+        (normalize "subtitle")
+        (normalize "authorgroup")
+        (normalize "author")
+        (normalize "releaseinfo")
+        (normalize "copyright")
+        (normalize "pubdate")
+        (normalize "revhistory")
+        (normalize "legalnotice")
+        (normalize "abstract")))
 
 (element debianpackage
   (let (
