@@ -21,7 +21,6 @@ SUBDIRS	:=	\
 		programmer		\
 		project-history 	\
 		quick-reference		\
-		release-notes	 	\
 		repository-howto	\
 		securing-howto		\
 		system-administrator 	\
