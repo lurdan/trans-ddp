@@ -99,7 +99,7 @@ clean:
 	      developers-reference*.idx developers-reference*.log \
 	      developers-reference*.out developers-reference*.dvi
 	rm -f version.ent
-	rm -f `find . -name "*~"`
+	rm -f `find . -name "*~" -o -name "*.bak"`
 	rm -f *.validate
 
 developers-reference$(SRCEXT).sgml: version.ent common.ent
