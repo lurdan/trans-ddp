@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.14 $"  -->
+<!-- CVS revision of this document "$Revision: 1.15 $"  -->
 
 <chapt id="tips"> &debian; tips
 
@@ -44,6 +44,19 @@ field in the password file so that it is empty.  Now the system can be
 rebooted and you can log on as root without a password.  
 When booting into runlevel 1, the Debian (at least after potato) 
 requires a password which some older distribution did not.
+<p>
+It is a good idea to have a minimum editor in <file>/bin</file> 
+in case <file>/usr</file> is not accessible (see <ref id="bin-editor">).
+<p>
+Also consider installing <package>sash</package> package.  
+When the system becomes unbootable, execute:
+<example>
+boot: Linux init=/bin/sash
+</example>
+<prgn>sash</prgn> serves as an interactive substitute for 
+<prgn>sh</prgn> even when <file>/bin/sh</file> is unusable.  
+It's statically linked, and inludes many standard
+utilities as builtins (type "help" at the prompt for a reference list).
 </sect1>
 
 <sect1>"I forgot the root password!" (2)
@@ -367,6 +380,7 @@ This will set system and hardware time to MM/DD hh:mm, CCYY.
 Times are displayed in local time but hardware time uses UTC.
 <p>
 Set system clock to the correct time automatically via a remote server:
+<!-- [XXX FIXME XXX] some what broken ntpdate -->
 <example>
 # ntpdate &lt;server&gt;
 </example>
@@ -408,9 +422,9 @@ echo "set bell-style none"&gt;&gt; ~/.inputrc:
 <sect1>Error messages on the console screen
 <p>
 In order to quiet on-screen error messages, the first place to check is 
-<file>/etc/init.d/klogd</file>.  Set <tt>KLOGD="-c 4"</tt> in this script and 
+<file>/etc/init.d/klogd</file>.  Set <tt>KLOGD="-c <var>3</var>"</tt> in this script and 
 run <tt>/etc/init.d/klogd restart</tt>. An alternative method is to run 
-<tt>dmesg -n1</tt>.  
+<tt>dmesg -n<var>3</var></tt>.  
 <p>
 Here error levels mean:
 <list compact>
@@ -424,8 +438,34 @@ Here error levels mean:
 <item>7: KERN_DEBUG,   debug-level messages
 </list>
 <p>
+If one useless error message bothers you a lot, consider making a 
+trivial kernel patch like <file>shutup-abit-bp6</file> available 
+in the <url id="&examples;" name="examples subdirectory">.
+<p>
 Another place to look may be <file>/etc/syslog.conf</file>; check to see
 whether any messages are logged to a console device.
+</sect1>
+
+<sect1>Set console to the correct type
+<p>
+Console screens in in Unix-like systems are usually accessed using 
+(n)curses library routines.  These give the user a terminal-independent
+method of updating character screens with reasonable optimization.
+See <manref name="ncurses" section="3X"> and
+<manref name="terminfo" section="5">.
+<p>
+On &debian; system, there are quite a lot of pre-defined entries:
+<example>
+$ toe | less                  # all entries
+$ toe /etc/terminfo/ | less   # user reconfigurable entries
+</example>
+Export your selection as a environment variable <tt>TERM</tt>.
+<p>
+If terminfo entry for xterm doesn't work with some non-Debian xterms,
+set your terminal type from "xterm" to one of the feature-limited 
+versions such as "xterm-r6" when you log in to a Debian system remotely.  
+See <file>&f-libncurse;</file> for more.  
+"dumb" is the lowest common denominator for terminfo.
 </sect1>
 
 <sect1>Get the console back to a sane state
@@ -500,7 +540,7 @@ Very useful when copying configurations off the Web.
 <example>
 $ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
 </example>
-<prgn>links<prgn> and </prgn>w3m</prgn> can be used here too with slight
+<prgn>links</prgn> and <prgn>w3m</prgn> can be used here too with slight
 difference in rendering.
 <p>
 If this is a mailing list archive, use <prgn>munpack</prgn> to obtain mime contents from text.
@@ -513,14 +553,15 @@ The following will read a Web page into a PostScript file/printer.
 $ apt-get install html2ps
 $ html2ps <var>URL</var> | lpr
 </example>
-See <ref id="lprlpd">.
+See <ref id="lprlpd">.  Also check <prgn>a2ps</prgn> and 
+<prgn>mpage</prgn> packages for creating PostScript files.
 </sect1>
 
 <sect1>Time a command
 <p>
 Display time used by a process.
 <example>
-# time <var>some-command</var> >/dev/null
+# time <var>some-command</var> &gt;/dev/null
 real    0m0.035s       # time on wall clock (elapsed real time)
 user    0m0.000s       # time in user mode
 sys     0m0.020s       # time in kernel mode
@@ -575,26 +616,54 @@ $ echo '<var>command -args</var>'| at 3:40 monday
 
 <sect1>Console switching with <prgn>screen</prgn>
 <p>
-The <prgn>screen</prgn> program allows you to run multiple virtual terminals, each with
-its own interactive shell, on a single physical terminal or terminal emulation
+The <prgn>screen</prgn> program allows you to run <strong>multiple</strong> virtual terminals, each with
+its own interactive shell, on a <strong>single</strong> physical terminal or terminal emulation
 window. Even if you use Linux virtual consoles or multiple xterm windows, it
-is worth exploring <prgn>screen</prgn> for its rich feature set, which
-includes scrollback history, copy-and-paste, output logging, digraph entry,
-and the ability to detach an entire <prgn>screen</prgn> session from your
-terminal and reattach it later. If you frequently log on to a Linux machine
+is worth exploring <prgn>screen</prgn> for its rich <strong>feature set</strong>, which
+includes
+<list compact>
+<item>scrollback history, 
+<item>copy-and-paste, 
+<item>output logging, 
+<item>digraph entry, and the 
+<item>ability to <strong>detach</strong> an entire <prgn>screen</prgn> session from your
+terminal and reattach it later. 
+</list>
+
+<sect2>Remote access scenario
+<p>
+If you frequently log on to a Linux machine
 from a remote terminal or using a VT100 terminal program, <prgn>screen</prgn>
-will make your life much easier.
+will make your life much easier with the <strong>detach</strong> feature.
+<p>
+<enumlist compact>
+<item>You are
+logged in via a dialup connection, and are running a complex
+<prgn>screen</prgn> session with editors and other programs open in several
+windows. 
+<item>Suddenly you need to leave your terminal, but you don't want to lose
+your work by hanging up. 
+<item>Simply type <tt>^A d</tt> to <strong>detach</strong> the session, then
+log out. (Or, even quicker, type <tt>^A DD</tt> to have <prgn>screen</prgn>
+detach and log you out itself.) 
+<item>When you log on again later, enter the command
+<tt>screen -r</tt>, and <prgn>screen</prgn> will magically <strong>reattach</strong> all the windows
+you had open. 
+</enumlist>
+
+<sect2>Typical commands of <prgn>screen</prgn>
 <p>
 Once you start <prgn>screen</prgn>, all keyboard input is sent to your current
 window except for the command keystroke, by default <tt>^A</tt>. All
 <prgn>screen</prgn> commands are entered by typing <tt>^A</tt> plus a single
-key [plus any parameters]. Useful commands:
+key [plus any parameters]. 
+Useful commands:
 <example>
 ^A ?     show a help screen (display key bindings)
 ^A c     create a new window and switch to it
 ^A n     go to next window
 ^A p     go to previous window
-^A 0     go to window number 0
+^A <var>0</var>     go to window number <var>0</var>
 ^A w     show a list of windows
 ^A a     send a Ctrl-A to current window as keyboard input
 ^A h     write a hardcopy of current window to file 
@@ -603,29 +672,23 @@ key [plus any parameters]. Useful commands:
 ^A d     detach screen session from the terminal
 ^A DD    detach screen session and log out
 </example>
-<prgn>screen</prgn>'s "detach" feature is very powerful. Suppose you are
-logged in via a dialup connection, and are running a complex
-<prgn>screen</prgn> session with editors and other programs open in several
-windows. Suddenly you need to leave your terminal, but you don't want to lose
-your work by hanging up. Simply type <tt>^A d</tt> to detach the session, then
-log out. (Or, even quicker, type <tt>^A DD</tt> to have <prgn>screen</prgn>
-detach and log you out itself.) When you log on again later, enter the command
-<tt>screen -r</tt>, and <prgn>screen</prgn> will magically reattach all the windows
-you had open. 
-<p>
 This is only a small subset of <prgn>screen</prgn>'s commands and features. If
 there's something you want <prgn>screen</prgn> to be able to do, chances are
-it can! "man screen" for details.
+it can! See <manref name="screen" section="1"> for details.
+
+<sect2>Backspace and/or Ctrl-H in <prgn>screen</prgn> session
 <p>
-<em>Note:</em> If you find that backspace and/or Ctrl-H do not work properly
-when you are running <prgn>screen</prgn>, edit <file>/etc/screenrc,</file>
+If you find that backspace and/or Ctrl-H do not work properly
+when you are running <prgn>screen</prgn>, edit <file>/etc/screenrc</file>,
 find the line reading
-<example>
+<example compact>
 bindkey -k kb stuff "\177"
 </example>
 and comment it out (i.e., add "#" as the first character). 
 
-<![%FIXME[<p>=== Add "xmove" for X if desired ===]]>
+<sect2>Equivalent program of <prgn>screen</prgn> for X
+<p>
+Check out <prgn>xmove</prgn>.  See <manref name="xmove" section="1">.
 
 </sect1>
 
