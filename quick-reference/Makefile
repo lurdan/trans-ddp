@@ -117,65 +117,7 @@ pdf1:  $(PDFS1)
 pdf2:  $(PDFS2)
 pdf:  pdf1 pdf2
 tar:  $(MANUAL1).tar.gz
-
-publish-index1:
-	test -d $(PUBLISHDIR)/$(MANUAL1) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)
-ifeq ("$(BUILD_TYPE)", "web")
-	# Make index page for web
-	@{ \
-	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
-	echo "<html>" ;\
-	echo "<head>" ;\
-	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
-	echo "<title>Debian Reference</title>" ;\
-	echo "</head>" ;\
-	echo "<body>" ;\
-	echo "<hr>" ;\
-	echo "<h1>Debian Reference</h1>" ;\
-	echo "<hr>" ;\
-	echo "<dl>" ;\
-	} > $(PUBLISHDIR)/$(MANUAL1)/index.html
-	@{$(foreach lang,$(LANGS1), \
-	 . makeindexhtml "$(lang)" "$(MANUAL1)" ; ) } >> $(PUBLISHDIR)/$(MANUAL1)/index.html 
-	@{ \
-	echo "</dl>" ;\
-	echo "</body>" ;\
-	echo "</html>" ;\
-	} >> $(PUBLISHDIR)/$(MANUAL1)/index.html
-endif
-
-publish-index2:
-	test -d $(PUBLISHDIR)/$(MANUAL2) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
-ifeq ("$(BUILD_TYPE)", "web")
-	# Make index page for web
-	@{ \
-	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
-	echo "<html>" ;\
-	echo "<head>" ;\
-	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
-	echo "<title>Debian Quick Reference</title>" ;\
-	echo "</head>" ;\
-	echo "<body>" ;\
-	echo "<hr>" ;\
-	echo "<h1>Debian Quick Reference</h1>" ;\
-	echo "<hr>" ;\
-	echo "<dl>" ;\
-	} > $(PUBLISHDIR)/$(MANUAL2)/index.html
-	@{$(foreach lang,$(LANGS2), \
-	 . makeindexhtml "$(lang)" "$(MANUAL2)" ; ) } >> $(PUBLISHDIR)/$(MANUAL2)/index.html 
-	@{ \
-	echo "</dl>" ;\
-	echo "</body>" ;\
-	echo "</html>" ;\
-	} >> $(PUBLISHDIR)/$(MANUAL2)/index.html
-endif
-
-
-publish: publish-html publish-txt publish-ps publish-pdf \
-	publish-examples publish-index1 publish-index2
-
+publish: publish-html publish-txt publish-ps publish-pdf publish-examples
 publish-all: publish publish-tar
 
 # =================================================================== #
@@ -186,7 +128,7 @@ publish-all: publish publish-tar
 $(MANUAL1).%.ent:
 	echo "<!ENTITY language \"$*\">"                 > $@
 	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
-	echo "<!ENTITY docdate \"`LC_ALL=C date -R`\">" >> $@
+	echo "<!ENTITY docdate \"`LC_ALL=C date '+%Y-%m-%d-%H:%M:%S'`\">" >> $@
 	echo "<!ENTITY docversion \"CVS\">"             >> $@
 	echo "<!ENTITY % f-ref   \"INCLUDE\">" >> $@ 
 	echo "<!ENTITY % q-ref   \"IGNORE\">" >> $@ 
@@ -195,7 +137,7 @@ $(MANUAL1).%.ent:
 $(MANUAL2).%.ent:
 	echo "<!ENTITY language \"$*\">"                 > $@
 	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
-	echo "<!ENTITY docdate \"`LC_ALL=C date -R`\">" >> $@
+	echo "<!ENTITY docdate \"`LC_ALL=C date '+%Y-%m-%d-%H:%M:%S'`\">" >> $@
 	echo "<!ENTITY docversion \"CVS\">"             >> $@
 	# if "Debian Quick Reference" (20 page max)
 	echo "<!ENTITY % f-ref   \"IGNORE\">" >> $@ 
@@ -290,6 +232,30 @@ endif
 ifeq ("$(BUILD_TYPE)", "web")
 	cd $(PUBLISHDIR) ; ln -sf $(MANUAL1) debian-reference
 endif
+# Create index page
+ifeq ("$(BUILD_TYPE)", "web")
+	# Make index page for web
+	@{ \
+	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<html>" ;\
+	echo "<head>" ;\
+	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<title>Debian Reference</title>" ;\
+	echo "</head>" ;\
+	echo "<body>" ;\
+	echo "<hr>" ;\
+	echo "<h1>Debian Reference</h1>" ;\
+	echo "<hr>" ;\
+	echo "<dl>" ;\
+	} > $(PUBLISHDIR)/$(MANUAL1)/index.html
+	@{$(foreach lang,$(LANGS1), \
+	 . makeindexhtml "$(lang)" "$(MANUAL1)" ; ) } >> $(PUBLISHDIR)/$(MANUAL1)/index.html 
+	@{ \
+	echo "</dl>" ;\
+	echo "</body>" ;\
+	echo "</html>" ;\
+	} >> $(PUBLISHDIR)/$(MANUAL1)/index.html
+endif
 
 publish-html2: html2
 # Ugly but until updating all the web pages, needs these symlinks
@@ -305,15 +271,40 @@ endif
 	 install -p -m 644 $(MANUAL2).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL2)/ ;\
 	)
+# Create index page
+ifeq ("$(BUILD_TYPE)", "web")
+	# Make index page for web
+	@{ \
+	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<html>" ;\
+	echo "<head>" ;\
+	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<title>Debian Quick Reference</title>" ;\
+	echo "</head>" ;\
+	echo "<body>" ;\
+	echo "<hr>" ;\
+	echo "<h1>Debian Quick Reference</h1>" ;\
+	echo "<hr>" ;\
+	echo "<dl>" ;\
+	} > $(PUBLISHDIR)/$(MANUAL2)/index.html
+	@{$(foreach lang,$(LANGS2), \
+	 . makeindexhtml "$(lang)" "$(MANUAL2)" ; ) } >> $(PUBLISHDIR)/$(MANUAL2)/index.html 
+	@{ \
+	echo "</dl>" ;\
+	echo "</body>" ;\
+	echo "</html>" ;\
+	} >> $(PUBLISHDIR)/$(MANUAL2)/index.html
+endif
+
 
 publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)
-	test -d $(PUBLISHDIR)/$(MANUAL2) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
-	cd $(PUBLISHDIR)/$(MANUAL2) ; ln -sf ../$(MANUAL1)/$(EXAMPLE) $(EXAMPLE)
 	@install -p -m 644  --preserve-timestamps \
 	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/
+	test -d $(PUBLISHDIR)/$(MANUAL2) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
+	cd $(PUBLISHDIR)/$(MANUAL2) ; rm -f $(EXAMPLE) ; ln -sf ../$(MANUAL1)/$(EXAMPLE) $(EXAMPLE)
 
 
 publish-txt:  publish-txt1 publish-txt2
@@ -389,6 +380,7 @@ publish-pdf2:  pdf2
 	 install -p -m 644 $(MANUAL2).$(lang).pdf \
 	          $(PUBLISHDIR)/$(MANUAL2)/ ;\
 	)
+
 
 publish-tar: $(MANUAL1).tar.gz
 	rm -f $(PUBLISHDIR)/$(MANUAL1).tar.gz
