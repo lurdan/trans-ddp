@@ -194,6 +194,14 @@ publish-files: $(ALLFILES)
 	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
                $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
+# I need to think about where to put these examples.  Top part is not used.
+# 2nd part needs to be adopted to above script.  Now for record only.
+#	$(install_file) --preserve-timestamps \
+#	  $(MANUAL).html/*.html $(PUBLISHDIR)/$(MANUAL)/
+#	$(install_dir) $(PUBLISHDIR)/$(TFILE)/examples
+#	# excuse me for ugly script (skip CVS)
+#	$(install_file) --preserve-timestamps \
+#	  $(MANUAL).html/examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
 
 
 #----[ publish the ps ]--------------------------------------------------------
