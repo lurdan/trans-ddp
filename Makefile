@@ -20,6 +20,7 @@ SUBDIRS	:=	\
 		securing-howto		\
 		system-administrator 	\
 		user			\
+		users-guide
 
 # documents with broken Makefiles will be moved to the bottom
 
