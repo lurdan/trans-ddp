@@ -13,8 +13,9 @@
 # Read local texmf.cnf file
 
 export PATH:=../quick-reference/bin/:${PATH}
-
-export TEXMFCNF=texmf:
+ 
+# Woodys default LaTeX settings need more memory for en PDF
+export TEXMFCNF:=../quick-reference/texmf/:
 
 .SUFFIXES:
 
