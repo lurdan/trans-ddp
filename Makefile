@@ -2,6 +2,7 @@
 
 # live documentation
 SUBDIRS	:=	\
+		apt-howto		\
 		book-suggestions 	\
 		debian-bugs	 	\
 		developers-reference	\
