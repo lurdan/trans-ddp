@@ -13,8 +13,11 @@ PUBLISHDIR := ../../../public_html/manuals.html
 
 ##### END OF CONF PART
 #====[ publishing to the DDP web pages ]=======================================
-publish: publish-html
+#publish: publish-html
+publish:
+	rm -Rf $(PUBLISHDIR)/$(MANUAL)
 
+# After running once, I will stop this.
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
 	# install for all language (html)
