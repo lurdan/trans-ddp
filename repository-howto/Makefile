@@ -11,7 +11,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).xml
 
-all: html pdf dvi ps
+all: html pdf # dvi ps # god damn dvi and ps don't work
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
@@ -22,12 +22,11 @@ publish: all
 	install -p -m 644 $(manual).ps $(PUBLISHDIR)/$(manual)
 
 validate:
-	nsgmls -s -wxml $(sources)
+	xmllint --noout --loaddtd --catalogs $(sources)
 
 html: $(manual).html
 $(manual).html: $(sources)
 	xmlto html-nochunks $<
-	tidy -mq $@
 
 dvi: $(manual).dvi
 $(manual).dvi: $(sources)
