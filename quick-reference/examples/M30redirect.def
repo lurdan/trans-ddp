@@ -1,0 +1,55 @@
+# You should not edit this file.  Instead, create a file with the same
+# name as this one, but with a .rul extension instead of .def.  The
+# .rul file will override this one.
+#
+# However, any changes you make to this file will be preserved.
+
+# Packet filter firewall script for ipmasq (GPL)
+#                   By Osamu Aoki <osamu@aokiconsulting.com>
+#
+# Firewalls are set for external network connection ports listed in $EXTERNAL
+# Little consideration taken for shared port, eth0:0, etc.  (Deny=Drop)
+#
+###############################################################################
+#
+# CONFIGURE FIREWALL RULES 
+#  -- Redirect SMTP connection from LAN to gateway for 2.4 kernel
+#
+# this does not work on 2.2 kernel
+
+echo "# Redirect SMTP connection from LAN to gateway"
+#: Redirect packets from internal networks to localhost
+if [ -n "$INTERNAL" -a -n "$EXTERNAL" ]; then
+    for j in $EXTERNAL; do
+        for i in $INTERNAL; do
+            ipnm_cache $i
+            case $MASQMETHOD in
+            ipfwadm)
+                : #$IPFWADM -F -a masq -W ${j%%:*} -S $IPOFIF/$NMOFIF
+                ;;
+            ipchains)
+                if [ -n "$PEEROFIF" ]; then
+                    : #$IPCHAINS --no-warnings -A forward -j MASQ -i ${j%%:*} -s $PEEROFIF/$NMOFIF
+                else
+                     : #$IPCHAINS --no-warnings -A forward -j MASQ -i ${j%%:*} -s $IPOFIF/$NMOFIF
+                fi
+                ;;
+	    netfilter)
+		i=$(echo $i | cut -d ":" -f 1)
+		j=$(echo $j | cut -d ":" -f 1)
+		if [ -n "$PEEROFIF" ]; then
+		    $IPTABLES -t nat -A PREROUTING -s $PEEROFIF/$NMOFIF -j REDIRECT -p tcp --dport smtp --to-ports 25 # smtp=25
+		    $IPTABLES -A FORWARD -i $i -o ${j%%:*} -s $PEEROFIF/$NMOFIF -j ACCEPT
+		    $IPTABLES -A FORWARD -o $i -i ${j%%:*} -d $PEEROFIF/$NMOFIF -j ACCEPT
+		else
+		    $IPTABLES -t nat -A PREROUTING -s $IPOFIF/$NMOFIF -j REDIRECT -p tcp --dport smtp --to-ports 25 # smtp=25
+		    $IPTABLES -A FORWARD -i $i -o ${j%%:*} -s $IPOFIF/$NMOFIF -j ACCEPT
+		    $IPTABLES -A FORWARD -o $i -i ${j%%:*} -d $IPOFIF/$NMOFIF -j ACCEPT
+		fi
+	        ;;
+            esac
+        done
+    done
+fi
+
+echo "# Redirect SMTP connection from LAN to gateway: end"
