@@ -1,0 +1,1112 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.6"  -->
+<chapt id="system">Debian fundamentals
+
+<![%FIXME[<p>===Proof reading: NONE ===]]>
+
+<p>
+I have extracteed these basic system explanation from old Debian FAQ.
+This section discuss Debian system from its fundamentals.  If one 
+is looking for a solution based explanation without detailed explanation, 
+jump directly to <ref id="package">.
+
+<sect id="boot">Boot process of Debian
+
+<sect1 id="init"><tt>init</tt> program
+
+<p>Like all Unices, Debian boots up by executing the program <tt>init</tt>.
+The configuration file for <tt>init</tt> (which is <tt>/etc/inittab</tt>)
+specifies that the first script to be executed should
+be <tt>/etc/init.d/rcS</tt>.  This script checks and mounts file systems,
+loads modules, starts the network services, sets the clock, performs other
+initialization, and then runs all of the scripts (except those with a `.'
+in the filename) in <tt>/etc/rc.boot/</tt>. Any scripts in the latter
+directory are usually reserved for system administrator use, and using them
+in packages is deprecated.
+
+<sect1 id="runlevels">Runlevels
+
+<p>After completing the boot process, <tt>init</tt> executes all start
+scripts in a directory specified by the default runlevel (this runlevel
+is given by the entry for <tt>id</tt> in <tt>/etc/inittab</tt>).
+Like most <!-- all? SGK --> System V compatible Unices, Linux has 7 runlevels:
+<list>
+  <item>0 (halt the system),
+  <item>1 (single-user mode),
+  <item>2 through 5 (various multi-user modes), and
+  <item>6 (reboot the system).
+</list>
+Debian systems come with id=2, which indicates that the default
+runlevel will be '2' when the multi-user state is entered, and the
+scripts in <tt>/etc/rc2.d/</tt> will be run.
+
+<p>In fact, the scripts in any of the directories, <tt>/etc/rcN.d/</tt>
+are just symbolic links back to scripts in <tt>/etc/init.d/</tt>.  However,
+the <em>names</em> of the files in each of the <tt>/etc/rcN.d/</tt>
+directories are selected to indicate the <em>way</em> the scripts in
+<tt>/etc/init.d/</tt> will be run.  Specifically, before entering any
+runlevel, all the scripts beginning with 'K' are run; these scripts kill
+services.  Then all the scripts beginning with 'S' are run; these scripts
+start services.  The two-digit number following the 'K' or 'S' indicates
+the order in which the script is run.  Lower numbered scripts are executed
+first.
+
+<p>This approach works because the scripts in <tt>/etc/init.d/</tt> all
+take an argument which can be either `start', `stop', `reload', `restart'
+or `force-reload' and will then do the task indicated by the argument.
+These scripts can be used even after a system has been booted, to control
+various processes.
+
+<p>For example, with the argument `reload' the command
+  <example>/etc/init.d/sendmail reload</example>
+sends the sendmail daemon a signal to reread its configuration file.
+
+<sect1 id="custombootscripts">Customize boot process
+<p>
+It looks as if Debian does not use
+  <tt>rc.local</tt> to customize the boot process; what facilities
+  are provided?
+
+<p>Suppose a system needs to execute script <tt>foo</tt> on start-up,
+or on entry to a particular (System V) runlevel.  Then the system
+administrator should:
+<list>
+  <item>Enter the script <tt>foo</tt> into the directory <tt>/etc/init.d/</tt>.
+  <item>Run the Debian command <tt>update-rc.d</tt> with appropriate
+  arguments, to set up links between the (command-line-specified) directories
+  rc?.d and <tt>/etc/init.d/foo</tt>.  Here, '?' is a number from 0 through 6
+  and corresponds to each of the System V runlevels.
+  <item>Reboot the system.
+</list>
+
+<p>The command <tt>update-rc.d</tt> will set up links between files in
+the directories rc?.d and the script in <tt>/etc/init.d/</tt>.
+Each link will begin with a 'S' or a 'K', followed by a number, followed
+by the name of the script.  Scripts beginning with 'S' in
+<tt>/etc/rcN.d/</tt> are executed when runlevel <tt>N</tt> is entered.
+Scripts beginning with a 'K' are executed when leaving runlevel <tt>N</tt>.
+
+<p>One might, for example, cause the script <tt>foo</tt> to execute at
+boot-up, by putting it in <tt>/etc/init.d/</tt> and installing the links with
+<tt>update-rc.d foo defaults 19</tt>.  The argument 'defaults' refers
+to the default runlevels, which are 2 through 5.  The argument '19' ensures
+that <tt>foo</tt> is called before any scripts containing numbers 20
+or larger.
+
+<sect id="archives">The Debian archives
+
+<sect1 id="dirtree">Directory tree
+
+<p>The software that has been packaged for &debian; is available in one
+of several directory trees on each Debian mirror site.
+
+<p>The <tt>dists</tt> directory contains the "distributions", and it is
+the canonical way to access the currently available Debian releases
+(and pre-releases).
+
+<p>There are the following supplementary directories:
+<taglist>
+  <tag><em>/tools/</em>:
+    <item>DOS utilities for creating boot disks, partitioning
+    your disk drive, compressing/decompressing files, and booting Linux.
+  <tag><em>/doc/</em>:
+    <item>The basic Debian documentation, such as the FAQ, the bug reporting
+          system instructions, etc.
+  <tag><em>/indices/</em>:
+    <item>The Maintainers file and the override files.
+  <tag><em>/project/</em>:
+    <item>mostly developer-only materials, such as:
+    <taglist>
+      <tag><em>project/experimental/</em>:
+        <item>This directory contains packages and tools which are still
+        being developed, and are still in the alpha testing stage.  Users
+        shouldn't be using packages from here, because they can be dangerous
+        and harmful even for most experienced people.
+      <tag><em>project/orphaned/</em>:
+        <item>Packages that have been orphaned by their old maintainers, and
+        withdrawn from the distribution.
+    </taglist>
+</taglist>
+
+<sect1 id="dists"><tt>dists</tt> directory
+
+<p>Normally there are three distributions, the "stable" distribution, the
+"testing" distribution, and the "unstable" distribution. Sometimes there is
+also a "frozen" distribution (see <ref id="frozen">).
+
+<sect1 id="codenames">Names of <tt>dists</tt> directories
+<p>
+<tt>dists</tt> directories have names such as potato, woody, and sid.
+
+<p>They are just "codenames". When a Debian distribution is in the
+development stage, it has no version number but a codename. The purpose
+of these codenames is to make easier the mirroring of the Debian
+distributions (if a real directory like <tt>unstable</tt> suddenly changed
+its name to <tt>stable</tt>, a lot of stuff would have to be needlessly
+downloaded again).
+
+<!-- XXX update for new distros -->
+<p>Currently, <tt>stable</tt> is a symbolic link to <tt>potato</tt>
+(i.e. &debian; &release;) and <tt>testing</tt> is a symbolic link to
+<tt>woody</tt>. This means that <tt>potato</tt> is the current stable
+distribution and <tt>woody</tt> is the current testing distribution.
+
+<p><tt>unstable</tt> is a permanent symbolic link to <tt>sid</tt>, as
+<tt>sid</tt> is always the unstable distribution (see <ref id="sid">).
+
+<sect1 id="oldcodenames">Old codenames
+
+<p>Other codenames that have been already used are: <tt>buzz</tt> for
+release 1.1, <tt>rex</tt> for release 1.2, <tt>bo</tt> for releases 1.3.x,
+<tt>hamm</tt> for release 2.0, and <tt>slink</tt> for release 2.1.
+
+<sect1 id="sourceforcodenames">Origin of codenames
+
+<p>So far they have been characters taken from the movie "Toy Story" by Pixar.
+<list>
+  <item><em>buzz</em> (Buzz Lightyear) was the spaceman,
+  <item><em>rex</em> was the tyrannosaurus,
+  <item><em>bo</em> (Bo Peep) was the girl who took care of the sheep,
+  <item><em>hamm</em> was the piggy bank,
+  <item><em>slink</em> (Slinky Dog) was the toy dog,
+  <item><em>potato</em> was, of course, Mr. Potato,
+  <item><em>woody</em> was the cowboy.
+</list>
+<!--
+  more info in http://www.pixar.com/feature/toystory/toystory.html 
+  or better yet http://us.imdb.com/M/title-exact?Toy%20Story%20(1995)
+  or actually:
+    http://us.imdb.com/Title?0114709 for TS1
+    http://us.imdb.com/Title?0120363 for TS2
+  we shouldn't put the links in, Pixar needs no additional propaganda
+-->
+<!--
+  characters not used from Toy Story (yet):
+    - Sarge and The Green Plastic Army Men
+    - Andy (the kid)
+    - Etch (Etch-a-Sketch) (the blackboard)
+    - Snake
+    - Robot
+    - Scud (Sid's dog)
+  and additional characters from Toy Story 2, also not yet used:
+    - Jessie (the Yodelling Cowgirl)
+    - Zurg (the Emperor)
+    - Wheezy (the penguin)
+    - Hannah (owner of Jessie)
+    - Stinky Pete the Prospector (the old fat guy)
+    - Mrs. Davis (Andy's Mom)
+    - Barbie
+-->
+
+<sect1 id="frozen">Meaning of "frozen"
+
+<p>When the testing distribution is mature enough, it becomes frozen,
+meaning no new code is accepted anymore, just bugfixes, if necessary.
+Also, a new testing tree is created in the <tt>dists</tt> directory,
+having a new codename. The frozen distribution passes through a few months
+of testing, with intermittent updates and deep freezes called `test cycles'.
+
+<p>We keep a record of bugs in the frozen distribution that can hold off a
+package from being released or bugs that can hold back the whole release.
+Once that bug count lowers to maximum acceptable values, the frozen
+distribution becomes stable, it is released, and the previous stable
+distribution becomes obsolete (and moves to the archive).
+
+<sect1 id="sid">Meaning of "sid"
+
+<p><em>sid</em> or <em>unstable</em> is the place where most of the packages
+are initially uploaded. It will never be released directly, because packages
+which are to be released will first have to be included in <em>testing</em>,
+in order to be released in <em>stable</em> later on. sid contains packages
+for both released and unreleased architectures.
+
+<p>The name "sid" also comes from the "Toy Story" animated motion picture:
+Sid was the boy next door who destroyed toys :-)
+
+<sect1 id="sid-history">Historical notes about "sid"
+
+<p>When the present-day sid did not exist, the FTP site organization had one
+major flaw: there was an assumption that when an architecture is created in
+the current unstable, it will be released when that distribution becomes the
+new stable. For many architectures that isn't the case, with the result that
+those directories had to be moved at release time. This was impractical
+because the move would chew up lots of bandwidth.
+
+<p>The archive administrators worked around this problem for several years
+by placing binaries for unreleased architectures in a special directory
+called "sid". For those architectures not yet released, the first time they
+were released there was a link from the current stable to sid, and from
+then on they were created inside the unstable tree as normal. This layout
+was somewhat confusing to users.
+
+<p>With the advent of package pools (see <ref id="pools">), binary packages
+began to be stored in a canonical location in the pool, regardless of the
+distribution, so releasing a distribution no longer causes large bandwidth
+consumption on the mirrors (there is, however, a lot of gradual bandwidth
+consumption throughout the development process).
+
+<sect1 id="stable">Contents of stable directory
+
+<p><list>
+  <item>stable/main/:
+  This directory contains the packages which formally constitute the most
+  recent release of the &debian; system.
+
+  <p>These packages all comply with the <url name="Debian Free Software
+  Guidelines" id="http://www.debian.org/social_contract#guidelines">,
+  and are all freely usable and distributable.
+
+  <item>stable/non-free/:  This directory contains packages distribution of
+  which is restricted in a way that requires that distributors take careful
+  account of the specified copyright requirements.
+
+  <p>For example, some packages have licenses which prohibit commercial
+  distribution.  Others can be redistributed but are in fact shareware
+  and not freeware.  The licenses of each of these packages must be
+  studied, and possibly negotiated, before the packages are included in
+  any redistribution (e.g., in a CD-ROM).
+
+  <item>stable/contrib/: This directory contains packages which are
+  DFSG-free and <em>freely distributable</em> themselves, but somehow depend
+  on a package that is <em/not/ freely distributable and thus available only
+  in the non-free section.
+</list>
+
+<sect1 id="testing">Contents of testing directory
+
+<p>Packages are installed into the `testing' directory after they have
+undergone some degree of testing in unstable. They must be in sync on all
+architectures where they have been built and mustn't have dependencies that
+make them uninstallable; they also have to have fewer release-critical bugs
+than the versions currently in testing. This way, we hope that `testing' is
+always close to being a release candidate.
+
+<sect1 id="unstable">Contents of unstable directory
+
+<p>The `unstable' directory contains a snapshot of the current development
+system. Users are welcome to use and test these packages, but are warned
+about their state of readiness. The advantage of using the unstable
+distribution is that you are always up-to-date with the latest in GNU/Linux
+software industry, but if it breaks: you get to keep both parts :-)
+
+<p>There are also main, contrib and non-free subdirectories in `unstable',
+separated on the same criteria as in `stable'.
+
+<sect1 id="archsections">Contents within each directory trees
+
+<p>Within each of the major directory trees (<tt>dists/stable/main</tt>,
+<tt>dists/stable/contrib</tt>, <tt>dists/stable/non-free</tt>, and
+<tt>dists/unstable/main/</tt>, etc.), the binary packages reside in
+subdirectories whose names indicate the chip architecture for which they
+were compiled:
+
+<list>
+  <item>binary-all/, for packages which are architecture-independent.
+    These include, for example, Perl scripts, or pure documentation.
+
+  <item>binary-i386/, for packages which execute on 80x86 PC machines.
+
+  <item>binary-m68k/, for packages which execute on machines based on one
+    of the Motorola 680x0 processors.  Currently this is done mainly for
+    Atari and Amiga computers, and also for some VME based industry standard
+    boards.
+<!-- Still true?
+    There is no port of Linux to the old m68k based Macintoshes,
+    because Apple did not supply the needed hardware information.
+-->
+
+  <item>binary-sparc/, for packages which execute on Sun SPARCStations.
+
+  <item>binary-alpha/, for packages which execute on DEC Alpha machines.
+
+  <item>binary-powerpc/, for packages which execute on PowerPC machines.
+
+  <item>binary-arm/, for packages which execute on ARM machines.
+</list>
+
+<p>Please note that the actual binary packages for <em/testing/ and
+<em/unstable/ no longer reside in these directories, but in the top
+level <tt/pool/ directory. The index files (Packages and Packages.gz)
+have been kept, though, for backwards compatibility.
+
+<p>See <ref id="arches"> for more information.
+
+<sect1 id="source">Source code
+
+<p>Source code is included for everything in the Debian system. Moreover,
+the license terms of most programs in the system <em>require</em> that
+source code be distributed along with the programs, or that an offer to
+provide the source code accompany the programs.
+
+<p>Normally the source code is distributed in the "source" directories,
+which are parallel to all the architecture-specific binary directories, or
+more recently in the <tt>pool</tt> directory (see <ref id="pools">). To
+retrieve the source code without having to be familiar with the structure of
+the FTP archive, try a command like <tt>apt-get source mypackagename</tt>.
+
+<p>Source code may or may not be available for packages in the "contrib"
+and "non-free" directories, which are not formally part of the Debian system.
+
+<sect1 id="pools"><tt>pool</tt> directory
+
+<p>Historically, packages were kept in the subdirectory of <tt>dists</tt>
+corresponding to which distribution contained them. This turned out to cause
+various problems, such as large bandwidth consumption on mirrors when major
+changes were made.
+
+<p>Packages are now kept in a large `pool', structured according to the name
+of the source package. To make this manageable, the pool is subdivided by
+section (`main', `contrib' and `non-free') and by the first letter of the
+source package name. These directories contain several files: the binary
+packages for each architecture, and the source packages from which the binary
+packages were generated.
+
+<p>You can find out where each package is placed by executing a command like
+<tt>apt-cache showsrc mypackagename</tt> and looking at the `Directory:'
+line. For example, the <tt>apache</tt> packages are stored in
+<tt>pool/main/a/apache/</tt>. Since there are so many <tt>lib*</tt>
+packages, these are treated specially: for instance, libpaper packages are
+stored in <tt>pool/main/libp/libpaper/</tt>.
+
+<p>The <tt>dists</tt> directories are still used for the index files used by
+programs like <tt>apt</tt>. Also, at the time of writing, older
+distributions have not been converted to use pools so you'll see paths
+containing distributions such as potato or woody in the Filename header
+field.
+
+<p>Normally, you won't have to worry about any of this, as <tt>apt</tt> and
+probably <tt>dpkg-ftp</tt> (see <ref id="pkgtools">) will handle it
+seamlessly. If you want more information, see the
+<url id="http://people.debian.org/~joeyh/poolfaq"
+ name="Debian Package Pools FAQ">.
+
+<sect id="pkg-basics">Basics of the Debian Package Management System
+
+<sect1 id="package-structure">Debian package structure
+
+<p>Packages generally contain all of the files necessary to implement
+a set of related commands or features.  There are two types of Debian
+packages:
+<list>
+  <item><em>Binary packages</em>, which contain executables, configuration
+  files, man/info pages, copyright information, and other documentation.
+  These packages are distributed in a Debian-specific archive format
+  (see <ref id="debian-format">); they are usually distinguished by having
+  a '.deb' file extension. Binary packages can be unpacked using the Debian
+  utility <tt>dpkg</tt>; details are given in its manual page.
+  
+  <item><em>Source packages</em>, which consist of a <tt>.dsc</tt> file
+  describing the source package (including the names of the following
+  files), a <tt>.orig.tar.gz</tt> file that contains the original
+  unmodified source in gzip-compressed tar format and usually a
+  <tt>.diff.gz</tt> file that contains the Debian-specific changes to the
+  original source.  The utility <tt>dpkg-source</tt> packs and unpacks
+  Debian source archives; details are provided in its manual page.
+</list>
+
+<p>Installation of software by the package system uses "dependencies" which
+are carefully designed by the package maintainers.  These dependencies are
+documented in the <tt>control</tt> file associated with each package.
+For example, the package containing the GNU C compiler (<package/gcc/)
+"depends" on the package <package/binutils/ which includes the linker and
+assembler. If a user attempts to install <package/gcc/ without having first
+installed <package/binutils/, the package management system (dpkg) will send
+an error message that it also needs <package/binutils/, and stop installing
+<package/gcc/. (However, this facility can be overridden by the insistent
+user, see <manref name="dpkg" section="8">.)  See more in <ref id="depends">
+below.
+
+<p>Debian's packaging tools can be used to:
+<list>
+  <item>manipulate and manage packages or parts of packages,
+  <item>aid the user in the break-up of packages that must be transmitted
+    through a limited-size medium such as floppy disks,
+  <item>aid developers in the construction of package archives, and
+  <item>aid users in the installation of packages which reside on a remote
+    FTP site.
+</list>
+
+<sect1 id="debian-format">Format of a Debian package
+
+<p>A Debian "package", or a Debian archive file, contains the executable
+files, libraries, and documentation associated with a particular suite of
+program or set of related programs.  Normally, a Debian archive file has
+a filename that ends in <tt>.deb</tt>.
+
+<p>The internals of this Debian binary packages format are described in
+the <manref name="deb" section="5"> manual page. This internal format is
+subject to change (between major releases of &debian;), therefore please
+always use <manref name="dpkg-deb" section="8"> for manipulating <tt>.deb</tt>
+files.
+
+<sect1 id="pkgname">Debian package file name convention 
+
+<p>The Debian binary package file names conform to the following convention:
+&lt;foo&gt;_&lt;VersionNumber&gt;-&lt;DebianRevisionNumber&gt;.deb
+
+<p>Note that <tt>foo</tt> is supposed to be the package name. As a check,
+one can learn the package name associated with a particular Debian archive
+file (.deb file) in one of these ways:
+<list>
+  <item>inspect the "Packages" file in the directory where it was stored
+  at a Debian FTP archive site.  This file contains a stanza describing
+  each package; the first field in each stanza is the formal package name.
+  <item>use the command <tt>dpkg --info foo_VVV-RRR.deb</tt> (where VVV and
+  RRR are the version and revision of the package in question, respectively).
+  This displays, among other things, the package name corresponding to the
+  archive file being unpacked.
+</list>
+
+<p>The <tt>VVV</tt> component is the version number specified by the
+upstream developer.  There are no standards in place here, so the version
+number may have formats as different as "19990513" and "1.3.8pre1".
+
+<p>The <tt>RRR</tt> component is the Debian revision number, and is
+specified by the Debian developer (or an individual user if he chooses
+to build the package himself).  This number corresponds to the revision
+level of the Debian package, thus, a new revision level usually signifies
+changes in the Debian Makefile (<tt>debian/rules</tt>), the Debian control
+file (<tt>debian/control</tt>), the installation or removal scripts
+(<tt>debian/p*</tt>), or in the configuration files used with the package.
+
+<!--
+<p>The <tt>Arch</tt> component identifies the processor for which
+the package was built.  This is commonly <tt>i386</tt>, which refers to
+chips compatible to Intel's 386 or later versions.  For other
+possibilities see <ref id="dirtree" name="Debian's FTP directory structure">.
+-->
+
+<sect1 id="controlfile">Debian control file
+
+<p>Specifics regarding the contents of a Debian control file are provided
+in the Debian Packaging manual, chapter 4.
+
+<p>Briefly, a sample control file is shown below for the Debian package hello:
+<example>
+Package: hello
+Priority: optional
+Section: devel
+Installed-Size: 45
+Maintainer: Adam Heath &lt;doogie@debian.org&gt;
+Architecture: i386
+Version: 1.3-16
+Depends: libc6 (>= 2.1)
+Description: The classic greeting, and a good example
+ The GNU hello program produces a familiar, friendly greeting.  It
+<!-- XXX below 'non-programmers' were better, but this is a verbatim copy -->
+ allows nonprogrammers to use a classic computer science tool which
+ would otherwise be unavailable to them.
+ .
+ Seriously, though: this is an example of how to do a Debian package.
+ It is the Debian version of the GNU Project's `hello world' program
+ (which is itself an example for the GNU Project).
+</example>
+
+<p>The Package field gives the package name.  This is the name by which the
+package can be manipulated by the package tools, and usually similar
+to but not necessarily the same as the first component string in the
+Debian archive file name.
+
+<p>The Version field gives both the upstream developer's version number
+and (in the last component) the revision level of the Debian package of
+this program as explained in <ref id="pkgname">. <!-- XXX missing name -->
+
+<p>The Architecture field specifies the chip for which this particular
+binary was compiled.
+
+<p>The Depends field gives a list of packages that have to be
+installed in order to install this package successfully.
+
+<p>The Installed-Size indicates how much disk space the installed package
+will consume. This is intended to be used by installation front-ends in
+order to show whether there is enough disk space available to install the
+program .
+
+<p>The Section line gives the "section" where this Debian package is stored
+at the Debian FTP sites.  This is the name of a subdirectory (within one
+of the main directories, see <ref id="dirtree">) where the package is stored.
+
+<p>The Priority indicates how important is this package for installation, so
+that semi-intelligent software like dselect or console-apt can sort the
+package into a category of e.g. packages optionally installed. See
+<ref id="priority">.
+
+<p>The Maintainer field gives the e-mail address of the person who is
+currently responsible for maintaining this package.
+
+<p>The Description field gives a brief summary of the package's features.
+
+<p>For more information about all possible fields a package can have, please
+see the Debian Packaging Manual, section 4., "Control files and their fields".
+
+<sect1 id="conffile">Debian conffile
+
+<p>Conffiles is a list of configuration files (usually placed in <tt>/etc</tt>)
+that the package management system will not overwrite when the package is
+upgraded. This ensures that local values for the contents of these files
+will be preserved, and is a critical feature enabling the in-place upgrade
+of packages on a running system.
+
+<p>To determine exactly which files are preserved during an upgrade, run:
+  <example>dpkg --status package</example>
+And look under "Conffiles:".
+
+<sect1 id="maintscripts">Debian maintenance scripts
+
+<p>
+Debian maintenance scripts consist of preinst, postinst, prerm, and 
+postrm scripts.
+
+<p>These files are executable scripts which are automatically run before
+or after a package is installed. Along with a file named <tt>control</tt>,
+all of these files are part of the "control" section of a Debian archive file.
+
+<p>The individual files are:
+<taglist>
+<tag/preinst/
+  <item>This script executes before that package will be unpacked from its
+  Debian archive (".deb") file. Many 'preinst' scripts stop services for
+  packages which are being upgraded until their installation or upgrade is
+  completed (following the successful execution of the 'postinst' script).
+
+<tag/postinst/
+  <item>This script typically completes any required configuration of the
+  package <tt>foo</tt> once <tt>foo</tt> has been unpacked from its Debian
+  archive (".deb") file. Often, 'postinst' scripts ask the user for input,
+  and/or warn the user that if he accepts default values, he should remember
+  to go back and re-configure that package as the situation warrants.
+  Many 'postinst' scripts then execute any commands necessary to start or
+  restart a service once a new package has been installed or upgraded.
+
+<tag/prerm/
+  <item>This script typically stops any daemons which are associated with
+  a package.  It is executed before the removal of files associated with
+  the package.
+
+<tag/postrm/
+  <item>This script typically modifies links or other files associated with
+  <tt>foo</tt>, and/or removes files created by the package. (Also see
+  <ref id="virtual">.)
+</taglist>
+
+<p>Currently all of the control files can be found in directory
+<tt>/var/lib/dpkg/info</tt>. The files relevant to package <tt>foo</tt>
+begin with the name "foo" and have file extensions of "preinst", "postinst",
+etc., as appropriate.  The file <tt>foo.list</tt> in that directory
+lists all of the files that were installed with the package <tt>foo</tt>.
+(Note that the location of these files is a dpkg internal; you should not
+rely on it.)
+
+<sect1 id="priority">Package priority
+
+<p>Each Debian package is assigned a <em>priority</em> by the distribution
+maintainers, as an aid to the package management system.  The priorities are:
+
+<list>
+  <item><strong>Required</strong>: packages that are necessary for the proper
+    functioning of the system.
+    <p>This includes all tools that are necessary to repair system defects.
+    You must not remove these packages or your system may become totally broken
+    and you may probably not even be able to use dpkg to put things back.
+    Systems with only the Required packages are probably unusable, but they do
+    have enough functionality to allow the sysadmin to boot and install more
+    software.
+  <item><strong>Important</strong> packages should be found on any Unix-like
+    system.
+    <p>Other packages which the system will not run well or be usable without
+    will be here. This does <em>NOT</em> include Emacs or X11 or TeX or any
+    other large applications. These packages only constitute the bare
+    infrastructure.
+  <item><strong>Standard</strong> packages are standard on any Linux system,
+    including a reasonably small but not too limited character-mode system.
+    <p>This is what will install by default if users do not select anything
+    else. It does not include many large applications, but it does include
+    Emacs (this is more of a piece of infrastructure than an application)
+    and a reasonable subset of TeX and LaTeX (if this turns out to be
+    possible without X).
+  <item><strong>Optional</strong> packages include all those that you might
+    reasonably want to install if you did not know what it was, or do not
+    have specialized requirements.
+    <p>This includes X11, a full TeX distribution, and lots of applications.
+  <item><strong>Extra</strong>: packages that either conflict with others
+    with higher priorities, are only likely to be useful if you already know
+    what they are, or have specialized requirements that make them
+    unsuitable for "Optional".
+</list>
+
+<sect1 id="virtual">Virtual package.
+
+<p>A virtual package is a generic name that applies to any one of a group
+of packages, all of which provide similar basic functionality. For example,
+both the <tt>tin</tt> and <tt>trn</tt> programs are news readers, and
+should therefore satisfy any dependency of a program that required a news
+reader on a system, in order to work or to be useful.
+They are therefore both said to provide the "virtual package" called
+<tt>news-reader</tt>.
+
+<p>Similarly, <tt>smail</tt> and <tt>sendmail</tt> both provide the
+functionality of a mail transport agent.  They are therefore said to
+provide the virtual package, "mail transport agent".
+If either one is installed, then any program depending on the
+installation of a <tt>mail-transport-agent</tt> will be satisfied by
+the existence of this virtual package.
+
+<p>Debian provides a mechanism so that, if more than one package which
+provide the same virtual package is installed on a system, then system
+administrators can set one as the preferred package. The relevant command
+is <tt>update-alternatives</tt>, and is described further in
+<ref id="diverse">.
+
+<sect1 id="depends">Package dependencies
+
+<p>The Debian package system has a range of package "dependencies"
+which are designed to indicate (in a single flag) the level at which
+Program A can operate independently of the existence of Program B on
+a given system:
+<list>
+  <item>Package A <em>depends</em> on Package B if B absolutely must
+    be installed in order to run A.  In some cases, A depends not only
+    on B, but on a version of B.  In this case, the version dependency is
+    usually a lower limit, in the sense that A depends on any version
+    of B more recent than some specified version.
+  <item>Package A <em>recommends</em> Package B, if the package maintainer
+    judges that most users would not want A without also having the
+    functionality provided by B.
+  <item>Package A <em>suggests</em> Package B if B contains files that
+    are related to (and usually enhance) the functionality of A.
+  <item>Package A <em>conflicts</em> with Package B when A will not
+    operate if B is installed on the system.  Most often, conflicts are
+    cases where A contains files which are an improvement over those in B.
+    "Conflicts" are often combined with "replaces".
+  <item>Package A <em>replaces</em> Package B when files installed
+    by B are removed and (in some cases) over-written by files in A.
+  <item>Package A <em>provides</em> Package B when all of the files and
+    functionality of B are incorporated into A.  This mechanism provides
+    a way for users with constrained disk space to get only that part of
+    package A which they really need.
+</list>
+
+<p>More detailed information on the use of each these terms can be found
+in the Packaging manual and the Policy manual.
+
+<sect1 id="pre-depends">Meaning of "Pre-Depends"
+
+<p>"Pre-Depends" is a special dependency. In the case of most packages,
+<tt>dpkg</tt> will unpack its archive file (i.e., its <tt>.deb</tt> file)
+independently of whether or not the files on which it depends exist on the
+system.  Simplistically, unpacking means that <tt>dpkg</tt> will extract
+the files from the archive file that were meant to be installed on your
+filesystem, and put them in place.  If those packages <em>depend</em> on
+the existence of some other packages on your system, <tt>dpkg</tt> will
+refuse to complete the installation (by executing its "configure" action)
+until the other packages are installed.
+
+<p>However, for some packages, <tt>dpkg</tt> will refuse even to unpack
+them until certain dependencies are resolved.  Such packages are said
+to "Pre-depend" on the presence of some other packages.
+The Debian project provided this mechanism to support the safe upgrading
+of systems from <tt>a.out</tt> format to <tt>ELF</tt> format, where
+the <em>order</em> in which packages were unpacked was critical. There are
+other large upgrade situations where this method is useful, e.g. the
+packages with the required priority and their LibC dependency.
+
+<p>As before, more detailed information about this can be found in the
+Packaging manual.
+
+<sect1 id="pkgstatus">Package status
+<p>
+Package status flags such as unknown/install/remove/purge/hold indicates
+what the user wanted to do with a package (as
+indicated either by the user's actions in the "Select" section of
+<tt>dselect</tt>, or by the user's direct invocations of <tt>dpkg</tt>).
+
+<p>Their meanings are:
+<list>
+  <item>unknown  - the user has never indicated whether he wants the package
+  <item>install  - the user wants the package installed or upgraded
+  <item>remove   - the user wants the package removed, but does not want to
+    remove any existing configuration files.
+  <item>purge    - the user wants the package to be removed completely,
+    including its configuration files.
+  <item>hold     - the user wants this package not to be processed, i.e., he
+    wants to keep the current version with the current status whatever that is.
+</list>
+
+<sect1 id="puttingonhold">Holding package
+
+<p>There are two ways of holding back packages, with dpkg, or with dselect.
+
+<p>With dpkg, you just have to export the list of package selections, with:
+  <example>dpkg --get-selections > selections.txt</example>
+Then edit the resulting file <file/selections.txt/, change the line
+containing the package you wish to hold, e.g. <package/libc6/, from this:
+  <example>libc6                                           install</example>
+to this:
+  <example>libc6                                           hold</example>
+Save the file, and reload it into dpkg database with:
+  <example>dpkg --set-selections < selections.txt</example>
+
+<p>With dselect, you just have to enter the [S]elect screen, find the
+package you wish to hold in its present state, and press the `=' key (or
+`H'). The changes will go live immediately after you exit the [S]elect
+screen.
+
+<sect1 id="sourcepkgs">Install a source package
+
+<p>Debian source packages can't actually be "installed", they are just
+unpacked in whatever directory you want to build the binary packages they
+produce.
+Source packages are distributed in a directory called <tt>source</tt>, and
+you can either download them manually, or use
+  <example>apt-get source foo</example>
+to fetch them (see <manref name="apt-get" section="8"> manual page on how
+to setup APT for doing that).
+
+<sect1 id="sourcebuild">Building binary packages from a source package
+
+<p>You will need all of foo_*.dsc, foo_*.tar.gz and foo_*.diff.gz to compile
+the source (note: there is no .diff.gz for a Debian native package).
+
+<p>Once you have them, if you have the <package/dpkg-dev/ package installed,
+the following command:
+  <example>dpkg-source -x foo_version-revision.dsc</example>
+will extract the package into a directory called <tt>foo-version</tt>.
+
+<p>If you want just to compile the package, you may cd into
+<tt>foo-version</tt> directory and issue the command
+  <example>debian/rules build</example>
+to build the program, then
+  <example>debian/rules binary</example>
+as root, to build the package, and then
+  <example>dpkg -i ../foo_version-revision_arch.deb</example>
+to install the newly-built package.
+
+<sect1 id="creatingdebs">Creating Debian packages
+
+<p>For more detailed description on this, read the New Maintainers' Guide,
+available in the <package/maint-guide/ package, or at
+<url id="ftp://ftp.debian.org/debian/doc/package-developer/maint-guide.html.tar.gz">.
+
+</sect1>
+</sect>
+
+<sect id="pkgtools">The Debian Package Management Tools
+
+<p>One could simply execute an anonymous ftp call to a Debian archive, then
+peruse the directories until he finds the desired file, and then fetch it,
+and manually install it using <tt>ar</tt> and <tt>tar</tt>.  
+
+<p>Many people find this approach much too time-consuming, since Debian
+evolves so quickly -- typically, a dozen or more new packages are uploaded
+every week.  This number is larger just before a new major release.
+To deal with this avalanche, many people prefer to use an automated
+programs.  Several different packages are available for this purpose:
+
+<sect1 id="dpkg">dpkg
+
+<p>This is the main package management program. <prgn/dpkg/ can be
+invoked with many options.  
+<p>
+Note that <tt>dpkg</tt>
+will install upgrade files in place, even on a running system.
+Sometimes, a revised package will require the installation of a newly revised
+version of another package, in which case the installation will fail
+until/unless the other package is installed.
+<p>
+Some common uses are:
+<list>
+  <item>Find out all the options:  <tt>dpkg --help</tt>.
+  <item>Print out the control file (and other information) for a specified
+    package: <tt>dpkg --info foo_VVV-RRR.deb</tt>
+  <item>Install a package (including unpacking and configuring) onto the
+    file system of the hard disk: <tt>dpkg --install foo_VVV-RRR.deb</tt>.
+  <item>Unpack (but do not configure) a Debian archive into the file system
+    of the hard disk: <tt>dpkg --unpack foo_VVV-RRR.deb</tt>.  Note that this
+    operation does <em>not</em> necessarily leave the package in a usable
+    state; some files may need further customization to run properly.
+    This command removes any already-installed version of the program and
+    runs the preinst (see <ref id="maintscripts">) script associated with
+    the package.
+  <item>Configure a package that already has been unpacked:
+    <tt>dpkg --configure foo</tt>.  Among other things, this action runs the
+    postinst (see <ref id="maintscripts">) script associated with the package.
+    It also updates the files listed in the <tt>conffiles</tt> for this
+    package. Notice that the 'configure' operation takes as its argument a
+    package name (e.g., foo), <em/not/ the name of a Debian archive file
+    (e.g., foo_VVV-RRR.deb).
+  <item>Extract a single file named "blurf" (or a group of files
+    named "blurf*" from a Debian archive:
+    <tt>dpkg --fsys-tarfile foo_VVV-RRR.deb | tar -xf - blurf*</tt>
+  <item>Remove a package (but not its configuration files):
+    <tt>dpkg --remove foo</tt>.
+  <item>Remove a package (including its configuration files):
+    <tt>dpkg --purge foo</tt>.
+  <item>List the installation status of packages containing the string
+    (or regular expression) "foo*": <tt>dpkg --list 'foo*'</tt>.
+</list>
+
+<sect1 id="dpkg-deb">dpkg-deb
+
+<p>This program manipulates Debian archive(<tt>.deb</tt>) files.
+Some common uses are:
+<list>
+  <item>Find out all the options:  <tt>dpkg-deb --help</tt>.
+  <item>Determine what files are contained in a Debian
+    archive file:  <tt>dpkg-deb --contents foo_VVV-RRR.deb</tt>)
+  <item>Extract the files contained in a named Debian archive into a
+    user specified directory:  <tt>dpkg-deb --extract foo_VVV-RRR.deb tmp</tt>
+    extracts each of the files in <tt>foo_VVV-RRR.deb</tt> into the
+    directory <tt>tmp/</tt>.  This is convenient for examining the contents
+    of a package in a localized directory, without installing the package
+    into the root file system.
+</list>
+
+<p>Note that any packages that were merely unpacked using <tt/dpkg-deb
+--extract/ will be incorrectly installed, you should use <tt/dpkg --install/
+instead.
+
+<p>More information is given in the manual page <manref name="dpkg-deb"
+section="1">.
+
+<sect1 id="dpkg-split">dpkg-split
+
+<p>This program splits large package into smaller files (e.g., for writing
+onto a set of floppy disks), and can also be used to merge a set of split
+files back into a single file. It can only be used on a Debian system (i.e.
+a system containing the <package/dpkg/ package), since it calls the program
+<tt>dpkg-deb</tt> to parse the debian package file into its component records.
+
+<p>For example, to split a big .deb file into N parts,
+<list>
+  <item>Execute the command <tt>dpkg-split --split foo.deb</tt>.
+    This will produce N files each of approximately 460 KBytes long in the
+    current directory.
+  <item>Copy those N files to floppy disks.
+  <item>Copy the contents of the floppy disks onto the hard disk of your
+    choice on the other machine.
+  <item>Join those part-files together using <tt>dpkg-split --join "foo*"</tt>.
+</list>
+
+<sect1 id="dpkg-ftp">dpkg-ftp
+
+<p>This is an older access method for <prgn/dselect/. It can be invoked from
+within <prgn/dselect/, thereby allowing a user the ability to download
+files and install them directly in one step.  To do this, select the
+<tt>ftp</tt> access method in <prgn/dselect/ (option 0) and specify
+the remote hostname and directory. <prgn/dpkg-ftp/ will then automatically
+download the files that are selected (either in this session of
+<prgn/dselect/ or earlier ones).
+
+<p>Note that, unlike the <prgn/mirror/ program, <prgn/dpkg-ftp/ does
+not grab everything at a mirror site. Rather, it downloads only those
+files which you have selected (when first starting up <prgn/dpkg-ftp/),
+and which need to be updated.
+
+<p><prgn/dpkg-ftp/ is somewhat obsolete. You should use the APT access
+method with ftp:// URLs in <file>sources.list</file> instead.
+
+<sect1 id="mirror">mirror
+
+<p>This Perl script, and its (optional) manager program called
+<prgn/mirror-master/, can be used to fetch user-specified parts of
+a directory tree from a specified host <em>via</em> anonymous FTP.
+
+<p><prgn/mirror/ is particularly useful for downloading large volumes of
+software.  After the first time files have been downloaded from a site, a
+file called <tt>.mirrorinfo</tt> is stored on the local host.  Changes to
+the remote filesystem are tracked automatically by <prgn/mirror/, which
+compares this file to a similar file on the remote system and downloads only
+changed files.
+
+<p>The <prgn/mirror/ program is generally useful for updating local copies
+of remote directory trees.  The files fetched need not be Debian files.
+(Since <prgn/mirror/ is a Perl script, it can also run on non-Unix systems.)
+Though the <prgn/mirror/ program provides mechanisms for excluding files
+names of which match user-specified strings, this program is most useful
+when the objective is to download whole directory trees, rather than
+selected packages.
+
+<!-- Should we recommend GNU wget here, too? -->
+<!-- Should we recommend faster regrex capable fmirror, too? -->
+
+<sect1 id="dpkg-mountable">dpkg-mountable
+
+<p>dpkg-mountable adds an access method called `mountable' to dselect's
+list, which allows you to install of any filesystem specified in /etc/fstab
+(e.g. a normal hard disk partition, or an NFS server), which it will
+automatically mount and umount for you if necessary.
+
+<p>It also has some extra features not found in the standard dselect
+methods, such as provision for a local file tree (either parallel to the
+main distribution or totally separate), and only getting packages which are
+required, rather than the time-consuming recursive directory scan, as well
+as logging of all dpkg actions in the install method.
+
+<sect1 id="apt">APT
+
+<p>APT is an advanced interface to the Debian packaging system. apt-get is
+the command-line tool for handling packages, and APT dselect method is an
+interface to APT through <prgn/dselect/. Both of these provide a simpler,
+safer way to install and upgrade packages.
+
+<p>APT features complete installation ordering, multiple source capability
+and several other unique features, see the User's Guide in
+<tt>/usr/share/doc/apt/guide.html/index.html</tt>.
+
+<p>To use APT method in <prgn/dselect/, choose the APT access method in the
+method selection screen (option 0) and then specify the sources that should
+be use. The configuration file is <file>/etc/apt/sources.list</file>, and
+its format is described in the <manref name="sources.list" section="5">
+manual page.
+
+<p>If you want to use CDs to install packages, you can use <prgn/apt-cdrom/.
+For details, please see the Release Notes, section "Setting up for an
+upgrade from a local mirror".
+
+<sect1 id="apt-get">apt-get
+
+<p><prgn/apt-get/ provides a simple way to install packages from the command
+line. Unlike <prgn/dpkg/, <prgn/apt-get/ does not understand .deb files, it
+works with the packages proper name and can only install .deb archives from
+a source specified in <file>/etc/apt/sources.list</file>.
+
+<p>For more information, install <package/apt/ package and read
+<manref name="apt-get" section="8">, <manref name="sources.list" section="5">
+and <file>/usr/share/doc/apt/guide.html/index.html</file>.
+
+<sect1 id="debian-dselect">dselect
+
+<p>This program is a menu-driven interface to the Debian package management
+system. It is particularly useful for first-time installations and
+large-scale upgrades.
+
+<p><prgn/dselect/ can:
+<list>
+  <item>guide the user as he/she chooses among packages to install or remove,
+    ensuring that no packages are installed that conflict with one another,
+    and that all packages required to make each package work properly are
+    installed;
+  <item>warn the user about inconsistencies or incompatibilities in their
+    selections;
+  <item>determine the order in which the packages must be installed;
+  <item>automatically perform the installation or removal; and
+  <item>guide the user through whatever configuration process are required
+    for each package.
+</list>
+
+<p><prgn/dselect/ begins by presenting the user with a menu of 7 items,
+each of which is a specific action. The user can select one of the actions
+by using the arrow keys to move the highlighter bar, then pressing the
+<em>&lt;enter&gt;</em> key to select the highlighted action.
+
+<p>What the user sees next depends on the action he selected.  If he selects
+any option but <tt>Access</tt> or <tt>Select</tt>, then <prgn/dselect/
+will simply proceed to execute the specified action: e.g., if the user
+selected the action <tt>Remove</tt>, then dselect would proceed to remove
+all of the files selected for removal when the user last chose the
+<tt>Select</tt> action.
+
+<p>Both the <tt>Access</tt> menu item and the <tt>Select</tt> menu item
+lead to additional menus.  In both cases, the menus are presented as
+split screens; the top screen gives a scrollable list of choices, while
+the bottom screen gives a brief explanation ("info") for each choice.
+
+<p>Extensive on-line help is available, use the '?' key to get to a help
+screen at any time.
+
+<p>The order in which the actions are presented in the first <prgn/dselect/
+menu represents the order in which a user would normally choose
+<prgn/dselect/ to install packages.  However, a user can pick any of the
+main menu choices as often as needed (including not at all, depending on
+what one wants to do).
+
+<list>
+  <item>Begin by choosing an <strong/Access Method/.  This is the
+    method by which the user plans on accessing Debian packages; e.g., some
+    users have Debian packages available on CD-ROM, while others plan to
+    fetch them using anonymous FTP. The selected "Access Method" is stored
+    after <prgn/dselect/ exits, so if it does not change, then this option
+    need not be invoked again.
+
+  <item>Then <strong/Update/ the list of available packages.  To do this,
+    <prgn/dselect/ reads the file "Packages.gz" which should be included
+    in the top level of the directory where the Debian packages to be
+    installed are stored.  (But if it is not there, <prgn/dselect/ will
+    offer to make it for you.)
+
+  <item><strong/Select/ specific packages for installation on his system.
+    After choosing this menu item, the user is first presented with a full
+    screen of help (unless the `--expert' command line option was used).
+    Once the user exits the Help screen, he sees the split-screen menu for
+    choosing packages to install (or remove).
+
+    <p>The top part of the screen is a relatively narrow window into the
+    list of Debian's &all-pkgs; packages; the bottom part of the screen
+    contains description of the package or group of packages which are
+    highlighted above.
+
+    <p>One can specify which packages should be operated on by highlighting
+    a package name or the label for a group of packages. After that, you
+    can select packages:
+    <taglist>
+      <tag>to be installed:
+        <item>This is accomplished by pressing the `+' key.
+      <tag>to be deleted:
+        <item>Packages can be deleted two ways:
+        <list>
+          <item>removed: this removes most of the files associated with the
+          package, but preserves the files listed as configuration files
+          (see <ref id="conffile">) and package configuration
+          information. This is done by pressing the `-' key.
+          <item>purged: this removes <em/every/ file that is part of the
+          package. This is done by pressing the `_' key.
+        </list>
+        Note that it's not possible to remove "All Packages". If you try
+        that, your system will instead be reduced to the initial installed
+        base packages.
+      <tag>to be put "on hold"
+        <item>This is done by pressing `=', and it effectively tells
+        <prgn/dselect/ not to upgrade a package even if the version
+        currently installed on your system is not as recent as the version
+        that is available in the Debian repository you are using (this was
+        specified when you set the <strong/Access Method/, and acquired when
+        you used <strong/Update/).
+        <p>Just like you can put a package on hold, you can reverse such
+        setting by pressing `:'. That tells <prgn/dselect/ that the
+        package(s) may be upgraded if a newer version is available. This is
+        the default setting.
+    </taglist>
+
+    <p>You can select a different order in which the packages are presented,
+    by using the `o' key to cycle between various options for sorting the
+    packages. The default order is to present packages by Priority; within
+    each priority, packages are presented in order of the directory (a.k.a. 
+    section) of the archive in which they are stored. Given this sort order,
+    some packages in section A (say) may be presented first, followed by
+    some packages in section B, followed by more packages (of lower
+    priority) in section A.
+
+    <p>You can also expand meanings of the labels at the top of the screen,
+    by using the `v' (verbose) key. This action pushes much of the text that
+    formerly fit onto the display off to the right. To see it, press the
+    right arrow; to scroll back to the left, press the left arrow.
+
+    <p>If you select a package for installation or removal, e.g.,
+    <package/foo.deb/, and that package depends on (or recommends) another
+    package, e.g., <package/blurf.deb/, then <prgn/dselect/ will place the
+    you in a sub-screen of the main selection screen. There you can choose
+    among the related packages, accepting the suggested actions (to install
+    or not), or rejecting them. To do the latter, press Shift-D; to return
+    to the former, press Shift-U. In any case, you can save your selections
+    and return to the main selection screen by pressing Shift-Q.
+
+  <item>Users returning to the main menu can then select the "Install"
+    menu item to unpack and configure the selected packages.
+    Alternatively, users wishing to remove files can choose the "Remove"
+    menu item.  At any point, users can choose "Quit" to exit dselect;
+    users' selections are preserved by <prgn/dselect/.
+</list>
+
+
+
+</chapt>
