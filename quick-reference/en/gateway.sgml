@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.12 $"  -->
+<!-- CVS revision of this document "$Revision: 1.13 $"  -->
 
 <chapt id="gateway"> Building a gateway with a &debian; system
 
@@ -94,6 +94,105 @@ search lan.aokiconsulting.com
 </example>
 </sect1>
 
+<sect id="netfilter">Netfilter configuration
+<p>
+The netfilter/iptables project is firewalling subsystem for
+the Linux 2.4 and after.
+See <url id="&netfilterhome;" name="Netfilter">
+where many network configuration issues are explained.
+
+<sect1 id="netfilter-basics">Basics of netfilter
+<p>
+Netfilter process packets using 5 built-in chains: 
+PREROUTING, INPUT, FORWARD, OUTPUT, and POSTROUTING.
+<example>
+                routing
+                decision
+IN -----&gt; PRE ----&gt;T-----&gt; FORWARD ----&gt;T-----&gt; POST -----&gt; OUT
+interface ROUTING  |                    ^       ROUTING     interface
+                   v                    |
+                 INPUT                OUTPUT
+                   |                    ^
+                   v                    |
+                   L--&gt; Local Process --^
+</example>
+Packets are processed at each built-in chain using following tables.
+<list compact>
+<item>filter (packet filter, default)
+<list compact>
+<item>INPUT  (for packets  coming into the box itself)
+<item>FORWARD (for packets being routed through the box)
+<item>OUTPUT (for locally generated packets).
+</list>
+<item>nat (network address translation )
+<list compact>
+<item>PREROUTING (for  altering  packets  as  soon  as they come in)
+<item>OUTPUT (for altering  locally-generated   packets   before   routing)
+<item>POSTROUTING  (for altering packets as they are about to go out)
+</list>
+<item>mangle (network address mangling, good only after 2.4.18)
+<list compact>
+<item>all 5 built-in chains.
+</list>
+</list>
+
+<sect1 id="netfilter-command">Netfilter command
+<p>
+Basic command of <prgn>iptables</prgn> are:
+<example compact>
+iptables -N <var>chain</var>                   # create a <var>chain</var>
+
+iptables -A <var>chain</var> \                 # add rule to <var>chain</var>
+         -t <var>table</var> \                 # use <var>table</var> (filter, nat, mangle)
+         -p <var>protocol</var> \              # tcp, udp, icmp, or all,
+         -s <var>source-address[/mask]</var> \
+         --sport <var>port[:port]</var> \      # source port if -p is tcp or udp
+         -d <var>destination-address[/mask]</var> \
+         --dport <var>port[:port]</var> \      # dest. port if -p is tcp or udp
+         -j <var>target</var> \                # what to do if match
+         -i <var>in-interface-name</var> \     # for INPUT,  FORWARD, PREROUTING
+         -o <var>out-interface-name</var>      # for FORWARD, OUTPUT, POSTROUTING
+</example>
+<p>
+Firewall rules have:
+<list compact>
+<item>4 basic targets:
+<list compact>
+<item>ACCEPT means to let the packet through
+<item>DROP means to drop the packet.  
+<item>QUEUE means to pass the packet to userspace (if supported by the kernel).
+<item>RETURN means stop traversing this chain and resume at the next 
+  rule in the previous (calling) chain.  
+</list>
+<item>few extended targets:
+<list compact>
+<item>LOG turns on kernel logging.
+<item>REJECT sends back an error packet and drop the packet.
+<item>SNAT alters that the source address of the packetand used only 
+  in the POSTROUTING chain. (nat table only)
+<example compact>
+--to-source  ipaddr[-ipaddr][:port-port]
+</example>
+<item>MASQUERADE is the same as SNAT but for dynamically assigned IP 
+  (dialup)  connections. (nat table only)
+<example compact>
+--to-ports port[-port]
+</example>
+<item>DNAT alters that the destination address of the packet and used 
+  in the PREROUTING and OUTPUT chains, and user-defined chains 
+  which are only  called  from  those chains. (nat table only)
+<example compact>
+--to-destination ipaddr[-ipaddr][:port-port]
+</example>
+<item>REDIRECT alters the destination IP address to send the packet to the
+  machine itself.
+<example compact>
+--to-ports port[-port]
+</example>
+</list>
+</list>
+
+
 <sect1 id="ip-masq">IP-masquerade
 <p>
 Machines on the LAN can access Internet resources through a gateway
@@ -121,19 +220,25 @@ needs to be started from <file>/etc/pcmcia/network.opts</file>.  Read
 </sect1>
 
 
-<sect1 id="ip-steal">Stealing SMTP connection (2.4)
+<sect1 id="ip-redirect">Redirect SMTP connection (2.4)
 <p>
-[XXX FIXME XXX] iptable commands needs fix:
-Add following rules to the <prgn>iptables</prgn> to steal SMTP 
-connection to the external SMTP server to the gateway machine.
+If you have a notebook PC which is normally configured to
+use other LAN environments and you want to use MUA without
+reconfiguring it. Add following rules to the 
+<prgn>iptables</prgn> and redirect SMTP connection from the external 
+SMTP server to the gateway machine.
 <example>
-# iptables -N steal 
-# iptables -t nat -A PREROUTING -s 192.168.1.128/25 -j REDIRECT \
-  -p tcp -dport smtp --to-port smtp
-# ....
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25
+# iptables A FORWARD  -i eth0 -o eth1 -d 192.168.1.0/24 -j ACCEPT
+# iptables A FORWARD  -o eth0 -i eth1 -s 192.168.1.0/24 -j ACCEPT
 </example>
-Here "192.168.1.128/25" are DHCP served LAN hosts. If you set your 
-mailer for the company LAN, and this help you at home LAN :)
+Here,
+<list compact>
+<item>eth0: external interface
+<item>eth1: internal interface
+</list>
+See <url id="&examples;" name="M30redirect.def">
 </sect1>
 
 </sect>
