@@ -1,5 +1,5 @@
 #
-# New Makefile Template (Osamu Aoki)
+# New Makefile Template (Osamu Aoki) Potato env.
 #
 #  Build html(multi-page), txt, ps, pdf, and other formats.
 #
