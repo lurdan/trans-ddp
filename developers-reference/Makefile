@@ -101,6 +101,11 @@ clean:
 	rm -f version.ent
 	rm -f `find . -name "*~" -o -name "*.bak"`
 	rm -f *.validate
+	rm -f *~ *.bak .#* core
+
+.PHONY: distclean
+distclean: clean
+	rm -f *.rej *.orig
 
 developers-reference$(SRCEXT).sgml: version.ent common.ent
 
