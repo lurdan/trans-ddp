@@ -50,7 +50,7 @@ LANGSALL := en fr it es fi pt-br de
 # List of languages built for "publish" target for DDP: pt_BR
 LANGS1 := en fr it es de pt-br
 # subset which has Quick Reference subset document
-LANGS2 := en fr it es de pt-br
+LANGS2 := en fr it de pt-br
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -405,7 +405,7 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it es de pt-br"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br"
 
 sf-test:
 	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br" txt
