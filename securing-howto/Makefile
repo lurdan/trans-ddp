@@ -47,7 +47,7 @@ PUBLISHDIR := ~/public_html/manuals.html
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en de fr es it ru ja zh-cn
 # List of languages built for "publish" target for DDP
-LANGS    := en de fr es it ru ja
+LANGS    := en de fr es it ru ja zh-cn
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -61,6 +61,12 @@ SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
 #                 Build target default part: Routine                  #
 # =================================================================== #
 # If some languages have problems building, filter-out in here.
+
+# define $(locale) for the following targets
+$(MANUAL).%.html.stamp $(MANUAL).%.txt $(MANUAL).%.ps $(MANUAL).%.pdf: \
+  locale=$(subst pt-br,pt_BR,\
+         $(subst zh-cn,zh_CN,\
+	 $*))
 
 ### Full guide
 
@@ -118,7 +124,7 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 
 # HTML
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2html -l $(subst pt-br,pt_BR,$*) -c $<
+	debiandoc2html -l $(locale) -c $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	newfile=`echo $$file|\
@@ -135,18 +141,18 @@ $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 # TXT
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2text -l $(subst pt-br,pt_BR,$*) $<
+	debiandoc2text -l $(locale) $<
 
 
 # PS
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2latexps -l $(subst pt-br,pt_BR,$*) $<
+	debiandoc2latexps -l $(locale) $<
 
 # PDF
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -l $(subst pt-br,pt_BR,$*) $<
+	debiandoc2latexpdf -l $(locale) $<
 
 
 # =================================================================== #
