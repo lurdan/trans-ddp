@@ -6,7 +6,7 @@
   <!entity % commondata  SYSTEM "common.ent" > %commondata;
 
   <!-- CVS revision of this document -->
-  <!entity cvs-rev "$Revision: 1.144 $">
+  <!entity cvs-rev "$Revision: 1.145 $">
   <!-- if you are translating this document, please notate the CVS
        revision of the developers reference here -->
   <!--
@@ -2907,41 +2907,125 @@ explanation to <email>XXX-done@bugs.debian.org</email>.
   <chapt id="best-pkging-practices">
     <heading>Best Packaging Practices</heading>
     <p>
-Debian's quality is largely due to its Policy that all packages
-follow. But it's also because we accumulated years of experience
-in packaging; very talented people created great tools to make
-good packages without much troubles.
+Debian's quality is largely due to the <url id="&url-debian-policy;"
+name="Debian Policy">, which defines explicit baseline requirements
+which all Debian packages must fulfill.  Yet there is also a shared
+history of experience which goes beyond the Debian Policy, an
+accumulatation of years of experience in packaging.  Many very
+talented people have created great tools, tools which help you, the
+Debian maintainer, create and maintain excellent packages.
     <p>
-This chapter provides the best known solutions to common problems
-faced during packaging. It also lists various advice collected on
-several mailing lists. By following them, you will make Debian's quality
-even better.
+This chapter provides some best practices for Debian developers.  All
+recommendations are merely that, and are not requirements or policy.
+These are just some subjective hints, advice and pointers collected
+from Debian developers.  Feel free to pick and choose whatever works
+best for you.
 
-    <sect id="packaging-tools">
-	<heading>Packaging tools and common cases</heading>
+    <sect id="bpp-debian-rules">
+        <heading>Best Practices for <file>debian/rules</file></heading>
+        <p>
+The following recommendations apply to the <file>debian/rules</file>
+file.  Since <file>debian/rules</file> controls the build process and
+selects the files which go into the package (directly or indirectly),
+it's usually the file maintainers spend the most time on.
 
 	<sect1 id="helper-scripts">Helper scripts
 	<p>
-To help you in your packaging effort, you can use helper scripts.
-The best scripts available are provided by <package>debhelper</package>.
-With <prgn>dh_make</prgn> (see <ref id="dh-make">), you can
-generate in a few seconds a package that is mostly ready. However that
-apparent simplicity is hiding many things done by the helper scripts.
-You have to know what is done by them, that's why you are strongly
-encouraged to read the corresponding manual pages, starting with
-<tt>debhelper(1)</tt>. That's required because you'll have to
-understand what is going on to be able to use them wisely and to
-fix bugs in a pretty way.
+The rationale for using helper scripts in <file>debian/rules</file> is
+that lets maintainers use and share common logic among many packages.
+Take for instance the question of installing menu entries: you need to
+put the file into <file>/usr/lib/menu</file>, and add commands to the
+maintainer scripts to register and unregister the menu entries.  Since
+this is a very common thing for packages to do, why should each
+maintainer rewrite all this on their own, sometimes with bugs?  Also,
+supposing the menu directory changed, every package would have to be
+changed.
 	<p>
-debhelper is very useful because it lets you follow the latest Debian policy
-without doing many modifications since the changes that can be automated are
-almost always automatically done by a debhelper script. Furthermore it
-offers enough flexibility to be able to use it in conjunction with
-some hand crafted shell invocations within the <file>rules</file> file.
+Helper scripts take care of these issues.  Assuming you comply with
+the conventions expected by the helper script, the helper takes care
+of all the details.  Changes in policy can be made in the helper
+script, then packages just need to be rebuilt with the new version of
+the helper and no other changes.
 	<p>
-You can however decide to not use any helper script and still write
-excellent <file>rules</file> file. Many examples are available
-at <url id="&url-rules-files;">.
+<ref id="tools"> contains a couple of different helpers. The most
+common and best (in our opinion) helper system is
+<package>debhelper</package>.  Previous helper systems, such as
+<package>debmake</package>, were "monolithic": you couldn't pick and
+choose which part of the helper you found useful, but had to use the
+helper to do everything.  <package>debhelper</package>, however, is a
+number of seperate little <prgn>dh_*</prgn> programs.  For instance,
+<prgn>dh_installman</prgn> installs and compresses manpages,
+<prgn>dh_installmenu</prgn> installs menu files, and so on.  Thus, it
+offers enough flexibility to be able to use the little helper scripts,
+where useful, in conjunction with hand-crafted commands in
+<file>debian/rules</file>.
+	<p>
+You can get started with <package>debhelper</package> by reading
+<manref name="debhelper" section="1">, and looking at the examples
+that come with the package.  <prgn>dh_make</prgn>, from the
+<package>dh-make</package> package (see <ref id="dh-make">), can be
+used to convert a "vanilla" source package to a
+<package>debhelper</package>ized package.  This shortcut, though,
+should not convince you that you do not need to bother understanding
+the individual <prgn>dh_*</prgn> helpers.  If you are going to use a
+helper, you do need to take the time to learn to use that helper, to
+learn its expectations and behavior.
+	<p>
+Some people feel that vanilla <file>debian/rules</file> files are
+better, since you don't have to learn the intricies of any helper
+system.  This decision is completely up to you.  Use what works for
+you.  Many examples of vanilla <file>debian/rules</file> files are
+available at <url id="&url-rules-files;">.
+
+
+	<sect1 id="multiple-patches">
+          <heading>Patching source versus patching at build time</heading>
+          <p>
+Big, complex packages may have many bugs that you need to deal with.
+If you correct a number of bug directly in the source, if you're not
+careful, it can get hard to differentiate the various patches that you
+applied.  It can get quite messy when you have to update the package
+to a new upstream version which integrates some of the fixes (but not
+all).  You can't take the total set of diffs (e.g., from
+<file>.diff.gz</file>) and work out which patch sets to back out as a
+unit as bugs are fixed upstream.
+	<p>
+One good solution is to keep separate patches under the
+<file>debian</file> directory and apply the patches at build time. The
+<package>dbs</package> package provides an convenient means for
+applying patches at build time (and unapplying them at clean time).
+<package>dbs</package> also provides facilities for creating the
+patches and keeping track of what they are for.  As always when using
+maintainer tools, you'll have to read the accompanying documentation.
+The package <package>hello-dbs</package> is a simple example that
+demonstrates how to use <package>dbs</package>.
+
+
+	<sect1 id="multiple-binary">Multiple binary packages
+	<p>
+A single source package will often build several binary packages,
+either to provide several flavors of the same software (examples are
+the <package>vim-*</package> packages) or to make several small
+packages instead of a big one (e.g., if the user can install only the
+subset she needs, and thus save some disk space).
+	<p>
+The second case can be easily managed in <file>debian/rules</file>.
+You just need to move the appropriate files from the build directory
+into the package's temporary trees.  You can do this using
+<prgn>install</prgn> (vanilla approach) or <prgn>dh_install</prgn>
+(from <package>debhelper</package>).  Be sure to check the different
+permutations of the various packages, ensuring that you have the
+inter-package dependancies set right in <file>debian/control</file>.
+	<p>
+The first case is a bit more difficult since it involves multiple
+recompiles of the same software but with different configure
+options. The <package>vim</package> is an example of how to manage
+this using an hand-crafted <file>debian/rules</file> file.
+
+<!-- &FIXME; Find a good debhelper example with multile configure/make
+     cycles -->
+        </sect1>
+      </sect>
 
 <!--
 	<sect1 id="pkg-mgmt-cvs">Managing a package with CVS
@@ -2950,78 +3034,87 @@ at <url id="&url-rules-files;">.
 	via CVS (debian/rules refresh).
 -->
 
-	<sect1 id="multiple-patches">Package with multiple patches
+      <sect id="bpp-config-mgmt">
+	<heading>Configuration management with <package>debconf</package></heading>
+	
 	<p>
-Big packages tend to have many upstream bugs that you want to fix within
-the Debian package. If you just correct the bug in the source, all the
-fixes are directly integrated in the <file>.diff.gz</file> file and you
-can't easily differentiate the various patches that you applied. It gets
-very messy when you have to update the package to a new upstream version
-which integrates some of the fixes (but not all).
+<package>Debconf</package> is a configuration management system which
+can be used by all the various packaging scripts
+(<file>postinst</file> mainly) to request feedback from the user
+concerning how to configure the package. Direct user interactions must
+now be avoided in favor of <package>debconf</package>
+interaction. This will enable non-interactive installations in the
+future.
 	<p>
-The good solution is to keep separate patches within the
-<file>debian/patches</file> directory and to apply them on the fly at
-build time. The package <package>dbs</package> provides an
-implementation of such a system, you just have to build-depend on dbs to
-be able to use its functionalities. The package
-<package>hello-dbs</package> is a simple example that demonstrates how to
-use <package>dbs</package>.
-	<p>
-Additionally, dbs provides facilities to create the patches and to keep
-track of what they are for.
+Debconf is a great tool but it is often poorly used.   Many common mistakes
+are listed in the <manref name="debconf-devel" section="8"> man page. 
+It is something that you must read if you decide to use debconf.
+      </sect>
 
-	<sect1 id="multiple-binary">Multiple binary packages
-	<p>
-A single source package will often build several binary packages, either
-to provide several flavors of the same software (examples are the
-vim-* packages) or to make several small packages instead of a big one
-(it's interesting if the user doesn't need all the packages and can thus
-save some disk space).
-	<p>
-The second case can be easily managed by <prgn>dh_install</prgn> (from
-<package>debhelper</package>) to move files from the build directory to
-the package's temporary trees.
-	<p>
-The first case is a bit more difficult since it involves multiple recompiles
-of the same software but with different configure options. The 
-<package>vim</package> is an example of how to manage this with an
-hand crafted rules file. 
-<!-- &FIXME; Find a good debhelper example with multile configure/make
-     cycles -->
 
-	<sect1 id="handling-debconf-translations">Handling debconf translations
-	<p>
+      <sect id="bpp-i18n">
+        <heading>Internationalization</heading>
+
+	<sect1 id="bpp-i18n-debconf">
+          <heading>Handling debconf translations</heading>
+          <p>
 Like porters, translators have a difficult task.  They work on many
 packages and must collaborate with many different
 maintainers. Moreover, most of the time, they are not native English
-speaker, so you may need to be particularly patient with them.
+speakers, so you may need to be particularly patient with them.
 	<p>
 The goal of <package>debconf</package> was to make packages
 configuration easier for maintainers and for users.  Originally,
 translation of debconf templates was handled with
-<prgn>debconf-mergetemplate</prgn> from the
-<package>debconf-utils</package> package.  Since
-<package>debconf</package> version 1.2.9,
-<prgn>debconf-mergetemplate</prgn> has been deprecated and a new
-system called <package>po-debconf</package> is strongly
-encouraged. This new method is much easier both for the maintainer and
-the translators, and you should upgrade your packages to use it.
-Transition scripts are provided.
+<prgn>debconf-mergetemplate</prgn>.  However, that technique is now
+deprecated; the best way to accomplish <package>debconf</package>
+internationalization is by using the <package>po-debconf</package>
+package.  This method is easier both for maintainer and translators;
+transition scripts are provided.
 	<p>
 Using <package>po-debconf</package>, the translation is stored in
 <file>po</file> files (drawing from <prgn>gettext</prgn> translation
 techniques).  Special template files contain the original messages and
-mark which fields should be translated. When you change the original,
-calling the <prgn>debconf-updatepo</prgn> script with no argument is
-enough to mark the translation as needing attention from the
-translators. Then, at build time, use the
-<prgn>dh_installdebconf</prgn> program take care of all the needed
-magic to add the template along with the up-to-date translations into
-the binary packages.  Refer to the <manref name="po-debconf"
-section="7"> manual page for details.
+mark which fields are translatable.  When you change the value of a
+translatable field, by calling <prgn>debconf-updatepo</prgn>, the
+translation is marked as needing attention from the translators. Then,
+at build time, the <prgn>dh_installdebconf</prgn> program takes care
+of all the needed magic to add the template along with the up-to-date
+translations into the binary packages.  Refer to the <manref
+name="po-debconf" section="7"> manual page for details.
+        </sect1>
 
-    <sect id="specific-practices">
-	<heading>Specific packaging practices</heading>
+        <sect1 id="bpp-i18n-docs">
+          <heading>Internationalized Documentation</heading>
+          <p>
+Internationalizing documentation is crucial for users, but a lot of
+labor.  There's no way to eliminate all that work, but you can make things
+easier for translators.
+          <p>
+If you maintain documentation of any size, its easier for translators
+if they have access to a source control system.  That lets translators
+see the differences between two versions of the documentation, so, for
+instance, they can see what needs to be retranslated.  It is
+recommended that the translated documentation maintain a note about
+what source control revision the translation is based on.  An
+interesting system is provided by <url id="&url-i18n-doc-check;"
+name="doc-check"> in the <package>boot-floppies</package> package,
+which shows an overview of the translation status for any given
+language, using structured comments for the current revision of the
+file to be translated and, for a translated file, the revision of the
+original file the translation is based on.  You might wish to adapt
+and provide that in your CVS area.
+          <p>
+If you maintain XML or SGML documentation, we suggest that you isolate
+any language-independant information and define those as entities in a
+separate file which is included by all the different
+translations. This makes it much easier, for instance, to keep URLs
+up-to-date across multiple files.
+        </sect1>
+      </sect>
+
+      <sect id="bpp-common-situations">
+	<heading>Common Situations</heading>
 
 <!--
 	<sect1 id="bpp-kernel">Kernel modules/patches
@@ -3033,11 +3126,14 @@ section="7"> manual page for details.
 	<sect1 id="bpp-autotools">
           <heading>Packages using
           <prgn>autoconf</prgn>/<prgn>automake</prgn></heading>
-	<p>
-Some very good packaging practices for packages using
-<prgn>autoconf</prgn> and/or <prgn>automake</prgn> have been
-synthesized in &file-bpp-autotools;. You're strongly encouraged to
-read this file and to follow the given recommendations.
+          <p>
+Keeping <prgn>autoconf</prgn>'s <file>config.sub</file> and
+<file>config.guess</file> files up-to-date is critical for porters,
+especially on more volatile architectures.  Some very good packaging
+practices for any package using <prgn>autoconf</prgn> and/or
+<prgn>automake</prgn> have been synthesized in
+&file-bpp-autotools;. You're strongly encouraged to read this file and
+to follow the given recommendations.
 
 
 	<sect1 id="bpp-libraries">Libraries
@@ -3051,7 +3147,7 @@ breaking.
 Good practices for library packaging have been grouped in
 <url id="&url-libpkg-guide;" name="the library packaging guide">.
 	
-	<sect1 id="bpp-other-specific-practices">Other specific packages
+	<sect1 id="bpp-other">Other specific packages
 	<p>
 Several subsets of packages have special sub-policies and corresponding
 packaging rules and practices:
@@ -3075,24 +3171,8 @@ Ocaml related packages have their Ocaml policy: &file-ocaml-policy; (in
 the <package>ocaml</package> package). A good example is the <package>camlzip</package>
 source package.
 </list>
-
-    <sect id="config-mgmt">
-	<heading>Configuration management</heading>
-	
-	<sect1 id="config-wise-debconf">
-          <heading>Proper use of <package>debconf</package></heading>
-	<p>
-<package>Debconf</package> is a configuration management system which
-can be used by all the various packaging scripts
-(<file>postinst</file> mainly) to request feedback from the user
-concerning how to configure the package. Direct user interactions must
-now be avoided in favor of <package>debconf</package>
-interaction. This will enable non-interactive installations in the
-future.
-	<p>
-Debconf is a great tool but it is often poorly used.   Many common mistakes
-are listed in the <manref name="debconf-devel" section="8"> man page. 
-It is something that you must read if you decide to use debconf.
+        </sect1>
+      </sect>
 
 <!--
 	<sect1 id="custom-config-files">Custom configuration files
