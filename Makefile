@@ -6,7 +6,6 @@ SUBDIRS	:=	\
 		book-suggestions 	\
 		ddp-policy		\
 		debian-bugs	 	\
-		developers-reference	\
 		dictionary 		\
 		distribute-deb		\
 		dselect-beginner 	\
@@ -28,6 +27,7 @@ SUBDIRS	:=	\
 		tutorial		\
 		user			\
 		users-guide		\
+		developers-reference	\
 
 # documents with broken or newest Makefiles will be moved to the bottom
 
