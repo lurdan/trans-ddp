@@ -1,0 +1,1461 @@
+<!doctype debiandoc system>
+
+<debiandoc>
+
+ <book>
+ 
+  <titlepag>
+  
+   <title>Debian 新規メンテナ向けガイド</title>
+   
+   <author>
+   Josip Rodin <email/jrodin@jagor.srce.hr/
+   </author>
+
+   <author>
+   八田真行 <email/mhatta@debian.or.jp/
+   </author>
+
+   <version>バージョン 0.95.jp1、<date></version>
+
+   <copyright>
+   <copyrightsummary>Copyright &copy; 1998 Josip Rodin.</copyrightsummary>
+
+   <p>この文書は GNU GPL(バージョン 2 かそれ以降)が定める条件の下で
+   配布されます。筆者が本文書に統合し、 debhelper に対応するよう加筆修正
+   した文書は以下の通り。
+
+   <p>新米メンテナのための Debian パッケージング Howto、
+   Will Lowe <email/lowe@debian.org/ 著 (1997年)。
+   <p>この著作権表示が残されていて、原著者のオリジナルに加えられた修正部分が
+   はっきりそれと分かるように示されていれば、電子的あるいはその他のいかなる
+   形式での再配布も自由である。
+   <p>Igor Grobman <email/igor@digicron.com/ と James A. Treacy 
+   <email/treacy@debian.org/ も本文書の作成に貢献してくれた。
+
+   <p>Debmake マニュアル (Debian パッケージを作る)、
+   Jaldhar Vyas <email/jaldhar@debian.org/ 著 (1997年)。
+   <p>Debian ユーザーズ / 開発者メーリングリストで出た話題から、あるいは
+   読者から寄せられた中からピックアップした情報を含んでいる。
+
+   <p>日本語訳は八田真行 <email/mhatta@debian.or.jp/ が
+   行った。変更した個所は、
+
+   <p>
+   <enumlist compact="compact">
+   <item>本家メーリングリストのアドレスをすべて debian-devel@debian.or.jp
+   に変更
+   <item>日本語化/国際化した場合のパッケージ名の付け方の解説を追加
+   <item>Description の言語に関する注意点を追加
+   <item>アップロード前の報告についての説明を追加
+   <item>アップロード先を master.debian.or.jp に変更
+   <item>ダイアルアップ接続における注意点を追加
+   </enumlist>
+   など。
+
+   <p>訳者による改変部分の文責はすべて訳者にある。
+
+   <p>0.7jp3 改訂に際して、人柱になって下さった(笑)本田耕一、autoconf
+   と dh_make の関係についてご助言下さった川村尚生の両氏に感謝する。
+
+   </copyright>
+
+  </titlepag>
+
+  <toc sect>
+
+  <chapt id="start">まずは始めよう
+
+  <p>この文書では、Debian GNU/Linux 用パッケージを作るにはどうしたらよいか
+  、一般的な Debian ユーザ(と開発者予備軍)を対象に解説しようと思います。
+  小難しい専門用語はできるだけ避けて、実用的な例を多く用いて説明していく
+  つもりです。ことわざにもあるように、<em>百聞は一見にしかず</em>
+  ですからね！
+
+  <p>Debian が Linux ディストリビューションの最高峰と呼ばれる
+  までになった理由のひとつがそのパッケージ管理システムです。
+  すでに膨大な数のソフトウェアが Debian 形式になっていますが、
+  まだパッケージ化されていないソフトウェアをインストールしなければ
+  ならないこともあるでしょう。
+  どうやったら自分でパッケージが作れるんだろう、とか
+  できるにしてもそれはとても難しいことなんじゃないかとか思われるかも
+  しれません。まあ、もしあなたが本当に駆け出しの Linux ユーザならば
+  困難な仕事でしょうが、でもそうだったら今ごろこんな文書
+  読んでませんて :-)
+
+  パッケージ作成には、 Unix のプログラミングについて多少の知識が
+  必要です。がしかし、神様みたいに精通している必要は全くありません。
+
+  <sect id="needprogs">開発に必要なプログラム
+
+  <p>ことを始める前に、以下に挙げるパッケージがきちんとインストールされて
+  いるかどうか <manref name="dpkg" section="8"> を使って確かめてください
+  (「dpkg -i パッケージ名」などとすれば分かります)。
+  この文書は 2.0 「hamm」ディストリビューションが Debian の
+  公式安定版リリースで、2.1 「slink」が凍結(リリース間近の)版
+  だった期間に書かれました。そこで、ここでは無難な線ということで、2.0 に収録
+  されているパッケージのみを利用しながら話を進めることにします。
+
+  <p>以下のパッケージは普通に Debian 2.0 をインストールしたならば
+  すでにシステムに入っているはずです。それでも、「dpkg -s パッケージ名」で
+  確認するのをお忘れなく。
+
+  <list>
+  <item><em>binutils</em> - これらのプログラムは、プログラムの「素」となる
+  オブジェクトファイルをアセンブル、あるいはリンクするのに使われます。
+  (「info binutils」とすればマニュアルが読めます)
+
+  <item><em>cpp</em> - C プリプロセッサ
+  (詳しくは<manref name="cpp" section="1">を参照)
+
+  <item><em>cpio</em> - これは tar や zip と同じアーカイバと呼ばれる種の
+  プログラムです(詳しくは <manref name="cpio" section="1">を参照)。
+
+  <item><em>dpkg-dev</em> - このパッケージには Debian ソースパッケージ
+  を展開、構築、アップロードするのに必要なツール群が含まれています。
+  また、パッケージングマニュアルや dpkg の内部仕様書もこのパッケージに
+  入っています(詳しくは <manref name="dpkg-source" section="1">を参照)。
+
+  <item><em>file</em> - この便利なプログラムを使うとそのファイルがどういう形式
+  のものか判定することができます(詳しくは<manref name="file" section="1">を
+  参照)。
+
+  <item><em>fileutils</em> - Linux システムに必要不可欠なユーティリティ
+  を集めたもので、ls、chmod、rm などが含まれます
+  (「info --file /usr/info/fileutils.info.gz」とすればマニュアルが読めます)。
+
+  <item><em>gcc</em> - GNU C コンパイラ。ほとんどの Linux プログラムは
+  C 言語で書かれています(詳しくは <manref name="gcc" section="1">を参照)。
+
+  <item><em>libc6-dev</em> - gcc が、オブジェクトファイルを生成してリンク
+  するのに必要な C ライブラリとヘッダファイルはこのパッケージに
+  入っています。未だに libc5 の使用を推奨、あるいは現に使っている
+  プログラムもありますが、ぜひ新バージョンの libc6 を
+  使うようにしてください。(「info libc」でマニュアルが読めます)
+
+  <item><em>make</em> - ふつう、プログラムはいくつかの手順を踏んで
+  生成されます。同じコマンドを何度も何度も繰り返し入力する代わりに、
+  make プログラムを使えば手続きを自動化することができます。
+ (「info make」でマニュアルが読めます)
+
+  <item><em>patch</em> - このとても有用なユーティリティは
+  オリジナルとの差異が列挙されたファイル(diff プログラムによって生成)を
+  読み込んでオリジナルのファイルに適用し、パッチ済バージョンを作成します。
+  (詳しくは <manref name="patch" section="1"> を参照)。
+
+  <item><em>perl</em> - これは今日の Un*x システムにおいてもっとも
+  使われているスクリプト言語のひとつで、その強力さはしばしば
+  「Unix のスイス軍用チェーンソー」と形容されるほどです
+  (詳しくは <manref name="perl" section="1">を参照)
+  </list>
+
+  <p>以下はディストリビューションの devel セクションからご自分で
+  インストールしなければならないかもしれません。
+
+  <list>
+  <item><em>fakeroot</em> と <em>libtricks</em> - これらを使うと、
+  root の権限をパッケージ構築の過程で必要なだけ得ることが
+  できます。現在の所まだ開発中の段階ですが、すでに実用に耐えます。
+  (詳しくは <manref name="fakeroot" section="1">を参照)
+
+  <item><em>lintian</em> - パッケージ作成後にこれを使うと、
+  パッケージ中のよくある間違いを見つけ出して、エラーを説明してくれます。
+  Lintian は diffstat という、 diff の出力からヒストグラムを生成する
+  小さなユーティリティを必要とします。
+  (詳しくは <manref name="lintian" section="1">、
+  <manref name="diffstat" section="1">、
+  /usr/doc/lintian/lintian.html/index.html を参照)
+  </list>
+
+  <p>そして utils セクションからは以下のパッケージ。
+
+  <list>
+  <item><em>dh-make</em> と <em>debhelper</em> - dh-make はあとで説明する
+  パッケージのひな型を用意するのに必要となります。dh_make は 
+  ひな型を作る過程で debhelper ツールのいくつかを使います。これらを
+  使わなくてもパッケージ作成は可能ですが、
+  初めてパッケージを作る方には利用を<em>強く</em> お勧めします。
+  パッケージを作るのも、以後パッケージを管理するのもずっと簡単になるからです。
+  (詳しくは <manref name="dh_make" section="1">、
+  <manref name="debhelper" section="1">、/usr/doc/debhelper/README を参照)
+
+  <item><em>debmake</em> と <em>devscripts</em> - これらのパッケージは
+  場合によっては有用なプログラムをいくつか含んでいますが、これらもまた
+  パッケージ構築には直接必要ありません。debmake の機能は dh-make に
+  良く似ています。devscripts はスクリプトを集めたものです。
+  (詳しくは<manref name="deb-make" section="1">、
+  /usr/doc/devscripts/README.debian.gz を参照)
+  </list>
+
+  <p>さて、以下の<em>とても重要</em>なパッケージはディストリビューションの
+   doc セクションに収録されています。
+
+  <list>
+  <item><em>debian-policy</em> - Debian ポリシーマニュアル。
+  アーカイブの構造と内容、OS の設計に関する
+  問題がいくつか、あるいは Linux ファイルシステム基準
+  (Linux Filesystem Structure Standard)についてなどいろいろ載っていますが、
+  今回重要になってくるのはディストリビューションに含まれるそれぞれの
+  パッケージが満たすべき必要条件の説明です
+  (詳しくは /usr/doc/debian-policy/policy.html/index.html を参照)。
+  鴨志田さんによる邦訳が<url id="http://www.debian.or.jp/Documents/Documents_ja/debian-policy/index.html" name="Debian Policy Manual 日本語版">として用意されていますが、原文の方が新しいこともありますので両方参照するように下さい。
+
+  <item><em>developers-reference</em> - 開発者リファレンス。
+  技術的側面のみならず、例えばアーカイブの構造、
+  どうやってパッケージの名前の変え方、選び方、
+  メンテナを降りるにはどうしたらよいか、どうやって NMU をするか、
+  バグとのつき合い方、いつどこにアップロードすればよいかなどなど
+  パッケージ化についてのありとあらゆる情報がここにあります。
+  (詳しくは /usr/doc/developers-reference/developers-reference.html/index.html を参照)
+
+  <item><em>packaging-manual</em> - パッケージングマニュアル。
+  Debian の バイナリ/ソースパッケージを作る上での技術的側面を解説しています。
+  (詳しくは /usr/doc/packaging-manual/packaging.html/index.html を参照)
+  芳尾さんによる邦訳が<url id="http://www2.osk.3web.ne.jp/%7Eshishamo/debian/trans/packaging/packaging.jis.html" name="Packaging Manual 日本語版">にあります。
+  </list>
+
+  <p>これらに加え、あなたのパッケージに電子的に<em>署名</em>するのに
+  暗号化ソフトウェア<manref name="pgp" section="1">が必要です。
+  これは、もしあなたがご自分のパッケージを他の人に配布したい場合
+  (あなたのパッケージを Debian ディストリビューションに含めるというのは
+  要はそういうことですが)特に重要になってきます。しかし、
+  アメリカ合衆国のへんちくりんな輸出規制法のせいで、単にこれをお近くの 
+  Debian FTP サイトからダウンロードするというわけには行きません。
+  しかし、 Debian の FTP サイトには README.non-us というファイルが
+  あるはずで、それを見るとどうすれば pgp が入手できるか分かります
+  (ヒント: ftp://nonus.debian.org/debian-non-US/)。
+
+  <p>上記の簡単な説明は、それぞれのパッケージが何をするのか紹介
+  するというだけのものです。先に進む前にどうか徹底的にそれぞれのプログラムに
+  付属の文書を熟読し、標準的な使い方だけでも理解しておいて下さい。
+  きついと思われるかも知れませんが、あとになればきっと
+  <em>読んでてよかったなあ</em>と思うことでしょう。
+
+  <sect id="otherinfo">その他知っておくべきこと
+
+  <p>これから作ろうとするのは２種類のパッケージで、それぞれ
+  ソースパッケージ、バイナリパッケージと呼ばれています。
+  ソースパッケージはコンパイルしてプログラムになるソースコードが
+  含まれます。バイナリパッケージにはでき上がったプログラムそのものです。
+  紛らわしい言葉ですが、「プログラムのソース」と
+  「プログラムのソースパッケージ」を混同しないようにしましょう！
+  もし用語についてもっと知りたければ他のマニュアル類を参照して下さい。
+  
+  <p>Debian では、「メンテナ(maintainer)」と言う用語はパッケージを
+  作る人を示し、「作者(author)」とはプログラムを作った人を指します。そして
+ 「上流メンテナ(upstream maintainer)」というのは現在プログラムそのものを
+  管理している人のことです。たいてい作者と上流メンテナは同一人物ですが、
+  メンテナすらも同じ人物であることがあり得ます。あなたが書いたプログラムを
+   Debian の一部としたいのであれば、ぜひあなたのアプリケーションを
+  パッケージ化してメンテナになって下さい。
+
+  <p>もしディストリビューションの次のリリースにあなたのプログラムを含めたい
+  (そのプログラムが有用なら、ぜひ！)ならば、パッケージを構築したあとに
+  (あるいはしている最中でも構いませんが)正式な Debian メンテナになる必要
+  があります。その手続きは開発者リファレンスで説明されていますので、
+  そちらを参照して下さい。
+
+  <chapt id="first">はじめの一歩
+
+  <p><url name="Developer's Corner" id="http://www.debian.org/devel/">
+  や<url name="開発者のコーナー" id="http://www.debian.or.jp/devel/">
+  にある文書には、パッケージ化を始める上でどこからどうやって
+  手をつけたらよいのかについてあまり書いてありません。この文書ではどんな
+  細かい(ほとんど無駄といってもよいような)手順も余さず説明し、あなたが最初の
+  パッケージを作るお手伝いをします。ともかく一つ作ってしまえば、あとは
+  次のリリース、次いで他のパッケージ作りへという風に
+  経験を積んでいけばよいのです。
+
+  <sect id="choose">パッケージ化するプログラムの選定
+
+  <p>パッケージにしたいプログラムについてはすでに各自お考えがあると
+  思いますが、未経験者なら以下をチェックしてみて下さい。
+
+  <list>
+  <item>そのパッケージがすでにディストリビューションに収録されていないか
+  どうか確かめて下さい。もしあなたが「安定版」を使っているのなら、
+  たぶん<url name="パッケージ検索ページ" id="http://www.debian.org/distrib/packages.html">か、<url name="Debian JP パッケージ" id="http://www.debian.or.jp/Packages.html">に行って調べるのが最上の策です。
+  もしあなたが<em>現在の</em>「開発版」ディストリビューションを使って
+  いるのなら、これらのコマンドを使って調べてみて下さい。
+  <example>
+  dpkg -s プログラム名 あるいは
+  dpkg -l '*プログラム名*'
+  </example>
+
+  <item><url name="WNPP page" id="http://www.debian.org/doc/prospective-packages.html">、あるいは 
+  <url id="http://www.debian.or.jp/prospective-packages.html" name="作業を必要としているパッケージ">
+  に行って誰か他の人が同じプログラムのパッケージを作っていないかどうか
+  確かめて下さい。もし誰か作っていたら、現在のメンテナに連絡を
+  とってご自分の要望を伝えて下さい。それで満足したならば、まだ誰も
+  手をつけていない他の面白いプログラムを探して再チャレンジです。</item>
+
+  <item>プログラムはライセンスを<em>与えられていなければなりません</em>
+  それが
+  <url name="Debian Free Software Guideline" id="http://www.debian.org/social_contract.html#guidelines">
+  (邦訳は<url name="Debian フリーソフトウェアガイドライン" id="http://www.jp.debian.org/social_contract#guidelines">)で示されているようなフリーの
+  ものであれば言うことなしです。
+  もしガイドラインにそぐわない点があっても、Debian の「contrib」や
+  「non-free」セクションに入れることは可能です。
+  もしどのセクションに入れればよいか良く分からなければ、
+  <email/debian-devel@debian.or.jp/ で聞いてみてください。
+  </item>
+  
+  <item>プログラムは setuid root で動くものであっては<em>なりません</em>。
+  一番良いのは、setuid とか setgid とかの使用を要求しない
+  プログラムです。</item>
+
+  <item>デーモンや何か */sbin に行くようなものは手始めとしてはよろしくない。
+  </item>
+
+  <item>プログラムはバイナリ実行形式になるものがよいでしょう。ライブラリ
+  は今はやめといたほうがいいですよ。
+  </item>
+
+  <item>ちゃんとした説明書きのあること。あるいは少なくとも誰にとっても
+  理解可能なプログラムであること。</item>
+
+  <item>プログラムの作者に連絡をとってパッケージ化の承諾をもらいましょう。
+  何かプログラムそのものに起因する問題が発生した際に、作者にいろいろ聞けると
+  いうことは重要なので、由来のはっきりしないソフトウェアの断片をパッケージ化
+  するのはやめておきましょう。
+  </item>
+
+  <item>そして最後に、といってもこれが重要なのですが、
+  ちゃんと動くかどうか確かめましょう。そして何回か試してみましょう。
+  </item>
+  </list>
+
+  <p>もちろんこれらのことは安全策というだけのことです。筆者としては、
+  何も知らないままにパッケージ化した setuid した FTP デーモンとかのせいで
+  怒り狂ったユーザからあなたに抗議殺到というような事態を回避したいのです。
+  パッケージ化でもっと経験を積めば、そういうパッケージも
+  作れるようになるでしょう。しかし、どんなに老練な開発者だって
+  何か分からないことがあれば debian-devel メーリングリストで質問するの
+  です。そこには喜んで手助けしてくれる人々がいます。
+
+  <p>もっと詳しい話は、開発者リファレンスに載っていますので参照して下さい。
+
+  <sect id="getsrc">プログラムを手にいれる
+
+  <p>さて、最初にすべきことは、オリジナルのソースを探してダウンロード
+  することです。ここでは作者のホームページからすでにソースファイルを入手した
+  として話を進めます。
+  Linux のソースはふつう tar/gzip 形式で提供されています。拡張子は 
+  .tar.gz か .tgz で、普通はプログラム名-バージョンという
+  サブディレクトリをを含んでいます。そこにすべてのソースが入っているわけです。
+  もしあなたのプログラムのソースが他の種類のアーカイブで提供されていたら
+  (例えばファイル名が <TT>.Z</TT>とか<TT>.zip</TT>でおわっていたら)、
+  適当なツールで展開しましょう。どうやって展開したらよいのか
+  良く分からなかったら debian-devel で聞いてみましょう
+  (ヒント: 「file アーカイブファイル名.拡張子」とかすると分かるかも？)
+
+  <p>さて本稿では、「gentoo」というプログラムを例にとって説明しようと
+  思います。これは X11 上で動く GTK+ を使用したファイルマネージャです。
+
+  <p> /usr/local/src 以下にあなたのプログラムの名前を付けたサブディレクトリを
+  作りましょう(今の場合 /usr/local/src/gentoo ですね)。ダウンロードした
+  アーカイブをここにコピーし、「tar -xzf gentoo-0.9.12.tar.gz」と実行して
+  展開しましょう。ちょっと時間がかかるかも知れませんが、
+  画面にはなんの出力もないはずです(エラーがなければの話 - 
+  もしエラーが発生したらもう一度ダウンロードするか、それが本当に tar/gzip 
+  アーカイブかどうか確かめること)。すべて終ればソースが「gentoo-0.9.12」
+  という /usr/local/src/gentoo の中のサブディレクトリ内に展開されている
+  でしょう。
+
+  <p>展開したディレクトリに移って、<em>徹底的に</em>ドキュメントを
+  読みましょう。読むべきは README*、INSTALL*、*.lsm、*.html などという
+  ファイルです。どうやってコンパイルして、インストールすればよいのか
+  (たぶん /usr/local/bin にインストールするものとして説明されている)
+  見つけられるでしょう。
+
+  <p>プログラムによって構築の手順は代わりますが、最近のプログラムだと
+  「configure」スクリプトが付属していることがあります。
+  このスクリプトはソースをあなたのシステムに応じて設定し、あなたの
+  システムにおいてコンパイルできるかどうか確かめます。
+   設定したあと(「./configure」と実行)、プログラムは普通
+   「make」でコンパイルされます。そして「make install」と入力すると、
+   目的のディレクトリにインストールされます。これが一般的な手順です。
+
+  <sect id="naming">「dh_make」を実行する前にやっておくべきこと
+
+  <p>これからパッケージを構築する下準備として、ソースディレクトリ名を
+  &lt;パッケージ名&gt;-&lt;バージョン&gt; に変更しましょう。
+  もうお分かりのように例題のプログラム gentoo はこの必要がありませんが、
+  あなたのプログラムには必要かも知れません。
+  具体的には、プログラムの元の名前に大文字が含まれていたらそれを小文字にし、
+  もし一語以上で構成されていたら、一つの語につなげるか省略しましょう。
+  例えば、「John's little editor for X」というソフトウェアならば
+   johnledx とか jle4x というようにしましょう。あまり長すぎない程度、
+   大体 15 文字くらいで、適当に決めて下されば結構です。
+
+   <p>もし、パッケージ作成にあたり元々は英語しか使えないプログラムに
+   日本語化パッチを当ててコンパイルしたとか、あるいはあなた自身が手を加えて
+   日本語化した場合などには、パッケージ名の最後に -ja をつけましょう。
+   例えば、もし gentoo を日本語化したならば gentoo-ja という具合です。
+   国際化の場合には -i18n、多国語化の場合には -m17n と付けて下さい。
+   あなた以外の人が日本語化などを行った場合には、プログラムの作者に加えて
+   そのパッチの作者にも連絡をとる必要があります。パッチのライセンスも
+   確認しましょう。もし元のプログラムが GPL の元で配布されていた場合には、
+   改変物も GPL に基づいて配布しなければなりませんので、あまり
+   気にしなくても大丈夫です。   
+
+  <p>プログラムの正確なバージョンもチェックしましょう
+  (パッケージの、ではありません)。
+   もしそのソフトウェアが「バージョン X.Y.Z」という形式で番号付けされて
+   おらず、リリースされた日付になっていたりする場合は、バージョン番号として
+   日付を使っても構いません(もし日付が 1998 年の 12 月 19 日だったら、
+   アメリカ式に縮めて、19981219 とかにしましょう)
+   およそバージョン番号に使えそうな情報がないと言う場合、
+   上流メンテナに連絡をとって彼らが何か他のリビジョン管理手段を使っている
+   のかどうか聞きましょう。
+
+   <p>これは必須ではありませんが、バージョン番号に日本語化パッチ等が
+   適用されていることを示すような文字を付け加えておくと、
+   本体はバージョンアップしていなくてもパッチはバージョンが上がった
+   という時などに管理しやすくなります。今の場合には、0.9.12.jp1
+   などとしておけば、今後は上流バージョンが上がらない限り
+    jp? の ? だけ変更すれば良いわけです。
+
+  <p>dh_make の過程に入る前に、環境変数 EMAIL をセットする必要があります。
+  この環境変数にはあなたの電子メールアドレスを定義します。シェルから
+  こんな風に入力して下さい(以下の例は bash の場合)
+  
+  <p><example>
+  export EMAIL=あなたの電子メールアドレス
+  </example>
+
+  <sect id="dh_make">「dh_make」の実行
+
+  <p>現在プログラムのソースディレクトリにいることを確認し、以下を
+  実行して下さい。
+
+  <p><example>
+  dh_make
+  </example>
+   
+  <p>画面にはいろいろ表示されて、あなたが作ろうとしているパッケージ
+  がどういう種類のものか聞いてきます。gentoo は 単一バイナリパッケージ - 
+  すなわちパッケージに含まれるバイナリが一つだけで、一つの .deb ファイルのみ
+  が作成される - ですので最初の選択肢を選び、「s」キーを押しましょう。 
+  初めてパッケージを作るというときには、マルチバイナリパッケージや
+  ライブラリに手を出さない方が無難です。この話は前にもしましたね。
+
+  <chapt id="modify">ソースコードの変更
+
+  <p>dh_make が終ったら、今度はプログラムの Makefile を修正しましょう。
+  「cd ..」として[gentoo-0.9.12.orig」という新しいディレクトリが
+  作られているのを確かめましょう。このディレクトリは元の
+  ソースコードがそのまま納められていますが、今後一切手を加えてはいけません。
+  「gentoo-0.9.12」ディレクトリもそのまま存在していますので、これからは
+  こちらをいじることになります。
+
+  <p>さて、「gentoo-0.9.12」ディレクトリの中で、コンパイルして、
+  インストールして、プログラムを実行して試してみて
+  下さい。ちゃんと動くことを確認し、インストールや起動の過程でなにか
+  変な動きをしないか確認しましょう。
+
+  <p>動作させる為に何らかの変更を加える必要があったら、
+  必ずメモを取っておいて下さい。もし Debian のみならず
+  Linux で動かすために必要な変更でしたら、上流メンテナに
+  報告してあげると喜ばれるでしょう。
+
+  <p>ふつう、プログラムは自分自身を /usr/local 以下のディレクトリに
+  インストールするようになっています。しかし、Debian システムにおいては、
+  /usr/local 以下はシステム管理者(とユーザ)の個人的利用のために
+  予約されているので、Debian パッケージはこのディレクトリを使っては
+  いけないことになっています。
+  そこで、あなたは gentoo の Makefile を覗いてみて、場合によってはいくらか
+  手を加えなければなりません。Makefile というのはスクリプトの一種で、
+  <manref name="make" section="1">がこのプログラムの構築を自動化するのに
+  使います。Makefile について詳しくは、<ref id="rules">を参照して下さい。
+
+  <p>修正の具体的なやり方について<em>何から何まで</em>説明するにはとても
+  紙面が足りませんが、よくあるパターンとしては大体以下のようなものでしょう。
+
+  <sect id="configure">autoconf 対応のプログラムの場合
+
+  <p>先程もお話ししましたように、もしソースディレクトリに 
+  configure というスクリプトがあったならば、このスクリプトが
+  Makefile.in というファイルを元に Makefile を適切に
+  生成してくれますので、人間がことさらに何かをいじる必要は普通
+  ありません。debian ディレクトリ内の各ファイルをきちんと書けば、
+  それで OK です。
+  
+  <p>ただし、デフォルトの rules(詳しくは <ref id="rules"> を参照)
+   は単なるひな型に過ぎませんので、不都合があればご自分で適当に
+   書き換えて下さい。
+
+  <sect id="destdir">$DESTDIR の問題
+
+  <p>以下は構築に Makefile を使っているソフトウェアに
+  当てはまる話題です。例えば、Makefile 中にこんな部分があったとしましょう。
+
+  <p><example>
+  # Where to put binary on 'make install'?
+  BIN     = /usr/local/bin
+  # Where to put icons on 'make install'? Note: if you change this,
+  # gentoo will not find the icons as it starts up. You're going to
+  # have to alter gentoo's icon path (in the config window, "Paths"
+  # tab) to get it work.
+  ICONS   = /usr/local/lib/gentoo/
+  </example>
+
+  <p>まず始めに、以下のような新しい行を２行挿入しましょう。
+
+  <p><example>
+  # Edited for Debian GNU/Linux.
+  DESTDIR =
+  </example>
+  これはパッケージ構築の過程で必要になります(後で説明します)。
+
+  <p>次に、 Makefile で最終的に生成されたバイナリがインストールされる
+  場所が指定されているところを探し、こんな風に変えます。
+  <p><example>
+  # Where to put binary on 'make install'?
+  BIN     = $(DESTDIR)/usr/X11R6/bin
+  </example>
+
+  <p>しかしなぜこのディレクトリなんでしょう。他の所じゃだめでしょうか？
+  だめです。
+  というのも Debian ではどこにプログラムをインストールするかいくつかの
+  ルールが決められているからです。これは Linux ファイルシステム構造基準
+  (/usr/doc/debian-policy/fsstnd)で指定されています。
+  Gentoo は X11 用のプログラムですので、/usr/local/bin ではなく 
+  /usr/X11R6/bin にインストールしなければなりません。
+   man ページは(大抵のプログラムには付属していますが、無い場合も
+  あります。今回は無いのであとでひとつ書くことにします) /usr/local/man/man1 
+  ではなく /usr/man/man1 にインストールされなければなりません。
+
+  <p>さて次はちょっと厄介な問題です。もしあなたがある行をこんな風に変えた
+  として。
+
+  <p><example>
+  ICONS   = $(DESTDIR)/usr/share/gentoo/
+  </example>
+  さて、ポリシー通りに合わせたのは良いのですが、今度は C のソース
+  そのものをいじってアイコンを参照しているところすべてを修正しなければ
+  なりません。でもどこを、そして何を探せばよいのでしょうか？修正すべき
+  個所を探すには .c と .h という拡張子のファイルを含むすべてのディレクトリで
+  こんな風に実行すればよろしい。
+  <p><example>
+  grep -n usr/local/lib *.[ch]
+  </example>
+  
+   Grep は usr/local/lib という文字列を探して、見つかったファイル名と
+   それが何行めであるかを教えてくれるでしょう。そうしたらそれらのファイルを
+   編集して usr/local/lib という部分を usr/share に置き換えてやれば
+   良いのです。それでおしまい。usr/local/lib をあなたの指定した場所に
+   置き換えるだけです。
+   他の部分をいじってぐちゃぐちゃにしないよう気をつけましょう。
+   もしあなたが C プログラミングについてあまりご存知ないならば :-)
+
+  <p>終ったら、インストールターゲットを探しましょう(「install:」
+  で始まる行を探してみて下さい)。Makefile の先頭で直接定義されているものを
+  除いて、ディレクトリへの参照をすべて変更して下さい。
+  今回は、その後でちょっと手直ししましょう。
+  元々、インストールターゲットはこんな感じでした。
+
+  <p><example>
+  # ----------------------------------------- Installation
+
+  # You're going to have to be root to do this!
+  install:        gentoo
+                  install ./gentoo $(BIN)
+                  install icons $(ICONS)
+                  install gentoorc-example $(HOME)/.gentoorc
+  </example>
+
+  <p>修正後はこんな風になります。
+  <example>
+  # ----------------------------------------- Installation
+
+  # You're going to have to be root to do this!
+  install:        gentoo-target
+                  install -d $(BIN) $(ICONS) $(DESTDIR)/etc
+                  install ./gentoo $(BIN)
+                  install -m644 icons/* $(ICONS)
+                  install -m644 gentoorc-example $(DESTDIR)/etc/gentoorc
+                  install -d $(DESTDIR)/usr/doc/gentoo/html
+                  cp -a docs/* $(DESTDIR)/usr/doc/gentoo/html
+  </example>
+
+  <p>鋭い人なら私が「install:」の行の「gentoo」を「gentoo-target」に変えた
+  のに気づくでしょう。 こういうのをバグフィックスというのですな。:-)
+
+  <p>今のような、特に Debian パッケージだけに関係しない変更はすべて
+  上流メンテナに報告し、プログラムの次のリビジョンに反映してもらうように
+  しましょう。
+
+  <sect id="nolibs">使用ライブラリの変更
+
+  <p>よくある問題としてもう一つ、ライブラリの問題があります。
+  ライブラリはしばしばプラットフォームごとに異なります。
+  例えば、 Makefile は Debian 上には存在しないライブラリへの
+  参照を含んでいるかもしれません。その場合、その個所を探して、
+  Debian 上に存在する、互換のライブラリを指すように変更してやらなければ
+  なりません。一番良いのはそういう行をコメントにする(<em>消さないで！</em>)
+  ことです。そうしておけば、他の人が違うプラットフォーム上でコンパイルしよう
+  として何か問題が起こったときに、解決のヒントになるかも知れませんから。
+
+  <p>そんなわけで、もしあなたのプログラムの Makefile に
+  以下のような部分があったら(そしてうまくコンパイルできなかったら)、
+
+  <p><example>
+  LIBS = -lcurses -lなんとか -lかんとか
+  </example>
+
+  <p>こういう風に変えましょう。今度はきっと大丈夫です(curses を ncurses に 
+  変えました)。
+
+  <p><example>
+  LIBS = -lncurses -lなんとか -lかんとか
+  #LIBS = -lcurses -lなんとか -lかんとか
+  </example>
+
+  <chapt id="crules">debian/control と debian/rules ファイル
+
+  <p>gentoo-0.9.12 の中には、新しいディレクトリ「debian」が作られていると
+  思います。このディレクトリ内には様々なファイルが納められていて、
+  パッケージ自身の設定をするためにこれらを編集しなければなりません。
+  中でも重要なのが「control」と「rules」です。
+
+  <sect id="control">「control」ファイル
+
+  <p>このファイルは dpkg と dselect がパッケージを管理するのに使う
+  様々な情報が納められています。以下が dh_make が作る control ファイルの
+  ひな型です。
+
+  <p><example>
+  1 Source: gentoo
+  2 Section: unknown
+  3 Priority: optional
+  4 Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
+  5 Standards-Version: 2.4.0.0
+  6
+  7 Package: gentoo
+  8 Architecture: any
+  9 Depends: ${shlibs:Depends}
+  10 Description: Missing
+  11 Missing
+  </example>
+  (行番号は筆者が書き加えました)
+
+  <p>1-5 行目はソースパッケージの管理情報です。1行目はソースパッケージの
+  名前です。
+
+  <p>2 行目はディストリビューションにおいてこのパッケージが所属する
+  セクションです。ここでは x11 と変えましょう。
+
+  <p>3行目はこのパッケージがユーザにとってどれくらい重要なものかを
+  定義します。この gentoo は優先度としては normal のパッケージですが、
+  いくぶん不安定なので、ここでは optional のままにしておきましょう。
+  セクションと優先度は、結局のところ dselect がパッケージをソートするときと
+  デフォルトを選ぶときにしか使われません。
+  このフィールドに何を設定すべきかについては、ポリシーマニュアルにある
+  説明を読んで下さい。
+
+  <p>4 行目はメンテナの名前と電子メールのアドレスです。
+
+  <p>5 行目はこのパッケージが準拠している Debian ポリシー基準の
+  バージョンです(インストールされている debian-policy パッケージの
+  バージョン番号の最初の二字、すなわちメジャーバージョンと同じ)。
+
+  <p>7-11 行目はバイナリパッケージの管理情報です。
+
+  <p>7 行目はバイナリパッケージの名前です。
+
+  <p>8 行目はバイナリパッケージを特定の CPU アーキテクチャ 向けに
+  コンパイルする場合に指定します。「any」のままにしておけば、
+  <manref name="dpkg-gencontrol" section="1">が適当に埋めてくれます。
+
+  <p>9 行目は Debian パッケージ管理システムの最も強力な機能といっても
+  過言ではないでしょう。パッケージはお互い、様々な形で関係しているものですが、
+  このフィールドには Depends: すなわち「依存」の他に、Recommends:、
+  Suggests:、Pre-depends:、Conflicts:、Provides:、Replaces: といった
+  パッケージ間の関係を定義することができます。以下がこれらの意味です。
+
+  <p><list>
+  <item>Depends: 「依存」
+  <p><manref name="dpkg" section="8"> と <manref name="dselect" section="8">
+  は、ここで指定したパッケージがインストールされていない限り
+  あなたのプログラムをインストールしません。
+  あなたのプログラムが特定のパッケージに依存していて、そのパッケージが
+  存在しない限り全く動作しない場合に指定しましょう。</item>
+
+  <item>Recommends: 「推奨」
+  <p><manref name="dselect" section="8"> はここで指定されたパッケージが
+  インストールされていない限りあなたのパッケージをインストールしませんが、
+  <manref name="dpkg" section="8"> を使えば、無視してインストール
+  することが可能です。厳密に言えばあなたのプログラムの動作には必要では
+  ないけれど、一緒に使うことがほぼ前提となっているようなパッケージは
+  ここで指定しましょう。</item>
+
+  <item>Suggests: 「提案」
+  <p>あなたのプログラムをインストールする際に、
+  <manref name="dselect" section="8"> はここで指定したパッケージを
+  インストールするかユーザに聞いてきます。<manref name="dpkg" section="8">
+  は無視します。必要ではないが、あなたのプログラムと一緒に使うと便利な
+  パッケージをここで指定しましょう。</item>
+
+  <item>Pre-Depends: 「先行依存」
+  <p>これは Depends: よりも強い関係を示します。
+  <manref name="dpkg" section="8"> と <manref name="dselect" section="8"> 
+  は、ここで指定されたパッケージがインストールされ<em>適切に設定されていない
+  限り</em>あなたのプログラムをインストールしません。
+  これを使わざるを得ないと思ったらまずは debian-devel メーリングリストで
+  相談しましょう。できれば使わないようにしましょう。
+  早い話が、使っちゃいけません。 :-)</item>
+
+  <item>Conflicts: 「競合」
+  <p><manref name="dpkg" section="8"> と <manref name="dselect" section="8">
+  はここで指定されたすべてのパッケージが削除されない限りあなたのプログラムを
+  インストールしません。</item>
+
+  <item>Provides: 「提供」
+  <p>ほぼ同じ機能を持つパッケージが複数あって、選択の余地があるような
+  場合のために仮想パッケージ名というものが定義されています。
+  仮想パッケージ名の一覧は
+  /usr/doc/debian-policy/virtual-package-names-list.text.gz にあります。
+  (鍋谷さんによる邦訳が <url name="仮想パッケージ名リスト" id="http://www.debian.or.jp/Documents/Documents_ja/virtual-package-names-list-ja.text">として用意されています)
+  もしあなたのプログラムが仮想パッケージ名を提供するの
+  ならばここで指定してください。</item>
+
+  <item>Replaces: 「置換」
+  <p>あなたのプログラムが他のプログラムを置き換える場合に指定して下さい。
+  <manref name="dpkg" section="8"> と <manref name="dselect" section="8">
+  はあなたのプログラムをインストールする前に指定されたパッケージを
+  削除します。</item>
+  </list>
+
+  <p>これらのフィールドは書き方が決まっています。指定したいパッケージ名
+  をコンマで区切って並べてください。もしいくつか選択肢があるの
+  であれば、それらのパッケージ名を縦棒 <tt>|</tt> (パイプ記号)で区切って
+  並べて下さい。
+  あるバージョンより上でなければダメ、などというようにパッケージの
+  バージョン番号によって制限を加えることも可能です。
+  これを指定したい場合にはそれぞれのパッケージ名の後で丸カッコ(パーレン)
+  を開き、関係式、その後でバージョン番号を指定して下さい。使用できる関係式は
+  <tt>&lt;&lt;</tt>、<tt>&lt;=</tt>、<tt>=</tt>、<tt>&gt;=</tt>、
+  <tt>&gt;&gt;</tt>で、それぞれ「指定されたもの以前のバージョンのみ」、
+  「指定されたもの以前か指定のバージョン」、「指定のバージョンのみ」
+  「指定されたもの以降か指定のバージョン」、
+  「指定されたもの以降のバージョンのみ」を認めることを示します。
+  
+  <p>読者にご紹介したい機能の最後が $(shlibs:Depends) です。これは
+  dh_shlibdeps (後述) によって、あなたのプログラムが使う共有ライブラリすべての
+  名前、例えば libc6 とか xlib6g などで自動的に置き換えられます。
+  ですから、今ここで使用するライブラリ名を、あなた自身で指定する必要は
+  ないのです。
+  以上の説明から、今回は 9 行目をそのままにしておいてよいとお分かりでしょう。
+  なぜなら gentoo は他のどのパッケージにも依存していないからです。
+
+  <p>10 行目として追加したのは gentoo が「提案」するパッケージの一覧です。
+  今回は gentoo を X11 用ウィンドウマネージャのメニューに登録する必要が
+  あるので、 menu だけを「提案」することにします。また、実際にメニューに
+  登録するには、debian/menu というファイルも設定する必要がありますが、
+  詳しくは <manref name="menufile" section="5">や
+  <manref name="update-menus" section="1">を参照して下さい。
+
+  <p>11 行目はこのパッケージに関する簡潔な説明です。多くの人々は
+  一行半角 80 文字の幅のスクリーンでこれを見ますから、半角 50 文字以上には
+  ならないようにしましょう。今回は
+  「A fully GUI configurable GTK+ file manager」としました。
+
+  <p>12 行目はこのパッケージに関する長い説明文です。ここでは一つの段落で
+  パッケージについてより詳しく説明するようにして下さい。
+  各行一列目は空白でなければならず、空白行を入れてはいけません。
+  . (半角ピリオド)を２列目に書くとその行が空行であることを示せます。
+  また、また、説明文の後に空白行があってはいけません。
+
+  <p>以下が修正後の control ファイルです。
+
+  <p><example>
+  1  Source: gentoo
+  2  Section: x11
+  3  Priority: optional
+  4  Maintainer: Josip Rodin &lt;jrodin@jagor.srce.hr&gt;
+  5  Standards-Version: 2.4.1.2
+  6
+  7  Package: gentoo
+  8  Architecture: any
+  9  Depends: ${shlibs:Depends}
+  10 Suggests: menu (>= 1.5)
+  11 Description: A fully GUI configurable GTK+ file manager
+  12 gentoo is a file manager for Linux written from scratch in pure C. It
+  13 uses the GTK+ toolkit for all of its interface needs. gentoo provides
+  14 100% GUI configurability; no need to edit config files by hand and re-
+  15 start the program. gentoo supports identifying the type of various
+  16 files (using extension, regular expressions, or the 'file' command),
+  17 and can display files of different types with different colors and icons.
+  18 .
+  19 gentoo borrows some of its look and feel from the classic Amiga file
+  20 manager "Directory OPUS" (written by Jonathan Potter).
+  </example>
+
+  <p>
+  なお、基本的に Description は英語ですので、日本人の書いたプログラムなど
+  で英語の説明が無い場合には、メンテナが適当に英語で書いて下さい。英語が
+  苦手と言う方は Debian JP Documentation メーリングリスト 
+  <email/debian-doc@debian.or.jp/で助けを求めるとよいでしょう。この
+  メーリングリストに加入するには、メール本文に「subscribe あなたのお名前
+  (ローマ字で)」を書いた電子メールを<email/debian-doc-ctl@debian.or.jp/に
+  送り、あとは管理サーバの指示にしたがって下さい。また、日本のユーザ向けに 
+  Desctiption の翻訳が進行中ですので、できるだけ Description は英語と
+  日本語の両方を用意するようにして下さい(日本語の Description の扱いに
+  ついては、Debian JP Documentation メーリングリストで聞いて下さい)。
+
+  <sect id="rules">「rules」ファイル
+
+  <p>さて、「debian」ディレクトリに戻って rules というファイルを
+  覗いてみましょう。
+  <manref name="dpkg-buildpackage" section="1"> が実際にパッケージを
+  作成するのに使うのがこのファイルです。
+  このファイルは「make -f」で実行されますので、実際のところもう一つ
+   Makefile があるようなものですが、上流ソースに含まれるものとは別物です。
+
+  <p>「rules」ファイルは他の Makefile と同じく、ソースからどうやって
+  プログラムを構築するかを定義したいくつかのルールから構成されています。
+  ルールはいくつかのターゲットで構成されます。ターゲットはファイル名、
+  あるいは実行されるべき動作の名前(例えば「build:」や「install:」)
+  で構成されます。
+  実行したいルールは、コマンドライン引数として指定します
+  (例えば「rules build」や「rules install」というように)。ターゲット名の
+  後には、依存要素を指定することができます。依存要素というのは
+  ルールが依存するプログラムやファイルのことです。
+  その後で数多くのコマンドを記述します(各行を &lt;タブ&gt;で始めて下さい！)
+  最後に空行があると、そこで一つのルールが終り、次のルールが
+  始まります。ハッシュ(「#」)で始まる行は行の終りまでコメントと
+  見なされます。ルールは他のルールからも、あるいはコマンドラインからも
+  呼び出せます(例えば「debian/rules clean」というように)。
+
+  <p>以上を読んでもわけが分からないかもしれませんが、dh_make が
+  デフォルトとして作成する
+  「rules」ファイルを実際に読んでみると理解できるのではないかと思います。
+
+  <p><example>
+  1  #!/usr/bin/make -f
+  2  # Made with the aid of dh_make, by Craig Small
+  3  # Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
+  4  # Some lines taken from debmake, by Cristoph Lameter.
+  5
+  6  # Uncomment this to turn on verbose mode.
+  7  #export DH_VERBOSE=1
+  8
+  9  build: build-stamp
+  10 build-stamp:
+  11	dh_testdir
+  12
+  13	
+  14	# Add here commands to compile the package.
+  15	$(MAKE)
+  16
+  17	touch build-stamp
+  17
+  18 clean:
+  19	dh_testdir
+  20	dh_testroot
+  21	rm -f build-stamp install-stamp
+  22
+  23	# Add here commands to clean up after the build process.
+  24	-$(MAKE) clean
+  25
+  26	dh_clean
+  27
+  28 install: install-stamp
+  29 install-stamp: build-stamp
+  30	dh_testdir
+  31	dh_testroot
+  32	dh_clean -k
+  33	dh_installdirs
+  34
+  35	# Add here commands to install the package into debian/tmp.
+  36	$(MAKE) install DESTDIR=`pwd`/debian/tmp
+  37
+  38	touch install-stamp
+  39
+  40 # Build architecture-independent files here.
+  41 binary-indep: build install
+  42 # We have nothing to do by default.
+  43
+  44 # Build architecture-dependent files here.
+  45 binary-arch: build install
+  46 #	dh_testversion
+  47	dh_testdir
+  48	dh_testroot
+  49	dh_installdocs
+  50	dh_installexamples
+  51	dh_installmenu
+  52 #	dh_installemacsen
+  53 #	dh_installinit
+  54	dh_installcron
+  55	dh_installmanpages
+  56 #	dh_undocumented
+  57	dh_installchangelogs
+  58	dh_strip
+  59	dh_compress
+  60	dh_fixperms
+  61	dh_suidregister
+  62	dh_installdeb
+  63	dh_shlibdeps
+  64	dh_gencontrol
+  65 #	dh_makeshlibs
+  66	dh_md5sums
+  67	dh_builddeb
+  68
+  69 source diff:
+  70	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
+  71
+  72 binary: binary-indep binary-arch
+  73 .PHONY: build clean binary-indep binary-arch binary
+  </example>
+
+  <p>１行目は、シェルや Perl スクリプトでおなじみの表現でしょう。
+  これは、このファイルが make によって処理されることを示しています。
+  空行は無視されます。「#(ハッシュ)」で始まる行はコメントとして扱われ、
+  やはり無視されます。
+  15行目ではプログラムをコンパイルするためにアプリケーション自身の Makefile 
+  を実行します。
+
+  <p>最初は完璧にうまくいくはずがありません。工程の途中でエラーが起きて
+  止まってしまうこともあるでしょう。18-26 行目ではその前の失敗した過程で出た
+  必要のないゴミをすべて削除しています。
+
+  <p>インストールのプロセス自体は 28行目から始まります。33行目で、必要な
+  ディレクトリはすべて 「debian」ディレクトリ内に作られます。
+  36 行目では gentoo の Makefile に記述されたインストールターゲット
+  が実行されます - そしてすべては  debian/tmp ディレクトリに
+  インストールされるというわけ - これが genntoo の Makefile の中で 
+  $(DESTDIR) をルートインストールディレクトリとして指定した理由です。
+
+  <p>コメントにもあるように、40-42 行目は アーキテクチャに依存する
+  ファイルを構築するのに使われます。
+
+  <p>45-67 行目では debhelper パッケージに収録されたいくつかの小さな
+  ユーティリティを実行して、あなたのパッケージを Debian ポリシーに適合する
+  ようにします。
+  
+  <p>これらのユーティリティは dh_ で始まる名前で、それぞれ以下のような
+  仕事をします。
+
+  <list>
+  <item><manref name="dh_testdir" section="1"> はあなたがソースディレクトリ
+  にいるかどうか確認します(ここでは /usr/local/gentoo/gentoo-0.9.12/)。
+  <item><manref name="dh_testroot" section="1"> はあなたがルート権限を
+  持っているかどうか確認します。
+  <item><manref name="dh_installdirs" section="1"> は「dirs」ファイルで指定
+  されたディレクトリを作成します[今回は使いません]。
+  <item><manref name="dh_installdocs" section="1"> は文書を 
+  debian/tmp/usr/doc/gentoo ディレクトリにコピーします。
+  <item><manref name="dh_installmenu" section="1"> は menu ファイルを
+  debian/tmp/usr/lib/menu/gentoo にコピーします。
+  <item><manref name="dh_installmanpages" section="1"> は man ページを
+  コピーし適切にリンクを張ります。
+  <item><manref name="dh_installchangelogs" section="1"> は changelogs
+  を debian/tmp/usr/doc/gentoo ディレクトリにコピーします。
+  <item><manref name="dh_installinit" section="1"> は init.d スクリプト
+  をコピーします[今回は使いません]。
+  <item><manref name="dh_installcron" section="1"> は crontab スクリプト 
+  を debian/tmp/etc/cron.*にコピーします[今回は使いません]。
+  <item><manref name="dh_installexamples" section="1"> はプログラムに付属の
+  サンプルファイルを debian/tmp/usr/doc/gentoo/examples にコピーします
+  [今回は使いません]。
+  <item><manref name="dh_strip" section="1"> はデバッグ用ヘッダを実行形式
+  から取り除き、バイナリを小さくします。
+  <item><manref name="dh_compress" section="1"> は 4 KB より大きい
+   man ページと文書を gzip で圧縮します。
+  <item><manref name="dh_fixperms" section="1"> は debian/tmp ディレクトリ内の
+  ファイルやディレクトリのパーミッションをチェックし正しくないものは
+  修正します。
+  <item><manref name="dh_suidregister" section="1"> は 
+  <manref name="suidregister" section="8"> を使って setuid された実行形式の
+  ファイルを登録するのに必要なファイルを用意します[今回は使いません]。
+  <item><manref name="dh_installdeb" section="1"> はパッケージに関連する
+  ファイルを debian/tmp ディレクトリ以下にコピーします。
+  <item><manref name="dh_shlibdeps" section="1"> は実行形式が依存する
+  共有ライブラリを判定します。
+  <item><manref name="dh_gencontrol" section="1"> は control ファイルを
+  生成しインストールします。
+  <item><manref name="dh_makeshlibs" section="1"> は共有ライブラリの
+  依存ファイルを生成します[今回は使いません]。
+  <item><manref name="dh_md5sums" section="1"> は MD5 チェックサムを
+  計算します。そして最後に、
+  <item><manref name="dh_builddeb" section="1"> がパッケージを
+  構築します。
+  </list>
+
+  <p>これらすべての dh_* スクリプトはそれぞれ man ページを
+  持っていますので、詳しくはそちらを参照して下さい。ここでは取り上げなかった
+  他の dh_* スクリプトに関しては、必要であれば debhelper の説明書
+  を読むようにして下さい。
+
+  <p>69-73 行目は rules ファイルが使うマクロで、これが何を意味しているのか
+  知らなくても大丈夫です。
+
+  <p>dh_make が作る rules は単なる例以上のものでは無いことを
+  忘れないで下さい。簡単なパッケージならうまくいくでしょうが、もっと
+   複雑なものを相手にするときは、あなたの目的に会わせて
+   適当に書き加えるなり消すなりしましょう。
+   特に binary-arch ターゲットですが、必要の無い機能を呼んでいる行は
+   どんどんコメントにしてしまって下さい。今の場合、50行目、54 行目、61 行目
+   は gentoo には必要無いので、コメントにしてしまいましょう。
+   あなたが変えてはいけないのはたった一つ、rules 内の各項目の
+   ターゲット名だけです。すべてのツールがこれらの名前でターゲットを参照する
+   ので、この通りの名前でなければなりません。
+  
+  <p>さて、今回必要な修正は一点だけ、57行目に「FIXES」というのを
+  追加しました。gentoo の changelog(変更点記録)ファイルの名前が FIXES 
+  だからです。
+  dh_* に指定できる他のオプションについては、dh_* プログラムの 
+   man ページを参照して下さい。
+
+  <chapt id="dother">debian/ ディレクトリ内のその他のファイル
+
+  <sect id="copyright">copyright
+
+  <p>このファイルにはパッケージの著作権に関する情報が含まれます。デフォルト
+  では dh_make は以下のようなひな型を作成します。
+
+  <p><example>
+  1  This package was debianized by Josip Rodin jrodin@jagor.srce.hr on
+  2  Wed, 11 Nov 1998 21:02:14 +0100.
+  3
+  4  It was downloaded from &lt;fill in ftp site&gt;
+  5
+  6  Upstream Author(s): &lt;put author(s) name and email here&gt;
+  7
+  8  Copyright:
+  9
+  10 &lt;Must follow here&gt;
+  </example>
+
+  <p>ここでファイルに追加すべき重要なことは、あなたがこのソフトウェアを
+  入手した場所と、実際の著作権表示です。もしプログラムのライセンスが GNU、
+  BSD、あるいは Artistic など良く知られたフリーソフトウェアのライセンス
+  であれば、全文をここに引用する必要はありません。どの Debian システムにも
+  /usr/doc/copyright が存在しますので、このディレクトリ内の適当なファイルを
+  示すだけでよいでしょう。gentoo は GNU 一般使用許諾の元で配布
+  されていますから、こんな風に変更しましょう。
+
+  <p><example>
+  1  This package was debianized by Josip Rodin jrodin@jagor.srce.hr on
+  2  Wed, 11 Nov 1998 21:02:14 +0100.
+  3
+  4  It was downloaded from http://www.obsession.se/gentoo/
+  5
+  6  Upstream Author(s): Emil Brink &lt;emil@obsession.se&gt;
+  7
+  8  Copyright (c) Obsession Development, 1998.
+  9
+  10 gentoo is released under the GNU GPL license as free, open source soft-
+  11 ware. Hopefully it will seem useful to someone. NO WARRANTY.
+  12
+  13 On Debian GNU/Linux systems, the complete text of the GNU General
+  14 Public License can be found in /usr/doc/copyright/GPL'.
+  </example>
+
+  <p>日本語化パッチの作者などの情報も、忘れずに書き加えておきましょう。
+  今回もし gentoo に日本語化パッチをあてていたならば、例えば 7 行目から
+  
+  <p><example>
+  7 Japanese support patch for gentoo 0.9.12 by
+  8   Taro Yamada &lt;tyamada@somewhere.ne.jp&gt;
+  </example>
+
+  <p>などという内容を挿入すればよいでしょう。ご自分で日本語化した場合には、
+  もちろん自分の名前を書き込みましょう。
+
+  <sect id="readdeb">README.debian
+
+  <p>パッケージに関して何か特別にユーザに知らせる必要がある情報や、
+  オリジナルのソフトウェアとあなたの Debian 化されたバージョンとの
+  相違点はここに記述します。以下はデフォルトで dh_make が生成するものです。
+
+  <example>
+  gentoo for DEBIAN
+  ----------------------
+
+  Comments regarding the Package
+
+  Josip Rodin &lt;jrodin@jagor.srce.hr&gt;, Wed, 11 Nov 1998 21:02:14 +0100
+  </example>
+
+  <p>今回は特に何も書き込む必要はありませんので削除してしまいましょう。
+
+  <sect id="changelog">changelog
+
+  <p>パッケージを維持管理していくにつれて、プログラムの振る舞い
+  も変わるでしょうし、新機能が追加されたり、バグが修正されたりする
+  こともあるでしょう。あなたのパッケージをダウンロードした人々は、
+  このファイルを見ることでどこがどう変わったのか知ることができます。
+  デフォルトで dh_make が生成する changelog はこんな感じです。
+
+  <p><example>
+  1  gentoo (0.9.12-1) unstable; urgency=low
+  2
+  3   * Initial Release.
+  4
+  5  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
+  6
+  7  Local variables:
+  8  mode: debian-changelog
+  9  add-log-mailing-address: "jrodin@jagor.srce.hr"
+  10 End:
+  </example>
+
+  <p>1 行目はパッケージ名、バージョン、ディストリビューション、
+  そして緊急性です。ディストリビューションは unstable か experimental 
+  でなければならず、緊急性は 「low」より高いものを指定してはいけません :-)
+  
+  <p>3-5 行目はログエントリで、ここにこのリビジョンのパッケージで行われた
+  変更を記述します(上流プログラムそのものの変更点ではありません - 
+  そういう情報は作者によって、プログラム自身の changelog ファイル
+  に記載されているはずですから)。
+  新しい行はアスタリスク(「*」)で始まる
+  行のすぐ上に挿入します。この操作は dch を使っても、emacs (7-10 行目は
+  Emacs エディタ用のモード情報です)を使っても、あるいは単に
+  普通のテキストエディタを使って手でやっても構いません。
+  最終的にこんな風になればよいわけです。
+
+  <p><example>
+  1  gentoo (0.9.12-1) unstable; urgency=low
+  2
+  3   * Initial Release.
+  4   * This is my first Debian package.
+  5
+  6  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
+  7
+  8  Local variables:
+  9  mode: debian-changelog
+  10  add-log-mailing-address: "jrodin@jagor.srce.hr"
+  11 End:
+  </example>
+
+  <p>パッケージの新バージョンをリリースする際には、バージョン番号を
+  増やさなければなりません。「dch -n &lt;コメント&gt;」とすれば良いでしょう。
+  emacs かその他のテキストエディタで直接書き込んでも構いません。
+  ヒント: この形式で日時を入力する簡単な方法。
+  <manref name="822-date" section="1"> プログラムを使いましょう。
+  新バージョンについての情報は changelog ファイルの先頭に追加されます。
+  作業後 changelog はこんな風になります。
+
+  <p><example>
+  1  gentoo (0.9.12-2) unstable; urgency=low
+  2
+  3   * Comments about the second revision
+  4
+  5  -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 22:15:39 +0100
+  6
+  7  gentoo (0.9.12-1) unstable; urgency=low
+  8
+  9   * Initial Release.
+  10  * This is my first Debian package.
+  11
+  12 -- Josip Rodin &lt;jrodin@jagor.srce.hr&gt; Wed, 11 Nov 1998 21:02:14 +0100
+  13
+  14 Local variables:
+  15 mode: debian-changelog
+  16 add-log-mailing-address: "jrodin@jagor.srce.hr"
+  17 End:
+  </example>
+
+  <sect id="conffiles">conffiles
+
+  <p>ソフトウェアに関して最もうんざりさせられることの一つが、
+  アップグレードするのに大変な量の時間と労力を要するということです。
+  それも、あなたがそれまでに加えた設定の変更をすべて反映させるという
+  ためだけに。Debian はこの問題を、設定ファイルを記録しておいて、パッケージを
+  アップグレードする際に古い設定をそのまま使いたいかどうか聞いてくるように
+  することで解決しました。この機能を使うには、パッケージのプログラムが使う
+  それぞれの設定ファイル(たいていは /etc にあります)のフルパス名を
+  一行に一つずつ、この conffiles というファイルに書き込んでおいて
+  下さい。gentoo は /etc/gentoorc という設定ファイルを一つ持っています。
+  これをファイルに書き込みましょう。
+
+  <sect id="dirs">dirs
+
+  <p>このファイルは我々のパッケージが作るべきディレクトリを指定します。
+  デフォルトでは、こんな風になっています:
+  <p><example>
+  1 usr/bin
+  2 usr/sbin
+  </example>
+
+  <p>一番最初のスラッシュが含まれない事に注意して下さい。ここでは
+  こんな風に変えましょう。:
+  <p><example>
+  1 usr/X11R6/bin
+  2 usr/X11R6/man/man1
+  </example>
+  
+  とはいえ、以上のディレクトリは X11R6 パッケージがインストールされていれば
+  どのシステムでもすでに作られているはずなので、本当は必要ありません。
+
+  <sect id="maintscripts">postinst、preinst、postrm、prerm
+
+  <p>これらのファイルはメンテナスクリプトと呼ばれるもので、できれば
+  今は使用を避けた方が良いでしょう。というのも、これらを使うと話が非常に
+  ややこしくなってしまうからです。詳しくはパッケージングマニュアルを
+  参照して下さい。
+
+  <sect id="manpage">manpage.1.ex
+
+  <p>*.ex で終るファイルは、どうやってパッケージにその種のサポートを加えるか
+  という例です。これらの機能を使うには、ファイルを適宜編集して拡張子.ex を
+  削除して下さい。
+
+  <p>プログラムは man ページを持つべきです。
+  もし持っていなかったら、このひな型を利用して自分で適当に書きましょう。
+  <manref name="man" section="7"> の man ページには、
+  どうやって man ページを書くか簡単な説明があります。
+  このファイルをプログラムの名前に変えて、拡張子をそれが属すべき
+  マニュアル分類にしたがって付けましょう。以下が簡略なリストです。
+
+  <p><example>
+  セクション |     説明     |     メモ
+     1     ユーザコマンド         実行可能なコマンドやスクリプト
+     2     システムコール         カーネルの提供する機能
+     3     ライブラリコール       システムライブラリに含まれる機能
+     4     特別ファイル           たいていは /dev 内にあるもの
+     5     ファイルの書式         例えば /etc/passwd の書式
+     6     ゲーム                 またはその他のどうでもいいプログラム
+     7     マクロパッケージ       man マクロのようなもの
+     8     システム管理           実行するのに root 権限が必要なものなど
+     9     カーネルルーチン       非標準的コールや内部仕様
+  </example>
+  
+  <p>そんなわけで gentoo のman ページは gentoo.1, あるいは gentoo.1x 
+  と呼ばれることになります。1x というのは、gentoo が X11 用のプログラム
+  だからです。元のソースには gentoo.1 という man ページは含まれていません
+  でしたので、筆者がサンプルを元に書きました。
+
+  <sect id="menu">menu.ex
+
+  <p>X Window のユーザは普通ウィンドウマネージャを使っています。ウィンドウ
+  マネージャにはたいてい設定可能なメニューの機能があって、そこから
+  プログラムを実行できるようになっています。
+  もしユーザが Debian menu パッケージをインストールしていた
+  ならば、システムにあるすべてのプログラム用のメニューのセットが
+  作成され、menu 対応のウィンドウマネージャが利用できるようになります。
+  Debian ポリシーでは必要とまではされていない機能ですが、あればユーザは
+  喜ぶでしょう。このファイルを編集することで、gentoo をメニューに
+  追加することができます。以下が dh_make が作るデフォルトです：
+  
+  <p><example>
+  ?package(gentoo):needs=X11|text|vc|wm section=Apps/see-menu-manual\
+    title="gentoo" command="/usr/bin/gentoo"
+  </example>
+
+  <p>最初のフィールドはプログラムがどういう種類のインターフェースを
+  必要とするのか指定します(例えばテキスト、X11 など)。次は
+  プログラムが属すべきセクションを指定します。このセクションとはメニューや
+  サブメニューのエントリで表示されるもので、現在のセクション一覧は 
+  /usr/doc/menu/html/ch2.html#s2.2 に書いてあります。第 3 のフィールドは
+  プログラムの名称です。第 4 のフィールドはそのプログラムのアイコンの定義で、
+  もしアイコンがなかったら空白のままにしておきましょう。
+  第 5 のフィールドはメニューに実際に表示されるタイトルです。
+  第 6 のフィールドはプログラムを実行するコマンドです。
+
+  <p>さて、今はこんな風に menu エントリを変えましょう。
+  <p><example>
+  ?package(gentoo):needs=X11 section=Apps/Misc\
+    title="gentoo" command="/usr/X11R6/bin/gentoo"
+  </example>
+
+  <sect id="watch">watch.ex
+
+  <p>このファイルは、<manref name="uscan" section="1">と
+  <manref name="uupdate" section="1">プログラム (devscripts パッケージに収録)
+  用のものです。これらのプログラムを使うと、あなたがオリジナルの
+  ソースを入手したサイトの更新などを監視することができます。詳しくは
+   man ページを読んで下さい。gentoo はこの機能を使えませんので
+  このファイルは削除します。
+
+  <p>これでようやくパッケージを構築する準備が整いました…
+
+  <chapt id="build">パッケージの構築
+
+  <p>gentoo のメインディレクトリ(/usr/local/src/gentoo/gentoo-0.9.12/)
+  に入って以下を実行して下さい:
+  <p><example>
+  dpkg-buildpackage
+  </example>
+
+  <p>途中でPGPの秘密鍵を2回入力する必要がありますが、それを除けばこの
+  プログラムにすべてお任せで大丈夫です。一連の作業が終わった後、
+  /usr/local/gentoo ディレクトリには新しいファイルが4つ作成されます。
+
+  <p><list>
+  <item><em>gentoo_0.9.12-1_i386.deb</em>
+  <p>は作成されたバイナリパッケージそのものです。他のパッケージと
+  同じく、dpkgやdselectを使ってインストールしたり削除したりできます。
+
+  <item><em>gentoo_0.9.12-1_i386.changes</em>
+  <p>パッケージの保守管理を続けていくと、プログラムの動作が変更
+  されたり新機能が追加されたりすることがありますが、
+  パッケージをダウンロードした人はこのファイルを見れば、何が変わったのか
+  一目で分かります。これは現在のリビジョンのパッケージへの変更点が
+  記載されているファイル、今の場合 gentoo-0.9.12/debian/changelog を元に
+  生成されるもので、パッケージ内のファイルの一覧も記入されます。数字の羅列は
+  各ファイルのMD5チェックサムで、パッケージをダウンロードした人は
+  <manref name="md5sum" section="1">を使って整合性をテストすることが
+  できます。もし数字が一致しない場合には、ファイルが壊れているか、
+  あるいは何者かによって改ざんされていると分かるわけです。
+  このファイルは PGP で署名されているので、
+  パッケージの利用者はこのファイルが本当にあなた自身が作成したものがどうか
+  ちゃんと判断できます。
+
+  <item><em>gentoo_0.9.12.orig.tar.gz</em>
+  <p>元のソースコードをまとめてアーカイブにしたもので、誰か他の人がソースから
+  パッケージを再構築したいという場合使ってもらうことができます。また、
+  現在 Debian パッケージ管理システムを使っていないが、そのプログラムだけは
+  ソースをダウンロードしコンパイルして使いたいという場合にも役に立ちます。
+
+  <item><em>gentoo_0.9.12-1.dsc</em>
+  <p>これはソースコードの内容の概要です。このファイルは
+  gentoo-0.9.12/debian/control ファイルから生成され、ソースが
+  <manref name="dpkg-source" section="1">で展開される際に必要になります。
+  このファイルは PGP で署名されているので、本当にあなた自身が作成したものか
+  判別できます。
+  </list>
+
+  <sect id="errcheck">できたパッケージの誤りを調べる
+
+  <p><manref name="lintian" section="1">をあなたの .changes ファイルに
+  かけてみましょう。このプログラムはパッケージ化におけるよくある間違いを
+  チェックしてくれます。実行するコマンドは:
+  
+  <p><example>
+  lintian -i gentoo_0.9.12-1_i386.changes
+  </example>
+  
+  <p>もしエラー(E: で始まる行)が表示されたなら、説明(N: の行)を読んで
+  誤りを訂正し、dpkg-buildpackage を使って再構築して下さい。
+  W: で始める行は単なる警告ですので、もし大丈夫だという確信があれば
+  無視してしまっても結構です(しかし修正するに越したことはありません)。
+
+
+<p>自分でパッケージをインストールして試してみましょう。自分の環境以外の
+   マシンにもインストールしてみて、エラーが発生しないか注意深く観察して
+   みてください。
+
+  <p>プログラムの新版を元にしたバージョンを構築する際、 以下を実行して
+  下さい。
+
+  <list>
+  <item>旧バージョンからアップグレードする(Debian ディストリビューションの
+  旧版に納められているバージョンからのアップグレードもやってみて下さい)
+  <item>またダウングレードする。
+  <item>新パッケージとしてインストールする(前のバージョンがインストール
+  されていない状態からインストール)
+  <item>削除して、またインストールして、さらに完全削除してみる。
+  </list>
+
+  <sect id="intend">アップロードする前に
+
+  <p>さて、ここまででひとまずパッケージはでき上がりましたが、
+  まだやることが一つ残っています。もし新しいパッケージをアップロード
+  のであれば、アップロードの前に「Intent to package パッケージ名」
+  という題の電子メールを <email/debian-devel@debian.or.jp/ に送って下さい
+  (メーリングリストへの加入の方法は<ref id="whereishelp">を参照)。
+  このメールには、
+
+  <list>
+  <item>debian/copyright の内容
+  <item>あなたの PGP 公開鍵
+  <item>「dpkg -I あなたのバイナリパッケージ」の出力結果
+  <item>「dpkg --contents あなたのバイナリパッケージ」の出力結果
+  </list>  
+
+  <p>を記載して下さい。こうすることで、debian-devel のメンバーが
+  あなたのパッケージの著作権や、依存関係、Description などの最低限の
+  チェックを簡単に行うことができます。
+
+  <sect id="upload">パッケージをアップロードする
+
+  <p>徹底的に新パッケージをテストして、debian-devel にお伺いもたてた
+  ところで、これらのファイルを
+  <manref name="dupload" section="1">を使って master.debian.or.jp に
+  アップロードしましょう。
+  まず dupload の設定ファイルを変更しましょう。最初にデフォルトを /etc から
+  ホームディレクトリにコピーしてください：
+    
+  <p><example>
+  cp /etc/dupload.conf ~/.dupload.conf
+  </example>
+
+<p>そしてファイル(~/.dupload.conf)を編集しましょう。
+  もとのファイルに、以下を追加すればよいでしょう
+  (これは訳者の設定なので適当に変えて下さい):
+  <example>
+  $cfg{"master-jp"} = {
+        fqdn => "master.debian.or.jp",
+        fullname=> "Masayuki Hatta",    
+        incoming => "/pub/Incoming/private",
+        mailto => "debian-devel-changes\@debian.or.jp",
+        visibleuser=> "masayuki-h",
+        visiblename => "geocities.co.jp",
+	};
+  </example>
+
+  <p>プロバイダに接続し、もう一度あなたが /usr/local/src/gentoo 
+  ディレクトリにいるかどうか確認し、このコマンドを実行してください:
+  
+  <p><example>
+  dupload --to master-jp gentoo_0.9.12-1_i386.changes
+  </example>
+
+  <p>Dupload はパッケージをアップロードし、アップロードについての
+  簡単な報告を<email/debian-devel-changes@debian.or.jp/に送信します。
+  master.debian.or.jp に FTP でアクセスするには、ユーザ名 anonymous
+  (デフォルト)、パスワードとしてあなたの正式なメールアドレスを送信しなければ
+  なりませんが、システムの設定がまずいとあなたのローカルのログイン名
+  とホスト名がパスワードとして送信されてしまい、接続できないという
+  事態が生じます。こういう場合には、/usr/bin/dupload 中の
+
+  <p><example>
+  my $passwd = "$user\@$myhost"; # ...
+  </example>
+  
+  <p>という部分を、
+  
+  <p><example>
+  my $passwd = "masayuki-h\@geocities.co.jp";     # ...
+  #my $passwd = "$user\@$myhost"; # ...  
+  </example>
+
+  <p>のように修正してください(もちろんご自分のメールアドレスに直して下さい)。
+  なおメールを送るには smail などメール配送プログラムの設定が必要になります。
+  ダイアルアップ接続の方は注意が必要です。
+
+  <sect id="whereishelp">相談するには
+
+  <p>公共の場で質問する前に、まずはマニュアルを読みましょう。
+  ここでいうマニュアルには、例えば /usr/doc/dpkg、/usr/doc/debian、
+  /usr/doc/debhelper といったディレクトリに含まれる文書、この文書で
+  言及されたプログラムに関する man/info ページなどが含まれます。
+  バグレポートが舞い込んだ(そうホンモノのバグレポートです！)とき、
+  それはあなたが<url name="Debian バグ追跡システム" id="http://www.debian.or.jp/Bugs/">をさまよってそこにある文書を読む時が来たということです。
+
+  <p>日本では、Debian JP Project が主催する Debian JP 開発者メーリングリスト
+  <email/debian-devel@debian.or.jp/に参加して質問してみるのが良い
+  でしょう。このリストに加入するにはメール本文に「subscribe あなたのお名前
+  (ローマ字で)」を書いて<email/debian-devel-ctl@debian.or.jp/ 
+  に送り、あとは管理サーバの指示にしたがって下さい。
+  Debian JP Project では他にもいくつかのメーリングリストを用意しています。
+  詳しくは 
+  <url name="メーリングリスト" id="http://www.debian.or.jp/MailingList.html">を参照して下さい。
+
+  <p>万事うまく行ったとしても、神様にお祈りを忘れずに。
+  なんでかって？考えても見て下さい、ほんの数時間の内に(あるいは数日かかるかも
+  知れませんが)世界中のユーザがあなたのパッケージを使うようになるのです。
+  そしてもしあなたがとんでもないヘマをしでかしていたら、きっと数知れぬ
+  怒れる Debian ユーザからメール爆撃を食らうはめになるでしょう…
+  まあ冗談ですけど :-)
+
+  <p>楽に構えて、バグ報告に対応する準備をしましょう。それに、Debian ポリシー
+  に完全に沿うようにするまでにはまだまだやるべきことがいっぱい残っています。
+  (もう一度言いますが、<em>ちゃんとした文書</em>を読んで勉強しましょう)。
+  好運を祈ります！
+ </book>
+
+</debiandoc>
