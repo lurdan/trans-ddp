@@ -21,7 +21,7 @@ ORIG_LANG=en
 #
 # Since portuguese is not yet in debiandoc format we cannot publish it until it is
 #
-LANGS = es ja ru it de
+LANGS = es ja ru it de 
 
 EXTS=txt info
 ##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
@@ -180,7 +180,7 @@ validate:
 
 #====[ cleaning up ]===========================================================
 clean distclean:
-	rm -f securing-debian-howto*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*} *~
+	rm -f securing-debian-howto*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,tpt,sasp*} *~
 	rm -rf securing-debian-howto*.html
 
 .PHONY: all html txt ps\
