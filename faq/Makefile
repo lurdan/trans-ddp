@@ -9,7 +9,7 @@ SRCS = debian-faq.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := ../../../public_html/manuals.html
 
-all:
+all: html txt ps
 
 publish: debian-faq.html/index.html
 	test -d $(PUBLISHDIR)/debian-faq || install -d -m 755 $(PUBLISHDIR)/debian-faq
