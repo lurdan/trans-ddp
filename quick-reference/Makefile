@@ -118,8 +118,64 @@ pdf2:  $(PDFS2)
 pdf:  pdf1 pdf2
 tar:  $(MANUAL1).tar.gz
 
+publish-index1:
+	test -d $(PUBLISHDIR)/$(MANUAL1) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)
+ifeq ("$(BUILD_TYPE)", "web")
+	# Make index page for web
+	@{ \
+	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<html>" ;\
+	echo "<head>" ;\
+	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<title>Debian Reference</title>" ;\
+	echo "</head>" ;\
+	echo "<body>" ;\
+	echo "<hr>" ;\
+	echo "<h1>Debian Reference</h1>" ;\
+	echo "<hr>" ;\
+	echo "<dl>" ;\
+	} > $(PUBLISHDIR)/$(MANUAL1)/index.html
+	@{$(foreach lang,$(LANGS1), \
+	 . makeindexhtml "$(lang)" "$(MANUAL1)" ; ) } >> $(PUBLISHDIR)/$(MANUAL1)/index.html 
+	@{ \
+	echo "</dl>" ;\
+	echo "</body>" ;\
+	echo "</html>" ;\
+	} >> $(PUBLISHDIR)/$(MANUAL1)/index.html
+endif
+
+publish-index2:
+	test -d $(PUBLISHDIR)/$(MANUAL2) \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL2)
+ifeq ("$(BUILD_TYPE)", "web")
+	# Make index page for web
+	@{ \
+	echo "<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">" ; \
+	echo "<html>" ;\
+	echo "<head>" ;\
+	echo "<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">" ;\
+	echo "<title>Debian Quick Reference</title>" ;\
+	echo "</head>" ;\
+	echo "<body>" ;\
+	echo "<hr>" ;\
+	echo "<h1>Debian Quick Reference</h1>" ;\
+	echo "<hr>" ;\
+	echo "<dl>" ;\
+	} > $(PUBLISHDIR)/$(MANUAL2)/index.html
+	@{$(foreach lang,$(LANGS2), \
+	 . makeindexhtml "$(lang)" "$(MANUAL2)" ; ) } >> $(PUBLISHDIR)/$(MANUAL2)/index.html 
+	@{ \
+	echo "</dl>" ;\
+	echo "</body>" ;\
+	echo "</html>" ;\
+	} >> $(PUBLISHDIR)/$(MANUAL2)/index.html
+endif
+
+
 publish: publish-html publish-txt publish-ps publish-pdf \
-	publish-examples
+	publish-examples publish-index1 publish-index2
+
 publish-all: publish publish-tar
 
 # =================================================================== #
