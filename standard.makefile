@@ -5,26 +5,29 @@
 # called <directoryname>.sgml, which is the top-level file for the manual
 # in this directory.
 
-# Where are we, and where are we going?
-HERE :=		$(shell pwd)
-THISDIR :=	$(shell basename `pwd`)
-TARGET :=	../../../public_html/manuals.html/$(THISDIR)
-SGMLFILES := 	$(shell ls *.sgml)
+# What is the current manual's name
+MANUAL :=	$(shell basename $(shell pwd))
+# Where are we publishing to?
+PUBLISHDIR :=	../../../public_html/manuals.html
 
 # What do we want?
-all:		html
+all:		publish
 
 # This target installs the generated HTML in the published directory.
-html:		htmlmade
-		-rm $(TARGET)/*.html
-		install -d $(TARGET)
-		cp $(THISDIR).html/*.html $(TARGET)
+publish:	html
+# 		fail if there is no PUBLISHDIR
+		[ -d $(PUBLISHDIR) ] || exit 1
+		rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+		install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
+		install -m 644 --preserve-timestamps $(MANUAL).html/*.html \
+			$(PUBLISHDIR)/$(MANUAL)/
 
-htmlmade:	$(SGMLFILES)
-		debiandoc2html $(THISDIR).sgml
+html:		$(wildcard *.sgml)
+		debiandoc2html $(MANUAL).sgml
 		touch htmlmade
 
 clean:	
-		-rm -rf $(THISDIR).html htmlmade
+		rm -rf $(MANUAL).html htmlmade
 
 distclean:	clean
+
