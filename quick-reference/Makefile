@@ -50,7 +50,7 @@ LANGSALL := en fr it es fi pt-br de
 # List of languages built for "publish" target for DDP: pt_BR
 LANGS1 := en fr it es de pt-br
 # subset which has Quick Reference subset document
-LANGS2 := en fr de pt-br
+LANGS2 := en fr it es de pt-br
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -405,13 +405,13 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr de pt-br"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it es de pt-br"
 
 sf-test:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" txt
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br" txt
 
 sf-clean:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en" distclean 
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es fi de pt-br" "LANGS2=en fr it de pt-br" distclean 
 
 scp: publish-all scp0
 
@@ -459,8 +459,8 @@ publish-clean:
 	rm -f $(PUBLISHDIR)/debian-reference
 
 clean:
-	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
-	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
+	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
+	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
 	rm -f *~ prior.aux pprior.aux tar.gz.log
 	rm -f $(MANUAL0).tar.gz
 	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent
