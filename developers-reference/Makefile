@@ -1,13 +1,13 @@
 # Makefile, used for the DDP manuals.sgml area
 
 MANUAL		:= $(notdir $(shell pwd))
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 
 SOURCES		:= $(wildcard *.sgml)
 
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		     $(filter-out developers-reference.ja.pdf, \
-		       $(foreach langext,.ja, \
+		       $(foreach langext,.ja .fr, \
 		         $(foreach fmt,html txt pdf,developers-reference$(langext).$(fmt))))
 
 # programs for creating output
