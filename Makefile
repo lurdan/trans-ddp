@@ -15,6 +15,7 @@ SUBDIRS	:=	\
 		fr			\
 		intro-i18n		\
 		java-faq		\
+		maint-guide		\
 		meta 			\
 		network-administrator 	\
 		programmer		\
@@ -27,7 +28,6 @@ SUBDIRS	:=	\
 		tutorial		\
 		user			\
 		users-guide		\
-		maint-guide		\
 
 # documents with broken or newest Makefiles will be moved to the bottom
 
