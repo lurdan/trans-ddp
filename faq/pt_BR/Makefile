@@ -44,6 +44,7 @@ $(manual).$(currentlang).txt: $(sources)
 
 $(manual).$(currentlang).info: $(sources)
 	debiandoc2info -l $(currentlang) $<
+# TODO: rename to .$(currentlang).info?
 
 $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
   $(manual).$(currentlang).%: $(sources)

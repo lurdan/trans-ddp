@@ -60,13 +60,16 @@ text: $(manual).$(currentlang).txt
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
+	mv $(manual).txt $(manual).$(currentlang).txt
 
 $(manual).$(currentlang).info: $(sources)
 	debiandoc2info -l $(currentlang) $<
+# TODO: rename to .$(currentlang).info?
 
 $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
   $(manual).$(currentlang).%: $(sources)
 	debiandoc2latex$* -l $(currentlang) $<
+	mv $(manual).$* $(manual).$(currentlang).$*
 
 ps dvi pdf info: %: $(manual).$(currentlang).%
 	@echo foooooooooooooooooooooooooo $@
