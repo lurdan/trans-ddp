@@ -1,0 +1,66 @@
+MAX_TEX_RECURSION=4
+XML_DECL=/usr/lib/sgml/declaration/xml.decl
+HTML_SS=/usr/lib/sgml/stylesheet/dsssl/docbook/nwalsh/html/docbook.dsl
+PRINT_SS=/usr/lib/sgml/stylesheet/dsssl/docbook/nwalsh/print/docbook.dsl
+#INCLUDES=../programs.ent ../files.ent ../custom.dtd
+
+all: howto
+
+howto: howto.ps howto.txt howto.html
+
+howto.db: ../howto.db $(INCLUDES) ../condition.pl
+	perl ../condition.pl $(VERSION) ../howto.db > $@
+	#cp $(INCLUDES) .
+
+howto.tex: howto.db ../print.dsl
+	jade -t tex $(JADEFLAGS) \
+		-d ../print.dsl \
+		$(XML_DECL) howto.db
+
+%.dvi: %.tex
+	# Trick from Adam Di Carlo <adam@onshore.com> to recurse jadetex 
+	# "just enough".
+	-cp -pf prior.aux pprior.aux
+	-cp -pf $(shell basename $< .tex).aux prior.aux
+	jadetex $<
+	if ! cmp $(shell basename $< .tex).aux prior.aux &&		\
+	   ! cmp $(shell basename $< .tex).aux pprior.aux &&		\
+	   expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION); then		\
+		rm -f $@						;\
+		$(MAKE) $@						;\
+	fi
+	rm -f prior.aux pprior.aux
+
+%.ps: %.dvi
+	dvips -f $< > $@
+
+howto.html: howto.db ../html.dsl
+	jade -t sgml $(JADEFLAGS) \
+		-d ../html.dsl \
+		$(XML_DECL) howto.db
+
+
+# TODO: to be seriously tested, for instance internal links
+# are stupidly rendered by Lynx.
+howto.txt: howto.db ../html.dsl
+	jade -t sgml -V nochunks -V textonly $(JADEFLAGS) \
+		-d ../html.dsl \
+	$(XML_DECL) $< > dump.html
+	lynx -underscore -force_html -dump dump.html > $@
+	-rm -f dump.html
+
+validate: howto.db
+	nsgmls -s -wxml $(XML_DECL) howto.db
+
+install: howto.html howto.ps 
+	scp *.html howto.ps www.debian.org:public_html/SGML-HOWTO/$(NAME)
+
+clean: 
+	rm -rf *.db *.html *.aux *.log *.dvi *.ps *.tex *.txt
+
+## Local Variables: ##
+## mode:makefile ##
+## End: ##
+
+
+
