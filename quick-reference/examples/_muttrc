@@ -7,13 +7,14 @@
 set editor="vim -c 'set tw=72 et ft=mail'"
 #set editor="mcedit"
 #set markers=no            # no '+' for long line
+#set ispell="aspell -e -c"
 #
 # header weeding taken from the manual (Sven's draconian header weeding)
 #
 ignore *
 unignore from: date subject to cc
-unignore user-agent x-mailer x-spam x-lang mail-
-hdr_order from subject to cc date user-agent x-mailer  
+unignore x-spam:  X-CRM114-Status:
+hdr_order from subject to cc date X-CRM114-Status: x-spam:
 
 #color index         cyan            default   '~p ~N'
 
@@ -21,7 +22,8 @@ hdr_order from subject to cc date user-agent x-mailer
 # generate a From header as debian@aokiconsulting.com
 set use_from
 # set for Inbox
-set from="Osamu Aoki <debian@aokiconsulting.com>"
+#set from="Osamu Aoki <debian@aokiconsulting.com>"
+set from="Osamu Aoki <osamu@debian.org>"
 set signature="~/.signature"
 
 #set reverse_name
@@ -59,7 +61,31 @@ set fcc_clear			# store fcc as non encrypted
 
 # Mailboxes (automatic update)
 #mailboxes `/bin/ls -1 $HOME/Proc|grep -v Maillog|sed -e 's/^/+/' | tr "\n" " "`
-mailboxes `/bin/ls -1 ~/Mail|grep -v Maillog|sed -e 's/^/+/' | tr "\n" " "`
+#mailboxes `/bin/ls -1 ~/Mail|grep -v Maillog|sed -e 's/^/+/' | tr "\n" " "`
+unmailboxes Maillog *.ev-summary
+mailboxes `cd ~/Mail; /bin/ls -1|grep -v Maillog |grep -v "\.ev-summary" |sed -e 's/^/+/' | tr "\n" " "`
+
+# colors
+#color normal    white black
+color normal    brightcyan black
+color attachment brightyellow black
+color hdrdefault cyan black
+color indicator black cyan
+color markers   brightred black
+color quoted    green black
+color signature cyan black
+color status    brightgreen blue
+color tilde     blue black
+color tree      red black
+color header   brightgreen black ^From:
+color header   brightcyan black ^To:
+color header   brightcyan black ^Reply-To:
+color header   brightcyan black ^Cc:
+color header   brightblue black ^Subject:
+color body     brightred black [\-\.+_a-zA-Z0-9]+@[\-\.a-zA-Z0-9]+
+color body     brightblue black (https?|ftp)://[\-\.,/%~_:?&=\#a-zA-Z0-9]+
+
+
 
 # Extra key bindings
 set auto_tag					# always act on tag
@@ -71,13 +97,27 @@ unset pager_stop
 macro pager z ":toggle pager_stop\n"	# stop at the end (z)?
 bind pager \' toggle-quoted		# T is hard to use
 
-macro index c <change-folder>?	# redefine c
+#macro index c <change-folder>?	# redefine c
+macro index c <change-folder>?\n\t	# redefine c, may add <tab>
 #macro index c <change-folder>?\n	# redefine c, may add <tab>
 macro index S ":toggle pgp_verify_sig\n"	# define S to toggle sig check
 #macro index G ":toggle followup_to\n"	# define G to toggle ML (no POP)
 
 macro index  <F2> ':set signature="~/.signature.aoki"; set from="Osamu Aoki <debian@aokiconsulting.com>"' # set sig to aokiconsulting.com
 macro index  <F3> ':set signature="~/.signature.debian"; set from="Osamu Aoki <osamu@debian.org>"' # set sig to debian.org
+
+######
+#macro index  a "|grep -a -v \"X-CRM114-\" |crm -u /home/osamu/crm114 mailfilter.crm --force --learnnonspam |grep -a \"X-CRM114-\" \n"
+#macro index  z "|grep -a -v \"X-CRM114-\" |crm -u /home/osamu/crm114 mailfilter.crm --force --learnspam |grep -a \"X-CRM114-\" \n"
+#macro index  \` "|grep -a -v \"X-CRM114-\" |crm -u /home/osamu/crm114 mailfilter.crm --force|grep -a \"X-CRM114-Status:\" \n"
+
+macro index X "|/usr/share/crm114/mailfilter.crm -u ~/.crm114/ --learnspam\n<save-message>=Xspam-crm-x\n"
+macro index H "|/usr/share/crm114/mailfilter.crm -u ~/.crm114/ --learnnonspam\n<save-message>!\n"
+macro index \` "|grep -a -v \"X-CRM114-\"|/usr/share/crm114/mailfilter.crm -u ~/.crm114/|grep -a \"X-CRM114-Status:\" \n"
+
+macro pager X "|/usr/share/crm114/mailfilter.crm -u ~/.crm114/ --learnspam\n<save-message>=Xspam-crm-x\n"
+macro pager H "|/usr/share/crm114/mailfilter.crm -u ~/.crm114/ --learnnonspam\n<save-message>!\n"
+macro pager \` "|grep -a -v \"X-CRM114-\"|/usr/share/crm114/mailfilter.crm -u ~/.crm114/|grep -a \"X-CRM114-Status:\" \n"
 
 # Defaults
 folder-hook =jp-osamu      'set signature="~/.signature.osamu";  set from="Osamu Aoki <osamu@aokiconsulting.com>"'
@@ -90,12 +130,18 @@ folder-hook .              'set signature="~/.signature.debian"; set from="Osamu
 # Expire most Debian lists after two weeks(2w).
 folder-hook =debian-(devel|policy|boot|user|testing)$ "push '<delete-pattern> ~d >2w\n'"
 
-#index format (default)
+## Thread index with adresee (non-collapse, default)
 #set index_format="%4C %Z %{%b %d} %-15.15L (%4l) %s"
-#index format (Collasped)
+## Thread index with me-to-list & senders (non-collapse)
+#set index_format="%4C %Z %{%b %d} %-15.15F (%4l) %s"
+## Thread index with adresee (collapse)
 #set index_format="%4C %Z %{%b %d} %-15.15L %?M?(#%03M)&(%4l)? %s"
+## Thread index with me-to-list & senders (collapse)
 #set index_format="%4C %Z %{%b %d} %-15.15F %?M?(#%03M)&(%4l)? %s"
+## Thread index with with file size me-to-list & senders
+#set index_format="%3C %Z %{%b%d} %-15.15F (%4c) %s"
 
+## Thread index with senders (collapse)
 set index_format="%4C %Z %{%b %d} %-15.15n %?M?(#%03M)&(%4l)? %s"
 
 # all important moves within pager redefined here for easy customization
@@ -123,8 +169,26 @@ set pgp_verify_sig=no
 # ML
 # For list reply only (Press L)
 lists mutt-users@mutt.org mutt-users@gbnet.net \
-    @lists.debian.org \
-    @debian.or.jp \
+    debian-user@lists.debian.org \
+    debian-laptop@lists.debian.org \
+    debian-doc@lists.debian.org \
+    debian-www@lists.debian.org \
+    debian-devel@lists.debian.org \
+    debian-mentors@lists.debian.org \
+    debian-newmaint@lists.debian.org \
+    debian-legal@lists.debian.org \
+    debian-policy@lists.debian.org \
+    debian-firewall@lists.debian.org \
+    debian-laptop@lists.debian.org \
+    debian-boot@lists.debian.org \
+    debian-testing@lists.debian.org \
+    debian-i18n@lists.debian.org \
+    debian-private@lists.debian.org \
+    debian-events-eu@lists.debian.org \
+    debian-japanese@lists.debian.org \
+    debian-users@debian.or.jp \
+    debian-private@debian.or.jp \
+    debian-devel@debian.or.jp \
     bad@bad.debian.net \
     newbiedoc-discuss@lists.sourceforge.net \
     qref-developers@lists.sourceforge.net \
@@ -147,11 +211,14 @@ subscribe mutt-users@mutt.org mutt-users@gbnet.net \
     debian-laptop@lists.debian.org \
     debian-boot@lists.debian.org \
     debian-testing@lists.debian.org \
+    debian-i18n@lists.debian.org \
     debian-private@lists.debian.org \
     debian-japanese@lists.debian.org \
     debian-users@debian.or.jp \
     debian-private@debian.or.jp \
     debian-devel@debian.or.jp \
+    debian-curiosa@lists.debian.org \
+    debian-vote@lists.debian.org \
     bad@bad.debian.net \
     newbiedoc-discuss@lists.sourceforge.net \
     qref-developers@lists.sourceforge.net \
@@ -175,7 +242,7 @@ subscribe mutt-users@mutt.org mutt-users@gbnet.net \
 
 # GnuPG configuration
 set pgp_decode_command="/usr/bin/gpg   --status-fd=2 %?p?--passphrase-fd 0? --no-verbose --quiet  --batch  --output - %f"
-set pgp_verify_command="/usr/bin/gpg   --keyserver-options  auto-key-retrieve  --status-fd=2 --no-verbose --quiet  --batch  --output - --verify %s %f"
+set pgp_verify_command="/usr/bin/gpg   --keyserver-options  auto-key-retrieve  --status-fd=2 --no-verbose --quiet  --batch  --yes --output - --verify %s %f"
 set pgp_decrypt_command="/usr/bin/gpg   --status-fd=2 --passphrase-fd 0 --no-verbose --quiet  --batch  --output - %f"
 set pgp_sign_command="/usr/bin/gpg    --no-verbose --batch --quiet   --output - --passphrase-fd 0 --armor --detach-sign --textmode %?a?-u %a? %f"
 set pgp_clearsign_command="/usr/bin/gpg   --no-verbose --batch --quiet   --output - --passphrase-fd 0 --armor --textmode --clearsign %?a?-u %a? %f"
@@ -183,7 +250,7 @@ set pgp_encrypt_only_command="/usr/lib/mutt/pgpewrap /usr/bin/gpg    --batch  --
 set pgp_encrypt_sign_command="/usr/lib/mutt/pgpewrap /usr/bin/gpg  --passphrase-fd 0  --batch --quiet  --no-verbose  --textmode --output - --encrypt --sign %?a?-u %a? --armor --always-trust -- -r %r -- %f"
 set pgp_import_command="/usr/bin/gpg  --no-verbose --import -v %f"
 set pgp_export_command="/usr/bin/gpg   --no-verbose --export --armor %r"
-set pgp_verify_key_command="/usr/bin/gpg   --verbose --batch  --fingerprint --check-sigs %r"
+set pgp_verify_key_command="/usr/bin/gpg   --verbose --batch  --yes --fingerprint --check-sigs %r"
 set pgp_list_pubring_command="/usr/bin/gpg   --no-verbose --batch --quiet   --with-colons --list-keys %r" 
 set pgp_list_secring_command="/usr/bin/gpg   --no-verbose --batch --quiet   --with-colons --list-secret-keys %r" 
 set pgp_good_sign="^\\[GNUPG:\\] GOODSIG"

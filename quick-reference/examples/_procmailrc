@@ -16,28 +16,6 @@ LOGFILE=$MAILDIR/Maillog
 # h Feed the header to the pipe (Default)
 # w wait
 
-# ======================== Remove funny   ===============================
-# check header
-:0
-# very very bad subject key words
-* 1^0 ^X-Advertisement
-* 1^0 ^Subject: *$
-* 1^0 ^Subject: *RE: *$
-* 1^0 ^Subject:.*\(no.*subject\)
-* 1^0 ^Subject:.*\(none\)
-* 1^0 ^Subject:	*subscribe
-* 1^0 ^Subject:	*unsubscribe
-* 1^0 ^Subject:	*ADV(ERTI|[^a-zA-Z])
-* 1^0 ^Subject:.*virus.*found
-* 1^0 ^Subject:.*virus.*Detected
-* 1^0 ^Subject:.*Virus.*Alert
-* 1^0 ^Subject:.*AntiVirus.*scan
-* 1^0 ^Subject:.*BUSINESS.*PROPOSAL
-* 1^0 ^Subject:.*STRICTLY.*CONFIDENTIAL
-* 1^0 ^Subject:.*URGENT.*ASISSTANCE
-* 1^0 ^Subject:	*I.*NEED.*YOUR.*ASSISTANCE
-/dev/null
-
 # ======================== Touch-up ===========================================
 
 ## Add message length for Maildir(qmail)
@@ -61,60 +39,57 @@ LOGFILE=$MAILDIR/Maillog
 * ! ^Content-type: multipart
 | formail -i "Content-Type: application/pgp; format=text; x-action=sign"
 
-## For Multipart
-:0 HBfw
-* ^Content-Type:.*multipart
-* ! ^Content-Type:.*pgp-signature
-* ! ^Content-Type:.*pgp-encrypted
-* ! ^Content-Type:.*x-diff
-| formail -A "X-SPAM: MIME"
+# ======================== Drop WORM mail ==========================
 
-## For HTML
-:0 HBfw
-* ^Content-Type:.*html
-* ! ^Content-Type:.*pgp-signature
-* ! ^Content-Type:.*pgp-encrypted
-* ! ^Content-Type:.*x-diff
-| formail -A "X-SPAM: HTML"
+### Worm by the header 
+#:0
+#* ^X-Mailer: Microsoft
+#* ^X-MailScanner: Found to be clean
+#Xworm/
+
+### Worm by the body marks 
+### Copy fist 1 line (about 20 chars) of virus (Need some escape)
+#:0 HB
+#* 1^0 ^PEhUTUw\+DQo8SEVBREVSP
+#Xworm-body/
+
+## SPAM by the body marks 
+:0 HB
+* 1^0 ^http://www.reipska.biz/go/
+/dev/null
+
+# ======================== SA FILTER ==========================
+# The lock file ensures that only 1 spamassassin invocation happens
+# at 1 time, to keep the load down.
+#
+:0fw: spamassassin.lock
+* < 256000
+| spamc
+
+# Mails with a score of 15 or higher are almost certainly spam (with 0.05%
+# false positives according to rules/STATISTICS.txt). Let's put them in a
+# different mbox. (This one is optional.)
+:0
+* ^X-Spam-Level: \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+Xspam-SA-certainly/
+
+# All mail tagged as spam (eg. with a score higher than the set threshold)
+# is moved to "probably-spam".
+:0
+* ^X-Spam-Status: Yes
+Xspam-SA-probably/
+
 
 # ======================== CRM114 FILTER ==========================
-# install crm114 package to deploy trainable SPAM filter
+# Based on info:
 #
-#:0fw: .msgid.lock
-# I do not need lock due to Maildir
-:0fw
-| /usr/bin/crm -u /home/osamu/crm114 mailfilter.crm
-  
-:0
-* ^X-CRM114-Status: SPAM.*
-{
-:0
-* ^X-CRM114-Status: SPAM  \( pR: -[0-9]\.
-Xspam-crm-0/
-
-:0
-* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9]\.
-Xspam-crm-1/
-
-:0
-* ^X-CRM114-Status: SPAM  \( pR: -[4-9][0-9]\.
-Xspam-crm-2/
-
-:0
-* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9][0-9]\.
-Xspam-crm-3/
-
-:0
-* ^X-SPAM: HTML
-Xspam-crm-x/
-
-:0
-* ^X-SPAM: MIME
-Xspam-crm-x/
-
-:0
-Xspam-crm/
-}
+#   http://triplehelix.org/~joshk/CRM114.html   (main)
+#   http://fruit.eu.org/crm114/                 (some)
+#
+# I may not need lock due to Maildir
+:0fw: 0.crm114.lock
+| /usr/share/crm114/mailfilter.crm -u $HOME/.crm114/
+ 
 # ======================== Absolute white list ================================
 
 # whitelist for Debian BTS mail
@@ -125,6 +100,120 @@ Xspam-crm/
 * 1^0 ^hitachi-ps.co.jp
 Inbox/
 
+# ======================== Drop bad SPAM immediately ==========================
+
+## by from header
+:0
+* 1^0 ^Return-path:.*noresponderdeco@
+* 1^0 ^Return-path:.*<big@boss.com>
+* 1^0 ^From:.*fsshl@centurytel.net
+* 1^0 ^TO_.*@mail63\.csoft\.net
+* 1^0 ^TO_.*undisclosed.*recipient
+* 1^0 ^TO_.*Valued.*Customer
+* 1^0 ^TO_.*freedisk@aokiconsulting\.com
+* 1^0 ^TO_.*bogus@aokiconsulting\.com
+* 1^0 ^TO_.*nospam@aokiconsulting\.com
+* 1^0 ^TO_.*fsshl@centurytel.net
+* 1^0   relay[0-9]*\.uu\.net
+/dev/null
+#Xspam-address/
+
+# ======================== Mark SPAM featurs ==================================
+
+# check header
+:0
+# very very bad subject key words
+* 1^0 ^X-Advertisement
+* 1^0 ^Subject: *$
+* 1^0 ^Subject: *RE: *$
+* 1^0 ^Subject:.*(no subject)
+* 1^0 ^Subject:	*subscribe
+* 1^0 ^Subject:	*unsubscribe
+* 1^0 ^Subject:	*ADV(ERTI|[^a-zA-Z])
+* 1^0 ^Subject:.*virus.*found
+* 1^0 ^Subject:.*virus.*Detected
+* 1^0 ^Subject:.*Virus.*Alert
+* 1^0 ^Subject:.*AntiVirus.*scan
+* 1^0 ^Subject:.*BUSINESS PROPOSAL
+* 1^0 ^Subject:.*STRICTLY.*CONFIDENTIAL
+* 1^0 ^Subject:.*URGENT.*ASISSTANCE
+* 1^0 ^Subject:	*I NEED YOUR ASSISTANCE
+* 1^0 ^Subject:.*Your application
+* 1^0 ^Subject:	*Thank you!$
+* 1^0 ^Subject:.*SOBIG$
+* 1^0 ^Subject:.*\[Filtro\]
+#* 1^0 ^From:.*Microsoft
+#* 1^0 ^From:.*Virus Alert
+#Xspam-sub/
+/dev/null
+
+:0 BHfw
+# if mail is these types, it is OK
+* ! ^Content-Type:.*pgp-signature
+* ! ^Content-Type:.*pgp-encrypted
+* ! ^From:.*Jens Seidel
+* ! ^From:.*Thomas Hood
+* ! ^Content-Type:.*x-diff
+* ! ^TO_.*bugs.debian.org
+{
+
+## For Multipart
+:0 HBfw
+* ^Content-Type:.*multipart
+| formail -A "X-SPAM: MIME"
+
+## For HTML
+:0 HBfw
+* ^Content-Type:.*html
+| formail -A "X-SPAM: HTML"
+
+## Asian codings Check body(B) and case sensitive(D)
+# if 5% are high bit characters
+# http://www3.sympatico.ca/walter.dnes/email/chinese/
+:0 BDfw
+# safety offset
+* -100^0
+# Maybe Japanese
+* -1000^1 ^TO_.*debian-japanese@debian.org
+* -1000^1 ^TO_.*@debian.or.jp
+* -10000^1 ^TO_.*osamu@aokiconsulting.com
+# char counter
+* -1^1 .
+# bad char counter
+*  2^1 =[0-9A-F][0-9A-F]
+* 20^1 [ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]
+* 20^1 [ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß]
+* 20^1 [àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ]
+* 20^1 =[A-F][0-9A-F]
+| formail -A "X-SPAM: ASIA 8B $="
+
+# If 50% of line contains asian 7 bit encoded
+:0 BDfw
+# safety offset
+* -10^0
+# Maybe Japanese
+* -10000^1 ^TO_.*debian-japanese@debian.org
+* -10000^1 ^TO_.*@debian.or.jp
+* -10000^1 ^TO_.*osamu@aokiconsulting.com
+# line counter
+* -10^1 ^.+$
+# 7 bit escape counter
+* 10^1 \$|\(
+# suspicious char counter (optional)
+* 2^1 [\$%!]
+| formail -A "X-SPAM: ASIA 7B $="
+
+# If 90% of line contains CAPITAL
+:0 BDfw
+# safety offset
+* -10^0
+# upper case
+* 1^1 [QWERTYUIOPASDFGHJKLZXCVBNM<>]
+# lower case
+* -10^1 [qwertyuiopasdfghjklzxcvbnm]
+| formail -A "X-SPAM: CAPITAL"
+}
+
 # ======================= Mailing List ========================================
 
 # Mailing list
@@ -134,6 +223,20 @@ Inbox/
 * 1^0 ^List-
 * 1^0 ^X-Distribution:.*bulk
 {
+
+# ML ======================== Drop SPAM =======================================
+
+:0
+* ^X-SPAM: HTML
+Xspam-ML-HTML/
+
+#:0
+#* ^X-SPAM: MIME
+#Xspam-ML-MIME/
+
+:0
+* ^X-SPAM: CAPITAL
+Xspam-ML-CAP/
 
 # ML ======================== Delivary for Japanese list ======================
 
@@ -157,8 +260,18 @@ jp-debian-something/
 * 1^0 ^Resent-Sender.*debian-japanese-request@lists.debian.org
 debian-japanese/
 
+# ML ======================== Block ASIAN characters ==========================
 
-# ML ==============  Delivary for non-Japanese list ======================
+:0
+* ^X-SPAM: ASIA
+Xspam-ML-ASIA/
+
+#:0
+#* ^X-SPAM:
+#Xspam-ML/
+
+# ML ======================== Delivary for non-Japanese list ==================
+
 :0
 * ^Resent-Sender.*debian-user-request@lists.debian.org
 {
@@ -328,6 +441,10 @@ spi-bylaws/
 newbiedoc-discuss/
 
 :0
+* ^Sender:.*crm114-general-admin@lists\.sourceforge\.net
+crm114/
+
+:0
 #* 1^0 ^Sender.*qref-developers-admin@lists.sourceforge.net
 #* 1^0 ^From:.*qref-developers-admin@lists.sourceforge.net
 #* 1^0 ^TO_.*qref-developers-admin@lists.sourceforge.net
@@ -376,9 +493,84 @@ mailing-list/
 * 1^0 ^Resent-Sender:.*master\.debian\.org
 Inbox/
 
+# =========================== Drop SPAM =======================================
+
+# If new post is with empty From/To/Subject, we may skip it.
+# Also we may skip autoresponders
+
+:0
+* ^X-SPAM: HTML
+Xspam-In-HTML/
+
+:0
+* ^X-SPAM: MIME
+Xspam-In-MIME/
+
+:0
+* ^X-SPAM: SUBJECT
+Xspam-In-SUB/
+
+:0
+* ^X-SPAM: CAPITAL
+Xspam-In-CAP/
+
+# =========================== Deliver Japanese ================================
+
 :0
 * ^TO_.*osamu@aokiconsulting\.com
 Inbox-jp/
+
+:0
+* ^Delivered-To:.*osamu@aokiconsulting\.com
+Inbox-jp-1/
+
+# =========================== Block SPAM ======================================
+
+* ^X-SPAM: ASIA
+Xspam-In-ASIA/
+
+:0
+* ^X-SPAM:
+Xspam-In/
+
+# =========================== Deliver non-Japanese ============================
+
+:0
+* 1^0 ^FROM_MAILER
+* 1^0 ^FROM_DAEMON
+{
+* 1^0 ^Subject: *virus.*found
+* 1^0 ^Subject:.*SOBIG
+Inbox-daemon-virus/
+
+0:
+Inbox-daemon/
+}
+
+# ======================== CRM114 FILTER ==========================
+  
+:0
+* ^X-CRM114-Status: SPAM.*
+{
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[0-9]\.
+Xspam-crm-0/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9]\.
+Xspam-crm-1/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[4-9][0-9]\.
+Xspam-crm-2/
+
+:0
+* ^X-CRM114-Status: SPAM  \( pR: -[1-3][0-9][0-9]\.
+Xspam-crm-3/
+
+:0
+Xspam-crm/
+}
 
 :0
 * 1^0 ^TO_.*debian@aokiconsulting\.com
@@ -386,6 +578,20 @@ Inbox-jp/
 * 1^0 ^TO_.*osamu@users\.sourceforge\.net
 * 1^0 ^TO_.*staff@debianplanet\.org
 Inbox/
+
+:0
+* 1^0 ^TO_.*@debian\.org
+* 1^0 ^TO_.*@aokiconsulting\.com
+* 1^0 ^TO_.*@csoft\.net
+* 1^0 ^TO_.*@leary\.csoft\.net
+Inbox-0/
+
+:0
+* 1^0 ^Delivered-To:.*@debian\.org
+* 1^0 ^Delivered-To:.*@aokiconsulting\.com
+* 1^0 ^Delivered-To:.*@csoft\.net
+* 1^0 ^Delivered-To:.*@leary\.csoft\.net
+Inbox-1/
 
 :0
 In-thru/
