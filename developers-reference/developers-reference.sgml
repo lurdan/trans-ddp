@@ -6,7 +6,7 @@
   <!entity % commondata  SYSTEM "common.ent" > %commondata;
 
   <!-- CVS revision of this document -->
-  <!entity cvs-rev "$Revision: 1.100 $">
+  <!entity cvs-rev "$Revision: 1.101 $">
   <!-- if you are translating this document, please notate the CVS
        revision of the developers reference here -->
   <!--
@@ -875,6 +875,85 @@ real distribution directories use the <em>code names</em>, while
 symbolic links for <em>stable</em>, <em>testing</em>, and
 <em>unstable</em> point to the appropriate release directories.
 
+    <sect id="incoming-system">
+	<heading>The Incoming system
+	<p>
+The Incoming system is responsible of collecting updated packages and
+installing them in the Debian archive. It consists of a set of
+directories and scripts that are installed both on <tt>&ftp-master-host;</tt>
+and <tt>&non-us-host;</tt>.
+	<p>
+Packages are uploaded by all the maintainers into an <tt>unchecked</tt>
+directory. This directory is scanned every 15 minutes by the katie script
+that verifies the integrity of the package and the cryptographic
+signature.  If the package is considered ready to be installed, it
+is moved into an <tt>accepted</tt> directory. If it is the first upload of
+the package then it is moved in a <tt>new</tt> directory waiting an
+approval of the ftpmasters. If the package contains files to be installed
+"by-hand" is is moved in the <tt>byhand</tt> directory waiting a manual
+installation by the ftpmasters. Otherwise, if any error has been detected,
+the package is refused and is moved in the <tt>reject</tt> directory.
+	<p>
+Once the package is accepted the system sends a confirmation
+mail to the maintainer, closes all the bugs marked as fixed by the upload
+and the autobuilders may start recompiling it. The package is now publicly
+accessible at <url id="&url-incoming;"> (there is no
+such URL for packages in the non-US archive) until it is really installed
+in the Debian archive. This happens only once a day, the package
+is then removed from incoming and installed in the pool along with all
+the other packages. Once all the other updates (generating new
+<tt>Packages</tt> and <tt>Sources</tt> files for example) have been made,
+a special script is called to ask all the primary mirrors to update
+themselves.
+	<p>
+All debian developers have write access to the <tt>unchecked</tt>
+directory in order to upload their packages, they also have that access
+to the <tt>reject</tt> directory in order to remove their bad uploads
+or to move some files back in the <tt>unchecked</tt> directory. But
+all the other directories are only writable by the ftpmasters, that is
+why you can not remove your upload once it has been accepted.
+	<p>
+The <tt>unchecked</tt> directory has a special <tt>DELAYED</tt>
+subdirectory. It is itself subdivised in nine directories
+called <tt>1-day</tt> to <tt>9-day</tt>. Packages which are uploaded in
+one of those directories will be moved in the real unchecked
+directory after the corresponding number of days.
+This is done by a script that is run each day and which moves the
+packages between the directories. Those which are in "1-day" are
+installed in <tt>unchecked</tt> while the others are moved in the 
+adjacent directory (for example, a package in <tt>5-day</tt> will
+be moved in <tt>4-day</tt>). This feature is particularly useful
+for people who are doing non-maintainer uploads. Instead of
+waiting before uploading a NMU, it is uploaded as soon as it is
+ready but in one of those <tt>DELAYED/x-day</tt> directories.
+That leaves the corresponding number of days to the maintainer
+in order to react and upload himself another fix if he is not
+completely satisfied with the NMU. Alternatively he can remove
+the NMU by himself.
+	<p>
+The use of that delayed feature can be simplified with a bit
+of integration with your upload tool, the following addition to 
+the <prgn>dupload</prgn> configuration file should be
+considered. 
+	<p>
+<example>
+$delay = ($ENV{DELAY} || 7);
+$cfg{'delayed'} = {
+         fqdn => "ftp-master.debian.org",
+         login => "yourdebianlogin",
+         incoming => "/org/ftp.debian.org/incoming/DELAYED/$delay-day/",
+         visibleuser => "yourdebianlogin",
+         visiblename => "debian.org",
+         fullname => "Your Full Name",
+         dinstall_runs => 1,
+         method => "scpb"
+};
+</example>
+	<p>
+<prgn>dupload</prgn> can now be used to easily upload a package
+in one of the delayed directories :
+<example>DELAY=5 dupload --to delayed &lt;changes-file&gt;</example>
+
     <sect id="testing-scripts">
 	<heading>The testing scripts</heading>
 	<p>
@@ -945,8 +1024,8 @@ watch the bugs of each package at
 on both <tt>&ftp-master-host;</tt> and <tt>&non-us-host;</tt>. It
 uses a single argument corresponding to a package name. In result
 it displays which version of the package is available for each
-architecture and distribution combination. An example will let you
-understand easily.
+architecture and distribution combination. An example will explain
+it better.
 	<p>
 <example>
 $ madison libdbd-mysql-perl
