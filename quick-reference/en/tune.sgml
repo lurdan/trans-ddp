@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.29 $"  -->
+<!-- CVS revision of this document "$Revision: 1.30 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
 <p>
@@ -527,7 +527,7 @@ remote connections from an "X client" (application side):
 <list>
 <item><prgn>xhost</prgn>
 <list compact>
-<item>the host list mechanism (insecure).
+<item>the host list mechanism (very insecure).
 <item>non-encrypted protocol (prone to eavesdropping attack).
 <item>Do not use this, if possible.
 <item>See <ref id="xhost"> and <manref name="xhost" section="1x">.
@@ -540,8 +540,10 @@ remote connections from an "X client" (application side):
 <item>use this only for local connection.
 <item>See <ref id="ss-xsu"> and <manref name="xauth" section="1x">.
 </list>
-<item><prgn>xdm</prgn>, <prgn>wdm</prgn>, <prgn>gdm</prgn>, <prgn>kdm</prgn>, ...
+<item><prgn>xdm</prgn>, <prgn>wdm</prgn>, <prgn>gdm</prgn>, 
+ <prgn>kdm</prgn>, ... 
 <list compact>
+<item>the MIT magic cookie mechanism (insecure as <prgn>xauth</prgn>).
 <item>See <manref name="xdm" section="1x"> and 
  <manref name="Xsecurity" section="7"> for the basics of X display access 
  control.
@@ -553,7 +555,7 @@ remote connections from an "X client" (application side):
 </list>
 <item><prgn>ssh -X</prgn>
 <list compact>
-<item>port forwarding mechanism through secure shell (secure).
+<item>port forwarding mechanism through secure shell (<strong>secure</strong>).
 <item>encrypted protocol (a waste of resources if used locally).
 <item>use this for remote connections.
 <item>See <ref id="xssh">.
@@ -562,43 +564,92 @@ remote connections from an "X client" (application side):
 All remote connection methods, except <prgn>ssh</prgn>, require TCP/IP
 connection enabled on the X server.  See <ref id="xtcp">.
 
-<sect1 id="custom-x">Customizing X start-up process
+<sect1 id="custom-x">Customize X session
 <p>
 X session can be started by:
 <list compact>
-<item><prgn>startx</prgn>: wrapper script for <prgn>initx</prgn> to 
- start X server and client.  
+<item><prgn>startx</prgn>: wrapper script command for <prgn>initx</prgn> to
+      start X server and client from character console.   If
+      <file>~/.xinitrc</file> does not exist, <file>/etc/X11/Xsession</file> is
+      executed through <file>/etc/X11/xinit/xinitrc</file>.
 <item><prgn>xdm</prgn>, <prgn>gdm</prgn>, <prgn>kdm</prgn>, or
- <prgn>wdm</prgn>: X display manager to start X server and client
+      <prgn>wdm</prgn>: X display manager daemon to start X server and client
+      from X console.  <file>/etc/X11/Xsession</file> is directly executed.
 </list>
 <p>
-Either case, <file>/etc/X11/Xsession</file> is sourced as the default.
+The default start up script <file>/etc/X11/Xsession</file> is 
+effectively a combination of
+<file>/etc/X11/Xsession.d/50xfree86-common_determine-startup</file> and
+<file>/etc/X11/Xsession.d/99xfree86-common_start</file>.
 <p>
-If <file>~/.xsession</file> or <file>~/.Xsession</file> exist,
-the action of <file>/etc/X11/Xsession</file> is replaced by one of
-these and X can be customized.  (<file>~/.xinitrc</file> and
-<file>~/.xserverrc</file> are called by <file>/etc/X11/Xsession</file>,
-so use of <file>~/.xsession</file> usually overides and disables 
-these settings.)
+At the end of this sequence, a program first found in the following 
+order will be executed with the <prgn>exec</prgn> command:
+<enumlist compact>
+<!-- Program specified by shell variable $REALSTARTUP, 
+ if it is defined.-->
+<item><file>/usr/bin/x-session-manager</file>, if it is defined.
+<item><file>/usr/bin/x-window-manager</file>, if it is defined.
+<item><file>/usr/bin/x-terminal-emulator</file>, if it is defined.
+</enumlist>
 <p>
-Although you can write full X start up process in <file>~/.xsession</file>,
-it is redundant and cumbersome.  In order to leverage standard
-<file>/etc/X11/Xsession</file> script, I propose to add 
-<file>/etc/X11/Xsession.d/98xfree86-common_environment</file>, 
-as root owned file containing the following lines:
+If <file>~/.xsession</file> or <file>~/.Xsession</file> exist, the
+action of <file>/etc/X11/Xsession</file> can be customized and above
+mentioned scheme of the X window/session manager selection will be lost.
+Because of this, the last command in the <file>~/.xsession</file> file
+should be <tt>exec <var>some-window/session-manager</var></tt>.  Here
+you may use one of the above mentioned X window/session managers or any
+one  of X window/session manager programs.  See <ref id="alternatives">
+to set actual action of each generic X window/session manager.  Example
+of the <file>~/.xsession</file> script is given at
+<file>&f-xsession;</file>.
+<p>
+I use this to set window manager, screen acess and language support for
+each user account. See <ref id="s-w-manager">, <ref id="ss-xsu">, and
+<ref id="x-cjk">.
+<p>
+User specific additional X resources can be stored in
+<file>~/.Xresources</file>, while system wide X resources are stored in
+<file>/etc/X11/Xresources/*</file>.  See <manref name="xrdb"
+section="1x">.
+<p>
+User customized keymaps and pointer button mappings in X can be specified 
+in <file>~/.xmodmaprc</file>.  See <manref name="xmodmap" section="1x">.
+
+<sect1 id="s-w-manager">Start a particular X session/window manager
+<p>
+An user specific X session/window manager can be activated by setting
+the content of the line at the end of user's custom
+<file>~/.xsession</file> file as described at <ref id="custom-x">.
+
+<sect2 id="gnome-mgr">GNOME session manager
+<p>
 <example>
-if [ -f "$HOME/.xenvironment" ]; then
-    . $HOME/.xenvironment
-fi
+exec /usr/bin/gnome-session
 </example>
+
+<sect2 id="kde-mgr">KDE session manager
 <p>
-This enables one to run a simple additional user customized configuration 
-script <file>~/.xenvironment</file> right before the real start up script
-<file>/etc/X11/Xsession.d/99xfree86-common_start</file> while keeping
-the rest of the default start up script process in tact.
+<example>
+exec /usr/bin/kde2
+</example>
+
+<sect2 id="wmaker-mgr">Windowmaker window manager
 <p>
-I use this to set window manager, screen acess and language support
-for each user account.
+<example>
+exec /usr/bin/wmaker
+</example>
+
+<sect2 id="fvtm2-mgr">FVWM2 window manager
+<p>
+<example>
+exec /usr/bin/fvwm2
+</example>
+
+<sect2 id="blackbox-mgr">Blackbox window manager
+<p>
+<example>
+exec /usr/bin/blackbox
+</example>
 
 
 <sect1 id="xsrvr">X server
@@ -683,7 +734,9 @@ xterm -g 80x24+0+0 &amp;
 xterm -g 80x24+0-0 &amp;
 twm
 </example>
-
+As described in <ref id="custom-x">, this overides evrything normal 
+execution of Xsession does when started from <prgn>startx</prgn>.
+Use this approach only as the last resort.
 </sect1>
 
 <sect1 id="xtcp">TCP/IP connection to X
@@ -775,14 +828,10 @@ Password:*****
 When using this trick to <prgn>su</prgn> to a non-root user, make
 sure <file>$HOME/.Xauthority</file> is group readable by this non-root user.
 <p>
-This command sequence can be automated by adding a few files.  
-Fist set up <file>/etc/X11/Xsession.d/98xfree86-common_environment</file> 
-as described in <ref id="custom-x">.
 
 <!-- this section moved up -->
 
-<p>
-From the user account, create the file <file>$HOME/.xenvironment</file> in
+From the user account, create the file <file>$HOME/.xsession</file> in
 the user's home directory, containing following lines:
 <example>
 # This makes X work when I su to the root account.
@@ -790,11 +839,24 @@ if [ -z "$XAUTHORITY" ]; then
         XAUTHORITY=$HOME/.Xauthority
         export XAUTHORITY
 fi
+# This start x-window/session-manager program
+if [ -z "$STARTUP" ]; then
+  if [ -x /usr/bin/x-session-manager ]; then
+    STARTUP=x-session-manager
+  elif [ -x /usr/bin/x-window-manager ]; then
+    STARTUP=x-window-manager
+  elif [ -x /usr/bin/x-terminal-emulator ]; then
+    STARTUP=x-terminal-emulator
+  fi
+fi
+# use auto selected /alternative defined X window/session manager
+exec $STARTUP
 </example>
 Then run <prgn>su</prgn> (not <tt>su -</tt>) in an
 <prgn>xterm</prgn> window of the user.  Now GUI programs started from this
 <prgn>xterm</prgn> can display output on this user's X window while running
-with root privilege.  This trick works as long as the default Xsession is
+with root privilege.  This trick works as long as the default 
+<file>/etc/X11/Xsession</file> is
 executed.  If a user set up his customization using <file>$HOME/.xinit</file>
 or <file>$HOME/.xsession</file>, the abovementioned environment
 <tt>XAUTHORITY</tt> variable needs to be set similaly in those scripts.
@@ -819,7 +881,7 @@ There are also several specialized packages for this purpose:
 <package>gnome-sudo</package>, and <package>xsu</package>.  Some
 other methods can be used to achieve similar results: creating a symlink from
 <file>/root/.Xauthority</file> to the user's corresponding one; use of the
-script <url id="&suxhome;" name="&quot;sux&quot;">; or putting "<tt>xauth merge
+script <url id="&suxhome;" name="sux">; or putting "<tt>xauth merge
 ~<var>USER_RUNNING_X</var>/.Xauthority</tt>" in the root initialization script.
 <p>
 See more on the <url id="&deb-dev-su;" name="debian-devel mailing list">.
@@ -1102,10 +1164,10 @@ can regain connection by removing the <prgn>host_key</prgn> entry from
 <p>
 Mail configuration divides into three categories:
 <list>
-<item>MTA: <prgn>exim</prgn>
-<item>MUA: <prgn>mutt</prgn>
-<item>Utilities: <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
+<item>mail transfer agent (MTA): <prgn>exim</prgn>
+<item>mail utilities: <prgn>procmail</prgn>, <prgn>fetchmail</prgn>,
 <prgn>mail</prgn>, ...
+<item>mail user agent (MUA): <prgn>mutt</prgn>
 </list>
 
 <sect1>Mail transport agent (Exim)
@@ -1240,7 +1302,6 @@ keyboards.  In Woody, re-configure keyboard by:
 The vast majority of Debian software packages support data 
     handling of non-US-ASCII characters through the LC_CTYPE environment 
     variable offered by the <strong>locale</strong> technology in glibc 
-    (see <ref id="locales">).
    
     <list compact>
     <item>8-bit clean: practically all programs
@@ -1264,7 +1325,7 @@ environment requires the use of <package>egg</package> package in the
 Emacs environment for the Japanese character input.
 </sect2>
 
-<sect2 id="translatiion">Translation
+<sect2 id="translation">Translation
 <p>
 Translations exist for many of the text messages and documents that
     are displayed in the &debian; system, such as error messages, standard
@@ -1281,7 +1342,6 @@ Translations exist for many of the text messages and documents that
     Italian-language manual pages,
     LC_MESSAGES needs to be set to <tt>it</tt>.  The <prgn/man/ program will
     then search for Italian manual pages under <file>/usr/share/man/it/</file>.
-    See <ref id="locales"> for more information on setting locale variables.
 </sect2>
 </sect1>
 
@@ -1365,9 +1425,9 @@ available locales; see <manref name="locale" section="1">. (NOTE: <tt>locale
 <sect1 id="ISO-locale">ISO 8601 date format locale
 <p>
 The locale support for the international date standard of <tt>yyyy-mm-dd</tt>
-(ISO 8601 date format) is provided by a locale called <tt>en_DK</tt>, 
+(ISO 8601 date format) is provided by the locale called <tt>en_DK</tt>, 
 &mdash; <strong>English in Denmark</strong> which is a bit of joke :-)
-This seem to only work in console screen.
+This seems to only work in console screen for <prgn>ls</prgn>.
 
 <!-- beyond locale moved to below -->
 
@@ -1433,17 +1493,15 @@ in Linux console.
 
  <item>add all the Japanese font packages.
  
- <item>create <file>/etc/X11/Xsession.d/98xfree86-common_environment</file>
-  as described in <ref id="custom-x"> which allow user specific X environment 
-  independent of starting methods (<prgn>startx</prgn>, <prgn>xdm</prgn>, ...)
+ <item>Set up as described in <ref id="custom-x">. This allows user 
+  specific X environment independent of the starting methods of X 
+  (<prgn>startx</prgn>, <prgn>xdm</prgn>, ...)
   
- <item>create <file>~/.xenvironment</file> which sets user specific X 
+ <item>create <file>~/.session</file> which sets user specific X 
   environment:
 
 <example>
 #!/bin/sh
-# POSIX compliant script
-
 # This makes X work when I su to root.
 if [ -z "$XAUTHORITY" ]; then
 	XAUTHORITY=$HOME/.Xauthority
@@ -1463,6 +1521,8 @@ export LC_MESSAGES
 kinput2 &        
 XMODIFIERS=@im=kinput2
 export XMODIFIERS
+# How about blackbox window manager (lightweight)
+exec /usr/bin/blackbox
 </example>
 
  <item>add following lines into <file>~/.bash_profile</file>:
@@ -1476,18 +1536,19 @@ export LC_TIME
 
  <item>add following lines into <file>~/.muttrc</file>:
 <example>
-# set encoding: default order = us-ascii --&gt; iso-8859-1 --&gt; utf-8
-# (UTF-8 support is not popular in popular EMACS environment)
+# UTF-8 support is not popular in popular Japanese EMACS environment
+# 7 bit encoding of iso-2022-jp is easier for everyone
+# default encoding order = us-ascii --&gt; iso-8859-1 --&gt; utf-8
 #set send_charset="us-ascii:iso-8859-1:utf-8"
-# set encoding: order = us-ascii --&gt; iso-8859-1 --&gt; iso-2022-jp
+#set allow_8bit=yes
 set send_charset="us-ascii:iso-8859-1:iso-2022-jp"
 set allow_8bit=no
 </example>
-<!-- I need to add non-mime as preffered -->
- <item>activate XIM <prgn>kinput2</prgn> for application
+ <item>activate XIM <prgn>kinput2</prgn> for X application
   <list compact>
   <item>add <tt>*inputMethod: kinput2</tt> to your X resources file
-  (looks like Debian takes care of this by files in ).
+  <file>.~/Xresources</file>  (looks like Debian takes care this
+  automatically somehow).
   <item>Some applications (such as <prgn>mlterm</prgn>) also allow 
   you to set up <tt>*inputMethod:</tt> and other information dynamically 
   at runtime (press <strong>Ctrl-MouseButton-3</strong> in <prgn>mlterm</prgn>).
@@ -1513,18 +1574,27 @@ UTF-8 support on FB console is provided by <package>jfbterm</package>.
 
 <sect1 id="beyond-locale">Beyond locale
 <p>
-If you are setting system up only for a <strong>national language 
-environment</strong>, use <prgn>tasksel</prgn> or 
-<prgn>aptitude</prgn> to select a language environment such as 
-"Japanese environment" task which should ease this initial baseline setup.
-If you encounter any dependency conflicts, avoid installing software 
-that conflicts with the normal system. 
+When you are setting system up first time for a <strong>national
+language environment</strong>, please consider to use
+<prgn>tasksel</prgn> or <prgn>aptitude</prgn> to find out what packages
+are selected by choosing the corresponding language environment task.
+The package choice made is useful even for the multi-lingual setup.  If
+you encounter any package dependency conflicts during the install to
+your finely configured system, avoid installing those software that
+conflicts with the existing system.  You may have to use
+<prgn>update-alternative</prgn> to regain the original state for some
+commands since newly installed one may have higher priority over
+existing ones.
+<p>
+Newer major programs are using glibc 2.2 and nicely internationalized.
+So specially localized version such as <prgn>jvim</prgn> for VIM may not
+be needed and its functionality is offered by <prgn>vim</prgn> version
+6.0.
 <p>
 Programs may need to be configured beyond <tt>locale</tt> configuration
-to enable a comfortable working environment.
-The <package>language-env</package> package and its command 
-<prgn>set-language-env</prgn> greatly eases the configuration of the national
-language environment on a &debian; system.
+to enable a comfortable working environment.  The
+<package>language-env</package> package and its command
+<prgn>set-language-env</prgn> greatly eases this process.
 <p>
 Also see the internationalization document, <url id="&intro-i18n;" 
 name="Introduction to i18n">. It is aimed at developers but is also 
@@ -1533,3 +1603,4 @@ useful for system administrators.
 
 </sect>
 </chapt>
+
