@@ -1,5 +1,15 @@
 <!doctype debiandoc system>
 
+# TODO list:
+# - Pointers to other security-related documents, jfs
+# - There was a 'useful software section' why was it removed? jfs
+# - A checklist to hardening the Debian system (summarising all
+#   this info in a page), there were many good ideas in the
+#   debian-security's Nov/Dec 2000 threads
+# - Information on debian firewalling and what/how does it change
+#   from other distributions
+
+
 <book>
 
 <titlepag>
@@ -151,7 +161,9 @@ to the following factors:
 <list>
 <item>Any partition a user has write permissions to, should be a separate
 partition, e.g. /home and /tmp. This reduces the risk of a user DoS by filling
-up your "/" mount point and rendering the system unusable.
+up your "/" mount point and rendering the system unusable. (Note: this is not 
+strictly true since their is a space reserved for root that a normal user
+cannot fill)
 
 <item>Any partition which can fluctuate, e.g. /var (especially /var/log). In
 Debian context you should create /var a little bit bigger than normal because
@@ -228,6 +240,7 @@ Omitting the "restricted" line, causes lilo to always prompt for a
 password, regardless of whether LILO was passed parameters. When adding a
 password make sure that only root can read the lilo config file, i.e.
 chmod 600 /etc/lilo.conf.
+# is this Debian's default? if so say so or remove this , jfs
 <p>
 If you use GRUB instead of LILO, edit the file /boot/grub/menu.lst and add the
 following two lines at the top. This will set a boot-password and also
@@ -259,6 +272,7 @@ Now LILO is put into the MBR. This can also be achieved by adding
 disable the mbr prompt completely:
 
 <tt>install-mbr -i n</tt>
+# is this install-mbr /dev/hda ?? jfs
 
 # check whether this really is true as of 2.2 or was it 2.1?
 INFO: The bootdisks as of Debian 2.2 do NOT install the mbr, but only LILO
@@ -398,7 +412,7 @@ user resource limits. If you use PAM, this file is not valid and you should use
 <tt>FIXME: Get a good limits.conf up here</tt>
 
 
-<sect>Edit /etc/inetd.conf
+<sect>Customize /etc/inetd.conf
 <p>
 You should stop all unneeded services on your system, like echo. charges, disca
 rd,
@@ -411,6 +425,14 @@ inetd, which can increase the machine's load tremendously. If you still want to
  run some
 kind of inetd service, switch to a more configurable inet daemon like xinetd or
 rlinetd.
+<p>
+You can do this editing the inetd.conf directly, but Debian provides an
+alternative to this: <tt>update-inetd</tt>. You could remove the telnet
+daemon by do:
+<example>
+# /usr/sbin/update-inetd --disable telnet
+# /etc/init.d/inetd restart
+</example>
 
 
 <sect>Edit /etc/login.defs
@@ -501,6 +523,121 @@ ALL: ALL: spawn ( \
 lots of connections in a short period of time. Many emails mean a lot of
 file I/O by sending only a few packets.
 
+# Could this example be more interesting? 
+# It also relates to the next sectionjfs
+#<example>
+#ALL: ALL: spawn ( \
+#  /usr/local/sbin/send_syslog %u %c %d )
+#</example>
+#  Whit send_syslog as:
+##!/usr/bin/perl -w
+#
+#use Sys::Syslog qw(:DEFAULT setlogsock);
+#
+#$user=shift(@ARGV) || 'unkown';
+#$host=shift(@ARGV) || 'unkown';
+#$service=shift(@ARGV) || 'unkown';
+#setlogsock('unix');
+#openlog("alert",'', 'user');
+#syslog('warning', 'Connection from %s at %s to %s blocked.', ($user, $host, $service) );
+#closelog();
+#
+#exit 0;
+
+<sect>The importance of logs and alerts
+<p>How log and alerts are treated is an important issue in a secure system.
+It is easily to see that, even if the system is perfectly configured and,
+supposedly, 99% secure. If the 1% comes to happen, if there are no security
+measures in place to, first, detect this and, second, raise alarms. The system
+is not secured at all.
+
+<sect1>Configuring where alerts are sent
+<p>Debian comes with a standard syslog configuration (in /etc/syslog.conf)
+that logs messages to the appropiate files depending on the system facility. 
+If you intend to maintain a secure system you should be wary of where this
+messages are sent so they do not go unnoticed.
+<p>For example, sending messages to the console also is an interesting setup
+useful for many production-level systems. But for many such systems it
+is important to also add a new machine that will serve as loghost (receives logs from
+all other systems). 
+
+<p>Root's mail should be considered also, many security controls (like snort) send
+alerts to root's mailbox. This mailbox usually points to the first user created in
+the system (check /etc/aliases). Take care to send root's mail to some place where
+it will be read (either locally or remotely).
+
+# Note: it would be interesting to tell how a Debian system can send SNMP traps
+# related to security problems, jfs
+# check: snmptraglogd, snmp and snmpd
+
+<sect1>Using a loghost
+<p>
+A loghost is a host which collects syslog data remotely over the network. If
+one of your machines is cracked, the intruder is not able to cover his tracks,
+unless he hacks the loghost as well. So, the loghost should be especially secur
+e.
+Making a machine a loghost is simple. Just start the
+syslogd with 'syslogd -r' and a new loghost is born. Next configure
+the other machines to send data to the loghost. Add an entry like the
+following to <tt>/etc/syslog.conf</tt>:<p>
+
+<example>facility.level            @your_loghost</example>
+
+facility should be one of authpriv, cron, daemon, kern, lpr, mail, news,
+syslog, user, uucp and local1 up to local7. level should be alert, crit, err,
+warning, notice, info debug. If you want to log everything remote, just write:
+
+<example>*.*                       @your_loghost</example>
+
+into your syslog.conf. Logging remotely as well as locally is the best
+solution (the attacker might presume to have covered their tracks after deletin
+g the local
+log files). See the syslog(3),
+syslogd(8) and syslog.conf(5) manpage for additional information.
+
+
+<sect1>Logfile permissions
+<p>
+It is not only important to decide how alerts are used but also who
+has access to them, i.e. can read or modify the logfiles (if not
+using a remote loghost). Since, in the event of an intrusion, even
+with security alerts in place, if an attacker is able to change them
+security goes back to nil
+<p>
+# It should be explained why after installation this is not
+# already done, jfs
+Some logfile permissions are not perfect after the installation. First
+/var/log/lastlog and /var/log/faillog do not need to be readable by normal
+users. In the lastlog file you can see who logged in the lasttime and in
+the faillog you see a summary of failed logins. The author recommends
+chmod'ing both to 660. Take a brief look over your log files and
+decide very carefully which logfiles you make read/writeable for a user with
+another UID than 0 and a group other than 'adm' or 'root'.
+
+<p>
+I want to emphasize that the apache logfile permissions are really screwed due
+to the fact that the apache user owns the apache log files. If a user gets a
+shell with a back door in apache, they can easily remove the logfiles.
+# This is quite personal, IMHO, since this is due to the fact that 
+# root's priviledges are dropped on startup. I prefer an attacker to erase
+# a service's logfiles than to erase all of my system's logs. Anyhow, this
+# can be improved by changing user permissions after rotation
+
+<sect>Setting up setuid check
+<p>
+Debian provides a cron job that runs daily in <tt>/etc/cron.daily/standard</tt>
+this cron job will run the <tt>/usr/sbin/checksecurity</tt> script
+that will store information of this changes.
+
+# What is the defaul for this in cron package? jfs
+
+<p>In order for this check to be made you must set in <tt>/etc/checksecurity.conf</tt>:
+<example>
+CHECKSECURITY_DISABLE="FALSE"
+</example>
+
+
+# Is this sent to root? jfs
 
 <sect>Using su
 <p>
@@ -510,6 +647,8 @@ identity. You should try to avoid any login as user root and instead use su.
 Actually, the best solution is to remove su and switch to sudo, as it has
 more features than su. However, su is more common as is used on many other Unix
 es.
+
+
 
 
 <sect>Using sudo
@@ -628,21 +767,6 @@ Then set the soft and hard quota and/or inode quotas as needed.
 
 For more information about quotas, read the quota man page, and the quota
 mini-howto.
-
-
-<sect>Logfile permissions
-<p>
-Some logfile permissions are not perfect after the installation. First
-/var/log/lastlog and /var/log/faillog do not need to be readable by normal
-users. In the lastlog file you can see who logged in the lasttime and in
-the faillog you see a summary of failed logins. The author recommends
-chmod'ing both to 660. Take a brief look over your log files and
-decide very carefully which logfiles you make read/writeable for a user with
-another UID than 0 and a group other than 'adm' or 'root'.
-
-I want to emphasize that the apache logfile permissions are really screwed due
-to the fact that the apache user owns the apache log files. If a user gets a
-shell with a back door in apache, they can easily can remove the logfiles.
 
 
 <sect>chattr/lsattr
@@ -821,30 +945,6 @@ This command wraps the provided daemon (-l) to the port (-d) and uses the
 specified ssl cert (-p).
 
 
-<sect>Using a loghost
-<p>
-A loghost is a host which collects syslog data remotely over the network. If
-one of your machines is cracked, the intruder is not able to cover his tracks,
-unless he hacks the loghost as well. So, the loghost should be especially secur
-e.
-Making a machine a loghost is simple. Just start the
-syslogd with 'syslogd -r' and a new loghost is born. Next configure
-the other machines to send data to the loghost. Add an entry like the
-following to <tt>/etc/syslog.conf</tt>:<p>
-
-<example>facility.level            @your_loghost</example>
-
-facility should be one of authpriv, cron, daemon, kern, lpr, mail, news,
-syslog, user, uucp and local1 up to local7. level should be alert, crit, err,
-warning, notice, info debug. If you want to log everything remote, just write:
-
-<example>*.*                       @your_loghost</example>
-
-into your syslog.conf. Logging remotely as well as locally is the best
-solution (the attacker might presume to have covered their tracks after deletin
-g the local
-log files). See the syslog(3),
-syslogd(8) and syslog.conf(5) manpage for additional information.
 
 
 <sect>Securing BIND
@@ -863,7 +963,12 @@ To run BIND under a different user, first create a separate user and group for
 it
 (it is not a good idea to use nobody or nogroup for every service not running a
 s root)
-In this example, the user and group 'named' will be used.
+In this example, the user and group 'named' will be used. You can do this by
+doing:
+<example>
+# addgroup named
+# adduser --system --ingroup named named
+</example>
 <p>
 Now edit <tt>/etc/init.d/bind</tt> with your favorite editor and change the
 line beginning with
@@ -886,6 +991,8 @@ Sep  4 15:11:08 nexus named[13439]: user = named
 Voila! Your named now does not run as root. To achieve maximum BIND
 security, now build a chroot jail (See 3.13) around your daemon.
 
+# I'm not sure about this, shouldn't bind files be chown'ed to
+# the groups created. This should be stated. jfs
 
 
 <chapt>Before the compromise
@@ -931,16 +1038,21 @@ network. Most of the DDoS (distributed denial of service) attacks use rpc
 exploits to get into the system and act as a so called agent/handler.
 
 Disabling portmap is quite simple. There are different methods. The simplest
-one is to remove every symlink relating to portmap in /etc/rc${runlevel}.d/.
+one in a Debian system is to do <tt>update-rc.d portmap remove</tt>.
+This in fact removes every symlink relating to portmap in /etc/rc${runlevel}.d/
+(you could do this manually yourself) .
 You could as well <tt>chmod 644 /etc/init.d/portmap<tt>, but that gives an erro
 r message
 when booting. You can also
-strip off the "start-stop-daemon" part in /etc/init.d/portmap shell script.
+strip off the "start-stop-daemon" part in the <tt>/etc/init.d/portmap</tt> shell script.
+
  
 Keep in mind that migrating from telnet to ssh, but using other
 cleartext protocols does not increase your security in ANY way! Best
 would be to remove ftp, telnet, pop, imap, http and to supersede them
-with their respective crypted services.
+with their respective crypted services. 
+You should consider moving from this services to their SSL versions, ftp-ssl,
+telnet-ssl, pop-ssl, https ...
 
 Most of these above listed hints apply to every Unix system.
 
