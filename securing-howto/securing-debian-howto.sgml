@@ -23,8 +23,8 @@
 <name>Javier Fernández-Sanguino Peña</name>
 <email>jfs@computer.org</email>
 </author>
-<version>2.92
-<date>Fri, 21 Feb 2003 10:06:15 +0100
+<version>2.93
+<date>Fri, 21 Mar 2003 22:11:16 +0100
 
 <abstract>
 This document describes security in the Debian project. 
@@ -348,6 +348,13 @@ system (check bug reports sent to snort)
 </list>
 
 <sect id="changelog">Changelog/History
+
+<sect1>Version 2.93 (march 2003)
+<p>Changes made by Frederic Schutz.
+<list>
+<item>rewrote entirely the section of ext2 attributes
+(lsattr/chattr)
+</list>
 
 <sect1>Version 2.92 (february 2003)
 <p>Changes by Javier Fernández-Sanguino Peña and
@@ -3399,52 +3406,97 @@ violates the FHS. Also take into account that pam_limits.so might
 provide the same functionality and <package>lshell</package>
 is currently <url id="http://bugs.debian.org/93894" name="orphaned">
 
-<sect1>chattr/lsattr
+<sect1 id="ext2attr">The ext2 filesystem specific attributes (chattr/lsattr) 
+<!-- section last edited by Frédéric Schütz <schutz@mathgen.ch> -->
 
 <p>
-These two commands are very useful, but they only work for the ext2
-file system.  With 'lsattr' you can list the attributes of a file and
-with 'chattr' you can change them. Note that attributes are not the
-same thing as permissions.  There are many attributes, but only the
-most important for increasing security are mentioned here. There are
-two flags which can only be set by the superuser.
+In addition to the usual Unix permissions, the ext2 and ext3
+filesystems offer a set of specific attributes that give you more
+control over the files on your system. Unlike the basic permissions,
+these attributes are not displayed by the usual <prgn>ls -l</prgn>
+command or changed using <prgn>chmod</prgn>, and you need two other
+utilities, <prgn>lsattr</prgn> and <prgn>chattr</prgn> (in package
+<package>e2fsprogs</package>) to manage them. Note that this means
+that these attributes will usually not be saved when you backup
+your system, so if you change any of them, it may be worth
+saving the successive <prgn>chattr</prgn> commands in a script so that
+you can set them again later if you have to restore a backup.
 
 <p>
-First there is the 'a' flag. If set on a file, this file can only be
-opened for appending. This attribute is useful for some of the files
-in <file>/var/log/</file>, though you should consider they get moved 
-sometimes due to the log rotation scripts.
+Among all available attributes, the two that are most important for
+increasing security are referenced by the letters 'i' and 'a', and
+they can only be set (or removed) by the superuser:
+
+<list>
+<item>The 'i' attribute ('immutable'): a file with this attribute can
+neither be modified nor deleted or renamed and no link can be created
+to it, even by the superuser.
+
+<item>The 'a' attribute ('append'): this attribute has the same effect
+that the immutable attribute, except that you can still open the file
+in append mode. This means that you can still add more content to it
+but it is impossible to modify previous content. This attribute is
+especially useful for the log files stored in <file>/var/log/</file>,
+though you should consider that they get moved sometimes due to the
+log rotation scripts.
+</list>
 
 <p>
-The second flag is the 'i' flag, short for immutable. If set on a
-file, it can neither be modified nor deleted or renamed and no link be
-created to it.  If you do not want users to look into your config
-files you could set this flag and remove readability. Furthermore it
-can give you a little bit more security against intruders, because the
-cracker might be confused by not being able to remove a
-file. Nevertheless, you should never assume that the cracker is
-blind. After all, he got into your system.
+These attributes can also be set for directories, in which case
+everyone is denied the right to modify the contents of a directory
+list (eg. rename or remove a file, ...). When applied to a directory,
+the append attribute only allows file creation.
 
-<p>You can, also, remove the <prgn>chattr</prgn> and <prgn>lsattr</prgn>
-programs from the system so that an intruder with root access cannot
-change (or list) this attributes. Since they are part of the
-<package>e2fsprogs</package> and it's <em>Required</em> priority you
-cannot simply remove it. However, you can safely delete these two
-applications (and probably some others) from the file system. Copy them
-before to a removable media (floppy disk?) along with they md5sums.
+<p>
+It is easy to see how the 'a' attribute improves security, by giving
+to programs that are not running as the superuser the ability to add
+data to a file without modifying its previous content. On the other
+hand, the 'i' attribute seems less interesting: after all, the
+superuser can already use the basic Unix permissions to restrict
+access to a file, and an intruder that would get access to the
+superuser account could always use the <prgn>chattr</prgn> program to
+remove the attribute. Such an intruder may first be confused when he
+sees that he is not able to remove a file, but you should not assume
+that he is blind - after all, he got into your system ! Some manuals
+(including a previous version of this document) suggest to simply
+remove the <prgn>chattr</prgn> and <prgn>lsattr</prgn> programs from
+the system to increase security, but this kind of strategy, also known
+as "security by obscurity", is to be absolutely avoided, since it
+provides a false sense of security.
 
-<p>An intruder in the system would have to download his own copies of
-the binaries in the system (probably even compile them in it) which
-might give you a littler more time to detect and recover from the
-compromise before the whole system is overrun.
+<p>
+A secure way to solve this problem is to use the capabilities of the Linux
+kernel, as described in <ref id="proactive">. The capability of
+interest here is called <tt>CAP_LINUX_IMMUTABLE</tt>: if you remove it
+from the capabilities bounding set (using for example the command
+<tt>lcap CAP_LINUX_IMMUTABLE</tt>) it won't be possible to change any
+'a' or 'i' attribute on your system anymore, even by the superuser ! A
+complete strategy could be as follows:
 
-<p>FIXME: This is a bug that could be reported, are any of the binaries
-provided by the program useful in production systems? If not, and
-since the libraries are needed by many packages a new package
-<package>e2fsprogs-utils</package> could be included with less than
-<em>Required</em> priority.
+<enumlist>
+  <item> Set the attributes 'a' and 'i' on any file you want;
+  <item> Add the command <tt>lcap CAP_LINUX_IMMUTABLE</tt> (as well as
+         <tt>lcap CAP_SYS_MODULE</tt>, as suggested in <ref id="proactive">)
+         to one of the startup scripts;
+<!-- Is there anything interesting in :
+http://lists.debian.org/debian-security/2001/debian-security-200107/msg00024.html -->
+  <item> Set the 'i' attribute on this script and other startup files, as
+         well as on the <prgn>lcap</prgn> binary itself;
+  <item> Execute the above command manually (or reboot your system to
+         make sure everything works as planned).
+</enumlist>
 
-<p>Remember: lsattr and chattr are only available on ext2 file systems.
+<p>
+Now that the capability has been removed from the system, an intruder
+can not change any attribute on the protected files, and thus can not
+change or remove the files. If he forces the machine to reboot (which
+is the only way to restore the capabilities bounding set), it will
+easily be detected, and the capability will be removed again as soon
+as the system restarts anyway. The only way to change a protected file
+would be to boot the system in single-user mode or using another
+bootdisk, two operations that require physical access to the machine !
+
+<!-- Add a note about the fact that it is not widely used -->
 
 <sect1 id="check-integ">Checking file system integrity
 
