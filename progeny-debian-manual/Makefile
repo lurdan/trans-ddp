@@ -24,7 +24,6 @@ publish-html: $(HTMLDIRS)
 	install -p -m 644 *.html $(PUBLISHDIR)/$(MANUAL)/
 	cd $(PUBLISHDIR)/$(MANUAL) ;mkdir img
 	install -p -m 644 img/*.png $(PUBLISHDIR)/$(MANUAL)/img/ 
-	cd $(PUBLISHDIR)/$(MANUAL)/ ; ln -sf ProgenyTOC.html index.html
 
 #====[ cleaning up ]===========================================================
 clean distclean: 
