@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.27 $"  -->
+<!-- CVS revision of this document "$Revision: 1.28 $"  -->
 
 <!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
 
@@ -91,31 +91,58 @@ as follows:
 <sect1 id="apt-install">Install system with APT
 <p>
 You can selectively install packages from different archives using newer
-versions of <prgn>apt-get</prgn> (&gt;Woody).  This enables, for example, 
+versions of <prgn>apt-get</prgn> (&gt;Woody) by adding the sources for 
+<tt>unstable</tt> and <tt>testing</tt> to your 
+<file>/etc/apt/sources.list</file> and edit.  This enables, for example, 
 selective upgrade to <tt>unstable</tt> and selective downgrade to 
-<tt>stable</tt> while tracking <tt>testing</tt>.
+<tt>stable</tt> while tracking <tt>testing</tt> distribution.
 <p>
-For selective upgrade, add the sources for <tt>unstable</tt> 
-(<tt>testing</tt> if you use <tt>stable</tt>) to your 
-<file>/etc/apt/sources.list</file> and edit 
-<file>/etc/apt/preferences</file> as follows:
+For selective upgrade while tracking <tt>testing</tt> distribution, 
+set <file>/etc/apt/preferences</file> as follows:
 <example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 500
+
+Package: *
+Pin: release a=testing
+Pin-Priority: 600
+
 Package: *
 Pin: release a=unstable
 Pin-Priority: 50
 </example>
-(replace <tt>unstable</tt> with <tt>testing</tt> if you normally use 
-<tt>stable</tt>).
+The same effects can be obtained by setting
+<example>
+# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
+</example>
+Under this <tt>testing</tt> tracking condition:
+<list>
+<item><tt>apt-get upgrade</tt>
+ <p>just track <tt>testing</tt> distribution and upgrade all the 
+ packages on the system.
+<item><tt>apt-get install <var>package</var></tt>
+ <p>install <var>package</var> and its dependencies from 
+ <tt>testing</tt> distribution.
+<item><tt>apt-get install <var>package</var>/unstable</tt>
+ <p>install <var>package</var> from <tt>unstable</tt> distribution while
+ installing its dependencies from <tt>testing</tt> distribution.
+<item><tt>apt-get install -t unstable <var>package</var></tt>
+ <p>install <var>package</var> from <tt>unstable</tt> distribution while
+ installing its dependencies also from <tt>unstable</tt> distribution.
+</list>
 <p>
-Now you can run <tt>apt-get install <var>package</var>/unstable</tt> and
-install a package out of <tt>unstable</tt>, with all its depends.  But normal
-<tt>apt-get upgrade</tt> or <tt>apt-get install <var>package</var></tt> does
-not install a package from <tt>unstable</tt> (or <tt>testing</tt>).
+If you are to track <tt>stable</tt>, reduce Pin-Priority of 
+<tt>testing</tt> to 60 in <file>/etc/apt/preferences</file>for
+above example or use:
+<example>
+# echo 'APT::Default-Release "stable";' &gt;&gt; /etc/apt/apt.conf
+</example>
+<p>
+Other commends to use are:
 <example>
 # apt-cache policy libc6 libc6-dev locales         # check status
 # apt-get install libc6=2.2.4-1 libc6-dev=2.2.4-1 locales=2.2.4-1
-# apt-get install libc6/unstable libc6-dev/unstable locales/unstable
-# apt-get install -t unstable libc6 libc6-dev locales
 # apt-get -u install interesting-new-package remove-package-
 # apt-get remove useless-old-package
 # apt-get remove --purge really-useless-old-package
@@ -129,7 +156,8 @@ Pin: release a=stable
 Pin-Priority: 1001
 </example>
 and run "<tt>apt-get upgrade</tt>", which forces downgrade due to 
-Pin-priority &gt; 1000.
+Pin-priority &gt; 1000.  Be warned, there may be some small glitch
+in dependencies.
 </sect1>
 
 <sect1 id="apt-upgrade">Upgrade system with APT
@@ -144,10 +172,10 @@ Upgrade system with APT:
 </example>
 The following sets the <tt>-u</tt> option as the default action:
 <example>
-$ cat >> /etc/apt/apt.conf
-// Always show packages to be upgraded (-u).
+$ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+// Always show packages to be upgraded (-u)
 APT::Get::Show-Upgraded "true";
-^D
+.
 </example>
 <p>
 Use the <tt>-s</tt> option to simulate upgrade without actual upgrade.
@@ -473,6 +501,20 @@ dpkg --get-selections "*"|grep -e "hold$"
 </example>
 </sect1>
 
+<sect1 id="mixedsys">Mixed stable/testing/unstable system
+<p>
+<prgn>apt-show-versions</prgn> can lists available package 
+versions with distribution.
+<example>
+$ apt-show-versions | fgrep /testing | wc
+... how many packages you have from testing
+$ apt-show-versions -u
+... list of upgradeable packages
+$ apt-get install `apt-show-versions -u -b | fgrep /unstable`
+... upgrade all unstable packages to their newest versions
+</example>
+</sect1>
+
 <sect1 id="dselect"><prgn>dselect</prgn> &ndash; global configuration
 <p>
 Add a line containing the option "expert" in
@@ -511,6 +553,7 @@ Package installation with APT leaves cached package files in
 </example>
 </sect1>
 
+
 <sect1 id="record">Record/copy system configuration
 <p>
 To make a local copy of the package selection states:
@@ -521,9 +564,9 @@ $ dpkg --get-selections "*" &gt;<var>myselections</var>   # or use \*
 <p>
 You can transfer this file to another computer, and install it there with:
 <example>
-# apt-get update
+# dselect update
 # dpkg --set-selections &lt;<var>myselections</var>
-# apt-get -u dselect-upgrade
+# apt-get -u dselect-upgrade    # <var>or</var> dselect install
 </example>
 </sect1>
 

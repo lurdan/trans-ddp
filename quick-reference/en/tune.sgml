@@ -1,9 +1,10 @@
-<!-- CVS revision of this document "$Revision: 1.33 $"  -->
+<!-- CVS revision of this document "$Revision: 1.34 $"  -->
 
 <chapt id="tune"> Tuning a &debian; system
 <p>
-This chapter describes only the basics of system configuration. A prerequisite
-of this chapter is reading <ref id="install">.  
+This chapter describes only the basics of system configuration through
+text based interface. A prerequisite of this chapter is reading 
+<ref id="install">.  
 <p>
 For the security conscious, 
 it is highly recommended to read the <url id="&securing-debian-howto;" 
@@ -68,7 +69,8 @@ to the sysadmin to take care of.
   <list compact>
    <item>irqtune: changes the IRQ priority of devices to allow devices that
    require high priority and fast service (e.g. serial ports, modems) to
-   have it.
+   have it. 3X speedup of serial/modem throughput is possible.
+
    <item>scanport: scans I/O space from 0x100 to 0x3ff looking for 
    installed ISA devices.
    <item>inb: a quick little hack that reads an I/O port and dumps the value
@@ -630,7 +632,7 @@ of the file:
 
 <sect1 id="reconf-x">Reconfigure XFree86
 <p>
-In Woody, re-configure X by:
+Re-configure X by:
 <list compact>
 <item><tt>dpkg-reconfigure --priority=low xserver-xfree86   # X4</tt>
 <item><tt>dpkg-reconfigure --priority=low xserver-common-v3 # X3</tt>
@@ -655,14 +657,17 @@ effectively a combination of
 <file>/etc/X11/Xsession.d/50xfree86-common_determine-startup</file> and
 <file>/etc/X11/Xsession.d/99xfree86-common_start</file>.
 <p>
-At the end of this sequence, a program first found in the following 
-order will be executed with the <prgn>exec</prgn> command:
+Execution of <file>/etc/X11/Xsession</file> is somewhat affected by 
+<file>/etc/X11/Xsession.options</file> and is essentially an execution
+of a program which was first found in the following order with the 
+<prgn>exec</prgn> command:
 <enumlist compact>
 <item><file>~/.xsession</file> or <file>~/.Xsession</file>, if it is defined.
 <item><file>/usr/bin/x-session-manager</file>, if it is defined.
 <item><file>/usr/bin/x-window-manager</file>, if it is defined.
 <item><file>/usr/bin/x-terminal-emulator</file>, if it is defined.
 </enumlist>
+<p>
 Exact meaning of these commands are determined by &debian; 
 alternative system described in <ref id="alternatives">.
 For example:
@@ -693,18 +698,19 @@ do-not-use-x-session-manager
 #do-not-use-x-window-manager
 </example>
 <p>
+Without above mentioned modification to the system,
 <package>gnome-session</package> and <package>kdebase</package> are 
 the package containing these X session manager.  Removing them allows
 X window manager to be a default. (Yack, any better idea?)
 <p>
-If <file>~/.xsession</file> or <file>~/.Xsession</file> exist, the
-action of <file>/etc/X11/Xsession</file> can be customized for each 
-user.  Because of this, the last command in the 
-<file>~/.xsession</file> file should use form of 
-<tt>exec <var>some-window/session-manager</var></tt>.  Here
-you may use one of the above mentioned generic name of the X 
-window/session manager or any specific name of specific X 
-window/session manager programs.  
+On a system where <file>/etc/X11/Xsession.optons</file> contains
+a line <tt>allow-user-xsession</tt> without preceding characters,
+any user who defines <file>~/.xsession</file> or <file>~/.Xsession</file>
+will be able to customize the action of <file>/etc/X11/Xsession</file>.
+<p>
+The last command in the <file>~/.xsession</file> file should use form of 
+<tt>exec <var>some-window/session-manager</var></tt> to start
+your faivorite X window/session manager.
 <p>
 An good example of the <file>~/.xsession</file> script is given at
 <file>&f-xsession;</file>.
@@ -958,21 +964,22 @@ if [ -z "$XAUTHORITY" ]; then
         XAUTHORITY=$HOME/.Xauthority
         export XAUTHORITY
 fi
+unset XSTARTUP
 # If particular window/session manager is desired, uncomment following
 # and edit it to fit your needs.
-#STARTUP=/usr/bin/blackbox
+#XSTARTUP=/usr/bin/blackbox
 # This start x-window/session-manager program
-if [ -z "$STARTUP" ]; then
+if [ -z "$XSTARTUP" ]; then
   if [ -x /usr/bin/x-session-manager ]; then
-    STARTUP=x-session-manager
+    XSTARTUP=x-session-manager
   elif [ -x /usr/bin/x-window-manager ]; then
-    STARTUP=x-window-manager
+    XSTARTUP=x-window-manager
   elif [ -x /usr/bin/x-terminal-emulator ]; then
-    STARTUP=x-terminal-emulator
+    XSTARTUP=x-terminal-emulator
   fi
 fi
 # execute auto selected X window/session manager
-exec $STARTUP
+exec $XSTARTUP
 </example>
 Then run <prgn>su</prgn> (not <tt>su -</tt>) in an
 <prgn>xterm</prgn> window of the user.  Now GUI programs started from this
@@ -1328,7 +1335,27 @@ add the following at the end of <file>/etc/exim/exim.conf</file>
         {$value}fail} T
 </example>
 Then have an "*" entry in <file>/etc/email-addresses</file>.
-</sect1>
+</sect2>
+
+<sect2>Selective address rewrite for outgoing mail (Exim)
+<p>
+<!-- Derrick 'dman' Hudson dman@dman.ddts.net -->
+Selective address rewrite for outgoing mail to produce
+proper "From:" header can be done using <prgn>exim</prgn>
+by configuring near the end of <file>/etc/exim/exim.conf</file>:
+<example>
+*@host1.something.dyndns.org \
+  "${if eq {${lookup{$1}lsearch{/etc/passwd}{1}{0}}} {1}  \
+   {$0}{$1@somethig.dyndns.org}}"  frFs
+</example>
+This rewrites all addresses matching <tt>*@host1.something.dyndns.org</tt>.
+<enumlist>
+<item>It searches through <file>/etc/password</file> to see if the local part ($1)
+   is a local user or not.
+<item>If it is a local user, it rewrites the address to the same thing it was in
+   the first place ($0).
+<item>If it is not a local user, it rewrites the domain part.
+</enumlist>
 
 <sect1>Mail utility (Fetchmail)
 <p>
@@ -1575,6 +1602,9 @@ export LC_CTYPE
 <p>
 Configure keyboard for French "AZERTY" as described in <ref id="keyboard">.
 and add French manual page by installing <package>manpages-fr</package>.
+Right-Alt key in US is called Alt-Gr in Europe.  Pressing this 
+together with some key creats numerous accented characters, etc.
+For example, Alt-Gr+E creates for euro sign.
 <p>
 Most western European languages can be configured similarly.
 <p>
