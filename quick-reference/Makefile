@@ -1,12 +1,16 @@
 #
-# Makefile for the Debian New Maintainers' Guide
+# Makefile for the Debian reference
 #
-# Should work both for a manual in the Debian Documentation Project
-# manuals.sgml tree, and for maint-guide package build.
-
 ##### CONF PART 
 # this can and will be overriden by a higher level makefile
-
+#
+# Should work both for a manual in the Debian Documentation Project
+# manuals.sgml tree, and for package build.
+# build dir type               site type            org; languages; format         
+# `pwd`/.. -> manuals.sgml  -> DDP/DDP mirror       en;      ; html,txt
+# `pwd`/.. -> htdocs        -> sourceforge.net      en; fr,it; html,txt
+# `pwd`/.. -> $HOME         -> normal user account  en; fr,it; html,txt
+# 
 HTDOCS := $(notdir $(patsubst %/,%, $(dir $(shell pwd))))
 ifeq ("$(HTDOCS)", "manuals.sgml")
 # DDP site or checked out source from DDP
@@ -25,12 +29,12 @@ ifeq ("$(HTDOCS)", "htdocs")
 PUBLISHDIR := .
 MANUAL := qref
 # The cannonical language, in which the original document is
-ORIG_LANG :=
+ORIG_LANG := en
 # list of langs (above the canonical one)
-LANGS :=
+LANGS := 
 # Because Latex is hard to work with, I just to do text for now
 #EXTS=ps pdf txt tov info
-EXTS :=
+EXTS := txt
 else
 # default: checked out source from qref.sourceforge.net
 PUBLISHDIR := $$HOME/public_html
@@ -38,37 +42,21 @@ MANUAL := qref
 # The cannonical language, in which the original document is
 ORIG_LANG := en
 # list of langs (above the canonical one)
-LANGS := 
+LANGS := fr it
 # Because Latex is hard to work with, I just to do text for now
 #EXTS=ps pdf txt tov info
-EXTS :=
+EXTS := txt
 endif
 endif
 
-# The cannonical language, in which the original document is
-ORIG_LANG=en
-# list of langs (above the canonical one)
-LANGS=fr it
-#LANGS=
-
-# ps and pdf are disabled since the files do not compile cleanly to
-# PS/PDF (LATEX).
-#EXTS=ps pdf txt tov info
-# Latex is hard to work with, I just to do text for now.
-EXTS=txt
-# default language for build
-TLANG           := en
-# default language for build (LATEX related specification)
-LLANG           := en
 # build flag for SGML parse.
 BOOK            := qref
 ##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
 
 # what will be built
-HTMLDIRS=$(MANUAL).html $(foreach lang,$(LANGS),$(MANUAL).$(lang).html)
+HTMLDIRS=$(foreach lang,$(ORIG_LANG) $(LANGS),$(MANUAL).$(lang).html)
 ALLFILES=$(foreach ext,$(EXTS),\
-	    $(MANUAL).$(ORIG_LANG).$(ext)\
-	    $(foreach lang,$(LANGS),$(MANUAL).$(lang).$(ext))\
+	    $(foreach lang,$(ORIG_LANG) $(LANGS),$(MANUAL).$(lang).$(ext))\
 	  )
 SGMLSRC = custom.ent default.ent qref.sgml  \
 	 ./??/*.sgml ./examples/* Makefile index.php \
@@ -104,19 +92,22 @@ date.ent:
 #	cp -f $< $@
 
 dynamic.%.ent:
-	@#echo H===$(HTDOCS)===
-	@#echo M===$(MANUAL)===
-	@#echo M===$(PUBLISHDIR)===
 	: > $@                       # clear the file
 	@echo "<!entity language \"$*\">" >> $@
 	@echo "<!entity % lang-$* \"INCLUDE\">" >> $@
 	@echo "<!entity booklet \"$(BOOK)\">" >> $@
 	@echo "<!entity % $(BOOK) \"INCLUDE\">" >> $@
-	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" >> $@
+	@echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" >> $@
 	@if [ -f ../debian/changelog ]; then \
           echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> $@; \
         else \
           echo "<!entity docversion \"CVS\">" >> $@; \
+        fi
+#	Build SGML with portion marked qref-dev in English (Testing at SF.NET)
+	@if [ "$(MANUAL)" = "qref" -a "$*" = "en" ]; then \
+          echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+        else \
+          echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
         fi
 
 # Note: This does work, but it's a hack, it
@@ -132,16 +123,15 @@ $(MANUAL).%.sgml: qref.sgml
 
 #----[ generating HTML ]-------------------------------------------------------
 # for orig_lang
-$(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
-	debiandoc2html -l $(ORIG_LANG) -c $< 2>_html.error
+#$(MANUAL).html: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
+#	debiandoc2html -l $(ORIG_LANG) -c $< 2>_html.error
 
-# for translated languages
+# for any  languages
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
 #        which should be reverted to have the content negociation working.
 #   This trick is bad. debiandoc2html should be corrected.
 $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	debiandoc2html -l $* -c $< 2>_html.$*.error
-	# clean up file extensions
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
 	          sed 's/$(shell echo $*|\
@@ -149,14 +139,14 @@ $(MANUAL).%.html: $(MANUAL).%.sgml date.ent dynamic.%.ent
 	                  )\.html/$*\.html/'`;\
 	 if [ $$file != $$newfile ] ; then\
 	   mv $$file $$newfile;\
+	   echo "Rename $$file --> $$newfile";\
 	 fi\
 	done;   
 
-
 #----[ generating plain text ]-------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
-	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
+#$(MANUAL).$(ORIG_LANG).txt: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.en.ent
+#	debiandoc2text -l $(ORIG_LANG) $< 2>_txt.error
 
 # for translated languages
 $(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.%.ent
@@ -164,38 +154,38 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml date.ent dynamic.%.ent
 
 #----[ generating tov ]--------------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).tov: $(MANUAL).$(ORIG_LANG).sgml
-	debiandoc2textov -l $(ORIG_LANG) -c $<
+#$(MANUAL).$(ORIG_LANG).tov: $(MANUAL).$(ORIG_LANG).sgml
+#	debiandoc2textov -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.tov: $(MANUAL).%.sgml
+$(MANUAL).%.tov: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 	debiandoc2textov -l $* $<
 
 #----[ generating info ]-------------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).info: $(MANUAL).$(ORIG_LANG).sgml
-	debiandoc2info -l $(ORIG_LANG) -c $<
+#$(MANUAL).$(ORIG_LANG).info: $(MANUAL).$(ORIG_LANG).sgml
+#	debiandoc2info -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.info: $(MANUAL).%.sgml
+$(MANUAL).%.info: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 	debiandoc2info -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).ps: $(MANUAL).$(ORIG_LANG).sgml
-	debiandoc2latexps -l $(ORIG_LANG) -c $<
+#$(MANUAL).$(ORIG_LANG).ps: $(MANUAL).$(ORIG_LANG).sgml date.ent dynamic.%.ent 
+#	debiandoc2latexps -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.ps: $(MANUAL).%.sgml
+$(MANUAL).%.ps: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 	debiandoc2latexps -l $* $<
 
 #----[ generating PDF ]--------------------------------------------------------
 # for orig_lang
-$(MANUAL).$(ORIG_LANG).pdf: $(MANUAL).$(ORIG_LANG).sgml
-	debiandoc2latexpdf -l $(ORIG_LANG) -c $<
+#$(MANUAL).$(ORIG_LANG).pdf: $(MANUAL).$(ORIG_LANG).sgml
+#	debiandoc2latexpdf -l $(ORIG_LANG) -c $<
 
 # for translated languages
-$(MANUAL).%.pdf: $(MANUAL).%.sgml
+$(MANUAL).%.pdf: $(MANUAL).%.sgml date.ent dynamic.%.ent 
 	debiandoc2latexpdf -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
@@ -203,63 +193,48 @@ publish: publish-html publish-files publish-tar
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
+	# install for all language (html)
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	@rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	# install for all language (html)
 	@$(foreach lang,$(ORIG_LANG) $(LANGS),\
+	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(lang).html ;\
 	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
-#	# install examples.  Excuse me for ugly script (skip CVS directory)
+# 	install examples.  Excuse me for ugly script (skip CVS directory)
 	@test -d $(PUBLISHDIR)/$(MANUAL)/examples \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
 	@install -p -m 644  --preserve-timestamps \
 	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
+ifeq ("$(HTDOCS)", "htdocs")
+	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL)/
+endif
 
 #----[ publish the files ]-----------------------------------------------------
 publish-files: $(ALLFILES)
+	@echo "# install for ext=$(EXTS), LANGS=$(LANGS), and ORIG_LANG=$(ORIG_LANG)"
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	# install for all language (ext=txt, ps, pdf, ...)
 	@$(foreach ext,$(EXTS),\
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(ext);\
-	 \
-	 $(foreach lang,$(LANGS),\
+	 $(foreach lang,$(ORIG_LANG) $(LANGS),\
+	  rm -f $(PUBLISHDIR)/$(MANUAL)/*.$(lang).$(ext);\
 	  install -p -m 644 $(MANUAL).$(lang).$(ext)\
 	                    $(PUBLISHDIR)/$(MANUAL)/;)\
-	 \
-	 install -p -m 644 $(MANUAL).$(ORIG_LANG).$(ext)\
-	                   $(PUBLISHDIR)/$(MANUAL)/;\
-	 \
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
-	 ( cd $(PUBLISHDIR)/$(MANUAL); \
-	 ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
-	 ) ;\
 	)
-
-
-#----[ publish the ps ]--------------------------------------------------------
-publish-ps: ps
-	test -d $(PUBLISHDIR)/$(MANUAL) \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/*.ps
-	 # install any translated ps
-	$(foreach lang,$(LANGS),\
-	  install -p -m 644 $(MANUAL).$(lang).ps \
-	                    $(PUBLISHDIR)/$(MANUAL)/ ;)
-	 # install original ps
-	 install -p -m 644 $(MANUAL).$(ORIG_LANG).ps\
-	                   $(PUBLISHDIR)/$(MANUAL)/
-	 # make the simlinks for ps
-	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps;
-	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).ps\
-               $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
+	@$(foreach ext,$(EXTS),\
+	  if [ "$(ORIG_LANG)" != "" ] ; then\
+	    ( cd $(PUBLISHDIR)/$(MANUAL); \
+	      rm -f $(MANUAL).$(ext);\
+	      ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
+	    ) \
+	  fi\
+	)
 
 #----[ publish tar.gz files ]--------------------------------------------------
 publish-tar: $(MANUAL).tar.gz
+	# install tar
 	@test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
-	install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
+	@rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).tar.gz
+	@install -p -m 644 $(MANUAL).tar.gz $(PUBLISHDIR)/$(MANUAL)/
 
 #====[ validating SGML ]=======================================================
 validate:
@@ -269,25 +244,21 @@ validate:
 .PHONY:	tar
 tar: $(MANUAL).tar.gz
 $(MANUAL).tar.gz: $(SGMLSRC)
-	tar cvzf $(MANUAL).tar.gz $(SGMLSRC)
+	# make tar
+	@tar cvzf $(MANUAL).tar.gz $(SGMLSRC) 2>_tar.error 1>&2
 	
 #====[ cleaning up ]===========================================================
 neat:
 	rm -f $(MANUAL)*.{dvi,log,tex,aux,toc,sasp*} *~
-	rm -f $(MANUAL).??.sgml 
-	rm -f *.error
-	rm -f dynamic.ent dynamic.??.ent
+	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent
 
 clean distclean: neat
-	rm -f $(MANUAL)*.{txt,ps,pdf,info*}
+	rm -f $(MANUAL)*.{txt,ps,pdf,info*,tar.gz} date.ent
 	rm -rf $(MANUAL)*.html
-	rm -f $(MANUAL).tar.gz
-	rm -f date.ent
 
 publishclean:
 	rm -Rf $(PUBLISHDIR)/$(MANUAL)/*
 
 .PHONY: all sf\
-	publish publish-html publish-files publish-txt publish-ps \
-	publish-tar \
+	publish publish-html publish-files publish-tar \
 	neat clean distclean publishclean validate
