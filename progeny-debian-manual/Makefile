@@ -24,6 +24,11 @@ publish-html: $(HTMLDIRS)
 	install -p -m 644 *.html $(PUBLISHDIR)/$(MANUAL)/
 	cd $(PUBLISHDIR)/$(MANUAL) ;mkdir img
 	install -p -m 644 img/*.png $(PUBLISHDIR)/$(MANUAL)/img/ 
+# 	install examples.  Excuse me for ugly script (skip CVS directory)
+	@test -d $(PUBLISHDIR)/$(MANUAL)/img \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/img
+	@install -p -m 644  --preserve-timestamps \
+	 img/[_A-BD-Za-z0-9].* $(PUBLISHDIR)/$(MANUAL)/img/
 
 #====[ cleaning up ]===========================================================
 clean distclean: 
