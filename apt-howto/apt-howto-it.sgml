@@ -1,0 +1,1432 @@
+<!doctype debiandoc system>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+
+<version>1.7.6 - Gennaio 2002</version>
+
+<abstract>
+Questo documento intende fornire una buona base sul funzionamento del sistema
+per la gestione dei pacchetti fornito da Debian, APT. Il suo scopo è facilitare
+la vita ai nuovi utenti Debian ed aiutarli ad approfondire le loro conoscenze
+su come si amministrano i pacchetti. Questo HOWTO fa parte del progetto Debian
+e ha lo scopo di migliorare il supporto disponibile agli utenti di questa
+distribuzione.
+</abstract>
+
+<copyright>
+<copyrightsummary>
+Copyright &copy; 2001 Gustavo Noronha Silva
+</copyrightsummary>
+<copyrightsummary>
+Traduzione: Luca Monducci &lt;luca.mo@tiscali.it&gt;
+</copyrightsummary>
+<p>
+Questo manuale è rilasciato sotto i termini della GNU FDL (Free Documentation
+License). E' stato scritto nella speranza che possa essere utile alla comunità
+ma è rilasciato senza alcuna garanzia; usatelo a vostro rischio.
+</copyright>
+
+<toc>
+
+<chapt>Introduzione
+<p>
+In principio esistevano i .tar.gz. Gli utenti dovevano compilare ogni programma
+che volevano usare sui loro sistemi GNU/Linux. Quando fu creata Debian, fu
+ritenuto necessario che il sistema incorporasse un metodo di gestione dei
+pacchetti installati sulla macchina. A questo sistema fu dato il nome
+<prgn>dpkg</prgn>. Fu così che nacque il famoso `pacchetto' nel mondo
+GNU/Linux, poco prima che Red Hat decidesse di creare il proprio `rpm'.
+<p>
+Rapidamente un nuovo dilemma si fece strada nelle menti degli sviluppatori di
+GNU/Linux. A loro serviva un modo rapido, pratico ed efficiente per installare
+i programmi, che gestisse automaticamente le dipendenze e che avesse cura di
+mantenere i file di configurazione esistenti mentre si effettuavano i vari
+aggiornamenti. Ancora una volta Debian ha aperto la strada dando vita a APT
+(Advanced Packaging Tool), che poi è stato adattato da Conectiva per usarlo
+insieme a rpm ed in seguito è stato adottato anche da altre distribuzioni.
+<p>
+Questo HOWTO non tratta di apt-rpm, così è chiamato l'adattamento fatto da
+Conectiva di APT, ma eventuali aggiunte a questo documento saranno ben accolte.
+</chapt>
+
+
+<chapt id="basico">Configurazione di base
+<sect id="sources.list">Il file /etc/apt/sources.list
+<p>
+Nello svolgere le sue operazioni, APT usa un file che contiene la lista delle
+"fonti" dalle quali può attingere i pacchetti. Questo file è
+<tt>/etc/apt/sources.list</tt>.
+<p>
+Il contenuto di questo file ha normalmente il seguente formato:
+
+<example>
+deb http://sito.http.org/debian distribuzione sezione1 sezione2 sezione3
+deb-src http://sito.http.org/debian distribuzione sezione1 sezione2 sezione3
+</example>
+
+E' da osservare che l'esempio sopra è immaginario e non dovrebbe essere usato
+(non funziona). La prima parola di ogni riga, <tt>deb</tt> o <tt>deb-src</tt>,
+indica il tipo di archivio: <tt>deb</tt> quando questo contiene pacchetti
+binari (che sono i pacchetti già compilati che normalmente usiamo), oppure
+<tt>deb-src</tt> se l'archivio contiene i pacchetti sorgente (che sono il
+codice originale del programma con l'aggiunta del file di controllo,
+<tt>.dsc</tt>, e del file <tt>diff.gz</tt> che contiene i cambiamenti necessari
+per `debianizzare' il programma).
+<p>
+Generalmente questo è il contenuto di default di sources.list:
+
+<example>
+# See sources.list(5) for more information, especialy
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable non-US
+</example>
+
+Queste linee sono quelle necessarie per un'installazione base. La prima delle
+linee che iniziano con <tt>deb</tt> punta all'archivio ufficiale, la seconda
+all'archivio non-US e la terza all'archivio degli aggiornamenti per la
+sicurezza.
+<p>
+Le ultime due linee sono commentate (con un `#' all'inizio), così apt-get le
+ignora. Queste iniziano con <tt>deb-src</tt> e puntano agli archivi che
+contengono i pacchetti sorgente. Se si scaricano spesso i sorgenti di un
+programma, per fare dei test o per ricompilarlo, è necessario togliere il `#'
+all'inizio della linea.
+<p>
+In <tt>/etc/apt/sources.list</tt> si possono specificare diversi tipi di linee.
+APT sa come interpretare i seguenti tipi di archivio <tt>http</tt>,
+<tt>ftp</tt>, <tt>file</tt> (file locali, per esempio, oppure una directory su
+cui è montato un CD-ROM) e <tt>ssh</tt>.
+</sect>
+
+<sect id="dpkg-scanpackages">Come usare APT localmente
+<p>
+Può capitare di avere dei pacchetti .deb da installare e lo si vuole fare
+usando APT così che le dipendenze siano risolte automaticamente.
+<p>
+Per rendere visibili ad APT questi pacchetti è necessario creare un archivio
+locale ed indicizzarlo; per farlo bisogna creare una directory e metterci
+dentro i .deb da trattare. Per esempio:
+
+<example>
+mkdir /root/debs
+</example>
+
+Ora, dentro la directory /root, va creato un file vuoto, con qualunque nome.
+Questo perché a ogni archivio APT serve un file conosciuto come "override", può
+essere anche vuoto, ma deve esistere. Si può usare il seguente comando per
+crearlo:
+
+<example>
+touch file
+</example>
+
+Dentro questo file si possono definire alcune opzioni che si sovrappongono a
+quelle predefinite nei pacchetti. Il suo formato dovrebbe assomigliare a quello
+che segue:
+
+<example>
+pacchetto priorità sezione
+</example>
+
+dove `pacchetto' è il nome del pacchetto, `priorità' può essere low, medium o
+high e `sezione' è la sezione alla quale appartiene. Per ora è sufficiente
+lasciarlo vuoto.
+<p>
+Rimanendo nella directory <tt>/root</tt> eseguire:
+
+<example>
+dpkg-scanpackages debs file | gzip > debs/Packages.gz
+</example>
+
+Nella linea sopra, `file' è il file di "override"; il comando genera il file
+debs/Packages.gz, questo contiene delle informazioni sui pacchetti che poi
+saranno usate da APT. Infine, per usare i nostri pacchetti, aggiungere questa
+linea a <tt>/etc/apt/source.list</tt>:
+
+<example>
+deb file:/root debs/
+</example>
+
+Dopo tutto questo si può usare APT normalmente. Anche per i pacchetti sorgente
+si può generare un archivio locale. Per farlo si segue la stessa procedura, ma
+bisogna ricordarsi di avere i file <tt>.orig.tar.gz</tt>, <tt>.dsc</tt> e
+<tt>.diff.gz</tt> nella directory di lavoro e bisognsa usare Sources.gz al
+posto di Packages.gz. Anche il programma usato è diverso: per questa operazione
+va utilizzato <tt>dpkg-scansources</tt>. La linea di comando sarà simile a
+questa:
+
+<example>
+dpkg-scansources debs | gzip > debs/Sources.gz
+</example>
+
+Notare che <tt>dpkg-scansources</tt> non necessita del file di "overide".
+Infine aggiungere a <tt>/etc/apt/source.list</tt>:
+
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">Scegliere il miglior mirror da inserire in sources.list:
+netselect, netselect-apt
+<p>
+Un dubbio molto frequente, in particolare per nuovi utenti, è: "quale mirror
+inserisco in <tt>sources.list</tt>?". Ci sono molti modi per deciderlo. Gli
+utenti esperti probabilmente hanno uno script che misura il tempo di ping verso
+svariati mirror. Ma c'è un programma che fa questo per noi:
+<package>netselect</package>.
+<p>
+Per installare netselect, generalmente si esegue:
+
+<example>
+apt-get install netselect
+</example>
+
+Eseguendo netselect senza alcun argomento viene mostrato un breve elenco delle
+opzioni. Eseguendolo con una lista di host separati da uno spazio come
+argomento, netselect, visualizzerà un punteggio e il nome di uno degli host fra
+quelli che ha ricevuto come parametro. Il punteggio prende in considerazione il
+tempo di ping e gli hops (cioè il numero di nodi della rete che si deve
+attraversare per raggiungere la destinazione) ed è inversamente proporzionale
+alla velocità di download stimata (cioè più è basso e più veloce sarà il
+download). Il nome mostrato è quello dell'host che ha il punteggio più basso
+(la lista completa dei punteggi per tutti gli host passati la si ottiene usando
+l'opzione -vv). Osservate questo esempio:
+
+<example>
+bash$ netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+bash$
+</example>
+
+Significa che, fra i mirror indicati nella linea di comando,
+<tt>ftp.debian.org.br</tt> era il migliore, con un punteggio di 365.
+(Attenzione!! Questo risultato è stato ottenuto su un certo computer e per un
+tipo d'accesso alla rete, quindi questo valore non è assolutamente di validità
+generale).
+<p>
+Ora è necessario aggiungere il mirror più veloce nel file
+<tt>/etc/apt/sources.list</tt> (vedere <ref id="sources.list">) e seguire i
+suggerimenti in <ref id="apt-get">.
+<p>
+<strong>Nota:</strong> la lista completa dei mirror Debian si può trovare a
+questo indirizzo <url id="http://www.debian.org/mirror/mirrors_full"
+name="http://www.debian.org/mirror/mirrors_full">.
+<p>
+Dalla versione 0.3 netselect include lo script <prgn>netselect-apt</prgn>, che
+esegue automaticamente il processo descritto sopra. E' sufficiente passare come
+parametro il tipo di distribuzione (stable, testing o unstable) e nella
+directory attuale verrà generato un nuovo <tt>sources.list</tt> con i mirror
+migliori per il ramo main e per il ramo non-US. Il seguente esempio genera
+un <tt>sources.list</tt> per la distribuzione stable:
+
+<example>
+bash$ ls sources.list
+ls: sources.list: File or directory not found
+bash$ netselect-apt stable
+(...)
+bash$ ls -l sources.list
+sources.list
+bash$
+</example>
+
+<strong>Da ricordare:</strong> il file <tt>sources.list</tt> è creato nella
+directory corrente e deve essere spostato nella directory <tt>/etc/apt</tt>.
+<p>
+Infine, seguite i suggerimenti in <ref id="apt-get">.
+</sect>
+
+<sect id="cdrom">Aggiungere un CD-ROM al file sources.list
+<p>
+Se si vuole usare un CD-ROM per installare i pacchetti o per aggiornare il
+sistema automaticamente con APT, va inserito nel file <tt>sources.list</tt>.
+Per farlo, si può usare il programma <prgn>apt-cdrom</prgn> in questo modo:
+
+<example>
+apt-cdrom add
+</example>
+
+con un CD-ROM di Debian nel drive. Questa istruzione monterà il CD-ROM e se il
+CD è valido verranno cercate le informazioni sui pacchetti che sono sul disco.
+Se la configurazione del CD-ROM è "inusuale", si possono usare le seguenti
+opzioni:
+
+<example>
+-h           - program help
+-d directory - CD-ROM mount point
+-r           - Rename a recognized CD-ROM
+-m           - No mounting
+-f           - Fast mode, don't check package files
+-a           - Thorough scan mode
+</example>
+
+Per esempio:
+
+<example>
+apt-cdrom -d /home/kov/mycdrom add
+</example>
+
+Si può controllare un CD-ROM, senza inserirlo nella lista:
+
+<example>
+apt-cdrom ident
+</example>
+
+Notare che questo programma funziona solo se il CD-ROM è correttamente
+configurato in <tt>/etc/fstab</tt>.
+</sect>
+
+</chapt>
+
+
+<chapt id="apt-get">Gestione dei pacchetti
+<sect id="update">Aggiornare la lista dei pacchetti disponibili
+<p>
+Il sistema di gestione dei pacchetti usa un suo database per tenere traccia di
+quali pacchetti sono installati, quali non lo sono e quali sono disponibili per
+l'installazione. Il programma <prgn>apt-get</prgn> usa questo database per
+capire come installare i pacchetti richiesti dall'utente e per scoprire quali
+ulteriori pacchetti sono necessari per farli funzionare correttamente.
+<p>
+Per aggiornare questo elenco, va usato il comando <prgn>apt-get update</prgn>.
+Questo comando controlla le liste dei pacchetti presenti negli archivi elencati
+in <tt>/etc/apt/sources.list</tt>; vedere <ref id="sources.list"> ulteriori
+informazioni su questo file.
+<p>
+E' una buona idea eseguire questo comando regolarmente per avere un sistema
+informato su possibili aggiornamenti dei pacchetti, in particolare sugli
+aggiornamenti della sicurezza.
+</sect>
+
+<sect id="install">Installazione dei pacchetti
+<p>
+Finalmente, vediamo quello che stavate aspettando! Con il file sources.list
+pronto e l'elenco dei pacchetti disponibili aggiornato, tutto quello che
+biosgna fare per installare un pacchetto è eseguire <tt>apt-get</tt>. Per
+esempio, si può lanciare:
+
+<example>
+apt-get install xchat
+</example>
+
+APT cercherà nel suo database la versione più recente del pacchetto e lo
+recupererà, come specificato in <tt>sources.list</tt>, dal corrispondente
+archivio. Nel caso che il pacchetto dipenda da altri, come nel caso
+dell'esempio, APT controllerà le dipendenze e installerà i pacchetti necessari,
+come nell'esempio successivo:
+
+<example>
+[root]@[/] # apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Il pacchetto <package>nautilus</package> dipende dalle librerie citate sopra,
+quindi per prima cosa APT preleverà queste dall'archivio. Se si era specificato
+sulla riga di comando di <tt>apt-get</tt> il nome di queste librerie, APT non
+avrebbe chiesto conferma per continuare, infatti avrebbe installato esattamente
+ciò che viene chiesto dall'utente.
+<p>
+Questo significa che APT chiede la conferma solo quando è necessario installare
+altri pacchetti oltre a quelli specificati per soddisfare una dipendenza.
+<p>
+Le seguenti opzioni di apt-get possono essere utili:
+
+<example>
+-h  This help text.
+-d  Download only - do NOT install or unpack archives
+-f  Attempt to continue if the integrity check fails
+-s  No-act. Perform ordering simulation
+-y  Assume Yes to all queries and do not prompt
+-u  Show a list of upgraded packages as well
+</example>
+
+Sulla riga di comando si possono specificare più pacchetti. I file scaricati
+dalla rete sono riposti nella directory <tt>/var/cache/apt/archives</tt> per la
+successiva installazione.
+<p>
+Sulla medesima linea di comando si possono specificare anche i pacchetti da
+rimuovere, è sufficiente mettere `-' immediatamente dopo il nome del pacchetto
+che dev'essere rimosso, come in quest'esempio:
+
+<example>
+[root]@[/] # apt-get install nautilus gnome-panel-       
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Fare riferimento a <ref id="remove"> per altri dettagli sulla rimozione dei
+pacchetti.
+<p>
+Se in qualche modo si danneggia un pacchetto già installato, o semplicemente si
+vuole reinstallare la stessa versione di un pacchetto, si può usare l'opzione
+<tt>--reinstall</tt>, in questo modo:
+
+<example>
+[root]@[/] # apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+
+La versione di APT usata per la creazione di questo documento è la 0.5.3, che è
+la versione presente in unstable (`sid') al momento della scrittura. Se si ha
+questa versione installata, si ha un'altra funzionalità a disposizione: si può
+usare una linea di comando simile a questa <tt>apt-get install
+package/distribution</tt> per installare un pacchetto di una specifica
+distribuzione, oppure <tt>apt-get install package=version</tt>. Per esempio:
+
+<example>
+apt-get install nautilus/unstable
+</example>
+
+installerà nautilus dalla distribuzione `unstable' sempre che si abbia `stable'
+o `testing'. I valori ammessi per `distribution' sono <tt>stable</tt>,
+<tt>testing</tt> e <tt>unstable</tt>.
+<p>
+<em>IMPORTANTE</em>: la versione `unstable' è la versione di Debian che
+contiene i nuovi pacchetti e i più recenti aggiornamenti. Questa distribuzione
+segue tutti i cambiamenti dei pacchetti, dai più piccoli ai più drastici che
+possono influenzare molti altri pacchetti o l'intero sistema. Per questa
+ragione, questa versione della distribuzione <em>non</em> dovrebbe essere usata
+da utenti inesperti o da chi necessita di una collaudata stabilità.
+<p>
+La distribuzione `testing' riguardo alla stabilità è un po' meglio di
+`unstable', ma per sistemi che devono <em>funzionare</em> è meglio usare la
+distribuzione `stable'.
+</sect>
+
+<sect id="remove">Rimozione dei pacchetti
+<p>
+Se non si vuoli più usare un pacchetto, lo si può rimuovere dal sistema usando
+APT. Per farlo eseguire: <tt>apt-get remove package</tt>. Per esempio:
+
+<example>
+[root]@[/] # apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+Come si può vedere nell'esempio sopra, APT si occupa di rimuovere anche i
+pacchetti che dipendono da quello che si è chiesto di rimuovere. Non c'è modo,
+usando APT, di rimuovere un pacchetto senza che siano rimossi anche i pacchetti
+che dipendono da questo.
+<p>
+Eseguendo <prgn>apt-get</prgn> come sopra, saranno rimossi i pacchetti ma i
+loro file di configurazione, se ci sono, rimarranno intatti sul sistema. Per
+una rimozione completa del pacchetto, eseguire:
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+I `*' dopo i nomi indicano che i file di configurazione di questi pacchetti
+saranno rimossi.
+<p>
+Come nel caso del metodo <tt>install</tt>, si può usare un simbolo per
+invertire il significato del metodo per un particolare pacchetto. Nel caso di
+<tt>remove</tt> se si aggiunge `+' alla fine del nome del pacchetto, il
+pacchetto sarà installato anziché essere rimosso.
+
+<example>
+[root]@[/] # apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Notare che <prgn>apt-get</prgn> elenca i pacchetti extra che saranno installati
+(cioè i pacchetti di cui si necessita l'installazione per il corretto
+funzionamento dei pacchetti richiesti), i pacchetti che saranno rimossi e i
+nuovi pacchetti che saranno installati (compresi, ancora una volta, i pacchetti
+extra).
+</sect>
+
+<sect id="upgrade">Aggiornamento dei pacchetti
+<p>
+Gli aggiornamenti dei pacchetti sono un grande successo di APT. Possono essere
+realizzati con un singolo comando: <tt>apt-get upgrade</tt>. Si può usare
+questo comando sia per aggiornare i pacchetti della stessa distribuzione, sia
+per aggiornare ad una nuova distribuzione, benché per questo scopo si
+preferisca: <tt>apt-get dist-upgrade</tt>; vedere <ref id="dist-upgrade"> per
+ulteriori dettagli.
+<p>
+E' utile eseguire questo comando con l'opzione <tt>-u</tt>. Questa opzione
+forza APT a mostrare la lista completa dei pacchetti che saranno aggiornati.
+Senza, l'aggiornamento avverrà senza mostrare nulla. APT scaricherà la versione
+più recente di ogni pacchetto e li installerà nel giusto ordine. E' importante
+eseguire sempre <tt>apt-get update</tt> prima di provare l'aggiornamento. A
+questo proposito consultare <ref id="update">. Osservare questo esempio:
+
+<example>
+[root]@[/] # apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+Il procedimento è molto semplice. Notare che nelle prime linee,
+<tt>apt-get</tt> ci informa che alcuni pacchetti saranno <tt>kept back</tt>.
+Questo significa che esistono nuove versioni di questi pacchetti ma che non
+saranno installate per qualche ragione. Motivi possibili sono la presenza di
+dipendenze non possono essere soddisfatte (uno dei pacchetti da cui dipende non
+è disponibile per il download) o nuove dipendenze (il pacchetto ha aggiunto una
+nuova dipendenza nell'ultima versione).
+<p>
+Non c'è una soluzione semplice nel primo caso. Nel secondo caso è sufficiente
+lanciare <tt>apt-get install</tt> per il pacchetto in questione e le dipendenze
+saranno risolte. Una soluzione altrettanto valida è usare
+<tt>dist-upgrade</tt>. Controllare in <ref id="dist-upgrade">.
+</sect>
+
+<sect id="dist-upgrade">Aggiornare ad una nuova release
+<p>
+Questa caratteristica di APT permette di aggiornare l'intero sistema in una
+volta sola, sia attraverso internet che attraverso un CD (acquistato o
+scaricato come immagine ISO).
+<p>
+E' usata anche quando ci sono delle modifiche alle relazioni fra i pacchetti
+installati. Con <tt>apt-get upgrade</tt>, questi pacchetti saranno lasciati
+intoccati (<tt>kept back</tt>).
+<p>
+Per esempio, supponiamo che si stia usando la release 0 della versione stabile
+di Debian e che abbiamo comprato un CD con la release 3. Si può usare APT per
+aggiornare il sistema da questo nuovo CD. Per farlo si usa
+<prgn>apt-cdrom</prgn> (guardare <ref id="cdrom">) per aggiungere il CD al file
+<tt>/etc/apt/sources.list</tt> e poi si esegue <tt>apt-get dist-upgrade</tt>.
+<p>
+E' importante notare che APT cerca sempre la versione più recente dei
+pacchetti. Quindi, se nel file <tt>/etc/apt/sources.list</tt> è elencato un
+archivio che contiene una versione di un pacchetto più recente di quella sul
+CD, APT vorrà scaricare il pacchetto da quell'archivio.
+<p>
+Nell'esempio mostrato in <ref id="upgrade">, abbiamo visto che alcuni pacchetti
+possono essere <tt>kept back</tt>. Adesso risolveremo questo problema con il
+metodo <tt>dist-upgrade</tt>.
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx 
+The following packages have been kept back
+  lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc 
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Adesso va osservato che alcuni pacchetti saranno aggiornati e altri nuovi
+saranno installati (le nuove dipendenze dei pacchetti già installati). Notare
+che <package>lilo</package> continua ad essere <tt>kept back</tt>.
+Probabilmente ha qualche altro problema che è più serio di una nuova
+dipendenza. Lo possiamo scoprire eseguendo:
+
+<example>
+[root]@[/] # apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be REMOVED:
+  debconf-tiny 
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be upgraded
+  lilo 
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Come si può notare sopra, la nuova versione di <package>lilo</package> è in
+conflitto con <package>debconf-tiny</package>, questo significa che non può
+essere installato (o aggiornato) senza rimuovere
+<package>debconf-tiny</package>.
+</sect>
+
+<sect id="dselect-upgrade">Usare APT insieme a dselect
+<p>
+<prgn>dselect</prgn> è un programma che aiuta gli utenti a selezionare i
+pacchetti per l'installazione. E' ritenuto piuttosto complicato e abbastanza
+noioso, ma con la pratica si può acquisire familiarità con la sua interfaccia
+basata su console-ncurses.
+<p>
+Una caratteristica di dselect è che sa usare della capacità che hanno i
+pacchetti Debian di "raccomandare" e "suggerire" l'installazione di altri
+pacchetti. Per eseguire il programma, usare <tt>dselect</tt> da root. Scegliere
+`apt' come metodo di accesso. Non è necessario, ma se non si sta usando un
+CD-ROM e vuole scaricare i pacchetti da internet, è il miglior modo d'usare
+dselect.
+<p>
+Per capire meglio l'uso di dselect, leggere la documentazione sul sito Debian
+<url id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+<p>
+Dopo aver fatto le scelte con dselect, usare:
+
+<example>
+apt-get -u dselect-upgrade
+</example>
+
+come nell'esempio sotto:
+
+<example>
+[root]@[/] # apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy 
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images 
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Questo è quello che otteniamo lanciando <tt>apt-get dist-upgrade</tt>
+sullo stesso sistema:
+
+<example>
+[root]@[/] # apt-get -u dist-upgrade   
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+Notare che molti dei pacchetti elencati sopra sono installati perché sono
+"suggested" o "recommended" da altri pacchetti. Altri sono installati o rimossi
+(nell'esempio lbxproxy) per le scelte che abbiamo fatto nella lista dei
+pacchetti con dselect. Dselect può essere uno strumento davvero potente se
+usato insieme ad APT.
+</sect>
+
+<sect id="pin">Come tenere una specifica versione di un pacchetto installata (i
+pin)
+<p>
+Può capitare di modificare qualcosa in un pacchetto e che non hai voglia o
+tempo, di apportare questi cambiamenti a una nuova versione del programma.
+Oppure, per esempio, si vuole aggiornare la distribuzione alla 3.0, ma si vuole
+continuare a usare alcuni pacchetti nella versione presente nella Debian 2.2.
+Per far questo si può "fissare" questi pacchetti nella versione installata in
+modo che non saranno aggiornati.
+<p>
+Usare questo mezzo è semplice. Basta solo modificare il file
+<tt>/etc/apt/preferences</tt>.
+<p>
+Il formato è semplice:
+
+<example>
+Package: &lt;package&gt;
+Pin: &lt;pin definition&gt;
+Pin-Priority: &lt;pin's priority&gt;
+</example>
+
+<p>
+Per esempio, per mantenere il pacchetto <package>sylpheed</package> che si è
+modificato per usare "reply-to-list" nella versione 0.4.99. Aggiungo:
+
+<example>
+Package: sylpheed
+Pin: version 0.4.99*
+</example>
+
+Notare che si è usato un <tt>*</tt> (asterisco). Questa è una "wildcard";
+indica che questo "pin" è valido per tutte le versioni che iniziano con 0.4.99.
+Questo perché Debian numera i suoi pacchetti usando un "numero di revisione" e
+non voglio impedire l'installazione delle revisioni successive. Così, per
+esempio, le revisioni 0.4.99-1 e 0.4.99-10 saranno installate non appena
+saranno disponibili. Notare che se è modificato il pacchetto non vogliamo che
+questo accada.
+<p>
+Il campo <tt>Pin-Priority</tt> è opzionale; se non specificato, ha come valore
+di default 989.
+<p>
+Vediamo come funzionano le priorità dei pin. Una priorità minore di 0 indica
+che il pacchetto non dovrebbe essere installato. Le priorità comprese tra 0 e
+100 denotano pacchetti non installati e che non hanno versioni disponibili.
+Questi non entreranno nel processo di scelta della versione. Priorità 100 è
+assegnata a un pacchetto nella versione installata così che, per permettere la
+sua sostituzione con una nuova versione, l'aggiornamento dovrà avere priorità
+superiore a 100.
+<p>
+Le priorità sopra a 100 indicano che il pacchetto può essere installato.
+Tipicamente, la versione installata di un pacchetto è cambiata solo con
+l'aggiornamento a una versione più recente. Qualunque priorità fra 100 e 1000
+(compreso) indicano questo tipo di comportamento. Un pacchetto con questa
+priorità non sarà declassato a una versione disponibile ma meno recente. Per
+esempio, se si ha sylpheed 0.5.3 installato e si definisce un pin su sylpheed
+0.4.99 con priorità 999, il pacchetto 0.4.99 <em>non</em> sarà installato per
+soddisfare il pin. Per rendere un pacchetto declassabile, e assecondare il pin,
+questo deve avere una priorità maggiore di 1000.
+<p>
+Il concetto della declassabilità può avere formidabili applicazioni: supponiamo
+di aver aggiornato la versione <tt>stable</tt> alla versione <tt>testing</tt> e
+che siamo pentiti di questa scelta (forse perché <tt>testing</tt> non è
+abbastanza testata per i nostri scopi). Si può definire un pin, usando una
+wildcard al posto del nome del pacchetto, per tornare indietro alla stabile.
+Per esempio:
+
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+
+<p>
+Infine, un <tt>apt-get -u dist-upgrade</tt> declasserà il sistema alla versione
+stabile.
+<p>
+Un pin può specificare la versione (<tt>version</tt>), la release
+(<tt>release</tt>) o l'origine (<tt>origin</tt>).
+<p>
+Il pin su <tt>version</tt>, come abbiamo visto, ammette sia cifre che wildcard
+per specificare più versioni contemporaneamente.
+<p>
+L'opzione <tt>release</tt> dipende dal file Release dell'archivio usato da APT
+o del CD. Questa opzione non può essere usata se l'archivio che si usa non
+fornisce questo file. Si può controllare il contenuto dei file Release in
+<tt>/var/lib/apt/lists/</tt>. I parametri per release sono: <tt>a</tt>
+(archive), <tt>c</tt> (components), <tt>v</tt> (version), <tt>o</tt> (origin) e
+<tt>l</tt> (label).
+<p>
+Un esempio:
+
+<example>
+Package: *
+Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+Priority: 1001
+</example>
+
+In questo esempio abbiamo scelto la versione 2.2* (che può essere 2.2r2, 2.2r3;
+questi sono i "point release" che tipicamente includono i fix per la sicurezza
+e altri importanti aggiornamenti), la versione <tt>stable</tt>, la sezione
+<tt>main</tt> (al posto di <tt>contrib</tt> o <tt>non-free</tt>) e come origine
+e etichetta Debian. Origine (o) definisce il nome della distribuzione: Debian
+per la Debian e Progeny per Progeny, per esempio. Un modello del file Release:
+
+<example>
+$ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+Archive: stable
+Version: 2.2r3
+Component: main
+Origin: Debian
+Label: Debian
+Architecture: i386
+</example>
+</sect>
+
+</chapt>
+
+
+<chapt id="helpers">Aiuti molto utili
+<sect id="equivs">Come installare i pacchetti che abbiamo compilato: equivs
+<p>
+Qualche volta vogliamo usare una specifica versione di un programma disponibile
+solo tramite i sorgenti, senza alcun pacchetto Debian. Ma per il sistema di
+gestione dei pacchetti questo può essere un problema. Supponiamo che si voglia
+compilare una nuova versione del server e-mail SMTP. Non ci sarebbero problemi,
+ma molti pacchetti di Debian dipendono da un MTA. E quando si installa qualcosa
+che abbiamo compilato in proprio, il sistema di gestione dei pacchetti non sa
+nulla del nuovo software.
+<p>
+Qui entra in scena <package>equivs</package>. Per installarlo si può usare
+<tt>apt-get install equivs</tt>. Equivs crea un pacchetto vuoto che è capace di
+soddisfare qualunque dipendenza, facendo così credere al sistema di gestione
+dei pacchetti che le dipendenze sono soddisfatte.
+<p>
+Prima di iniziare è bene ricordare che esistono modi più sicuri per compilare
+un programma già impacchettato per Debian con opzioni differenti, e che non
+si dovrebbe usare equivs per rimpiazzare le dipendenze se non sa quali possono
+essere le conseguenze sul sistema.
+Vedere <ref id="sourcehandling"> per ulteriori informazioni.
+<p>
+Continuiamo con l'esempio del MTA, si è appena installato il neo-compilato
+<prgn>postfix</prgn> e ora vuoi installare <package>mutt</package>.
+Immediatamente ci accorgeremo che <package>mutt</package> vuole installare un
+altro MTA. Ma abbiamo già il nostro!
+<p>
+Cambiando directory (<file>/tmp</file>, per esempio), eseguire:
+
+<example>
+# equivs-control <var>name</var>
+</example>
+
+Mettere al posto di <var>name</var> il nome del file di controllo da creare. Il
+file che sarà creato è come quello che segue:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;enter package name; defaults to equivs-dummy&gt;
+Version: &lt;enter version here; defaults to 1.0&gt;
+Maintainer: &lt;your name and email address; defaults to username&gt;
+Pre-Depends: &lt;packages&gt;
+Depends: &lt;packages&gt;
+Recommends: &lt;packages&gt;
+Suggests: &lt;package&gt;
+Provides: &lt;(virtual)package&gt;
+Architecture: all
+Copyright: &lt;copyright file; defaults to GPL2&gt;
+Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+Readme: &lt;README.Debian file; defaults to a generic one&gt;
+Extra-Files: &lt;additional files for the doc directory, commaseperated&gt;
+Description: &lt;short description; defaults to some wise words&gt;
+ long description and info
+ .
+ second paragraph
+</example>
+
+Ora dobbiamo modificarlo per fargli fare quello che vogliamo. Vediamo il
+formato dei campi e la loro descrizione, non li spiegheremo tutti ma soltanto
+quelli necessari:
+
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+<package>mutt</package> dipende da <package>mail-transport-agent</package>, che
+è un pacchetto virtuale fornito da tutti i MTA, si potrebbe semplicemente
+nominare il pacchetto <package>mail-transport-agent</package>, ma è preferibile
+usare lo schema dei pacchetti virtuali tramite `Provides'.
+<p>
+Ora serve solo creare il pacchetto:
+
+<example>
+# equivs-build <var>name</var>
+dh_tstdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+Ed installare il <tt>.deb</tt> finale.
+<p>
+Come possiamo vedere, ci sono molti usi di <prgn>equivs</prgn>. Si può creare
+un pacchetto <tt>my-fovorites</tt>, che dipende dai programmi che abitualmente
+si installano, per esempio. Abbiamo la più completa libertà di scelta, ma
+dobbiamo valutare attentamente quello che abbiamo intenzione di fare.
+<p>
+Infine facciamo notare che ci sono vari esempi di file di controllo in
+<file>/usr/share/doc/equivs/example</file>.
+</sect>
+
+<sect id="localepurge">Rimuovere i file inutilizzati: localepurge
+<p>
+Molti utenti Debian usano solo un locale (si intende la specifica di lingua e
+timezone). Un utente brasiliano, per esempio, generalmente usa locale settato
+come <tt>pt_BR</tt> tutto il tempo e non gli interessa avere a disposizione
+anche <tt>es</tt>.
+<p>
+<package>localepurge</package> è uno strumento molto utile per questi utenti.
+Si può liberare molto spazio mantenendo solo i file di locale che realmente si
+usano. Per installare localepurge:
+<tt>apt-get install localepurge</tt>.
+<p>
+Questo pacchetto è veramente semplice da configurare dato che debconf guida
+l'utente passo dopo passo nella sua configurazione. Tuttavia si deve porre
+attenzione alle risposte delle prime domande, che, se non corrette, potrebbero
+causare la rimozione di tutti i file di locale, compresi quelli che si
+indendeva mantenere. In questo caso, l'unico modo per ripristinare questi file
+è reinstallare i pacchetti che li forniscono.
+</sect>
+
+</chapt>
+
+
+<chapt id="search">Ottenere informazioni sui pacchetti
+<p>
+Ci sono vari front-end per APT che rendono più semplice avere la lista dei
+pacchetti disponibili per l'installazione o di quelli già installati, così come
+scoprire a quale sezione appartiene un pacchetto, qual'è la sua priorità,
+qual'è la sua descrizione, ecc.
+<p>
+Ma... il nostro scopo è usare APT. Come si può conoscere il nome di un
+pacchetto che si vuole installare?
+<p>
+Sono disponibili alcuni programmi ognuno con il suo specifico compito.
+Inizieremo con <tt>apt-cache</tt>. Questo programma è usato da APT per gestire
+il suo database. Faremo un breve riassunto sulle sue applicazioni più comuni.
+
+<sect id="cache">Avere informazioni sui nomi dei pacchetti
+<p>
+Per esempio, supponiamo che si voglia ricordare i vecchi di quando usavi
+l'Atari 2600. Si vuole usare APT per installare un emulatore dell'Atari e per
+scaricare qualche gioco. Si può fare così:
+
+<example>
+[root]@[/] # apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+Abbiamo trovato svariati pacchetti che riguardano quello che stavamo cercando,
+e tutti hanno una breve descrizione. Per avere più informazioni su un
+pacchetto, si può usare:
+
+<example>
+[root]@[/] # apt-cache show stella  
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (>= 2.1), libstdc++2.10, xlib6g (>= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella is a portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+Questo è l'output con molti più dettagli sul pacchetto che si desidera (o non
+si desidera) installare. Se il pacchetto è già installato sul sistema e né
+esiste una nuova versione  ti saranno mostrate le informazioni su entrambe le
+versioni. Per esempio:
+
+<example>
+[root]@[/] # apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (>= 2.2.1-2), debconf (>=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (<<1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (>= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+Notare che il primo pacchetto nella lista dell'esempio precedente è la versione
+disponibile per l'installazione e il secondo è quello già installato. Per avere
+delle informazioni generali su un pacchetto si può usare:
+
+<example>
+[root]@[/] # apt-cache showpkg penguin-command
+Package: penguin-command
+Versions: 
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends: 
+Dependencies: 
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+Provides: 
+1.4.5-1 - 
+Reverse Provides: 
+</example>
+
+E per sapere solo quali sono le dipendenze:
+
+<example>
+[root]@[/] # apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+Ricapitolando, abbiamo un'ampia gamma di strumneti che possiamo usare per
+trovare il nome dei pacchetti che vogliamo.
+</sect>
+
+<sect id="dpkg-search">Usare dpkg per avere informazioni sui pacchetti
+<p>
+Un modo per localizzare un pacchetto è conoscere il nome di un file che può
+essere trovato al suo interno. Per esempio, per trovare il pacchetto che
+fornisce un particolare ".h" che serve per compilare un programma si può
+eseguire:
+
+<example>
+[root]@[/] # dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+oppure:
+
+<example>
+[root]@[/] # dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+Per avere i nomi dei pacchetti installati nel sistema, che è utile in
+previsione di "pulizie" dei dischi, si può lanciare:
+
+<example>
+[root]@[/] # dpkg -l | grep mozilla
+ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+</example>
+
+Il problema di questo commando è che può "rompere" il nome del pacchetto.
+Nell'esempio sopra, il nome intero del pacchetto è <tt>mozilla-browser</tt>.
+Per sistemare questo inconveniente, si può usare la variabile d'ambiente
+<tt>COLUMNS</tt> in questo modo:
+
+<example>
+[kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+</example>
+
+Un altro modo per trovare i pacchetti è fare una ricerca sulla descrizione o su
+parte di essa:
+
+<example>
+[root]@[/] # apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">Come installare pacchetti "on demand"
+<p>
+Stiamo compilando un programma e, ad un certo punto, boom! C'è un errore perché
+è necessario un file <tt>.h</tt> che non hai. Il programma
+<prgn>auto-apt</prgn> può salvarci da questa situazione. Questo programma ferma
+l'esecuzione del processo principale, chiede di installare i pacchetti
+necessari, e se sono stati installati prosegue nell'esecuzione del processo
+principale.
+<p>
+Quello che si devi fare è lanciare:
+
+<example>
+auto-apt run commando
+</example>
+
+Dove `commando' è il comando che deve essere eseguito a cui potrebbero mancare
+alcuni file. Per esempio:
+
+<example>
+auto-apt run ./configure
+</example>
+
+Questo chiederà di installare i pacchetti necessari e, se li vogliamo
+installare, chiama automaticamente apt-get. Gli utenti che usano X possono
+usare anche un'interfaccia grafica anziché la normale interfaccia testuale.
+<p>
+Per funzionare correttamente auto-apt usa un database che deve essere tenuto
+aggiornato. Questo può essere fatto usando i commandi <tt>auto-apt update</tt>,
+<tt>auto-apt updatedb</tt> e <tt>auto-apt update-local</tt>.
+</sect>
+
+<sect id="apt-listchanges">Come rimanere informato sui cambiamenti nei
+pacchetti
+<p>
+Ogni pacchetto installa, nella sua directory dedicata alla documentazione
+(<tt>/usr/share/doc/packagename</tt>), un file chiamato
+<tt>changelog.Debian.gz</tt> che contiene l'elenco dei cambiamenti fatti al
+pacchetto fino all'ultima versione. E' possibile leggere questo file usando
+<tt>zless</tt>, per esempio, ma non è semplice, dopo un aggiornamento completo
+del sistema, iniziare a cercare i changelog per ogni pacchetto che è stato
+aggiornato.
+<p>
+C'è un modo per automatizzare questo lavoro tramite l'uso di
+<prgn>apt-listchanges</prgn>. Per prima cosa si deve installare il pacchetto
+<package>apt-listchanges</package>. Durante l'installazione, debconf chiederà
+come lo si vuole configurare. Si consiglia di ricordare i seguenti suggerimenti
+mentre si risponde.
+<p>
+L'opzione "Should apt-listchanges be automatically run by apt?" è molto utile
+ed il suo effetto è che per tutti i pacchetti che verranno installati APT
+chiederà se mostrarti i changelog automaticamente. L'opzione "Should
+apt-listchanges prompt for confirmation after displaying changes?" è utile
+perché permette di fermare l'installazione dopo che il changelog è stato
+mostrato permettendo così di leggere cosa è apparso ed inoltre verrà chiesto
+se continuare l'installazione. Se rispondiamo che non si vuole più installare
+il pacchetto apt-listchanges ritornerà un errore e apt interromperà
+l'installazione.
+<p>
+Dopo aver installato apt-listchanges, appena i pacchetti sono disponibili per
+l'installazione (scaricati, presi da un CD, ecc.) apt mostrerà i changelog
+di questi pacchetti prima di installarli.
+</sect>
+
+</chapt>
+
+
+<chapt id="sourcehandling">Lavorare con i pacchetti sorgente
+<sect id="source">Scaricare i pacchetti sorgente
+<p>
+Spesso nel mondo del free software si fanno correzioni ai programmi che
+contengono dei bug. Per fare questo è necessario scaricare il sorgente del
+programma: APT fornisce un modo semplice per scaricare i sorgenti di un
+programma, compresi i file necessari per creare il pacchetto .deb.
+<p>
+Un altro uso comune dei sorgenti è compilare su una distribuzione stabile i
+pacchetti di testing o di unstable dato che, quelli presenti in quest'ultime,
+sono più recenti. Infatti, compilando un pacchetto su stable, sarà creato un
+.deb le cui dipendenze sono automaticamente aggiustate per operare in questa
+distribuzione.
+<p>
+Per ottenere questo, dovrebbe essere specificata almeno una linea
+<tt>deb-src</tt> in <tt>/etc/apt/sources.list</tt> che punti ai pacchetti di
+testing o di unstable. Controlla <ref id="sources.list">.
+<p>
+Per scaricare un pacchetto sorgente, si può usare il seguente comando:
+
+<example>
+apt-get source packagename
+</example>
+
+Questo scaricherà tre file: un <tt>.orig.tar.gz</tt>, un <tt>.dsc</tt> e un
+<tt>.diff.gz</tt>. Se un pacchetto è fatto specificamente per Debian, l'ultimo
+fra quelli elencati non è scaricato e al primo della lista mancherà
+<tt>"orig"</tt>
+nel nome.
+<p>
+Il file <tt>.dsc</tt> è usato da dpkg-source per decomprimere il pacchetto
+sorgente nella directory <var>nomepacchetto-versione</var>. Dentro tutti i
+pacchetti sorgente, una volta scompattati, c'é dentro una directory
+<tt>debian/</tt> che contiene i file necessari per la costruzione del pacchetto
+.deb.
+<p>
+Per automatizzare la costruzione del pacchetto .deb dopo aver scaricato i
+sorgenti è sufficiente aggiungere il parametro <tt>-b</tt> alla linea di
+comando:
+
+<example>
+apt-get -b source packagename
+</example>
+
+Se non si vuole creare il .deb al termine del download, lo si può creare
+successivamente lanciando:
+
+<example>
+dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+dopo essersi assicurati che nella directory corrente sia quella creata
+per il pacchetto al termine del download.
+<p>
+C'é una differenza fra il metodo <tt>source</tt> e gli altri messi a
+disposizione da <prgn>apt-get</prgn>: tale metodo può essere usato da tutti gli
+utenti senza che questi abbiano i privilegi di root. I file sono scaricati
+nella directory dalla quale è stato lanciato il comando <tt>apt-get source
+package</tt>.
+</sect>
+
+<sect id="build-dep">Soddisfare le dipendenze per compilare un pacchetto
+sorgente
+<p>
+Normalmente per compilare un pacchetto sorgente è necessario aver installato
+header e delle librerie appropriate. Tutti i pacchetti .deb hanno nel loro
+control file un campo chiamato 'Build-Depends:' che indica le dipendenze che
+devono essere soddisfatte per poter compilare correttamente il pacchetto
+contenete i sorgenti.
+<p>
+APT possiede un metodo veramente semplice per scaricare questo tipo di
+pacchetti. E' sufficiente lanciare <tt>apt-get build-dep package</tt>, dove
+`package' è il nome del pacchetto che si vuole compilare. Per esempio:
+
+<example>
+[root]@[/] # apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev 
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+Saranno installati i pacchetti necessari per la corretta compilazione del
+pacchetto <package>gmc</package>. E' importante notare che questo comando non
+si occupa di cercare i pacchetti sorgente che dovrebbe compilare. Per
+scaricarli va lanciato prima <tt>apt-get source</tt>.
+</sect>
+
+</chapt>
+
+
+<chapt id="errors">Come trattare gli errori
+<sect id="common-errors">Errori banali
+<p>
+Gli errori sono sempre accaduti, di questi molti sono causati da utenti che non
+prestano attenzione. Quella che segue è una breve lista degli errori più
+frequenti e di come si possono risolvere.
+<p>
+Se viene visualizzato un messaggio d'errore che assomiglia a questo quando si
+sta provando ad installare un pacchetto con <tt>apt-get install package</tt>...
+
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+vuol dire che non abbiamo di lanciato <tt>apt-get update</tt> dopo l'ultima
+modifica al file <tt>/etc/apt/sources.list</tt>.
+<p>
+Se l'errore assomiglia a questo:
+
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+quando si tenta di usare <prgn>apt-get</prgn> con qualunque metodo (tranne
+<tt>source</tt>), significa che non si hanno i permessi dell'utente root, cioè
+si sta eseguendo <prgn>apt-get</prgn> come un normale utente.
+<p>
+C'è anche un errore simile a quello sopra, che avviene quando si tenta si
+lanciare più di un processo <prgn>apt-get</prgn> o quando <prgn>apt-get</prgn>
+è lanciato mentre è già attivo un processo <prgn>dpkg</prgn>. L'unica soluzione
+possibile per avere più processi <prgn>apt-get</prgn> attivi è usare il metodo
+<tt>source</tt>.
+<p>
+Se un'installazione si blocca e non è più possibile né installare né rimuovere
+il pacchetto, provare con questi due comandi:
+
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+E poi tentare di nuovo. Potrebbe essere necessario ripetere più volte i comandi
+precedenti. Questa è una lezione importante per gli avventurieri che usano
+`unstable'.
+</sect>
+
+<sect id="help">Dove posso trovare aiuto?
+<p>
+In caso di dubbi, consultate la vasta documentazione disponibile per il
+sistema di gestione dei pacchetti Debian. <tt>--help</tt> e le manpages possono
+essere d'aiuto, inoltre si può leggere la documentazione contenuta nelle
+directory <tt>/usr/share/doc</tt> e <tt>/usr/share/doc/apt</tt>.
+<p>
+Se questa documentazione non è sufficiente, si può provare a cercare la
+risposta nell'archivio delle mailing-list. Altre informazioni sulle
+mailing-list si possono trovare sul sito web di Debian: <url
+id="http://www.debian.org" name="http://www.debian.org">.
+<p>
+Tuttavia, queste mailing-list dovrebbero essere usate solo dagli utenti
+Debian; gli utenti di altri sistemi troveranno un miglior supporto dalle
+community che si occupano della propria distribuzione.
+</sect>
+
+</chapt>
+
+
+<chapt id="distros">Quali distribuzioni supportano APT?
+<p>
+Di seguito troviamo i nomi di alcune distribuzioni che usano APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org"
+name="http://www.debian.org">) - la distribuzione per la quale è stato
+sviluppato APT
+<p>
+Conectiva (<url id="http://www.conectiva.com.br"
+name="http://www.conectiva.com.br">) - è stata la prima distribuzione a
+fondere insieme APT con rpm
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+</chapt>
+
+
+<chapt id="agradecimientos">Ringraziamenti
+<p>
+Un grande grazie va ai miei amici del progetto Debian-BR e a Debian in sé, che
+sono un aiuto costante per me e che sempre mi danno la forza per continuare a
+lavorare per il miglioramento dell'umanità, così come mi aiutano nel mio scopo
+di salvare il mondo. :)
+<p>
+Voglio ringraziare il CIPSGA per l'enorme aiuto che ha dato al nostro progetto
+e a tutti i progetti liberi che nascono da grandi idee.
+<p>
+E speciali ringraziamenti vanno a:
+<p>
+Yooseong Yang &lt;yooseong@debian.org&gt; - per la traduzione del manuale in
+coreano.
+<p>
+Michael Bramer &lt;grisu@debian.org&gt; - per il suggerimento sull'inclusione
+della sezione su come mantenere una specifica versione di un pacchetto.
+<p>
+Bryan Stillwell &lt;bryan@bokeoa.com&gt; - per le varie correzioni che mi ha
+mandato.
+<p>
+Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt; - per le varie correzioni e per la
+traduzione in polacco.
+<p>
+Pablo Lorenzzoni &lt;spectra@debian.org&gt; - per la scrittura della sezione su
+netselect.
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt; - per la traduzione in inglese.
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt; - per il contributo alla
+lista delle distribuzioni che includono APT: Mandrake, PLD e Vine.
+<p>
+Erik Rossen &lt;rossen@freesurf.ch&gt; - per il suggerimento sulla variabile
+COLUMNS per dpkg -l.
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt; - per il suggerimento
+sull'uso di -o Debug::pkgProblemResolver=yes.
+</chapt>
+
+
+<chapt id="novas">Nuove versioni di questo tutorial
+<p>
+Questo manuale è stato creato per il progetto
+<url id="http://debian-br.cipsga.org.br" name="Debian-BR">, con lo scopo di
+agevolare l'uso quotidiano di Debian.
+<p>
+Nuove versioni di questo documento saranno disponibili alla pagina del
+progetto <url id="http://debian-br.cipsga.org.br/suporte/documentacao.html"
+name="http://debian-br.cipsga.org.br/suporte/documentacao.html">.
+<p>
+Commenti e critiche possono essere mandati all'autore
+<email>kov@debian.org</email>.
+</chapt>
+
+</book>
