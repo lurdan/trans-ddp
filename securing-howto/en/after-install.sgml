@@ -785,26 +785,87 @@ needs.
 system through the <prgn>ssh</prgn> service is described in <ref
 id="chroot-ssh-env">.
 
-<sect1>Hand-made user auditing
+<sect1>User auditing
 
-<p>If you are paranoid you might want to add a system-wide
-<file>/etc/profile</file> that sets the
-environment in a way such that they cannot remove audit capabilities
-from the shell (commands are dumped to <tt>$HISTFILE</tt>. The
-<file>/etc/profile</file> could be set as follows:
+<p>If you are really paranoid you might want to add a system-wide
+configuration to audit what the users are doing in your system.
+This sections presents some tips using diverse utilities you can use.
+
+<sect2>Input and output audit with script
+
+<P>You can use the <prgn>script</prgn> command to audit both what the
+users run and what are the results of those commands.
+You cannot setup <prgn>script</prgn> as a shell 
+(even if you add it to <file>/etc/shells</file>). But you can have the
+shell initialization file run the following:
+
+<example>
+umask 077
+exec script -q -a "/var/log/sessions/$USER
+</example>
+
+<p>Of course, if you do this system wide it means that the shell would
+not continue reading personal initialization files (since the shell
+gets overwritten by <prgn>script</prgn>). An alternative is to do this
+in the user's initialization files (but then the user could remove this,
+see the comments about this below)
+</p>
+
+<p>You also need to setup the
+files in the audit directory (in the example <file>/var/log/sessions/</file>)
+so that users can write to it but cannot remove the file. This could be
+done, for example, by creating the user session files in advance and
+setting them with the <em>append-only</em> flag using <prgn>chattr</prgn>.
+</p>
+
+<p>A useful alternative for sysadmins, which includes date information
+would be:
+
+<example>
+umask 077
+exec script -q -a "/var/log/sessions/$USER-`date +%Y%m%d`"
+</example>
+
+<sect2>Using the shell history file
+
+<p>If you want to review what does the user type in the shell (but not
+what the result of that is) you can setup a system-wide
+<file>/etc/profile</file> that configures the
+environment so that all commands are saved to the <tt>history</tt> file.
+The system-wide configuration needs to be setup in such a way that users 
+cannot remove audit capabilities from their shell. This is somewhat
+shell specific so make sure you that all users are using a shell that
+supports this.</p>
+
+<p>For example, for bash, the <file>/etc/profile</file> 
+could be set as follows
+<footnote>
+Setting HISTSIZE to a very large number can cause issues under some
+shells since the history is kept in memory for every user session. You
+might be safer if you set this to a high-enough value and backup
+user's history files (if you need all of the user's history for 
+some reason)
+</footnote>
+:
 
 <example>
   HISTFILE=~/.bash_history
-  HISTSIZE=100000000000000000
-  HISTFILESIZE=10000000000000000
+  HISTSIZE=10000
+  HISTFILESIZE=999999
+  # Don't let the users enter commands that are ignored
+  # in the history file
+  HISTIGNORE=""
+  HISTCONTROL=""
   readonly HISTFILE
   readonly HISTSIZE
   readonly HISTFILESIZE
-  export HISTFILE HISTSIZE HISTFILESIZE
+  readonly HISTIGNORE
+  readonly HISTCONTROL
+  export HISTFILE HISTSIZE HISTFILESIZE HISTIGNORE HISTCONTROL
 </example>
 
-<p>For this to work the user can only append information to
-<file>.bash_history</file>. You need <em>also</em> to set the 
+<p>For this to work, the user can only append information to
+<file>.bash_history</file> file. You need <em>also</em> to set the 
 <em>append-only</em> option using <prgn>chattr</prgn> program 
 for <file>.bash_history</file> for all users.
 <footnote>
@@ -812,14 +873,32 @@ Without the append-only flag users would be able to empty the
 contents of the history file running <prgn> >.bash_history</prgn>
 </footnote>.
 
-<p>Note that you could do that per user's <file>.profile</file>. But
-then you would need to setup permissions properly: having the user's
-home directories <em>not</em> belong to the users but enable them
-to read the configuration <file>.profile</file> and write on the
+<p>Note that you could introduce the configuration above in 
+the user's <file>.profile</file>. But
+then you would need to setup permissions properly in such a way that
+prevents the user from modifying this file. This includes: having the user's
+home directories <em>not</em> belong to the user (since he would
+be able to remove the file otherwise) but at the same time enable them
+to read the <file>.profile</file> configuration file and write on the
 <file>.bash_history</file>. It would be good to set
 the <em>inmutable</em> flag (also using <prgn>chattr</prgn>)
 for <file>.profile</file> too if you do it this way.
 
+<sect2>Complete user audit with accounting utilities
+
+<p>The previous example is a simple way to configure user auditing
+but might be not useful for complex systems or for those in which users 
+do not run shells at all (or exclusively). If this is your case,
+you need to look at <package>acct</package>, the accounting
+utilities. These utilities will log all the commands run by users or processes
+in the system, at the expense of disk space.
+
+<p>When activating accounting, all the information on processes and
+users is kept under <file>/var/account/</file>, more specifically in
+the <file>pacct</file>. The accounting package includes some tools
+(<prgn>sa</prgn> and <prgn>ac</prgn>) to analyse this data.
+
+<sect2>Other user auditing methods
 <p>If you are completely paranoid and want to audit every user's command, you 
 could take <prgn>bash</prgn> source code, edit it and have it send all that 
 the user typed into another file. Or have <package>ttysnoop</package> 
@@ -833,26 +912,10 @@ hooks in as a library providing a wrapper around <var>execve()</var>
 calls, any command executed is logged to <prgn>syslogd</prgn> using the 
 <tt>authpriv</tt> facility (usually stored at <file>/var/log/auth.log</file>).
 
-<p>Note that you cannot use the <prgn>script</prgn> command for this since it 
-will not work as a shell (even if you add it to <file>/etc/shells</file>).
-
-<sect1>Complete user audit
-
-<p>The previous example is a simple way to configure user auditing
-which might be not useful for complex systems. If this is your case,
-you need to look at <package>acct</package>, the accounting
-utilities. These will log all the commands run by users or processes
-in the system, at the expense of disk space.
-
-<p>When activating accounting, all the information on processes and
-users is kept under <file>/var/account/</file>, more specifically in
-the <file>pacct</file>. The accounting package includes some tools
-(<prgn>sa</prgn> and <prgn>ac</prgn>) to analyse this data.
-
 <sect1>Reviewing user profiles
 
-<p>If you want to <em>see</em> what users are usually doing, when they are
-connecting you can use the <file>wtmp</file> database that
+<p>If you want to <em>see</em> what users are actually doing when they 
+logon to the system you can use the <file>wtmp</file> database that
 includes all login information. This file can be processed with
 several utilities, amongst them <prgn>sac</prgn> which can output a
 profile on each user showing in which timeframe they usually log on to
@@ -860,7 +923,7 @@ the system.
 
 <p>In case you have accounting activated, you can also use the tools
 provided by it in order to determine when the users access the
-system and what they execute. 
+system and what do they execute. 
 
 <sect1>Setting users umasks
 
@@ -886,7 +949,7 @@ shells (and for PAM). Don't forget to modify the files under
 created with the <prgn>adduser</prgn> command.
 
 <p>Note, however that users can modify their own <tt>umask</tt> setting if they
-want too, making it more permissive or more restricted.
+want to, making it more permissive or more restricted.
 
 <sect1>Limiting what users can see/access
 
