@@ -108,13 +108,13 @@ dynamic.%.ent:
 	  echo "<!entity docversion \"CVS\">" >> $@; \
 	fi
 #	Build SGML with portion marked qref-dev if LANGS=en or DOCTYPE=dev.
-	@if [ "x$(DOCTYPE)" = "xdev" ]; then \
-	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-	elif [ "x$(DOCTYPE)" = "xdefault" -a \( "x$*" = "xen" -o "x$*" = "xit" \) ]; then \
-	  echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
-	else \
-	  echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
-	fi
+#	@if [ "x$(DOCTYPE)" = "xdev" ]; then \
+#	  #echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+#	elif [ "x$(DOCTYPE)" = "xdefault" -a \( "x$*" = "xen" -o "x$*" = "xit" \) ]; then \
+#	  #echo "<!entity % qref-dev \"INCLUDE\">" >> $@; \
+#	else \
+#	  #echo "<!entity % qref-dev \"IGNORE\">" >> $@; \
+#	fi
 # Note: This does work, but it's a hack, it
 # needs to be rewritten properly (jfs)
 #
