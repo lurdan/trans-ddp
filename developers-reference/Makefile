@@ -1,14 +1,15 @@
 # Makefile, used for the DDP manuals.sgml area
 
+export PATH:=../quick-reference/bin/:${PATH}
+
 MANUAL		:= $(notdir $(shell pwd))
 PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 
 SOURCES		:= $(wildcard *.sgml)
 
-TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
-		     $(filter-out developers-reference.ja.pdf, \
-		       $(foreach langext,.fr, \
-		         $(foreach fmt,html txt,developers-reference$(langext).$(fmt))))
+TARGETS		:= $(foreach fmt,html txt ps pdf,developers-reference.$(fmt)) \
+		     $(foreach langext,.fr .ja, \
+		       $(foreach fmt,html txt ps pdf,developers-reference$(langext).$(fmt)))
 
 # programs for creating output
 DEBIANDOC2HTML	:= debiandoc2html -c
