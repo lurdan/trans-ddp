@@ -14,7 +14,7 @@
 #   description of transitional-packages make this script give a number
 #   of false positives and false negatives (that need to be found out
 #   by hand). The script could also try searching for 
-#   'ease upgrades' or 'transitional' or 'obsolete' or 
+#   'ease|smooth upgrades' or 'transitional' or 'obsolete' or 
 #   'remove after upgrade' too
 # - (Known false positive)
 #   Does not work for python packages since many say that they are dummy
