@@ -32,9 +32,10 @@ HTDOCS := $(notdir $(patsubst %/,%, $(dir $(shell pwd))))
 ifeq ("$(HTDOCS)", "manuals.sgml")
 # DDP site or checked out source from DDP
 PUBLISHDIR := ../../../public_html/manuals.html
-MANUAL := $(notdir $(shell pwd))
+#MANUAL := $(notdir $(shell pwd))
+MANUAL := reference
 LANGS := en fr it
-EXTS := html
+EXTS := html txt pdf
 else
 # default: checked out source at home directory
 PUBLISHDIR := $$HOME/public_html
@@ -228,7 +229,7 @@ $(MANUAL).%.pdf: $(MANUAL).%.tex dynamic.%.ent date.ent $(SGMLSRCS)
 	@rm -f prior.aux pprior.aux
 
 #====[ publishing to the DDP web pages ]=======================================
-publish: publish-html
+publish: publish-html publish-files
 publish-all: publish-html publish-files publish-tar
 
 #----[ publish html ]----------------------------------------------------------
@@ -246,6 +247,9 @@ publish-html: $(HTMLDIRS)
 	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
 ifneq ("$(HTDOCS)", "manuals.sgml")
 	install -p -m 644 index.php $(PUBLISHDIR)/$(MANUAL)/
+endif
+ifeq ("$(HTDOCS)", "manuals.sgml")
+	cd $(PUBLISHDIR) ; rm -Rf quick-reference ; ln -sf $(MANUAL) quick-reference
 endif
 
 #----[ publish the files ]-----------------------------------------------------
@@ -269,6 +273,14 @@ ifeq ("$(HTDOCS)", "manuals.sgml")
 	      ln -s $(MANUAL).$(ORIG_LANG).$(ext) $(MANUAL).$(ext); \
 	    ) \
 	  fi ;\
+	)
+	@$(foreach ext,$(FILEEXTS),\
+	 $(foreach lang,$(ORIG_LANG) $(LANGS),\
+	   ( cd $(PUBLISHDIR)/$(MANUAL) ; \
+	     rm -f quick-reference.$(lang).$(ext);\
+	     ln -sf $(MANUAL).$(lang).$(ext) quick-reference.$(lang).$(ext);\
+	    ) ;\
+	  )\
 	)
 endif
 
