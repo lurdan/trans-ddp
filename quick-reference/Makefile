@@ -123,7 +123,7 @@ pdf1:  $(PDFS1)
 pdf2:  $(PDFS2)
 pdf:  pdf1 pdf2
 tar:  $(MANUAL1).tar.gz
-publish: publish-html publish-txt publish-ps publish-pdf publish-examples
+publish: publish-html publish-txt publish-examples publish-ps publish-pdf
 publish-all: publish publish-tar
 
 # =================================================================== #
