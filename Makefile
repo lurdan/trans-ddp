@@ -20,7 +20,8 @@ SUBDIRS	:=	\
 		euro-support		\
 		quick-reference		\
 		faq			\
-		fr
+		fr			\
+		progeny-debian-manual
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
 
