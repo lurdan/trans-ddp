@@ -21,6 +21,7 @@ SUBDIRS	:=	\
 		quick-reference		\
 		faq			\
 		fr			\
+		users-guide		\
 		progeny-debian-manual
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
