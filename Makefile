@@ -6,6 +6,7 @@ SUBDIRS	:=	\
 		book-suggestions 	\
 		ddp-policy		\
 		debian-bugs	 	\
+		developers-reference	\
 		dictionary 		\
 		distribute-deb		\
 		dselect-beginner 	\
@@ -27,7 +28,6 @@ SUBDIRS	:=	\
 		tutorial		\
 		user			\
 		users-guide		\
-		developers-reference	\
 
 # documents with broken or newest Makefiles will be moved to the bottom
 
@@ -64,13 +64,13 @@ publish:: $(SUBDIRS-publish)
 clean: $(SUBDIRS-clean)
 
 $(SUBDIRS):
-	/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
+	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
 	  $(MAKE) -C $@
 
 $(SUBDIRS-publish):
-	/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
+	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
 	  $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
 
 $(SUBDIRS-clean):
-	/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
+	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
 	  $(MAKE) -C $(subst -clean,,$@) clean
