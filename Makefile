@@ -7,7 +7,6 @@ SUBDIRS	:=	\
 		debian-bugs	 	\
 		developers-reference	\
 		dictionary 		\
-		maint-guide		\
 		meta 			\
 		network-administrator 	\
 		project-history 	\
@@ -24,6 +23,10 @@ SUBDIRS	:=	\
 		users-guide		\
 		progeny-debian-manual
 # above wil be erased with next update
+
+# Since test(1) bug, maint-guide is build manually until woody release.
+#		maint-guide		
+
 
 SUBDIRS-publish := $(addsuffix -publish,$(SUBDIRS))
 SUBDIRS-clean := $(addsuffix -clean,$(SUBDIRS))
