@@ -104,3 +104,6 @@ distclean: clean
 developers-reference$(SRCEXT).sgml: version.ent common.ent
 
 html: $(MANUAL).html
+
+# if rule bomb out, delete the target
+.DELETE_ON_ERROR:
