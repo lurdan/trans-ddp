@@ -58,6 +58,7 @@
         (normalize "subtitle")
         (normalize "authorgroup")
         (normalize "author")
+        ;;(normalize "othercredit")
         (normalize "releaseinfo")
         (normalize "copyright")
         (normalize "pubdate")
