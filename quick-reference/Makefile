@@ -108,6 +108,11 @@ PDFS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).pdf)
 # If some languages have problems building, filter-out in here.
 
 all: html txt ps pdf
+	rm -Rf $(PUBLISHDIR)/en
+	rm -Rf $(PUBLISHDIR)/es
+	rm -Rf $(PUBLISHDIR)/fr
+	rm -Rf $(PUBLISHDIR)/it
+
 html1: $(HTMLS1)
 html2: $(HTMLS2)
 html: html1 html2
