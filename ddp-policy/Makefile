@@ -143,7 +143,7 @@ publish-html: html
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	# install all html
+	install all html
 	@$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).html/*.html \
 	          $(PUBLISHDIR)/$(MANUAL)/ ;\
@@ -152,7 +152,7 @@ publish-txt:  txt
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.txt
-	# install all txt
+	install all txt
 	@$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).txt \
 	          $(PUBLISHDIR)/$(MANUAL)/ ;\
@@ -162,7 +162,7 @@ publish-ps:  ps
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.ps
-	# install all ps
+	install all ps
 	@$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).ps \
 	          $(PUBLISHDIR)/$(MANUAL)/ ;\
@@ -173,7 +173,7 @@ publish-pdf:  pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.pdf
-	# install all pdf1
+	install all pdf1
 	@$(foreach lang,$(LANGS),\
 	 install -p -m 644 $(MANUAL).$(lang).pdf \
 	          $(PUBLISHDIR)/$(MANUAL)/ ;\
