@@ -4,14 +4,18 @@
 # When called with "-d" option, it also prints what has changed in the
 # original since last translation
 
+
 # copied from boot-floppies and s/pl/xx/g and modified
 #
 # SYNOPSIS:
-#             ./doc-check [-d] [-v] [-V] [lang [subdoc ...]]
+#             ./doc-check [-d] [-v] [-V] [-e] [-w] [-a|lang [subdoc ...]]
+#             ./doc-check -h [-e] [-a|lang [subdoc ...]]
+#	-a: all language
 #	-d: diff
 #	-v: verbose on reading each file header
 #	-V: verbose on diff
 #	-e: verbose on equal rev file (default=quiet)
+#	-h: create html page with translation versions in table format
 #       -w: ignore whitespaces for diff
 #	
 #
@@ -19,17 +23,17 @@
 #	(checks all files if no subdoc is specified)
 #	(-d option enables to check diff)
 #	Make sure to update top few lines when proofreading
+#
+#       $ bin/doc-check -ae
+#       This provide complete status
 
 use Getopt::Std;
-$opt_d = $opt_v = $opt_V = $opt_e = $opt_w = 0;
-getopts('devVw');
-
-# You may set this to your default language code
-$lang = shift || "fr";
+$opt_a = $opt_d = $opt_h = $opt_v = $opt_V = $opt_e = $opt_w = 0;
+getopts('adhevVw');
 
 sub checkdiff
 {
-	my ($xxfname, $enfname) = (@_);
+	my ($xxfname, $enfname, $idname) = (@_);
 	my ($xxrev, $enrev) = getrev($xxfname, $enfname);
 	if ($opt_d) {
 		if ( "$xxrev" ne "$enrev" ) {
@@ -45,26 +49,20 @@ sub checkdiff
 		}
 	} else {
 		if ( ("$xxrev" ne "$enrev") or $opt_e) {
-			print "$enfname : $xxrev -> $enrev\n";
+			if ($opt_h) {
+				print "<TD>$xxrev</TD>\n";
+			} else {
+				print "$idname : $xxrev -> $enrev\n";
+			}
 		}
 	}
 }
 
-sub getrev
+sub getenrev
 {
-	my ($xxfname, $enfname) = (@_);
-	my ($xxrev, $enrev) = ("1.1.1.1", "1.1.1.1"); # I'd rather fake it.
-	#my ($xxrev, $enrev) = (0, 0); 
+	my ($enfname) = (@_);
+	my ($enrev) = ("N/A"); # Not available.
 
-	warn "checking $xxfname:\n" if $opt_v;
-	open FILE, $xxfname or die "$xxfname: $!";
-	while (<FILE>) {
-		if (/<!--\s*CVS revision of original english document\s*\"([\d\.]+)\"\s*-->/) {
-			$xxrev = $1;
-			last;
-		}
-	}
-	warn "checking $enfname:\n" if $opt_v;
 	open FILE, $enfname or die "$enfname: $!";
 	while (<FILE>) {
 		if (/<!--\s*CVS revision of this document\s*\"[\$]Revision:\s*([\d\.]+)\s*\$\"\s*-->/) {
@@ -74,10 +72,54 @@ sub getrev
 		}
 	}
 	close FILE;
-	warn "failed to find revision for $xxfname" unless $xxrev;
-	warn "failed to find revision for $enfname" unless $enrev;
+	warn "failed to find revision for $enfname" if $enrev =~ m/^N\/A$/o;
+	return $enrev;
+}
+ 
+sub getxxrev
+{
+	my ($xxfname) = (@_);
+	my ($xxrev) = ("N/A"); # Not available.
+
+	warn "checking $xxfname:\n" if $opt_v;
+	open FILE, $xxfname or die "$xxfname: $!";
+	while (<FILE>) {
+		if (/<!--\s*CVS revision of original english document\s*\"([\d\.]+)\"\s*-->/) {
+			$xxrev = $1;
+			last;
+		}
+	}
+	warn "failed to find revision for $xxfname" if $xxrev =~ m/^N\/A$/o;
+	return $xxrev;
+}
+
+sub getrev
+{
+	my ($xxfname, $enfname) = (@_);
+	my $xxrev = getxxrev($xxfname);
+	my $enrev = getenrev($enfname);
 	return ($xxrev, $enrev);
 }
+
+
+@sublang = ();
+if ($opt_a) {
+	# For all language which will be checked
+	push @sublang, (
+"fr",
+"de",
+"it",
+"es",
+"pl",
+"pt-br",
+"zh-tw",
+"zh-cn"
+		);
+} else {
+	# You may set this to your default language code
+	push @sublang, ( shift || "fr" );
+}
+
 @subdocs = (); # Intialize
 push @subdocs, @ARGV; # take options
 if ($#subdocs < 0) {
@@ -104,10 +146,46 @@ if ($#subdocs < 0) {
 	);
 }
 
-print "Translation delay for $lang\n";
-
-foreach $doc (@subdocs) {
-	my $xxfname = "$lang/" . "$doc" . ".sgml";
-	my $enfname = "en/" . "$doc" . ".sgml";
-	checkdiff($xxfname, $enfname);
+if ($opt_h) {
+	$opt_a = 1;
+	$opt_e = 1;
+	$opt_d = 0;
+	print "<html>\n";
+	print "<header>\n";
+	print "<TITLE>Debian Reference source version summary</TITLE>\n";
+	print "</header>\n";
+	print "<body>\n";
+	print "<center>\n";
+	print "<TABLE width=\"100%\" border=0 cellspacing=0 cellpadding=2>\n";
+	print "<TR>\n";
+	print "<TD>FILE</TD>\n";
+	print "<TD>en</TD>\n";
+	foreach $lang (@sublang) {
+		print "<TD>$lang</TD>\n";
+	}
+	print "</TR>\n";
+	foreach $doc (@subdocs) {
+		print "<TR>\n";
+		print "<TD>$doc</TD>\n";
+		my $enfname = "en/" . "$doc" . ".sgml";
+		print "<TD>",getenrev($enfname),"</TD>\n";
+		foreach $lang (@sublang) {
+			my $xxfname = "$lang/" . "$doc" . ".sgml";
+			print "<TD>",getxxrev($xxfname),"</TD>\n";
+		}
+		print "</TR>\n";
+	}
+	print "</TABLE>\n";
+	print "</center>\n";
+	print "</body>\n";
+} else {
+	foreach $lang (@sublang) {
+		print "Translation delay for $lang\n";
+		foreach $doc (@subdocs) {
+			my $xxfname = "$lang/" . "$doc" . ".sgml";
+			my $enfname = "en/" . "$doc" . ".sgml";
+			my $idname = "$doc";
+			checkdiff($xxfname, $enfname, $idname);
+		}
+	}
 }

@@ -1,0 +1,856 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.45" -->
+
+<chapt id="program">Programming
+<p>
+不要用 "test" 來當作測試用的執行檔名稱。 <prgn>test</prgn> 是一個 shell 的內建指令。
+
+<sect>從哪兒開始
+<p>
+參考資料：
+<list compact>
+<item>在 <file>&dochome;<var>package</var></file> 中的文件和範例
+<item><url id="&uno-jclark;" name="Unix / Programming Information">
+<item><em>Linux Programming Bible</em> (John Goerzen/IDG books)
+</list>
+<p>
+從 <url id="&gnuhome;" name="GNU"> 可以獲得更多可印成紙本的豐富文件。
+<p>
+The next four sections contain sample scripts in different languages for
+creating a text file of account information to be added to
+<file>/etc/passwd</file> using a batch processor such as the
+<prgn>newusers</prgn> program. Each script requires as input a file with lines
+of the form <tt>first_name last_name password</tt>.  
+(實際的使用者 home 目錄會由這些 script 所建立。)
+</sect>
+
+<sect id="shell">Shell
+<p>
+了解 Unix-like 系統如何工作的<strong>最好</strong>方法就是閱讀 shell script。在
+此，我們就 shell 編程做個簡單的重點提示。
+
+<sect1 id="bash">Bash &ndash; <strong>GNU</strong> 標準互動式 shell
+<p>
+Bash 參考資料：
+<list compact>
+<item><manref name="bash" section="1">
+<item><tt>info bash</tt>
+<item>the LDP <url id="&bashprogintro-howto;" name="BASH Programming - Introduction HOWTO">
+as starter information.
+<item><tt>mc &dochome;bash/examples/ &dochome;bash/</tt>
+ <p>
+ (安裝 <package>bash-doc</package> 套件可以看到更多的範例檔。)
+<item><em>Learning the bash Shell</em>, 2nd edition (O'Reilly)
+</list>
+<p>
+簡短的程式範例 (從標準輸入建立帳號資訊供 <prgn>newusers</prgn> 使用) ：
+<example>
+#!/bin/bash
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+pid=1000;
+while read n1 n2 n3 ; do
+if [ ${n1:0:1} != "#" ]; then
+let pid=$pid+1
+echo ${n1}_${n2}:password:${pid}:${pid}:,,,/home/${n1}_${n2}:/bin/bash
+fi
+done
+</example>
+
+<sect1 id="posix-shell">POSIX shells
+<p>
+&debian; 中有幾個套件提供了 POSIX shell ：
+<list compact>
+ <item><package>dash</package> (Sarge)
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 176
+  <item>Smallest and fastest by far &ndash; best for initial boot
+ </list>
+ <item><package>ash</package> (Woody)
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 180
+  <item>Smaller and much faster &ndash; good for initial boot
+ </list>
+ <item><package>bash</package>
+ <list compact>
+  <item>Essential: yes
+  <item>Priority: required
+  <item>Installed-Size: 580
+  <item>Larger and featureful &ndash; many extensions implemented
+ </list>
+ <item><package>pdksh</package>
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 408
+  <item>Complete AT&amp;T ksh look-alike
+ </list>
+</list>
+<p>
+如果你想編寫具有可攜性的 shell script ，最好寫成 POSIX shell script。可將
+<file>/bin/sh</file> 鏈接到 <prgn>ash</prgn> (或 <prgn>dash</prgn>) 來測試和 
+POSIX 的相容性。避免寫出的 script 是 <strong>bash 化</strong> 或 <strong>zsh 化
+</strong> (它看起來與 csh 語法很相似)。例如，應避免：
+<list compact>
+<item><tt>if [ <var>foo</var> == <var>bar</var> ] ; then ... </tt>
+<item><tt>diff -u <var>file</var>.c{.orig,} </tt>
+<item><tt>mkdir <var>/foo</var>{<var>bar</var>,<var>baz</var>} </tt>
+</list>
+
+<sect1 id="shell-param">Shell 參數
+<p>
+有幾個<strong>特別參數</strong>是應該要記得的：
+<example compact>
+$0      = shell 名稱或 shel script 名稱
+$1      = 第一個 shell 參數
+ ...
+$9      = 第九個 shell 參數
+$#      = 參數的個數
+"$*"    = "$1 $2 $3 $4 ... $<var>n</var>"
+"$@"    = "$1" "$2" "$3" "$4" ... "$<var>n</var>"
+$?      = 最近執行的命令的退出狀態
+$$      = 目前 shell script 的 PID
+$!      = 最近啟動的背景執行工作的PID
+</example>
+<p>
+要記得的基本<strong>延伸參數</strong>：
+<example compact>
+    Form        If <var>var</var> is set       If <var>var</var> is not set
+${<var>var</var>:-<var>string</var>}  $<var>var</var>                <var>string</var>
+${<var>var</var>:+<var>string</var>}  <var>string</var>              null
+${<var>var</var>:=<var>string</var>}  $<var>var</var>                <var>string</var> 
+                                    (and run <var>var</var>=<var>string</var>)
+${<var>var</var>:?<var>string</var>}  $<var>var</var>                (echo <var>string</var> and then exit)
+</example>
+Here, the colon `:' in all of these operators is actually optional.
+<list compact>
+<item>With `:' = operator test for "exist" and "not null".
+<item>Without `:' = operator test for "exist" only.
+</list>
+<p>
+Basic <strong>parameter substitutions</strong> to remember:
+<example compact>
+    Form        Result
+${<var>var</var>&percnt;<var>suffix</var>}   Remove smallest <var>suffix</var> pattern
+${<var>var</var>&percnt;&percnt;<var>suffix</var>}  Remove largest <var>suffix</var> pattern
+${<var>var</var>#<var>prefix</var>}   Remove smallest <var>prefix</var> pattern
+${<var>var</var>##<var>prefix</var>}  Remove largest <var>prefix</var> pattern
+</example>
+
+<sect1 id="shell-redirect">Shell 重導向
+<p>
+需要記住的基本<strong>重導向 (redirection)</strong>用法 (在此 [<var>n</var>] 表示可選參數)：
+<example compact>
+[<var>n</var>]&gt; <var>file</var>      將標準輸出 (或 <var>n</var>) 重導至 <var>file</var> 。
+[<var>n</var>]&gt;&gt; <var>file</var>     將標準輸出 (或 <var>n</var>) 附加至 <var>file</var> 。
+[<var>n</var>]&lt; <var>file</var>      由 <var>file</var> 重導至標準輸入 (或 <var>n</var>)。
+[<var>n1</var>]&gt;&amp;<var>n2</var>       將標準輸出 (或 <var>n1</var>) 重導至 <var>n2</var> 。
+2&gt; <var>file</var> &gt;&2    將標準輸出和錯誤訊息重導至 <var>file</var> 。
+| <var>command</var>      將標準輸出通過管道 (pipe) 傳遞給 <var>command</var>。
+2&gt;&1 | <var>command</var> 將標準輸出和錯誤訊息通過管道傳遞給 <var>command</var>。
+</example>
+
+<sect1 id="shell-cond">Shell 條件式
+<p>
+每條命令均可返回一個 <strong>退出狀態</strong>，這個狀態值可用於條件敘述式：
+<list compact>
+<item>成功： 0 (True)
+<item>錯誤： 1&ndash;255 (False)
+</list>
+注意該用法，返回值 0 用來表示 "true" 與計算機其它領域中常見的表示是不同的。另外 
+`[' 等同於使用 <prgn>test</prgn> 命令，並將至 `]' 間的文字當成參數，所以相當於一
+個條件表達式。
+<p>
+Basic <strong>conditional idioms</strong> to remember are:
+<example compact>
+<var>command</var> && <var>if_success_run_this_command_too</var>
+<var>command</var> || <var>if_not_success_run_this_command_instead</var>
+
+if [ <var>conditional_expression</var> ]; then  
+ <var>if_success_run_this_command</var>
+else
+ <var>if_not_success_run_this_command</var>
+fi
+</example>
+<p>
+<strong>File</strong> comparison operators in the conditional expression are:
+<example compact>
+-e <var>file</var>         True if <var>file</var> exists.
+-d <var>file</var>         True if <var>file</var> exists and is a directory.
+-f <var>file</var>         True if <var>file</var> exists and is a regular file.
+-w <var>file</var>         True if <var>file</var> exists and is writable.
+-x <var>file</var>         True if <var>file</var> exists and is executable.
+<var>file1</var> -nt <var>file2</var> True if <var>file1</var> is newer than <var>file2</var>. (modification)
+<var>file1</var> -ot <var>file2</var> True if <var>file1</var> is older than <var>file2</var>. (modification)
+<var>file1</var> -ef <var>file2</var> True if they are the same device and inode numbers.
+</example>
+<p>
+<strong>String</strong> comparison operators in the conditional expression are:
+<example compact>
+     -z <var>str</var>    True if the length of <var>str</var> is zero.
+     -n <var>str</var>    True if the length of <var>str</var> is non-zero.
+<var>str1</var> == <var>str2</var>   True if the strings are equal.
+<var>str1</var> =  <var>str2</var>   True if the strings are equal.
+    ("=" should be used in place of "==" for strict POSIX compliance) 
+<var>str1</var> != <var>str2</var>   True if the strings are not equal.
+<var>str1</var> &lt;  <var>str2</var>   True if <var>str1</var> sorts before <var>str2</var> (locale dependent).
+<var>str1</var> &gt;  <var>str2</var>   True if <var>str1</var> sorts after <var>str2</var> (locale dependent).
+</example>
+<p>
+<strong>Arithmetic</strong> integer comparison operators in the 
+conditional expression are <tt>-eq</tt>, <tt>-ne</tt>, <tt>-lt</tt>, 
+<tt>-le</tt>, <tt>-gt</tt>, and <tt>-ge</tt>.
+</sect1>
+
+<sect1 id="clprocess">Command-line processing
+<p>
+The shell processes a script as follows:
+<list compact>
+<item>split into <strong>tokens</strong> by the metacharacters: SPACE, TAB, NEWLINE, ;, (, ), &lt;, &gt;, |, &amp;
+<item>check <strong>keyword</strong> if not within "..." or '...' (loop)
+<item>expand <strong>alias</strong> if not within "..." or '...' (loop)
+<item>expand <strong>brace</strong>, <tt>a{1,2}</tt> -> <tt>a1 a2</tt>, if not within "..." or '...'
+<item>expand <strong>tilde</strong>, ~<var>user</var> -> <var>user</var>'s home 
+directory, if not within "..." or '...'
+<item>expand <strong>parameter</strong>, $<var>PARAMETER</var>, if not within '...'
+<item>expand <strong>command substitution</strong>, $(<var>command</var>), if not within '...'
+<item>split into <strong>words</strong> with $IFS if not within "..." or '...'
+<item>expand *?[] in <strong>pathname</strong> if not within "..." or '...'
+<item>look up <strong>command</strong>
+<list compact>
+<item>function
+<item>built-in
+<item>file in $PATH
+</list>
+<item>loop
+</list>
+<p>
+Single quotes within double quotes have no effect.
+
+</sect1>
+
+</sect>
+
+<sect>Awk
+<p>
+References for Awk:
+<list compact>
+<item><em>Effective awk Programming</em>, 3rd edition (O'Reilly)
+<item><em>Sed &amp; awk</em>, 2nd edition (O'Reilly)
+<item><manref name="mawk" section="1"> and <manref name="gawk" section="1">
+<item><tt>info gawk</tt>
+</list>
+<p>
+Short program example (creates <prgn>newusers</prgn> command entry):
+<example>
+#!/usr/bin/awk -f
+# Script to create a file suitable for use in the 'newusers' command,
+# from a file consisting of user IDs and passwords in the form:
+# first_name last_name password
+# Copyright (c) KMSelf Sat Aug 25 20:47:38 PDT 2001
+# Distributed under GNU GPL v 2, or at your option, any later version.
+# This program is distributed WITHOUT ANY WARRANTY.
+
+BEGIN {
+    # Assign starting UID, GID
+    if ( ARGC &gt; 2 ) {
+        startuid = ARGV[1]
+        delete ARGV[1]
+    }
+    else {
+        printf( "Usage:  newusers startUID file\n" \
+          "  where:\n" \ 
+          "    startUID is the starting userid to add, and\n" \
+          "    file is an input file in form:\n" \
+          "      first_name last_name password\n" \
+        )
+        exit
+    }
+
+    infile = ARGV[1]
+    printf( "Starting UID: &percnt;s\n\n", startuid )
+}
+
+/^#/ { next }
+
+{
+    ++record
+    first = $1
+    last = $2
+    passwd = $3
+    user= substr( tolower( first ), 1, 1 ) tolower( last )
+    uid = startuid + record - 1
+    gid = uid
+    printf( "&percnt;s:&percnt;s:&percnt;d:&percnt;d:&percnt;s &percnt;s,,/home/&percnt;s:/bin/bash\n",  \
+        user, passwd, uid, gid, first, last, user \
+        )
+}
+</example>
+<p>
+Two packages provide POSIX <package>awk</package> in &debian;:
+<list compact>
+ <item><package>mawk</package>
+ <list compact>
+  <item>Priority: required
+  <item>Installed-Size: 228
+  <item>Smaller and much faster&mdash;good for default install
+  <item>Compile-time limits exist
+  <list compact>
+   <item>NF = 32767
+   <item>sprintf buffer = 1020
+  </list>
+ </list>
+ <item><package>gawk</package>
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 1708
+  <item>Larger and featureful&mdash;many extensions implemented
+  <list compact>
+   <item>System V Release 4 version of UNIX
+   <item>Bell Labs awk
+   <item>GNU-specific
+  </list>
+ </list>
+</list>
+</sect>
+
+<sect>Perl
+<p>
+這是 Unix-like 環境中最重要的直譯器。
+<p>
+Perl 參考資料：
+<list compact>
+<item><manref name="perl" section="1">
+<item><em>Programming Perl</em>, 3rd edition (O'Reilly)
+</list>
+<p>
+簡短的程式範例 (creates <prgn>newusers</prgn> command entry):
+<example>
+#!/usr/bin/perl
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+$pid=1000;
+while (&lt;STDIN&gt;) {
+        if (/^#/) { next;}
+        chop;
+        $pid++;
+        ($n1, $n2, $n3) = split / /;
+        print $n1,"_",$n2,":", $n3, ":",$pid,
+                  ":",$pid,",,,/home/",$n1,"_",$n2,":/bin/bash\n"
+}
+</example>
+<p>
+安裝 Perl 模組 (model) <var>module_name</var>:
+<example>
+# perl -MCPAN -e 'install <var>module_name</var>'
+</example>
+ 
+</sect>
+
+<sect>Python
+<p>
+It's a nice object-oriented interpreter.
+<p>
+References for Python:
+<list compact>
+<item><manref name="python" section="1">
+<item><em>Learning Python</em> (O'Reilly).
+</list>
+<p>
+Short program example (creates <prgn>newusers</prgn> command entry):
+<example>
+#! /usr/bin/env python
+import sys, string
+
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+# Ported from awk script by KMSelf Sat Aug 25 20:47:38 PDT 2001
+# This program is distributed WITHOUT ANY WARRANTY.
+
+def usages():
+    print \
+"Usage:  ", sys.argv[0], " start_UID [filename]\n" \
+"\tstartUID is the starting userid to add.\n" \
+"\tfilename is input filename. If not specified, standard input.\n\n" \
+"Input file format:\n"\
+"\tfirst_name last_name password\n"
+                return 1
+
+def parsefile(startuid):
+    #
+    # main filtering
+    #
+    uid = startuid
+    while 1:
+        line = infile.readline()
+        if not line:
+            break
+        if line[0] == '#':
+            continue
+        (first, last, passwd) = string.split(string.lower(line))
+        # above crashes with wrong # of parameters :-)
+        user = first[0] + last
+        gid = uid
+        lineout = "&percnt;s:&percnt;s:&percnt;d:&percnt;d:&percnt;s &percnt;s,,/home/&percnt;s:/bin/bash\n" &percnt;  \
+            (user, passwd, uid, gid, first, last, user)
+        sys.stdout.write(lineout)
+        +uid
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        usages()
+    else:
+        uid = int(sys.argv[1])
+        #print "# UID start from: &percnt;d\n" &percnt; uid
+        if len(sys.argv) &gt; 1:
+            infilename   = string.join(sys.argv[2:])
+            infile = open(infilename, 'r')
+            #print "# Read file from: &percnt;s\n\n" &percnt; infilename
+        else:
+            infile = sys.stdin
+        parsefile(uid)
+</example>
+</sect>
+
+<sect>Make
+<p>
+Make 參考資料：
+<list compact>
+<item><tt>info make</tt>
+<item><manref name="make" section="1">
+<item><em>Managing Projects with make</em>, 2nd edition (O'Reilly)
+</list>
+<p>
+簡單自動變量：
+<p>
+規則 (rule) 的語法：
+<example>
+<var>target</var>: [ <var>prerequisites</var> ... ]
+ [TAB]  <var>command1</var>
+ [TAB]  -<var>command2</var> # 忽略錯誤
+ [TAB]  @<var>command3</var> # 抑制 echo
+</example>
+這裡的 <tt>[TAB]</tt> 就是一個 TAB 。
+在 <prgn>make</prgn> 完成變量代換後，將用 shell 逐行進行解釋。
+在行尾使用 <tt>\</tt> 可以續行。使用 <tt>$$</tt> 可在 shell script 的環境中輸入 
+<tt>$</tt> 。
+<p>
+適用於 <var>target</var> 和 <var>prerequisites</var> 的<strong>隱含規則 (Implicit
+rules)</strong>，如下的例子：
+<example>
+&percnt;: &percnt;.c header.h
+</example>
+或，
+<example>
+&percnt;.o: &percnt;.c header.h
+</example>
+在此， <var>target</var> 包含了 <tt>&percnt;</tt> (exactly one of them)，
+<tt>&percnt;</tt>可匹配實際的 target 檔名中任何的非空子串。
+<var>prerequisites</var> 同樣也使用 <tt>&percnt;</tt> 來顯示它們的名字是如何關聯
+到實際的 target 檔名的。
+<p>
+<strong>後綴規則 (Suffix rules)</strong> 是用來定義 <prgn>make</prgn> 的隱含規則
+的<strong>過時</strong>的方法。GNU <prgn>make</prgn> 因為相容性的考慮仍支持它，
+但只要有可能就應該使用與之等價的規則：
+<example>
+舊的後綴規則 --&gt; 新的規則
+.c:             --&gt; &percnt;  : &percnt;.c
+.c.o:           --&gt; &percnt;.o: &percnt;.c
+</example>
+規則中的自動變量：
+<example>
+foo.o: new1.c new2.c old1.c new3.c
+$@ == foo.o                         (target)
+$< == new1.c                        (第一個)
+$? == new1.c new2.c new3.c          (有更新的)
+$^ == new1.c new2.c old1.c new3.c   (所有的)
+$* == 在 target 中 `&percnt;' 所匹配的文字。
+</example>
+變數參考：
+<example>
+foo1 := bar    # 舊時的 expansion
+foo2  = bar    # 遞迴的 expansion
+foo3 += bar    # 附加
+SRCS := $(wildcard *.c)
+OBJS := $(foo:c=o)
+OBJS := $(foo:&percnt;.c=&percnt;.o) 
+OBJS := $(patsubst &percnt;.c,&percnt;.o,$(foo)) 
+DIRS  = $(dir directory/filename.ext) # Extracts "directory"
+ $(notdir NAMES...), $(basename NAMES...), $(suffix NAMES...) ...
+</example>
+執行 <tt>make -p -f/dev/null</tt> 可查看內部自動規則。
+</sect>
+
+<sect>C
+<p>
+Preparation:
+<example>
+# apt-get install glibc-doc manpages-dev libc6-dev gcc
+</example>
+<p>
+References for C:
+<list compact>
+<item><tt>info libc</tt> (C library function reference)
+<item><manref name="gcc" section="1">
+<item><manref name="each_C_library_function_name" section="3">
+<item>Kernighan &amp; Ritchie, <em>The C Programming Language</em>, 
+ 2nd edition (Prentice Hall).
+</list>
+<p>
+
+<sect1>Simple C program (<prgn>gcc</prgn>)
+<p>
+A simple example to compile <file>example.c</file> with a library
+<file>libm</file> into an executable <prgn>run_example</prgn>:
+<example>
+$ cat &gt; example.c &lt;&lt; EOF
+#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv, char **envp){
+        double x;
+        char y[11];
+        x=sqrt(argc+7.5);
+        strncpy(y, argv[0], 10); /* prevent buffer overflow */
+        y[10] = '\0'; /* fill to make sure string ends with '\0' */
+        printf("&percnt;5i, &percnt;5.3f, &percnt;10s, &percnt;10s\n", argc, x, y, argv[1]);
+        return 0;
+}
+EOF
+$ gcc -Wall -g -o run_example example.c -lm
+$ ./run_example
+        1, 2.915, ./run_exam,     (null)
+$ ./run_example 1234567890qwerty
+        2, 3.082, ./run_exam, 1234567890qwerty
+</example>
+Here, <tt>-l<strong>m</strong></tt> is needed to link library
+<file>lib<strong>m</strong></file> for <prgn>sqrt()</prgn>.  The actual library is in
+<file>/lib/</file> with filename <file>libm.so.6</file>, which is a symlink to
+<file>libm-2.1.3.so</file>.
+<p>
+Look at the last parameter in the output text.  There are more than 10
+characters even though <tt>&percnt;10s</tt> is specified.  
+<p>
+The use of pointer memory operation functions without boundary checks, such as
+<prgn>sprintf</prgn> and <prgn>strcpy</prgn>, is deprecated to prevent buffer
+overflow exploits that leverage the above overrun effects.  Instead, use
+<prgn>snprintf</prgn> and <prgn>strncpy</prgn>.
+</sect1>
+
+<sect1>除錯
+
+<sect2>用 <prgn>gdb</prgn> 來除錯
+<p>
+準備工作：
+<example>
+# apt-get install gdb
+</example>
+<p>
+<prgn>gdb</prgn> 參考資料：
+<list compact>
+<item><tt>info gdb</tt> (tutorial)
+<item><manref name="gdb" section="1">
+</list>
+<p>
+使用 <prgn>gdb</prgn> 的 <tt>-g</tt> 選項可以用來除錯已編譯的程式。
+很多命令都可以縮寫。 Tab expansion 的功能和在 shell 一樣。
+<example>
+$ gdb program
+(gdb) b 1                # 在第一行設中斷點
+(gdb) run <var>arg1 arg2 arg3</var> # 執行程式
+(gdb) next               # 下一行
+...
+(gdb) step               # 單步前進
+...
+(gdb) p parm             # 印出 parm 
+...
+(gdb) p parm=12          # 設定其值為 12
+</example>
+<p>
+在 Emacs 下做除錯的工作，請參閱 <ref id="editkey">。
+</sect2>
+
+<sect2 id="ss-ldd">檢查函式庫相依關係
+<p>
+使用 <prgn>ldd</prgn> 可查看程式相依的函式庫：
+<example>
+$ ldd /bin/ls
+        librt.so.1 => /lib/librt.so.1 (0x4001e000)
+        libc.so.6 => /lib/libc.so.6 (0x40030000)
+        libpthread.so.0 => /lib/libpthread.so.0 (0x40153000)
+        /lib/ld-linux.so.2 => /lib/ld-linux.so.2 (0x40000000)
+</example>
+所以在 <prgn>chroot</prgn> 的環境下要使用 <prgn>ls</prgn>，上列的函式庫都必需在
+你的<prgn>chroot</prgn> 的環境可用才行。
+<p>
+下面的命令也很有用：
+<list compact>
+<item><prgn>strace</prgn>: 追蹤系統呼叫和訊息 (signal)
+<item><prgn>ltrace</prgn>: 追蹤函式庫呼叫
+</list>
+</sect2>
+ 
+<sect2>用記憶體漏失偵測工具來進行除錯
+<p>
+&debian;中有幾個記憶體漏失偵測工具。
+<p>
+<list compact>
+<item><package>njamd</package>
+<item><package>valgrind</package>
+<item><package>dmalloc</package>
+<item><package>electric-fence</package>
+<item><package>memprof</package>
+<item><package>memwatch</package> (沒有包成套件，可在 
+ <url id="&memwatch-home;" name="GNU memwatch"> 取得。)
+<item><package>mpatrol</package>
+<item><package>leaktracer</package>
+<item><package>libgc6</package>
+<item><tt>Insure++</tt> from 
+  <url id="&parasofthome;" name="Parasoft">. (non-free, commercial for fee)
+</list>
+<p>
+也可參閱 <url id="&mallocdebughome;" 
+  name="Debugging Tools for Dynamic Storage Allocation and Memory Management">.
+
+<sect1>Flex &ndash; 更好的 Lex
+<p>
+<prgn>flex</prgn> 是一個快速的字詞分析產生器。
+<p>
+<prgn>flex</prgn> 的參考資料：
+<list compact>
+<item><tt>info flex</tt> (tutorial)
+<item><manref name="flex" section="1">
+</list>
+<p>
+需要提供你自己的 <prgn>main()</prgn> 和 <prgn>yywrap()</prgn> ，
+或者你的 <prgn>program.l</prgn> 在不用 library 時應該看起來看像這樣 
+(<prgn>yywrap</prgn>是一個巨集；<tt>&percnt;option main</tt> 隱含地打開了 <tt>&percnt;option noyywrap</tt>)：
+<example>
+&percnt;option main
+&percnt;&percnt;
+.|\n    ECHO ;
+&percnt;&percnt;
+</example>
+另外，還可以在 <prgn>cc</prgn> 命令行末尾加上 -<tt>lfl</tt> 連接器的選項來進行編譯 
+(就像 AT&amp;T-Lex 使用 <tt>-ll</tt> 一樣)，此時就不需要 <tt>&percnt;option</tt> 了。
+</sect1>
+
+<sect1>Bison &ndash; 更好的 Yacc
+<p>
+&debian; 中有幾個套件提供了與 Yacc 兼容的 LALR 文法分析生成器：
+<p>
+<list compact>
+ <item><package>bison</package>: GNU LALR 文法分析產生器
+ <item><package>byacc</package>: The Berkeley LALR 文法分析產生器
+ <item><package>byyacc</package>: Backtracking parser generator based on <package>byacc</package>
+</list>
+<p>
+<prgn>bison</prgn> 的參考資料：
+<list compact>
+<item><tt>info bison</tt> (tutorial)
+<item><manref name="bison" section="1">
+</list>
+<p>
+需要提供自己的 <prgn>main()</prgn> 和 <prgn>yyerror()</prgn> 。
+<prgn>main()</prgn> 呼叫 <prgn>yyparse()</prgn> ，而 <prgn>yyparse()</prgn> 呼叫 <prgn>yylex()</prgn> ，
+通常由 FleX 創建。
+<example>
+&percnt;&percnt;
+
+&percnt;&percnt;
+</example>
+</sect1>
+
+<sect1>Autoconf
+<p>
+<prgn>autoconf</prgn> 一個 shell script 生成工具，由它生成的 script 能自動設定軟體源碼套件，
+以適用於各種使用完整 GNU build 系統的 UNIX-like 系統。
+<p>
+<prgn>autoconf</prgn> 會生成設定 script <prgn>configure</prgn>。
+<prgn>configure</prgn> 使用 <prgn>Makefile.in</prgn> 模版來自動建立適合的 <prgn>Makefile</prgn>。
+
+<sect2>編譯和安裝程式
+<p>
+&debian; 不會改動 <file>/usr/local</file> 下的文件 (參閱 <ref id="diverse">)。
+所以如果是從源碼來編譯程式，並將其安裝到 <file>/usr/local</file> 下，就不會影響到 &debian;。
+<example>
+$ cd src
+$ ./configure --prefix=/usr/local
+$ make
+$ make install # 這會把檔案放到系統中
+</example>
+
+<sect2>反安裝程式
+<p>
+如果你仍保有源碼，而且是用 <prgn>autoconf</prgn>/<prgn>automake</prgn>，
+並且你記得是如何進行設定的話：
+<example>
+$ ./configure <var>all-of-the-options-you-gave-it</var>
+# make uninstall
+</example>
+<p>
+另一種方法是，如果可以確定安裝過程將檔案都放在了 <file>/usr/local</file> ，
+並且該目錄下沒有什麼別的重要文件，可用下面的命令將其全部刪除：
+<example>
+# find /usr/local -type f -print0 | xargs -0 rm -f
+</example>
+如果不能確定文件安裝到什麼位置，最好使用 <package>checkinstall</package> ，
+可提供明確用來反安裝的路徑。
+</sect1>
+
+</sect>
+
+<sect>Document preparation
+<p>
+
+<sect1><tt>roff</tt> typesetting
+<p>
+Traditionally, <tt>roff</tt> is the main Unix text processing system.
+<p>
+See <manref name="roff" section="7">,
+<manref name="groff" section="7">,
+<manref name="groff" section="1">,
+<manref name="grotty" section="1">,
+<manref name="troff" section="1">,
+<manref name="groff_mdoc" section="7">,
+<manref name="groff_man" section="7">,
+<manref name="groff_ms" section="7">,
+<manref name="groff_me" section="7">,
+<manref name="groff_mm" section="7">, and
+<tt>info groff</tt>.
+<p>
+A good tutorial on <prgn>-me</prgn> macros exists.
+If you have <package>groff</package> (1.18 or newer), find <file>&f-meintro;</file> and
+do the following:
+<example>
+$ zcat &f-meintro; | \
+     groff -Tascii -me - | less -R
+</example>
+The following will make a completely plain text file:
+<example>
+$ zcat &f-meintro; | \
+    GROFF_NO_SGR=1 groff -Tascii -me - | col -b -x &gt; <var>meintro.txt</var>
+</example>
+For printing, use PostScript output.
+<example>
+$ groff -Tps <var>meintro.txt</var> | lpr
+$ groff -Tps <var>meintro.txt</var> | mpage -2 | lpr
+</example>
+
+
+
+
+<sect1>SGML
+<p>
+Preparation:
+<example>
+# apt-get install debiandoc-sgml debiandoc-sgml-doc
+</example>
+References for <package>debiandoc-sgml</package>:
+<list compact>
+<item><file>&f-debiandoc-sgml;</file>
+<item><manref name="debiandoc-sgml" section="1">
+<item><em>DocBook: The Definitive Guide</em>, by Walsh and Muellner (O'Reilly)
+</list>
+<p>
+SGML enables management of multiple formats of a document. One easy SGML
+system is Debiandoc, which is used here. This requires minor conversion from
+original text files for the following characters:
+<!-- nbsp bug in PDF ? -->
+<list compact>
+<item>"&lt;" --&gt; <tt>&amp;lt;</tt>
+<item>"&gt;" --&gt; <tt>&amp;gt;</tt>
+<item>"&nbsp;" --&gt; <tt>&amp;nbsp;</tt>  (nonbreakable space)
+<item>"&amp;" --&gt; <tt>&amp;amp;</tt>
+<item>"&percnt;" --&gt; <tt>&amp;percnt;</tt>
+<item>"&copy;" --&gt; <tt>&amp;copy;</tt>
+<item>"&ndash;" --&gt; <tt>&amp;ndash;</tt>
+<item>"&mdash;" --&gt; <tt>&amp;mdash;</tt>
+</list>
+<p>
+To mark a section as a nonprintable comment, enter:
+<example>
+&lt;!-- State issue here ... --&gt;
+</example>
+To mark a section with a switchable comment, enter:
+<example>
+&lt;![ &percnt;FIXME; [ State issue here ... ]]&gt;
+</example>
+In SGML, the <em>first definition</em> of an entity wins.  For example:
+<example>
+&lt;!entity &percnt; qref "INCLUDE"&gt;
+&lt;![ &percnt;qref; [ &lt;!entity param "Data 1"&gt; ]]&gt;
+&lt;!entity param "Data 2"&gt;
+&amp;param;
+</example>
+This ends up as "Data 1".  If the first line has "IGNORE" instead of
+"INCLUDE", this ends up as "Data 2" (the second line is a conditional
+statement).  Also, repeating phrases can be defined in advance 
+separately from the context.
+<example>
+&lt;!entity <var>whoisthis</var> "my"&gt;
+Hello &amp;<var>whoisthis</var>; friend.
+This is &amp;<var>whoisthis</var>; book.
+</example>
+This results in the following:
+<example>
+Hello my friend.
+This is my book.
+</example>
+See the short SGML example <file>sample.sgml</file> in the 
+<url id="&examples;" name="examples">.
+<p>
+When SGML documents become bigger, sometimes TeX may cause errors.
+You must increase pool size in <file>/etc/texmf/texmf.cnf</file> (or more
+appropriately edit <file>/etc/texmf/texmf.d/95NonPath</file> and 
+run <prgn>update-texmf</prgn>) to fix this.
+</sect>
+
+<sect id="packaging">包裝套件
+<p>
+準備工作：
+<example>
+# apt-get install &p-debian-policy; &p-developers-reference; \
+                  &p-maint-guide; dh-make debhelper
+# apt-get install packaging-manual # 如果是 Potato
+</example>
+包裝套件的參考資料：
+<list compact>
+ <item><ref id="pkg-basics"> (basics)
+ <item>Debian New Maintainers' Guide (tutorial)
+ <item><manref name="dh-make" section="1">
+ <item>Debian Developer's Reference (best practice)
+ <item>Debian Policy Manual (authoritative)
+ <item>Packaging Manual (Potato) 
+</list>
+
+<sect1 id="pack-binary">包裝一個單一二進位套件
+<p>
+Joey Hess 的單一二進位套件快速粗糙的打包法：
+<example>
+# mkdir -p mypkg/usr/bin mypkg/DEBIAN
+# cp binary mypkg/usr/bin
+# cat &gt; mypkg/DEBIAN/control
+Package: mypackage
+Version: 1
+Architecture: i386
+Maintainer: Joey Hess &lt;joeyh@debian.org&gt;
+Description: my little package
+ Don't expect much.
+^D
+# dpkg-deb -b mypkg
+</example>
+
+<sect1 id="pack-dh-make">使用工具來進行包裝工作
+<p>
+使用 <package>dh-make</package> 套件中的 <prgn>dh_make</prgn> 來建立一個基本的套件。
+接著按照 <manref name="dh-make" section="1"> 中描述的方法進行。
+會用到 <prgn>debian/rules</prgn> 中的 <prgn>debhelper</prgn> 。
+<p>
+一個較老的方法是使用 <package>debmake</package> 套件中的 <prgn>deb-make</prgn> 。
+不需要 <prgn>debhelper</prgn> script，僅需要 shell 就行了。
+<p>
+有關多重源碼套件 (multiple-source) 的例子，參閱 "mc" （<tt>dpkg-source -x mc_4.5.54.dsc</tt>) ，
+其中用到 Adam Heath(<email>doogie@debian.org</email>) 的 "sys-build.mk" 以及 "glibc" (<tt>dpkg-source -x glibc_2.2.4-1.dsc</tt>) ，它使用到已故的 Joel Klecker(<email>espy@debian.org</email>) 所寫的另一個系統。
+</sect>
+
+</chapt>

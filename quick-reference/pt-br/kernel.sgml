@@ -1,0 +1,381 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.51"   -->
+
+<chapt id="kernel">O kernel Linux no Debian
+<p>
+O Debian tem o seu próprio método de recompilar o kernel e módulos
+relacionados. Consulte também <ref id="kernel-details">.
+
+<sect id="kernel-compile">Recompilação do Kernel
+<p>
+O uso do <prgn>gcc</prgn>, <prgn>binutils</prgn> e
+<prgn>modutils</prgn> do Debian <tt>unstable</tt> pode ajudar
+quando compilamos o mais novo kernel Linux.  
+Consulte <file>&f-kernel-readme;</file>, especialmente o final do mesmo
+para a informação oficial.
+<p>
+Uma vez que trata-se de um alvo em movimento, a compilação do kernel é um
+assunto dificil e até os mais admiráveis desenvolvedores podem ficar
+confusos:
+<taglist compact>
+<tag>Manoj Srivastava escreveu:
+<item><tt>--initrd</tt> requer um patch do cramfs somente para Debian.
+<tag>Herbert Xu escreveu:
+<item>Não não precisa, tudo o que você precisa fazer para usar outro
+sistema de arquivos diferente do CRAMFS é definir MKIMAGE em
+<file>/etc/mkinitrd/mkinitrd.conf</file>.
+</taglist>
+<p>
+Seja cuidadoso e sempre conte com <file>&f-kernel-readme;</file> 
+de Manoj e Kent. Certifique-se de obter a versão mais nova instável
+do pacote <package>kernel-package</package> caso esteja compilando
+a versão mais nova do kernel.
+<p>
+O <tt>initrd</tt> não é necessário para um kernel compilado somente para
+uma máquina. Eu uso-o uma vez que eu queira que meu kernel seja quase o
+mesmo que o kernel fornecido pelo kernel-image.  Caso você use
+<tt>initrd</tt>, certifique-se de ler <manref name="mkinitrd" section="8">
+e <manref name="mkinitrd.conf" section="5">.  Consulte também 
+<url id="&bug-initrd;">.
+
+<sect1 id="kernel-debian">Método Debian padrão
+<p>
+Fique atento aos relatórios de bugs do <package>kernel-package</package>,
+<prgn>gcc</prgn>, <prgn>binutils</prgn> e <prgn>modutils</prgn>.
+Use uma nova versão deles se necessário.
+<p>
+Compilar um kernel personalizado a partir dos fontes em um sistema Debian
+requer cuidado especial. Use o novo <tt>--append_to_version</tt> com o
+<prgn>make-kpkg</prgn> para construir múltiplas imagens do kernel.
+<example>
+# apt-get install debhelper modutils kernel-package libncurses5-dev
+# apt-get install kernel-source-<var>2.4.18</var>   # Use a versão mais nova
+# apt-get install fakeroot
+# vi /etc/kernel-pkg.conf                # Coloque seu nome e e-mail
+$ cd /usr/src                            # diretório de compilação
+$ tar --bzip2 -xvf kernel-source-<var>2.4.18</var>.tar.bz2
+$ cd kernel-source-<var>2.4.18</var>                # Caso esse seja seu fonte do kernel
+$ cp /boot/config-<var>2.4.18-386</var> .config     # use a configuração atual por padrão
+$ make menuconfig                        # personalize-a como quiser
+$ make-kpkg clean                        # deve ser executado (conforme: man make-kpkg)
+$ fakeroot make-kpkg --append_to_version -<var>486</var> --initrd \
+        --revision=<var>rev.01</var> kernel_image \
+        modules_image # modules_image é para pcmcia-cs*, etc.
+$ cd ..
+# dpkg -i kernel-image*.deb pcmcia-cs*.deb # instala
+</example>
+<tt>make-kpkg kernel_image</tt> na verdade faz um <tt>make oldconfig</tt>
+e um <tt>make dep</tt>. Não use <tt>--initrd</tt> caso não esteja usando um initrd.
+<p>
+Se quiser usar módulos de pcmcia-cs ou não usar pcmcia, deve-se  selecionar
+"General setup  &mdash;&gt;" para "PCMCIA/CardBus support  &mdash;&gt;" no
+<tt>make menuconfig</tt> e definir a configuração para
+"&lt;&nbsp;&gt; PCMCIA/CardBus support" (ou seja, desmarque a caixa).
+<p>
+Em uma máquina SMP, defina CONCURRENCY_LEVEL de acordo com 
+<manref name="kernel-pkg.conf" section="5">.
+</sect1>
+
+<sect1 id="kernel-classic">Método clássico
+<p>
+Obtenha os fontes originais de :
+<list compact>
+<item>Linux:     <url id="&linuxsrc;">
+<item>pcmcia-cs: <url id="&pcmciasrc;">
+</list>
+ou use os fontes equivalentes no Debian e faça o seguinte :
+<example>
+# cd /usr/src
+# tar xfvz linux-<var>qualquercoisa</var>.tar.gz
+# rm -rf linux
+# ln -s linux-<var>qualquercoisa</var> linux
+# tar xfvz pcmcia-cs-<var>qualquercoisa</var>.tar.gz
+# ln -s pcmcia-cs-<var>qualquercoisa</var> pcmcia
+# cd linux
+# make menuconfig
+... coisas do configure ...
+# make dep
+# make bzImage
+... edite para o lilo / grub ...
+... mova /usr/src/linux/arch/i386/boot/bzImage para boot ...
+... /sbin/lilo ou seja lá o que você faz para o grub
+# make modules; make modules_install
+# cd ../pcmcia
+# make config
+# make all
+# make install
+... adicione os nomes dos módulos necessários em /etc/modules
+# shutdown -r now
+... inicie com o novo kernel ...
+</example>
+</sect1>
+
+<sect1 id="kernel-headers">Cabeçalhos do kernel
+<p>
+A maioria dos programas "normais" não precisa de cabeçalhos do kernel
+e, de fato, podem ter problemas se você usá-los diretamente; ao invés
+disso eles devem ser compilados com os mesmos cabeçalhos com os quais
+a <strong><prgn>glibc</prgn> foi compilada</strong>, os quais são as
+versões em <file>/usr/include/linux</file> e <file>/usr/include/asm</file>
+do sistema &debian;.
+<p>
+Portanto não coloque ligações simbólicas para os diretórios em
+<file>/usr/src/linux</file> de <file>/usr/include/linux</file> e
+<file>/usr/include/asm</file>, como sugerido por algumas documentações
+antigas.
+<p>
+Caso você <strong>precise</strong> de cabeçalhos de kernel particulares
+por alguns programas específicos de kernel, altere o(s)
+<file>Makefile</file>(s) para que o(s) mesmo(s) inclua(m) caminhos apontando
+para <file><var>diretório-dos-cabeçalhos-de-kernel-específicos</var>/include/linux</file>
+e <file><var>diretório-dos-cabeçalhos-de-kernel-específicos</var>/include/asm</file>.
+</sect1>
+
+</sect>
+
+<sect id="kernel-modules">O kernel 2.4 modularizado
+<p>
+Os novos kernels Debian 2.4 fornecidos por kernel-image-2.4.<var>NN</var>
+são bem modulares. Você tem que se certificar que estes módulos estejam
+ativados para fazer com que o kernel funcione da maneira que você
+pretende.
+<p>
+Apesar de existirem muitos exemplos para <file>/etc/modules</file> na
+seção a seguir como uma rápida correção, eu ouvi que a maneira correta de
+corrigir estes problemas relacionados a módulos é fornecer um alias para o
+dispositivo em um arquivo em <file>/etc/modutils/</file> uma vez que
+existem aliases o bastante disponíveis com os kernels atuais.
+<p>
+Consulte <file>Documentation/*.txt</file> nos fontes do kernel Linux para
+informação precisa.
+
+<sect1 id="kernel-pcmcia">PCMCIA
+<p>
+O arquivo <file>/etc/modules</file> precisa conter o conteúdo a seguir
+para que PCMCIA funcione :
+<example>
+# driver ISA PnP
+isa-pnp
+# Driver PCMCIA baixo-nível
+# yenta_socket # não parece ser necessário em meu caso
+</example>
+O restante é gerenciado pelos scripts PCMCIA ( do pacote
+<package>pcmcia-cs</package>), <prgn>depmod</prgn> e <prgn>kmod</prgn>. 
+Eu acho que precisei do <prgn>isa-pnp</prgn> devido ao meu laptop ser um
+antigo ISA-PCMCIA. Laptops atuais com CardBus/PCMCIA podem não requerer
+isso. 
+<p>
+Voz do generoso Miquel van Smoorenburg
+<email>miquels@cistron.nl</email>:
+<p>
+"Eu simplesmente removi todas as coisas pcmcia do laptop aqui no
+trabalho , incluindo o cardmgr, etc, e só instalei um kernel 2.4
+com suporte cardbus e o novo pacote <package>hotplug</package> do
+woody.
+<p>
+Contanto que você possua somente cartões 32-bit você não precisa do
+pacote pcmcia; o kernel 2.4 possui o cardservices embutido.
+E o driver tulip padrão deve funcionar bem com seu cartão Dlink.
+<p>
+&mdash;Mike."
+</sect1>
+
+<sect1 id="kernel-scsi">SCSI
+<p>  <!-- Osamu: maybe test this section? I do not have SCSI :(  
+                                     But this is almost sure :) -->
+[NÃO TESTADO] O arquivo <file>/etc/modules</file> precisa conter o que se
+segue para que SCSI funcione :
+<example>
+# SCSI core
+scsi_mod
+# SCSI generic driver
+sg
+# SCSI disk
+sd_mod
+# Todos os outros módulos de HW necessários
+...
+</example>
+O <prgn>depmod</prgn> pode cuidar de alguns dos módulos acima.
+</sect1>
+
+<sect1 id="kernel-net">Função de rede
+<p>
+O arquivo <file>/etc/modules</file> precisa conter o que se segue para
+função extra de rede :
+<example>
+# net/ipv-4
+ip_gre
+ipip
+
+# net/ipv-4/netfilter
+# iptable (em ordem)
+ip_tables
+ip_conntrack
+ip_conntrack_ftp
+iptable_nat
+iptable_filter
+iptable_mangle
+#
+ip_nat_ftp
+ip_queue
+#
+ipt_LOG
+ipt_MARK
+ipt_MASQUERADE
+ipt_MIRROR
+ipt_REDIRECT
+ipt_REJECT
+ipt_TCPMSS
+ipt_TOS
+ipt_limit
+ipt_mac
+ipt_mark
+ipt_multiport
+ipt_owner
+ipt_state
+ipt_tcpmss
+ipt_tos
+ipt_unclean
+#
+#ipchains
+#ipfwadm
+</example>
+O precedente pode não estar otimizado. O <prgn>depmod</prgn> pode cuidar
+de alguns dos módulos acima.
+</sect1>
+
+<sect1 id="ext3">Sistema de arquivos EXT3 ( &gt; 2.4.17)
+<p>
+Habilitar um sistema de arquivo com journaling com o FS EXT3 envolve os
+seguintes passos usando um pacote kernel-image ( &gt; 2.4.17) Debian
+pré-compilado :
+<example>
+# cd /etc; mv fstab fstab.old
+# sed 's/ext2/ext3,ext2/g' &lt;fstab.old &gt;fstab
+# vi /etc/fstab
+... defina o tipo de sistema de arquivos do sistema de arquivos raiz para
+... "auto" ao invés de "ext3,ext2"
+# cd /etc/mkinitrd
+# echo jbd &gt;&gt;modules
+# echo ext3 &gt;&gt;modules
+# echo ext2 &gt;&gt;modules
+# cd /
+# apt-get update; apt-get install kernel-image-<var>2.4.17-686-smp</var>
+... instale o último kernel e configure a inicialização (lilo é executado aqui)
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... Para todos os sistemas de arquivos EXT2 convertidos para EXT3
+# shutdown -r now
+</example>
+Agora o journaling EXT3 está habilitado.
+Usar <tt>ext3,ext2</tt> como a entrada "type" do <prgn>fstab</prgn>
+garante um fallback seguro para EXT2 caso o kernel não suporte EXT3
+para partições não-raíz.
+<p>
+Caso você tenha instalado um kernel 2.4 anteriormente e não deseja
+reinstalar, execute os passos acima até os comandos <prgn>apt-get</prgn>
+e então :
+<example>
+# mkinitrd -o /boot/initrd.img-<var>2.4.17-686-smp</var> /lib/modules/<var>2.4.17-686-smp</var>
+# lilo
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... para todos os sistemas de arquivos EXT2 convertidos para EXT3
+# shutdown -r now
+</example>
+Agora journaling EXT3 está habilitado. 
+<p>
+Caso <file>/etc/mkinitrd/modules</file> não estivesse configurado quando o
+<prgn>mkinitrd</prgn> foi executado e você quisesse adicionar alguns
+módulos em tempo de inicialização :
+<example>
+... no prompt initrd para ganhar o shell (5 segundos), digite RETURN
+# insmod jbd
+# insmod ext3 # modprobe ext3 pode cuidar de tudo
+# insmod ext2
+# ^D
+... continue iniciando
+</example>
+Na tela de inicialização do sistema (<prgn>dmesg</prgn>),
+"cramfs: wrong magic" pode aparecer mas é conhecido que isso é
+inofensivo. Este problema foi resolvido no Sarge (2002/10). Consulte
+<url id="&bug-ext3;"> e o <url id="&howtoext3;" name="mini-HOWTO do
+Sistema de Arquivos EXT3"> ou <file>&f-howtoext3;</file> para maiores
+informações.
+<p>
+Foi reportado que alguns sistemas experienciam severos travamentos
+de kernel caso EXT3 esteja habilitado mas eu não tive problemas (até
+o kernel 2.4.17).
+</sect1>
+
+<sect1 id="ss-rtl8139">Suporte Realtek RTL-8139 no kernel 2.4
+<p>
+Por alguma razão, o módulo para suporte a RTL-8139 não é mais chamado
+rtl8139, ele é agora chamado 8139too.  Somente edite seu arquivo
+<file>/etc/modules</file> para refletir esta mudança quando atualizando
+um kernel 2.2 para um kernel 2.4.
+</sect1>
+
+<sect1 id="parport">Suporte a porta paralela
+<p>
+Para <package>kernel-image-2.4.*</package>, o suporte a porta paralela é
+fornecido como um módulo. Habilite-o usando :
+<example>
+# modprobe lp
+# echo lp >> /etc/modules
+</example>
+Consulte <file>Documentation/parport.txt</file> nos fontes do kernel Linux.
+
+</sect1>
+</sect>
+
+<sect id="proc-sys">Ajustando o kernel pelo sistema de arquivos proc
+<p>
+O comportamento do kernel Linux pode ser modificado durante a execução,
+através do sistema de arquivos proc.
+<p>
+Para obter informações básicas sobre modificação dos parâmetros do
+kernel através do sistema de arquivos <file>proc</file>, leia os fontes
+do Linux em <file>Documentation/sysctl/*</file>.
+<p>
+Veja alguns exemplos de manipulações de parâmetros do kernel em
+<file>/etc/init.d/networking</file> and <ref id="killecn">.
+
+<sect1 id="many-files">Muitos arquivos abertos
+<p>
+O kernel Linux pode reclamar "Too many open files" (ou,
+"Muitos arquivos abertos"). Isto é devido ao pequeno valor padrão (8096)
+para <tt>file-max</tt>. Para corrigir esse problema, execute os comandos a
+seguir como root (ou coloque-os dentro de um script de inicialização em 
+<file>/etc/rcS.d/*</file>.
+<example>
+# echo "65536"  &gt; /proc/sys/fs/file-max  # para kernel 2.2 e 2.4
+# echo "131072" &gt; /proc/sys/fs/inode-max # somente para kernel 2.2
+</example>
+
+<sect1 id="bdflush">Intervalos de sincronização (flush) de disco
+<p>
+Você pode mudar os intervalos de sincronização (flush) do disco através do
+sistema de arquivos proc. O seguinte diminuirá esse intervalo do padrão
+de 5 segundos para 1 segundo.
+<example>
+# echo "40 0 0 0 100 30000 60 0 0"  &gt; /proc/sys/vm/bdflush
+</example>
+Isso pode ter um pequeno impacto negativo no desempenho de I/O de
+arquivo. Mas isso assegura os conteúdos dos arquivos exceto para o
+último segundo, o que é mais curto que o padrão de 5 segundos. Isso é
+verdadeiro mesmo para o sistema de arquivos journaling.
+</sect1>
+
+<sect1 id="over-commit">Máquina de pouca memória antiga e preguiçosa
+<p>
+Para alguns sistemas antigos de pouca memória, ainda pode ser útil
+habilitar sobre-envio (over-commit) de memória através do sistema de
+arquivos proc:
+<example>
+# echo 1 &gt; /proc/sys/vm/overcommit_memory
+</example> 
+</sect1>
+
+</sect>
+</chapt>

@@ -1,0 +1,330 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.30"  -->
+<!--Line width ruler (ruler uses 78 characters)     34567890123456789012345-->
+
+<chapt id="vcs">系统版本控制
+
+<sect id="cvs">CVS
+<p>
+有关的详细信息可使用<prgn>lynx</prgn>查阅<file>/usr/share/doc/cvs/html-cvsclient</file>，<file>/usr/share/doc/cvs/html-info</file>，<file>/usr/share/doc/cvsbook</file>或执行<tt>info cvs</tt>及<tt>man cvs</tt>。
+
+<sect1 id="cvs-inst">安装CVS服务器
+<p>
+以下步骤配置的服务器，仅允许“src”用户组的成员访问CVS容器，并且仅“staff”用户组的成员才可管理CVS，这样做可以降低管理者不小心犯错的机率。
+<example>
+# cd /var/lib; umask 002 ; sudo mkdir cvs # [Woody] FSH
+# apt-get install cvs cvs-doc cvsbook
+# export CVSROOT=<var>/var/lib/cvs</var>
+# cd $CVSROOT
+# chown root:src .  # 设置为"staff"可加强对新建项目行为的限制
+# chmod 3775 .             # 如果上面的赋值为"staff"，则使用2775
+# cvs -d <var>/var/lib/cvs</var> init # 在此明确地指定-d更安全
+# cd CVSROOT
+# chown -R root:staff .
+# chmod 2775 .
+# touch val-tags 
+# chmod 664 history val-tags
+# chown root:src history val-tags
+</example>
+<p>
+</sect1>
+
+<sect1 id="cvs-examples">CVS会话例子
+<p>
+下面我们来设置shell环境以便访问CVS容器。
+
+<sect2>匿名CVS（仅用于下载）
+<p>
+只读远程访问：
+<example>
+$ export CVSROOT=:pserver:<var>anonymous@cvs.qref.sf.net:/cvsroot/qref</var>
+$ cvs login
+$ cvs -z3 co <var>qref</var>
+</example>
+</sect2>
+
+<sect2>使用本地CVS服务器
+<p>
+通过同一台机器上的shell进行本地访问：
+<example>
+$ export CVSROOT=<var>/var/lib/cvs</var>
+</example>
+</sect2>
+
+<sect2>使用远程CVS pserver
+<p>
+非SSH（在<prgn>cvs</prgn>中使用RSH协议）远程访问：
+<example>
+$ export CVSROOT=:pserver:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+$ cvs login
+</example>
+易受窍听攻击。
+</sect2>
+
+<sect2>通过<prgn>ssh</prgn>使用远程CVS
+<p>
+通过SSH进行远程访问：
+<example>
+$ export CVSROOT=:ext:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+</example>
+或连接Sourceforge：
+<example>
+$ export CVSROOT=:ext:<var>account@cvs.qref.sf.net:/cvsroot/qref</var>
+</example>
+亦可使用RSA认证（<ref id="ssh-rsa">），它不需要密码提示。
+</sect2>
+
+<sect2>新建CVS档案
+<p>
+要建立如下的档案，
+<example>
+ITEM              VALUE                    MEANING
+source tree:      ~/<var>project-x</var>              All source codes
+Project name:     <var>project-x</var>                Name for this project
+Vendor Tag:       <var>Main-branch</var>              Tag for the entire branch
+Release Tag:      <var>Release-original</var>         Tag for a specific release
+</example>
+则，
+<example>
+$ cd ~/<var>project-x</var>                 # 进源码目录
+ ... 创建源码树 ...
+$ cvs import -m <var>"Start project-x" project-x Main-branch Release-initial</var>
+$ cd ..; rm -R ~/<var>project-x</var>
+</example>
+</sect2>
+
+<sect2>使用CVS
+<p>
+使用本地CVS容器来为<var>project-x</var>工作：
+<example>
+$ cd                            # 转到工作域
+$ cvs co <var>project-x</var>              # 从CVS下载源码到本地
+$ cd <var>project-x</var>
+ ... 修改源码内容 ...
+$ cvs diff -u                   # 相当于diff -u repository/ local/
+$ cvs up -C <var>modified_file</var>       # 撤消对文件地修改
+$ cvs ci -m "<var>Describe change</var>"   # 保存本地源码到CVS
+$ vi <var>newfile_added</var>
+$ cvs add <var>newfile_added</var>
+$ cvs ci -m "<var>Added newfile_added</var>"
+$ cvs up                        # 从CVS合并最新版本
+ ... watch out for lines starting with "C <var>filename</var>"
+ ... unmodified code is moved to `.#<var>filename</var>.version'.
+ ... Search "&lt;&lt;&lt;&lt;&lt;&lt;&lt;" and "&gt;&gt;&gt;&gt;&gt;&gt;&gt;" in <var>filename</var>.
+$ cvs tag <var>Release-1</var>             # 添加release tag
+ ... edit further ...
+$ cvs tag -d <var>Release-1</var>          # 移除release tag
+$ cvs ci -m "<var>more comments</var>"
+$ cvs tag <var>Release-1</var>             # 重新添加release tag
+$ cd                            # 返回工作域
+$ cvs co -r <var>Release-initial</var> -d <var>old</var> <var>project-x</var>
+ ... get original version to <var>old</var> directory
+$ cd old
+$ cvs tag -b <var>Release-initial-bugfixes</var> # 创建branch (-b) tag
+ ... Now you can work on the old version (Tag=sticky)
+$ cvs update
+ ... Source tree now has sticky tag "Release-initial-bugfixes"
+ ... Work on this branch
+$ cvs up # sync with files modified by others on this branch
+$ cvs ci -m "<var>check into this branch</var>"
+$ cvs update -kk -A
+ ... Remove sticky tag and forget contents
+ ... Update from main trunk without keyword expansion
+$ cvs update -kk -j <var>Release-initial-bugfixes</var>
+ ... Merge from <var>Release-initial-bugfixes</var> branch into the main 
+ ... trunk without keyword expansion.  Fix conflicts with editor.
+$ cvs ci -m "<var>merge Release-initial-bugfixes</var>"
+$ cd
+$ tar -cvzf <var>old-project-x.tar.gz</var> <var>old</var>     # make archive, -j for bz2
+$ cvs release -d <var>old</var>               # 删除本地源码（可选）
+</example>
+应该记住的几个选项（用作<prgn>cvs</prgn>命令行的第一个参数）：
+<example>
+-n      dry run, no effect
+-t      display messages showing steps of cvs activity
+</example>
+</sect2>
+
+<sect2>从CVS取文件
+<p>
+要从CVS获得最新版本，用“tomorrow”：
+<example>
+$ cvs ex -D tomorrow <var>module_name</var>
+</example>
+</sect2>
+
+<sect2>管理CVS
+<p>
+为项目添加别名（本地服务器）：
+<example>
+$ su - admin           # staff用户组成员
+$ export CVSROOT=<var>/var/lib/cvs</var>
+$ cvs co CVSROOT/modules
+$ cd CVSROOT
+$ echo "<var>px</var> -a <var>project-x</var>" &gt;&gt;modules
+$ cvs ci -m "<var>Now px is an alias for project-x</var>"
+$ cvs release -d .
+$ exit                 # 按control-D从su返回
+$ cvs co -d <var>project</var> <var>px</var> 
+ ... check out <var>project-x</var> (alias:<var>px</var>) from CVS to directory project
+$ cd project
+ ... make changes to the content ...
+</example>
+</sect2>
+
+<sect1 id="cvs-trouble">CVS常见问题及解决方法
+
+<sect2>容器中的文件权限
+<p>
+CVS不会覆盖当前容器中的文件，而是用另一个文件替换它。因此，<em>对容器目录的写权限</em>是很危险的权限。所以在新建容器时，请运行下面的命令，确保权限合适。
+<example>
+# cd <var>/var/lib/cvs</var>
+# chown -R root:src <var>repository</var>
+# chmod -R ug+rwX   <var>repository</var>
+# chmod    2775     <var>repository</var>  # if needed, this and subdirectory
+</example>
+</sect2>
+
+<sect2>执行标记（execution bit）
+<p>
+当文件被别人取走后会保留执行标记，任何时候你遇到外出文件存在执行权限问题，可用下面的命令在CVS容器中修改文件权限。
+<example>
+# chmod ugo-x <var>filename</var>
+</example>
+</sect2>
+
+</sect1>
+
+<sect1 id="cvs-short">CVS命令
+<p>
+这儿是一些CVS命令的用法简介。
+<example>
+{add|ad|new} [-k kflag] [-m 'message'] files...
+{admin|adm|rcs} [rcs-options] files...
+{annotate|ann} [options] [files...]
+{checkout|co|get} [options] modules...
+{commit|ci|com}   [-lnR]  [-m  'log_message'  |  -f  file] \
+        [-r revision] [files...]
+{diff|di|dif} [-kl] [rcsdiff_options] [[-r rev1 | -D date1] \
+        [-r rev2 |  -D date2]] [files...]
+{export|ex|exp} [-flNn] -r rev|-D date [-d dir] [-k kflag] module...
+{history|hi|his} [-report] [-flags] [-options args] [files...]
+{import|im|imp} [-options] repository vendortag releasetag...
+{login|logon|lgn}
+{log|lo|rlog} [-l] rlog-options [files...]
+{rdiff|patch|pa} [-flags] [-V vn] [-r t|-D d [-r t2|-D d2]] modules...
+{release|re|rel} [-d] directories...
+{remove|rm|delete} [-lR] [files...]
+{rtag|rt|rfreeze} [-falnR]  [-b]  [-d]  [-r  tag  |  -D  date] \
+         symbolic_tag modules...
+{status|st|stat} [-lR] [-v] [files...]
+{tag|ta|freeze} [-lR] [-F] [-b] [-d] [-r tag | -D date]  [-f] \
+         symbolic_tag [files...]
+{update|up|upd} [-AdflPpR] [-d] [-r tag|-D date] files...
+</example>
+</sect1>
+
+<sect id="svn">Subversion
+<p>
+Subversion是下一代版本控制系统，它将替代CVS。当前开发者称它还处于“alpha”阶段，但对大多数用户而言它已足够稳定了。到本文档写作之时，Subversion仅在Debian unstable版中可用。
+<sect1 id="svn-inst">安装Subversion服务器
+<p>
+The <package>subversion-server</package> meta-package依赖一些关联包（<package>libapache2-dav-svn</package>和<package>subversion-tools</package>）来配置服务器。
+<sect2>创建容器
+<p>
+当前，<package>subversion</package>软件包无法创建容器，所以用户需要手工创建它们。通常可在<file>/var/local/repos</file>下创建容器。
+<p>
+创建目录：
+<example>
+# mkdir -p /var/local/repos
+</example>
+创建容器数据库：
+<example>
+# svnadmin create /var/local/repos
+</example>
+将容器的写权限赋给www server：
+<example>
+# chown -R www-data:www-data /var/local/repos
+</example>
+</sect2>
+<sect2>配置Apache2
+<p>
+通过用户认证授权访问容器，添加（或去掉注释符）下列内容到<file>/etc/apache2/mods-available/dav_svn.conf</file>：
+<example>
+&lt;Location /repos&gt;
+  DAV svn
+  SVNPath /var/local/repos
+  AuthType Basic
+  AuthName "Subversion repository"
+  AuthUserFile /etc/subversion/passwd
+  &lt;LimitExcept GET PROPFIND OPTIONS REPORT&gt;
+    Require valid-user
+  &lt;LimitExcept&gt;
+&lt/Location&gt
+</example>
+接着，使用下面的命令创建用户认证文件：
+<example>
+htpasswd2 -c /etc/subversion/passwd some-username
+</example>
+重启Apache2，就可以使用URLhttp://<var>hostname</var>/repos来访问新的subversion容器了。
+</sect2>
+</sect1>
+<sect1 id="svn-cvs">将CVS容器迁移到Subversion
+</sect1>
+<sect1 id="svn-usage">Subversion用法样例
+<p>
+下面的小节将教你如何在subversion下使用各种命令。
+
+<sect2>创建新的Subversion档案
+<p>
+创建新的subversion档案，输入下面的命令：
+<example>
+$ cd ~/<var>your-project</var>         # 进你的源码目录
+$ svn import http://localhost/repos <var>your-project</var> \
+  <var>project-name</var> -m "initial project import"
+</example>
+<p>
+这将在你的subversion容器下创建一个名为<var>project-name</var>的目录，用来存放你的项目文件。查看http://localhost/repos/它是否在那儿？
+</sect2>
+
+<sect2>使用subversion
+<p>
+用subversion来管理<var>project-y</var>：
+<example>
+$ cd                            # 转到工作域
+$ svn co http://localhost/repos/<var>project-y</var>  # 提取源码
+$ cd <var>project-y</var>
+ ... 完成一些工作 ...
+$ svn diff                      # 相当于diff -u repository/ local/  
+$ svn revert <var>modified_file</var>      # 撤消对文件所做的修改
+$ svn ci -m "<var>Describe changes</var>"  # 将你做的修改保存到容器中
+$ vi <var>newfile_added</var>
+$ svn add <var>newfile_added</var>
+$ svn add <var>new_dir</var>               # 将所有的文件嵌套式地加到new_dir
+$ svn add -N <var>new_dir2</var>           # 非嵌套式地添加目录
+$ svn ci -m "Added <var>newfile_added</var>, <var>new_dir</var>, <var>new_dir2</var>"
+$ svn up                        # 从容器中合并最新的版本
+$ svn log                       # 显示所有修改记录
+$ svn copy http://localhost/repos/<var>project-y</var> \
+      http://localhost/repos/<var>project-y-branch</var> \
+      -m "creating my branch of <var>project-y</var>"  # branching <var>project-y</var>
+$ svn copy http://localhost/repos/<var>project-y</var> \
+      http://localhost/repos/<var>proj-y_release1.0</var> \
+      -m "<var>project-y</var> 1.0 release"    # added release tag
+ ... note that branching and tagging are the same. The only difference
+ ... is that branches get committed whereas tags do not.
+
+ ... make changes to branch ...
+
+$ # merge branched copy back to main copy
+$ svn merge http://localhost/repos/<var>project-y</var> \
+   http://localhost/repos/<var>project-y-branch</var>
+$ svn co -r 4 http://localhost/repos/<var>project-y</var> # get revision 4
+</example>
+
+</sect2>
+
+</sect1>
+</sect>
+</chapt>
+

@@ -1,0 +1,297 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.30"  -->
+
+<chapt id="gateway"> Construindo um gateway com um sistema &debian;
+
+<p>
+O &debian; oferece uma máquina gateway para todos os propósitos, a qual
+gerencia NAT, mail, DHCP, cache DNS, HTTP proxy cache, CVS, NFS e
+serviços Samba para um sistema LAN doméstico. Consulte
+<url id="&netfilterhome;" name="Netfilter">, onde muitos tópicos
+de configuração de rede são explicados.
+
+<sect>Configuração de rede
+<p>
+
+<sect1 id="ip-class">Configuração de host para o gateway
+<p>
+A LAN usa endereços IP para as seguintes faixas de rede privadas para
+evitar colisão de endereços IP com a Internet.
+<example>
+Class A: 10.0.0.0                    com máscara 255.0.0.0
+Class B: 172.16.0.0 - 172.31.0.0     com máscara 255.255.0.0
+Class C: 192.168.0.0 - 192.168.255.0 com máscara 255.255.255.0
+</example>
+<p>
+O &debian; usa o arquivo <file>/etc/network/interfaces</file> para configuração IP.
+<p>
+Por exemplo, caso a interface <file>eth0</file> conecte à Internet com um
+endereço IP fornecido via DHCP e a interface <file>eth1</file> conecte a
+LAN, o arquivo <file>/etc/network/interfaces</file> é configurado como a seguir
+(para o Woody e posteriores) :
+<example>
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet static
+address 192.168.1.1
+network 192.168.1.0
+netmask 255.255.255.0
+broadcast 192.168.1.255
+</example>
+Execute o comando a seguir para atualizar a configuração de rede para o
+novo arquivo <file>/etc/network/interfaces</file> :
+<example>
+# /etc/init.d/networking restart
+</example>
+Lembrete : o arquivo <file>/etc/network/interfaces</file> no Woody e em
+versões posteriores não é compatível com o Potato. (O mesmo situação pode
+acontecer entre o Sarge e o Woody.)
+<p>
+Caso o sistema use uma placa de rede PCMCIA, é necessário configurar a
+rede através do arquivo <file>/etc/pcmcia/network.opts</file> ao invés do
+arquivo indicado anteriomente em sistemas Potato. Em sistema Woody, esse
+problema foi solucionado.
+<p>
+Confira a saída dos comandos a seguir caso esteja em dúvida :
+<example>
+# ifconfig
+# cat /proc/pci
+# cat /proc/interrupts
+# dmesg | more
+</example>
+Algumas vezes,  conexões DSL (PPPoE) possuem problemas de MTU. Consulte o
+documento LDP <url id="&dsl-howto;" name="DSL-HOWTO">. Caso você tenha
+problemas com certos websites, consulte <ref id="killecn">.
+</sect1>
+
+<sect1 id="ip-check">Pontos de checagem de configuração de rede
+<p>
+Conjunto típico de programas :
+<example>
+# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
+# apt-get install ssh cvs
+</example>
+<p>
+Então confira os seguintes arquivos :
+<example>
+/etc/init.d/dhcpd       (edite para servir somente LAN = eth1)
+/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) para NFS
+/etc/exports            (Esse é preciso para NFS)
+/etc/bind/db.192.168.1  (adicione)
+/etc/bind/db.lan        (adicione)
+/etc/bind/named.conf    (edite)
+/etc/resolv.conf        (edite)
+/etc/hosts
+/etc/dhcpd.conf         (edite para LAN = eth1)
+/etc/dhclient.conf      (edite para forçar DNS local)
+/etc/samba/smb.conf
+/etc/exim/exim.conf
+/etc/mailname
+/etc/aliases
+/etc/squid.conf         (adicione todos os IPs dos hosts da LAN como permitidos)
+</example>
+O <prgn>bind</prgn> cria um servidor de cache DNS local. Mude o DNS para
+localhost. Confira o arquivo <file>/etc/resolv.conf</file> :
+<example>
+nameserver 127.0.0.1
+search lan.aokiconsulting.com
+</example>
+</sect1>
+
+<sect id="netfilter">Configuração Netfilter
+<p>
+O projeto netfilter/iptables é um subsistema de firewalling para o kernel
+Linux 2.4 e superiores.
+Consulte <url id="&netfilterhome;" name="Netfilter">, onde muitos tópicos
+de configuração de rede são explicados.
+
+<sect1 id="netfilter-basics">Básico do netfilter
+<p>
+O  Netfilter processa pacotes usando 5 chains embutidas :
+PREROUTING, INPUT, FORWARD, OUTPUT e POSTROUTING.
+<example>
+                decisão de
+                roteamento
+IN ------> PRE ---> ------> FORWARD -----> ----> POST -----> OUT
+interface  ROUTING  \       filter       /       ROUTING     interface
+           DNAT     |       tracking     ^       SNAT
+           REDIRECT |                    |       MASQUERADE
+                    v                    |
+                  INPUT                OUTPUT
+                    | filter             ^ filter,DNAT 
+                    v                    |
+                    \--&gt; Processo Local --/
+                        programas user-space
+</example>
+
+<sect1 id="netfilter-table">Tabela Netfilter
+<p>
+Os pacotes são processados em cada chain embutida usando as seguintes
+tabelas.
+<list compact>
+<item>filter (filtro de pacotes, padrão)
+<list compact>
+<item>INPUT (para pacotes entrando na própria máquina)
+<item>FORWARD (para pacotes sendo roteados através da máquina)
+<item>OUTPUT (para pacotes gerados localmente).
+</list>
+<item>nat (tradução de endereços de rede)
+<list compact>
+<item>PREROUTING (para alterar pacotes no momento que eles chegam)
+<item>OUTPUT (para alterar pacotes gerados localmente antes do roteamento)
+<item>POSTROUTING (para alterar pacotes quando eles estão prestes a saírem)
+</list>
+<item>mangle ("mangling" de endereços de rede, bom somente após o kernel 2.4.18)
+<list compact>
+<item>todas as 5 chains embutidas.
+</list>
+</list>
+
+<sect1 id="netfilter-target">Alvo Netfilter
+<p>
+Regras de firewall possuem diversos alvos :
+<list compact>
+<item>4 alvos básicos :
+<list compact>
+<item>ACCEPT significa deixar o pacote passar.
+<item>DROP significa descartar o pacote.  
+<item>QUEUE significa passar o pacote para o userspace (caso suportado pelo kernel).
+<item>RETURN significa parar de atravessar esta chain e continuar na próxima
+regra na chain anterior (a chain que chamou esta).  
+</list>
+<item>alvos extendidos :
+<list compact>
+<item>LOG liga o logging do kernel.
+<item>REJECT envia como resposta um pacote de erro e descarta o pacote.
+<item>SNAT altera o endereço de origem de pacote e é usado somente na
+  chain POSTROUTING. (somente tabela nat)
+<example compact>
+--to-source  endereçoip[-endereçoip][:porta-porta]
+</example>
+<item>MASQUERADE é o mesmo que SNAT mas para conexões com endereços IP
+  atribuídos dinamicamente (discadas). (somente tabela nat)
+<example compact>
+--to-ports porta[-porta]
+</example>
+<item>DNAT altera o endereço de destino do pacote e é usado nas chains
+  PREROUTING e OUTPUT e em chains definidas pelo usuário que são
+  chamadas somente a partir destas chains. (somente tabela nat)
+<example compact>
+--to-destination endereçoip[-endereçoip][:porta-porta]
+</example>
+<item>REDIRECT altera o endereço IP de destino para enviar o pacote para
+  a própria máquina.
+<example compact>
+--to-ports porta[-porta]
+</example>
+</list>
+</list>
+
+<sect1 id="netfilter-command">Comandos Netfilter
+<p>
+Os comandos básicos do <prgn>iptables</prgn> são :
+<example compact>
+iptables -N <var>chain</var>                   # cria uma <var>chain</var>
+
+iptables -A <var>chain</var> \                 # adiciona regra na <var>chain</var>
+         -t <var>tabela</var> \                # usa <var>tabela</var> (filter, nat, mangle)
+         -p <var>protocolo</var> \             # tcp, udp, icmp ou all,
+         -s <var>endereço-origem[/máscara]</var> \
+         --sport <var>porta[:porta]</var> \    # porta de origem caso -p seja tcp ou udp
+         -d <var>endereço-origem[/máscara]</var> \
+         --dport <var>porta[:porta]</var> \    # porta de destino caso -p seja tcp ou udp
+         -j <var>alvo</var> \                  # o que fazer se o pacote casar
+         -i <var>nome-interface-entrada</var> \# para INPUT,  FORWARD, PREROUTING
+         -o <var>nome-interface-saída</var>    # para FORWARD, OUTPUT, POSTROUTING
+</example>
+
+<sect1 id="ip-masq">Mascaramento de IP
+<p>
+Máquinas na LAN podem acessar os recursos da Internet através de um
+gateway que executa mascaramento de IP (NAT) compartilhando um único
+endereço IP acessível externamente.
+<example>
+# apt-get install ipmasq
+</example>
+Aplique as regras de exemplo para aumentar a proteção do
+<prgn>ipmasq</prgn>. Consulte
+<file>/usr/share/doc/ipmasq/examples/stronger/README</file>.
+Para imagens de kernel Debian 2.4 , certifique-se de carregar os módulos
+apropriados. Consulte <ref id="kernel-net"> para conhecer a configuração
+necessária.
+<p>
+Para imagens de kernel Debian 2.2, edite o <file>Z92timeouts.rul</file>
+em <file>/etc/masq/rules</file> como a seguir para assegurar uma conexão
+mais longa para sites remotos (bom para grandes e-mails, etc.) :
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - padrão
+# 1 day, 10 min, 10 min - exemplo mais longo
+$IPCHAINS -M -S 86400 600 600
+</example>
+Adicionalmente, caso a rede seja acessada através de uma placa de rede
+PCMCIA, o <prgn>ipmasq</prgn> precisa ser iniciado a partir de
+<file>/etc/pcmcia/network.opts</file>. Leia
+<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
+</sect1>
+
+
+<sect1 id="ip-redirect">Redirecionar conexões SMTP (kernel 2.4)
+<p>
+Suponha que você possua um notebook PC que esteja configurado para usar
+outros ambientes LAN e você queira usar seu agente de mensagens de usuário
+(software de e-mail) no notebook PC sem reconfigurá-lo.
+<p>
+Adicionar as seguintes regras através do comando <prgn>iptables</prgn>
+na máquina gateway irá redirecionar a conexão SMTP para a máquina
+gateway.
+<example>
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25, INPUT está aberto
+</example>
+Para um conjunto de regras de redirecionamento mais completo considere
+instalar o pacote <package>ipmasq</package> e adicionar
+<file><url id="&examples;" name="M30redirect.def"></file> ao diretório
+<file>/etc/ipmasq/rules/</file>.
+
+</sect>
+
+<sect>Gerenciar múltiplas conexões de rede
+<p>
+[FIXME] Política de roteament (por Phil Brutsche
+<email>pbrutsch@tux.creighton.edu</email>):
+Confira o <url id="&iproute;" name="manual iproute"> para maiores
+detalhes. Controle de tráfego (tc) pode também ser interessante.
+<p>
+Ambiente :
+<example>
+eth0: 192.168.1.2/24; gateway 192.168.1.1
+eth1: 10.0.0.2/24; gateway 10.0.0.1
+Sem mascaramento nesta máquina.
+</example>
+Mágica especial :
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
+<p>
+[FIXME] Eu nunca fiz isso. Como configurar a conexão discada como backup
+para uma conexão rápida com recursos de auto-discagem ? Por favor
+enviem-me um patch aqui :)
+</sect>
+
+
+</chapt>

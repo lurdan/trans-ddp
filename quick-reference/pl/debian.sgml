@@ -1,0 +1,1034 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.86"  -->
+
+<!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
+
+<chapt id="package">Zarz±dzanie pakietami Debiana
+
+<p>
+By zmniejszyæ obci±¿enie sieci na serwerach archiwów Debiana, upewnij siê,
+¿e skonfigurowa³e¶ lokalnego po¶rednika HTTP (np. <prgn>squid</prgn>)
+dla pakietów ¶ci±ganych przez APT oraz, je¶li jest taka potrzeba, zmienn±
+¶rodowiskow± <tt>http_proxy</tt> lub ustaw warto¶æ <tt>http</tt> w pliku
+<file>/etc/apt/apt.conf</file>. To znacz±co zwiêkszy wydajno¶æ uaktualnieñ
+przez sieæ, szczególnie wtedy, gdy posiadasz wiele komputerów z Debianem
+w sieci lokalnej.
+<p>
+Pomimo tego, ¿e mo¿liwo¶ci przyszpilania w 
+<manref name="apt_preferences" section="5"> s± wrêcz nieograniczone, nie rozwi±zuje
+ono wszystkich problemów z zale¿no¶ciami, poniewa¿ zazwyczaj wymagaj± one
+najnowszych wersji innych, podstawowych programów.
+<p>
+<![%f-ref;[
+U¿ycie metody opisanej w <ref id="chroot">
+]]>
+<![%q-ref;[
+U¿ycie metody chroot
+]]>
+jest po¿±dane do równoczesnego zabezpieczenia zarówno stabilno¶ci systemu
+jak i dostêpu do najnowszych wersji oprogramowania.
+<p>
+Informacje opisane w tym rozdziale dotycz± systemu Woody, ale wiele z nich
+tyczy siê równie¿ systemu Potato (z wyj±tkiem <manref name="apt_preferences"
+section="5"> i tematów zwi±zanych z <file>/etc/apt/preferences</file>).
+
+<sect id="pkg-intro">Wprowadzenie
+<p>
+Je¶li czytanie dokumentacji dla deweloperów jest dla ciebie zbyt ciê¿kim
+zajêciem, przeczytaj poni¿szy rozdzia³ i zacznij siê cieszyæ prawdziw±
+moc± Debiana w wersji <tt>testing</tt>/<tt>unstable</tt> :-).
+
+<sect1>Podstawowe narzêdzia
+<p>
+<example>
+dselect   &ndash; narzêdzie do zarz±dzania pakietami z menu
+dpkg      &ndash; instaluje pakiet (z pliku)
+apt-get   &ndash; instaluje pakiet (z archiwum, CLI APT)
+tasksel   &ndash; instaluje zadania (zestawy pakietów)
+aptitude  &ndash; instaluje pakiet (pakiet i zadanie, ncurses APT)
+deity     &ndash; alternatywny interfejs ncurses dla APT
+synaptic, gsynaptic &ndash; alternatywne graficzne interfejsy dla APT
+</example>
+Powy¿sze narzêdzia nie dzia³aj± na tym samym poziomie. <prgn>dselect</prgn>
+dzia³a nad APT (polecenie <prgn>apt-get</prgn>) oraz <prgn>dpkg</prgn>.
+<p>
+APT u¿ywa plików <file>/var/lib/lists/*</file> do ¶ledzenia dostêpnych pakietów,
+podczas gdy <prgn>dpkg</prgn> u¿ywa pliku <file>/var/lib/dpkg/available</file>.
+Je¶li zainstalowa³e¶ pakiety u¿ywaj±c bezpo¶rednio <prgn>apt-get</prgn> lub
+podobnego programu (jak np. <prgn>aptitude</prgn>) upewnij siê, ¿e uaktualni³e¶
+plik <file>/var/lib/dpkg/available</file> korzystaj±c z opcji <tt>[U]pdate</tt>
+w menu <prgn>dselect</prgn> lub za pomoc± polecenia ,,<tt>dselect update</tt>''
+przed wywo³aniem <tt>dselect select</tt>, <tt>tasksel</tt> lub <tt>dpkg -l</tt>.
+<p>
+Je¶li chodzi o zale¿no¶ci miêdzy pakietami, <prgn>apt-get</prgn> automatycznie
+¶ci±ga pakiety z jego <strong>zale¿no¶ciami</strong>
+(<strong>depends</strong>), ale nie rusza pakietów podanych w polach
+<strong>recommends</strong> (zaleca) i <strong>suggests</strong> (proponuje),
+podczas gdy <prgn>dselect</prgn> pozwala wybieraæ miêdzy zalecanymi lub
+proponowanymi pakietami. <prgn>aptitude</prgn> pozwala na automatyczne
+¶ci±gniêcie wszystkich pakietów z pól <strong>depends</strong>,
+<strong>recommends</strong> oraz <strong>suggests</strong>.
+<![%f-ref;[
+Zajrzyj równie¿ do rozdzia³u <ref id="depends">.
+]]>
+</sect1>
+
+<sect1>Wygodne narzêdzia
+<p>
+<example>
+apt-cache         - przegl±danie lokalnej kopii archiwum pakietów
+dpkg-reconfigure  - ponowna konfiguracja ju¿ zainstalowanego pakietu
+                   (je¶li korzysta z debconf)
+dpkg-source       - obs³uga pakietów ¼ród³owych
+dpkg-buildpackage - automatyzacja budowania pakietu
+...
+</example>
+</sect1>
+</sect>
+
+<sect id="apt-install">Podstawy zarz±dzania pakietami Debiana
+<p>
+Mo¿esz instalowaæ zestawy pakietów nazywane <em>zadaniami</em> lub
+instalowaæ pojedyncze pakiety albo uaktualniaæ system przy u¿yciu
+narzêdzi do zarz±dzania pakietami, które s± opisane poni¿ej.
+<![%f-ref;[
+Zajrzyj równie¿ na strony
+<ref id="install">, <ref id="woody"> oraz <ref id="bin-editor">.
+]]>
+
+<sect1 id="tasksel">Instalowanie <em>zadañ</em> programem <prgn>tasksel</prgn>
+ lub <prgn>aptitude</prgn>
+<p>
+<prgn>tasksel</prgn> to <strong>Debian Task Installer</strong> (instalator
+zadañ Debiana), który podczas instalacji systemu jest dostêpny jako
+jedna z ,,<tt>prostszych</tt>'' opcji.
+<p>
+Je¶li chcesz zainstalowaæ ca³e ¶rodowisko lub zestaw logicznie ze sob±
+powi±zanych programów, które wymaga wielu pakietów, to ta droga jest
+jedn± z najlepszych. Upewnij siê, ¿e wykonujesz polecenia w nastêpuj±cy
+sposób:
+<example>
+# dselect update
+# tasksel
+</example>
+<p>
+<prgn>aptitude</prgn> równie¿ daje dostêp do <em>zadañ</em>. Pozwala on jednak
+nie tylko na ich wybór, ale równie¿ na rezygnacjê z instalacji poszczególnych
+pakietów z danego <em>zadania</em>.
+</sect1>
+
+<sect1 id="setup-apt">Konfiguracja systemu APT
+<p>
+Dla selektywnej aktualizacji podczas trzymania siê ci±gle dystrybucji
+<tt>testowej</tt>, system APT (&gt;Woody) musi byæ skonfigurowany
+jak w <ref id="woody-transition">, by móc korzystaæ z opcji
+<manref name="apt_preferences" section="5">.
+<p>
+Najpierw dodaj ¼ród³a dla <tt>stable</tt>, <tt>testing</tt>
+i <tt>unstable</tt> do pliku <file>/etc/apt/sources.list</file>,
+a nastêpnie zmodyfikuj plik <file>/etc/apt/preferences</file> tak,
+by ustawiæ poprawne warto¶ci Pin-Priority.
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 500
+
+Package: *
+Pin: release a=testing
+Pin-Priority: 600
+
+Package: *
+Pin: release a=unstable
+Pin-Priority: 50
+</example>
+
+<sect1 id="dselect"><prgn>dselect</prgn>
+<p>
+Zaraz po uruchomieniu <prgn>dselect</prgn> automatycznie wybiera pakiety
+oznaczone jako wymagane (required), wa¿ne (important) oraz standardowe
+(standard). W Potato, niektóre du¿e objêto¶ciowo programy takie jak teTeX
+czy Emacs by³y równie¿ wybierane tutaj i najlepiej by³o je po prostu omijaæ
+(przez rêczne odznaczenie - wpisuj±c `_') przy wstêpnej instalacji.
+W Woodym, powy¿sze pakiety zosta³y przeniesione do kategorii ,,Optional''.
+<p>
+<prgn>dselect</prgn> w pewnym sensie posiada dziwny interfejs u¿ytkownika.
+Dostêpne s± cztery dwuznaczne polecenia (wielko¶æ liter ma znaczenie):
+<example>
+Klawisz     Dzia³anie
+Q           Wyj¶cie. Potwierd¼ obecny wybór i wyjd¼ (zast±p zale¿no¶ci)
+R           Powrót! Nie chcia³em tego zrobiæ.
+D           Cholera! Zwisa mi co o tym my¶li dselect. Po prostu wykonaj to!
+U           Ustaw wszystko na stan ,,sugerowane''
+</example>
+Za pomoc± <tt>D</tt> i <tt>Q</tt> mo¿esz dokonaæ konfliktuj±cego wyboru na
+w³asne ryzyko. U¿ywaj tych poleceñ z rozwag±. Obecnie <prgn>dselect</prgn>
+jest dojrza³ym narzêdziem, które daje Ci ca³kiem du¿± kontrolê nad wyborem
+pomiêdzy pakietami <strong>sugerowanymi</strong>
+a <strong>rekomendowanymi</strong>.
+<p>
+Je¶li chcesz zmniejszyæ ilo¶æ pojawiaj±cych siê ostrze¿eñ i komunikatów,
+to dodaj opcjê ,,expert'' do pliku <file>/etc/dpkg/dselect.cfg</file>.
+Je¿eli posiadasz powolny komputer, to mo¿esz uruchamiaæ <prgn>dselect</prgn>
+na innej, szybszej maszynie do wyszukiwania pakietów, a pó¼niej mo¿esz
+skorzystaæ z polecenia <tt>apt-get install</tt>, by je zainstalowaæ.
+<p>
+<prgn>dselect</prgn> nie daje dostêpu do pakietów, które nie s± preferowane
+przez Pin-Priority.
+</sect1>
+
+<sect1 id="aptitude"><prgn>aptitude</prgn>
+<p>
+<prgn>aptitude</prgn> jest nowym programem do instalowania pakietów podobnym do
+<prgn>dselect</prgn>. Mo¿esz go u¿ywaæ jako zamiennika polecenia tekstowego
+<prgn>apt-get</prgn>. Zobacz te¿ <manref name="aptitude" section="1">.
+<p>
+Wydawanie poleceñ <prgn>aptitude</prgn> odbywa siê za po¶rednictwem
+poszczególnych klawiszy.
+<example>
+Klawisz     Dzia³anie
+F10         Menu
+?           ¦ci±gawka z klawiszologii
+u           Uaktualnij informacje o archiwum pakietów
+g           ¦ci±gnij i zainstaluj wybrane pakiety
+q           Wyjd¼ z danego ekranu i zapamiêtaj zmiany
+x           Wyjd¼ z danego ekranu i porzuæ zmiany
+Enter       Poka¿ informacje o pakiecie
+</example>
+<prgn>aptitude</prgn> umo¿liwia ci automatyczne ¶ci±gniêcie wszystkich
+pakietów bazuj±c na polach <strong>depends</strong>,
+<strong>recommends</strong> oraz <strong>suggests</strong>.
+Mo¿esz zmieniæ to zachowanie wybieraj±c z menu <tt>F10 -> Opcje ->
+Zale¿no¶ci</tt>.
+<p>
+<prgn>aptitude</prgn> daje Ci dostêp do wszystkich dostêpnych wersji pakietów.
+</sect1>
+
+<sect1 id="apt-commands">Polecenia <prgn>apt-cache</prgn> i <prgn>apt-get</prgn>
+<p>
+Podczas ¶ledzenia dystrybucji <tt>testing</tt> jak zosta³o to opisane
+w powy¿szym przyk³adzie, mo¿emy zarz±dzaæ pakietami przy u¿yciu poni¿szych
+poleceñ:
+<list>
+<item><tt>apt-get -u upgrade</tt>
+ <p>Uaktualnia wszystkie pakiety w systemie, wybieraj±c zale¿no¶ci
+ z dystrybucji <tt>testing</tt>.
+<item><tt>apt-get -u dist-upgrade</tt>
+ <p>Uaktualnia wszystkie pakiety w systemie, wybieraj±c
+ i rozwi±zuj±c zale¿no¶ci z dystrybucji <tt>testing</tt>.
+<item><tt>apt-get -u dselect-upgrade</tt>
+ <p>Uaktualnia wszystkie pakiety w systemie korzystaj±c
+ z wyboru dokonanego przez <prgn>dselect</prgn>.
+<item><tt>apt-get -u install <var>pakiet</var></tt>
+ <p>Instaluje <var>pakiet</var> wraz z zale¿no¶ciami
+ z dystrybucji <tt>testing</tt>.
+<item><tt>apt-get -u install <var>pakiet</var>/unstable</tt>
+ <p>Instaluje <var>pakiet</var> z <tt>unstable</tt>, ale zale¿no¶ci
+ pobiera z <tt>testing</tt>.
+<item><tt>apt-get -u install -t unstable <var>pakiet</var></tt>
+ <p>Instaluje <var>pakiet</var> z <tt>unstable</tt> wraz z zale¿no¶ciami
+ z <tt>unstable</tt>, poprzez ustawienie Pin-Priority <tt>unstable</tt> na 990.
+<item><tt>apt-cache policy <var>foo bar ...</var></tt>
+ <p>Sprawdza stan pakietów <var>foo bar ...</var>.
+<item><tt>apt-cache show <var>foo bar ...</var> | less</tt>
+ <p>Wy¶wietla informacje o pakietach <var>foo bar ...</var>.
+<item><tt>apt-get install <var>foo=2.2.4-1</var></tt>
+ <p>Instaluje wybran± wersjê <var>2.2.4-1</var> pakietu <var>foo</var>.
+<item><tt>apt-get -u install <var>foo bar-</var></tt>
+ <p>Instaluje pakiet <var>foo</var> i usuwa pakiet <var>bar</var>
+<item><tt>apt-get remove <var>bar</var></tt>
+ <p>Usuwa pakiet <var>bar</var>, ale zachowuje zmienione pliki konfiguracyjne.
+<item><tt>apt-get remove --purge <var>bar</var></tt>
+ <p>Usuwa pakiet <var>bar</var> wraz ze wszystkimi jego plikami
+ konfiguracyjnymi.
+</list>
+W powy¿szych przyk³adach opcja <tt>-u</tt> wymusza, by <prgn>apt-get</prgn>
+pokaza³ listê pakietów do aktualizacji i poczeka³ na dalsze decyzje u¿ytkownika
+przez przyst±pieniem do dalszych czynno¶ci. Poni¿sze dzia³ania ustawiaj±
+opcjê <tt>-u</tt> jako domy¶ln±:
+<example>
+$ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+// Zawsze pokazuj aktualizowane pakiety (-u)
+APT::Get::Show-Upgraded "true";
+.
+</example>
+<p>
+U¿yj opcji <tt>-s</tt>, by zasymulowaæ aktualizacjê.
+
+<sect1 id="apt-tracking">Pod±¿anie za smakiem dystrybucji &debian;
+<p>
+W zale¿no¶ci od wyboru smaku dystrybucji, mo¿esz zmieniæ przyk³adowy
+plik <file>/etc/apt/preference</file> z <ref id="setup-apt"> tak,
+by odpowiada³ twoim potrzebom:
+<example>
+¶ledzenie stable:            zmieñ Pin-Priority testing na 50
+¶ledzenie testing:           pozostaw bez zmian
+¶ledzenie testing(unstable): zmieñ Pin-Priority unstable na 500
+¶ledzenie unstable(testing): zmieñ Pin-Priority unstable na 800
+</example>
+Zasad± przy ustawianiu warto¶ci Pin-Priority powinno byæ przewijanie warto¶ci z
+góry na dó³ tabeli wraz z up³ywem czasu, od chwili po wydaniu dystrybucji, do
+czasu zamra¿ania przed wydaniem kolejnym.
+<p>
+Uwaga: ¶ledzenie dystrybucji <tt>testing</tt> ma jedn± wadê - poprawki
+bezpieczeñstwa pojawiaj± siê dosyæ pó¼no.
+<p>
+Je¶li mieszasz dystrybucje Debiana, <tt>testing</tt> z <tt>stable</tt> lub
+<tt>unstable</tt> ze <tt>stable</tt>, prawdopodobnie bêdziesz czêsto
+nie¶wiadomie pobieraæ kluczowe pakiety z <tt>testing</tt> lub
+<tt>unstable</tt>, które nie zawsze s± najwy¿szej jako¶ci. Miej to na uwadze.
+<p>
+Przyk³ady pliku <file>/etc/apt/preferences</file>, dziêki którym pobierane
+s± kluczowe pakiety w dojrza³ych wersjach, natomiast pakiety dodatkowe
+mog± byæ w wersjach niestabilnych, znajduj± siê w <url id="&examples;"
+name="katalogu z przyk³adami"> jako pliki <file>preferences.testing</file> i
+<file>preferences.unstable</file>.
+Z drugiej strony, <file>preferences.stable</file> wymusza, by wszystkie wersje
+pakietów zosta³y zmniejszone do wersji stabilnych.
+
+<sect1 id="apt-stable">Obni¿enie wersji wszystkich pakietów do <tt>stable</tt>
+<p>
+By zmniejszyæ wersjê wszystkich pakietów do wydania <tt>stable</tt>,
+ustaw plik <file>/etc/apt/preferences</file> jak poni¿ej:
+<example>
+Package: *
+Pin: release a=stable
+Pin-Priority: 1001
+</example>
+a nastêpnie uruchom ,,<tt>apt-get upgrade</tt>'', które wymusi zmniejszenie
+wersji z powodu Pin-Priority &gt; 1000. Pamiêtaj jednak, ¿e podczas
+tej operacji mog± wyst±piæ problemy z zale¿no¶ciami.
+
+<sect1 id="apt-preferences">Przegl±d pliku <file>/etc/apt/preferences</file>
+<p>
+W przyk³adowym pliku <file>/etc/apt/preferences</file> przedstawionym
+w <ref id="setup-apt">, pierwsza linia, <tt>Package: *</tt>, oznacza, ¿e
+ta regu³ka odnosi siê do wszystkich pakietów. Mo¿esz u¿yæ konkretnej
+nazwy pakietu zamiast gwiazdki, by ustawiæ Pin-Priority dla danego pakietu.
+<p>
+Nastêpna linia, <tt>Pin: release a=stable</tt>, oznacza, ¿e
+<prgn>apt-get</prgn> pobiera plik <file>Packages.gz</file>
+z archiwum zawieraj±cego plik <file>Release</file>, w którym
+znajduje siê linia <tt>Archive: stable</tt>.
+<p>
+Ostatnia linia, <tt>Pin-Priority: 500</tt>, ustala Pin-Priority na 500.
+<p>
+Je¶li jest wiele pakietów o tej samej nazwie, to instalowany jest ten
+z najwy¿sz± warto¶ci± Pin-Priority.
+<p>
+Poni¿ej znajduj± siê oznaczenia Pin-Priority:
+<list>
+<item>1001 i wiêcej: priorytety zmniejszaj±ce wersjê pakietu.
+ <p>Zmniejszanie wersji pakietu jest dozwolone dla tego przedzia³u
+ Pin-Priority.
+<item>100 do 1000: normalne priorytety.
+ <p>Zmniejszanie wersji pakietu jest niedozwolone. Kilka kluczowych
+ warto¶ci Pin-Priority:
+<list>
+<item>990: priorytet ustawiony przez opcjê <tt>--target-release</tt>
+lub <tt>-t</tt> programu <manref name="apt-get" section="8">.
+<item>500: priorytet dla wszystkich domy¶lnych plików pakietów.
+<item>100: priorytet dla obecnie zainstalowanych pakietów.
+</list>
+<item>0 do 99: nieautomatyczne priorytety. (s± one u¿ywane tylko, je¶li
+pakiet nie jest zainstalowany i nie ma ¿adnej dostêpnej wersji)
+<item>mniej ni¿ 0: wersja nigdy nie zostanie wybrana.
+</list>
+Ten sam efekt dzia³ania jak przy <tt>--target-release</tt> mo¿e byæ
+osi±gniêty przez ustawienie pliku
+<file>/etc/apt/apt.conf</file> jak poni¿ej:
+<example>
+# echo 'APT::Default-Release "testing";' &gt;&gt; /etc/apt/apt.conf
+</example>
+Opcja lini poleceñ <tt>--target-release</tt> oraz ustawienia w pliku
+<file>/etc/apt/apt.conf</file> zastêpuj± ustawienia pliku
+<file>/etc/apt/preferences</file>. Miej to na uwadze podczas zabawy
+z plikiem <file>/etc/apt/preferences</file>.
+
+<sect id="survival">Polecenia zapewniaj±ce przetrwanie w Debianie
+<p>
+Posiadaj±c tê wiedzê, mo¿esz cieszyæ siê <strong>nie¶miertelnymi</strong>
+aktualizacjami :-).
+
+<sect1 id="bug-check">Sprawdzanie b³êdów w Debianie i poszukiwanie pomocy
+<P>
+Je¶li masz problemy z konkretnym pakietem, pamiêtaj by najpierw sprawdziæ
+poni¿sze strony zanim bêdziesz szukaæ pomocy lub zg³aszaæ b³±d.
+(<prgn>lynx</prgn>, <prgn>links</prgn> oraz <prgn>w3m</prgn> dzia³aj± tak
+samo dobrze):
+<example>
+$ lynx &bugs;
+$ lynx &bugs;<var>nazwa pakietu</var>   # je¶li znasz nazwê pakietu
+$ lynx &bugs;<var>numer b³êdu</var>     # je¶li znasz numer b³êdu
+</example>
+Szukaj z Google (http://www.google.com/) do³±czaj±c ci±g ,,site:debian.org''.
+<p>
+Je¶li masz w±tpliwo¶ci, to przeczytaj porz±dny podrêcznik. Ustaw zmienn±
+<tt>CDPATH</tt> jak poni¿ej:
+<example>
+export CDPATH=.:/usr/local:/usr/share/doc
+</example>
+i wpisz
+<example>
+$ cd <var>nazwa pakietu</var>
+$ pager README.Debian # je¶li istnieje
+$ mc
+</example>
+<![%f-ref;[
+Wiêcej pomocnych zasobów podanych jest w rozdziale <ref id="support">.
+]]>
+</sect1>
+
+<sect1 id="apt-trouble">Problemy przy aktualizacji APT
+<p>
+Podczas aktualizacji w dystrybucji <tt>niestabilnej</tt>/<tt>testowej</tt>
+mog± wyst±piæ problemy z zale¿no¶ciami miêdzy pakietami tak, jak to zosta³o
+opisane w rozdziale <ref id="upgrade-system">.
+W wiêkszo¶ci przypadków jest to spowodowane tym, ¿e aktualizowany pakiet
+posiada nowe zale¿no¶ci, które nie s± jeszcze spe³nione. W takim przypadku,
+problem mo¿esz rozwi±zaæ u¿ywaj±c
+<example>
+# apt-get dist-upgrade
+</example>
+Je¶li to nie dzia³a, powtarzaj jedno z poni¿szych poleceñ dopóki problem
+sam siê nie rozwi±¿e:
+<example>
+# apt-get upgrade -f         # dalej aktualizuj nawet je¶li wyst±pi³y b³êdy
+... lub
+# apt-get dist-upgrade -f    # dalej aktualizuj ca³± dystrybucjê nawet je¶li
+                               wyst±pi³y b³êdy
+</example>
+<p>
+Niektóre naprawdê zepsute skrypty aktualizuj±ce mog± powodowaæ trwa³e problemy.
+Najlepiej w takim przypadku przyjrzeæ siê skryptom
+<file>/var/lib/dpkg/info/<var>nazwapakietu</var>.{post-,pre-}{install,removal}</file>
+dla danego pakietu, a nastêpnie uruchomiæ:
+<example>
+# dpkg --configure -a    # konfiguruje wszystkie czê¶ciowo zainstalowane pakiety
+</example>
+<p>
+Je¶li skrypt mówi o brakuj±cym pliku konfiguracyjnym, poszukaj odpowiedniego
+pliku w katalogu <file>/etc</file>. Je¶li istnieje szukany plik z rozszerzeniem
+<tt>.new</tt> (lub podobnym), zmieñ nazwê tego pliku (za pomoc± <prgn>mv</prgn>)
+tak, by usun±æ rozszerzenie.
+<p>
+Problemy z zale¿no¶ciami mog± te¿ wystêpowaæ podczas instalacji w dystrybucji
+<tt>unstable</tt>/<tt>testing</tt>. S± jednak sposoby na obej¶cie zale¿no¶ci.
+<example>
+# apt-get install -f <var>pakiet</var> # pomiñ zepsute zale¿no¶ci
+</example>
+<p>
+Innym sposobem na wyj¶cie z tej sytuacji jest u¿ycie pakietu
+<package>equivs</package>.
+Zobacz <file>&f-equivs;</file><![%f-ref;[ jak równie¿ <ref id="equivs">]]>.
+</sect1>
+
+<sect1 id="rescue-dpkg">Ratowanie przy u¿yciu <prgn>dpkg</prgn>
+<p>
+Dora¼ny ratunek zepsutego <prgn>dselect</prgn> (APT) mo¿e byæ przeprowadzony
+na ca³kowicie zepsutym systemie przy u¿yciu tylko <prgn>dpkg</prgn> bez
+APT:
+<example>
+# cd /var/cache/apt/archives
+# dpkg -i libc6* libdb2* perl*
+# dpkg -i apt* dpkg* debconf*
+# dpkg -i *  # a¿ nie pojawi siê ¿aden b³±d
+</example>
+Je¶li brakuje jakiego¶ pakietu, ¶ci±gnij go z
+<url id="&mirror-site;" name="serwerów lustrzanych"> przy pomocy:
+<example>
+# mc            # u¿yj ,,FTP link'' wskazuj±c serwer FTP Debiana
+</example>
+Od niedawna, w³a¶ciwe pakiety na serwerach HTTP/FTP mog± nie znajdowaæ
+siê w katalogu <file>/dist</file>, ale raczej w nowym <file>/pool</file>.
+<![%f-ref;[
+(Zobacz te¿ <ref id="pools">.)
+]]>
+<p>
+¦ci±gniêty plik zainstaluj jak poni¿ej:
+<example>
+# dpkg -i /var/cache/apt/archives/<var>plikpakietu.deb</var>
+</example>
+W przypadku niespe³nionych zale¿no¶ci, napraw je lub u¿yj poni¿szych poleceñ:
+<example>
+# dpkg --ignore-depends=<var>pakiet1</var>,... -i <var>plikpakietu.deb</var>
+# dpkg --force-depends -i <var>plikpakietu.deb</var>
+# dpkg --force-depends --purge <var>pakiet</var>
+# dpkg --force-confmiss -i <var>plik pakietu.deb</var> # zainstaluj brakuj±ce
+pliki konfiguracyjne
+</example>
+</sect1>
+
+<sect1 id="recover-status">Przywracanie danych wyboru pakietów
+<p>
+Je¶li z jakiekogo¶ powodu plik <file>/var/lib/dpkg/status</file>
+zostanie uszkodzony, &debian; straci dane wyboru pakietów i przez
+to stanie siê nie do koñca sprawny. Poszukaj starego pliku
+<file>/var/lib/dpkg/status</file> w <file>/var/lib/dpkg/status-old</file>
+lub <file>/var/backups/dpkg.status.*</file>.
+<p>
+Umieszczanie <file>/var/backups/</file> na osobnej  partycji jest dobrym
+pomys³em, poniewa¿ katalog ten zawiera wiele wa¿nych dla systemu danych.
+<p>
+Je¶li stary plik <file>/var/lib/dpkg/status</file> nie jest dostêpny, nadal
+mo¿esz przywróciæ informacje z katalogów w <file>/usr/share/doc/</file>.
+<example>
+# ls /usr/share/doc | \
+  grep -v [A-Z] | \
+  grep -v '^texmf$' | \
+  grep -v '^debian$' | \
+  awk '{print $1 " install"}' | \
+  dpkg --set-selections
+# dselect --expert # przeinstaluj system, odznacz, je¶li trzeba
+</example>
+
+<sect1 id="rescue-var">Przywracanie systemu po awarii <file>/var</file>
+<p>
+Poniewa¿ katalog <file>/var</file> zawiera regularnie uaktualniane dane takie,
+jak poczta, jest on podatny na wszelkiego rodzaju uszkodzenia. Oddzielenie
+tego katalogu na innej, niezale¿nej partycji zmniejsza ryzyko wyst±pienia
+problemów. Je¶li zdarzy siê katastrofa, wtedy mo¿esz przebudowaæ katalog
+<file>/var</file>, by przywróciæ sprawno¶æ systemu.
+<p>
+Najpierw zdob±d¼ szkielet zawarto¶ci <file>/var</file> z minimalnego,
+dzia³aj±cego systemu &debian; w tej samej lub starszej wersji, np.
+z <file><url id="&var-tar-gz;" name="var.tar.gz"></file>, i umie¶æ go w katalogu
+g³ównym zepsutego systemu. Nastêpnie wykonaj poni¿esze kroki:
+<example>
+# cd /
+# mv var var-old      # je¶li jakie¶ przydatne dane pozosta³y
+# tar xvzf var.tar.gz # u¿yj szkieletu Woody
+# aptitude            # lub dselect
+</example>
+To powinno postawiæ system na nogi. Mo¿esz przyspieszyæ przywracanie
+wyborów pakietów u¿ywaj±c sposobu opisanego w rozdziale
+<ref id="recover-status">.
+([FIXME]: Ta procedura wymaga wiêcej testów do potwierdzenia poprawno¶ci.)
+</sect1>
+
+<sect1 id="un-bootable">Instalowanie pakietu w niestartuj±cym systemie
+<p>
+Uruchom Linuksa u¿ywaj±c p³yty lub dyskietki ratunkowej Debiana lub
+alternatywnej partycji w przypadku tzw. multi-bootu.
+<![%f-ref;[
+Zobacz <ref id="booting">.
+]]>
+Zamontuj partycjê g³ówn± niestartuj±cego systemu w <file>/target</file>
+i skorzystaj z <prgn>dpkg</prgn> w trybie instalacji w ¶rodowisku chroot.
+<example>
+# dpkg --root /target -i <var>plikpakietu.deb</var>
+</example>
+Nastêpnie skonfiguruj pakiet i popraw wszelkie problemy.
+<p>
+Tak przy okazji - je¶li to <prgn>lilo</prgn> uniemo¿liwia start systemu,
+mo¿esz go uruchomiæ u¿ywaj±c standardowego dysku ratunkowego Debiana.
+W lini zachêty programu startuj±cego wpisz (zak³adaj±c, ¿e twoj± g³ówn±
+partycj± jest <file>/dev/hda12</file> i chcesz uruchomiæ system na poziomie
+startu (runlevel) 3):
+<example>
+boot: rescue root=/dev/<var>hda12</var> 3
+</example>
+W ten sposób wystartujesz prawie w pe³ni funkcjonalny system z j±drem
+³adowanym z dyskietki (mog± jednak wyst±piæ pewne problemy spowodowane
+brakiem niektórych funkcji j±dra lub modu³ów).
+</sect1>
+
+<sect1>Co robiæ, gdy polecenie <prgn>dpkg</prgn> nie dzia³a?
+<p>
+Niedzia³aj±cy <prgn>dpkg</prgn> mo¿e uniemo¿liwiæ instalacjê jakiegokolwiek
+pliku <tt>.deb</tt>. Poni¿sza procedura pomo¿e Ci naprawiæ t± sytuacjê
+(w pierwszej linijce zast±p "links" nazw± twojej ulubionej przegl±darki
+internetowej):
+<example>
+$ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
+  ... ¶ci±gnij dobry plik dpkg_<var>wersja</var>_<var>arch</var>.deb
+$ su
+password: *****
+# ar x dpkg_<var>version</var>_<var>arch</var>.deb
+# mv data.tar.gz /data.tar.gz
+# cd /
+# tar xzfv data.tar.gz
+</example>
+Dla architektury <tt>i386</tt> jako adresu mo¿esz u¿yæ
+<tt>http://packages.debian.org/dpkg</tt>.
+</sect1>
+
+</sect>
+
+<sect id="debian-package">Polecenia prowadz±ce do nirwany w Debianie
+<p>
+Te polecenia uchroni± cz³owieka od wiecznego
+cierpienia w piekle aktualizacji i pozwol± osi±gn±æ mu stan
+<strong>nirwany</strong>. :-)
+
+<sect1 id="info-file">Informacje o pliku
+<p>
+Aby odnale¼æ nazwê pakietu, do którego nale¿y dany plik wpisz:
+<example>
+$ dpkg {-S|--search} wzorzec # szukaj wg. wzorca w zainstalowanych pakietach
+$ zgrep -e wzorzec <var>/lokalna/kopia/debian/woody/Contents-i386.gz</var>
+                             # znajd¼ wg. wzoru nazwê plików w archiwum Debiana
+</example>
+Mo¿esz te¿ u¿yæ specjalnie do tego celu przeznaczonych narzêdzi:
+<example>
+# apt-get install dlocate
+                             # w konflikcie z slocate (bezpieczna wersja locate)
+$ dlocate <var>nazwa_pliku</var>          # szybsza wersja dpkg -L oraz dpkg -S
+...
+# apt-get install auto-apt   # narzêdzie instaluj±ce pakiet na ¿yczenie
+# auto-apt update            # tworzenie pliku bazy dla auto-apt
+$ auto-apt search <var>wzorzec</var>
+                             # szukaj wg. wzorca we wszystkich pakietach
+</example>
+</sect1>
+
+<sect1 id="info-package">Informacje o pakiecie
+<p>
+APT pozwala na przeszukiwanie i wy¶wietlanie informacji pobranych z archiwum
+pakietów. Upewnij siê, ¿e APT pobiera prawid³owe archiwa (plik
+<file>/etc/apt/sources.list</file>).
+Je¶li chcesz zobaczyæ jaki jest stosunek pakietów
+z <tt>testing</tt>/<tt>unstable</tt> do tych zainstalowanych, u¿yj
+<tt>apt-cache policy</tt>.
+<example>
+# apt-get   check              # aktualizuje cache i sprawdza b³êdne pakiety
+$ apt-cache search  <var>wzorzec</var>     # szuka pakietu wg. podanego wzorca (szuka w opisach)
+$ apt-cache policy  <var>pakiet</var>      # informacje o priorytecie i dystrybucji pakietu
+$ apt-cache show -a <var>pakiet</var>      # pokazuje opis pakietu ze wszystkich dystrybucji
+$ apt-cache showsrc <var>pakiet</var>      # pokazuje opis pakietu ¼ród³owego
+$ apt-cache showpkg <var>pakiet</var>      # informacje o pakiecie dla odpluskiwania
+# dpkg  --audit|-C             # szuka czê¶ciowo zainstalowanych pakietów
+$ dpkg {-s|--status} <var>pakiet</var> ... # pokazuje opis zainstalowanego pakietu
+$ dpkg -l <var>pakiet</var> ...            # stan zainstalowanego pakietu (po jednej lini na pakiet)
+$ dpkg -L <var>pakiet</var> ...            # pokazuje listê plików zainstalowanych przez pakiet
+</example>
+<!-- Erase this when manual page gets fixed.  FIXME -->
+<tt>apt-cache showsrc</tt> jest nieudokumentowane w Woodym, ale dzia³a :).
+<p>
+Mo¿esz te¿ znale¼æ informacje o pakiecie w (ja u¿ywam <tt>mc</tt> do
+przegl±dania poni¿szych):
+<example>
+/var/lib/apt/lists/*
+/var/lib/dpkg/available
+</example>
+Porównanie poni¿szych plików da Ci informacje o tym, co dok³adnie
+dzia³o siê w ci±gu ostatnich kilku sesji instalacyjnych.
+<example>
+/var/lib/dpkg/status
+/var/backups/dpkg.status*
+</example>
+
+</sect1>
+
+<sect1 id="apt-get-auto">Niepilnowana instalacja przy u¿yciu APT
+<p>
+¯eby móc instalowaæ pakiety bez potrzeby pilnowania przebiegu instalacji,
+dodaj poni¿sza liniê do pliku <file>/etc/apt/apt.conf</file>:
+<example>
+Dpkg::Options {"--force-confold";}
+</example>
+Jest to równowa¿ne uruchomieniu <tt>apt-get -q -y <var>pakiet</var></tt>.
+Korzystaj z tej opcji bardzo ostro¿nie, poniewa¿ sprawia ona, ¿e automatycznie
+zostaje wybrana odpowied¼ "tak" na ka¿de pytanie, co mo¿e sprawiæ Ci wiele
+problemów. Przeczytaj <manref name="apt.conf" section="5"> oraz
+<manref name="dpkg" section="1">.
+<p>
+Mo¿esz skonfigurowaæ dowolny pakiet pó¼niej za pomoc± techniki opisanej
+w rozdziale <ref id="reconfigure">.
+
+<sect1 id="reconfigure">Ponowna konfiguracja zainstalowanych pakietów
+<p>
+Poni¿sze polecenia ponownie konfiguruj± dowolny, ju¿ zainstalowany pakiet.
+<example>
+# dpkg-reconfigure --priority=<var>medium</var> <var>pakiet</var> [...]
+# dpkg-reconfigure --all   # przekonfiguruj wszystkie pakiety
+# dpkg-reconfigure locales # wygeneruj dodatkowe locale
+# dpkg-reconfigure --p=<var>low</var> xserver-xfree86 # przekonfiguruj serwer X
+</example>
+Przekonfiguruj <prgn>debconf</prgn>, je¶li chcesz zmieniæ na sta³e typ
+zapytañ <prgn>debconf</prgn>.
+<p>
+Niektóre programy posiadaj± równie¿ w³asne skrypty konfiguracyjne.
+<example>
+apt-setup     - tworzy /etc/apt/sources.list
+install-mbr   - instaluje mened¿era Master Boot Record
+tzconfig      - ustawia lokaln± strefê czasow±
+gpmconfig     - konfiguruje demona myszy gpm
+sambaconfig   - konfiguruje Sambê w Potato (Woody u¿ywa debconf)
+eximconfig    - konfiguruje Exim (MTA)
+texconfig     - konfiguruje teTeX
+apacheconfig  - konfiguruje Apache (httpd)
+cvsconfig     - konfiguruje CVS
+sndconfig     - konfiguruje system d¼wiêku
+...
+update-alternatives - ustawia domy¶lne polecenia, np. vim jako vi
+update-rc.d         - zarz±dza skryptami startowymi System-V
+update-menus        - system menu Debiana
+...
+</example>
+</sect1>
+
+<sect1 id="remove">Usuwanie i czyszczenie pakietów
+<p>
+Usuniêcie pakietu pozostawiaj±c jego konfiguracjê:
+<example>
+# apt-get remove <var>pakiet</var> ...
+# dpkg  --remove <var>pakiet</var> ...
+</example>
+Usuniêcie pakietu wraz z jego konfiguracj±:
+<example>
+# apt-get remove --purge <var>pakiet</var> ...
+# dpkg    --purge        <var>pakiet</var> ...
+</example>
+</sect1>
+
+<sect1 id="hold">Wstrzymywanie starszych pakietów
+<p>
+Przyk³adowe wstrzymanie pakietów <package>libc6</package>
+oraz <package>libc6-dev</package> dla programu <prgn>dselect</prgn>
+oraz dla <tt>apt-get -u upgrade <var>pakiet</var></tt> odbywa siê
+nastêpuj±co:
+<example>
+# echo -e "libc6 hold\nlibc6-dev hold" | dpkg --set-selections
+</example>
+Stan "hold" nie powstrzyma polecenia <tt>apt-get -u install
+<var>pakiet</var></tt>.
+By wstrzymaæ pakiet przez wymuszanie automatycznego zmniejszenia wersji
+dla poleceñ <tt>apt-get -u upgrade <var>pakiet</var></tt> lub
+<tt>apt-get -u dist-upgrade</tt>,
+dodaj poni¿sze do pliku <file>/etc/apt/preferences</file>:
+<example>
+Package: libc6
+Pin: release a=stable
+Pin-Priority: 2000
+</example>
+Tutaj pole <tt>Package:</tt> nie mo¿e przyjmowaæ wpisów takich jak
+<tt>libc6*</tt>. Je¶li musisz trzymaæ zsynchronizowane wersje wszystkich
+pakietów binarnych powi±zanych z pakietem ¼ród³owym <package>glibc</package>
+musisz je oddzielnie wypisaæ.
+<p>
+Poni¿sze polecenie wy¶wietli listê pakietów wstrzymanych:
+<example>
+dpkg --get-selections "*"|grep -e "hold$"
+</example>
+</sect1>
+
+<sect1 id="mixedsys">Mieszany system - <tt>stable</tt>/<tt>testing</tt>/<tt>unstable</tt>
+<p>
+<prgn>apt-show-versions</prgn> poka¿e Ci listê dostêpnych wersji
+pakietu wg. dystrybucji, z której pochodzi.
+<example>
+$ apt-show-versions | fgrep /testing | wc
+... jak du¿o posiadasz pakietów z testing
+$ apt-show-versions -u
+... lista pakietów do uaktualnienia
+$ apt-get install `apt-show-versions -u -b | fgrep /unstable`
+... aktualizacja wszystkich niestabilnych pakietów do ich najnowszych wersji
+</example>
+</sect1>
+
+<sect1 id="cache">Wyczy¶æ buforowane pliki pakietów
+<p>
+Instalacja pakietów przy u¿yciu APT pozostawia pliki pakietów
+w katalogu <file>/var/cache/apt/archives</file>, które musz± byæ
+usuwane by zwolniæ miejsce.
+<example>
+# apt-get autoclean # usuwa tylko zbêdne pliki pakietów
+# apt-get clean     # usuwa wszystkie przetrzymywane pliki pakietów
+</example>
+</sect1>
+
+
+<sect1 id="record">Zapisanie/kopiowanie konfiguracji systemu
+<p>
+Poni¿sze polecenie tworzy lokaln± kopiê wyborów pakietów:
+<example>
+$ dpkg --get-selections "*" &gt; <var>myselections</var>   # lub \* zamiast "*"
+</example>
+<tt>"*"</tt> sprawia, ¿e w pliku <tt><var>myselections</var></tt> znajd±
+siê równie¿ pozycje odnosz±ce siê do pakietów ze stanem "purge".
+<p>
+Mo¿esz skopiowaæ ten plik na inny komputer i zainstalowaæ go za pomoc±
+poni¿szych poleceñ:
+<example>
+# dselect update
+# dpkg --set-selections &lt; <var>myselections</var>
+# apt-get -u dselect-upgrade    # <var>lub</var> dselect install
+</example>
+</sect1>
+
+<sect1 id="port">Przeniesienie pakietu do systemu <tt>stabilnego</tt>
+<p>
+W przypadku czê¶ciowych uaktualnieñ systemu <tt>stable</tt>, po¿±dane jest
+przebudowywanie pakietów w jego w³asnym ¶rodowisku korzystaj±c z pakietu
+¼ród³owego. Pozwala to unikn±æ masowych uaktualnieñ spowodowanych ich
+zale¿no¶ciami. Przede wszystkim dodaj poni¿sze linie do pliku
+<file>/etc/apt/sources.list</file>:
+<example>
+deb-src &http-us;debian testing \
+ main contrib non-free
+deb-src &http-non-us;debian-non-US testing/non-US \
+ main contrib non-free
+deb-src &http-us;debian unstable \
+ main contrib non-free
+deb-src &http-non-us;debian-non-US unstable/non-US \
+ main contrib non-free
+</example>
+W tym przyk³adzie ka¿dy wpis <tt>deb-src</tt> zosta³ rozbity na dwie
+linie z powodu ograniczonego rozmiaru papieru podczas drukowania. Sam wpis
+w <file>sources.list</file> powinien sk³adaæ siê z jednej lini.
+<p>
+Przysz³a kolej na ¶ci±gniêcie ¼róde³ i zbudowanie lokalnego pakietu:
+<example>
+$ apt-get update # uaktualnij listê ze ¼ród³ami pakietów
+$ apt-get source <var>pakiet</var>
+$ dpkg-source -x <var>pakiet.dsc</var>
+$ cd <var>pakiet-wersja</var>
+  ... przejrzyj wymagane pakiety (Build-depends w pliku .dsc)
+      i równie¿ je zainstaluj. Potrzebujesz tak¿e pakietu
+      'fakeroot'.
+
+$ dpkg-buildpackage -rfakeroot
+
+  ...lub (bez sygnatury)
+$ dpkg-buildpackage -rfakeroot -us -uc # je¶li trzeba, u¿yj pó¼niej "debsign"
+
+  ...Nastêpnie zainstaluj pakiet
+$ su -c "dpkg -i <var>plikpakietu.deb</var>"
+</example>
+Zazwyczaj nale¿y te¿ zainstalowaæ kilka pakietow z koñcówk± "-dev", by
+spe³niæ zale¿no¶ci pakietów. <prgn>debsign</prgn> znajduje siê w pakiecie
+<package>devscripts</package>. <prgn>auto-apt</prgn> mo¿e pomóc
+przy spe³nianiu tych zale¿no¶ci. U¿ycie <prgn>fakeroot</prgn>
+pozwala unikn±æ niepotrzebnego korzystania z konta roota.
+<p>
+W Woodym, sprawy zwi±zane z zale¿no¶ciami mog± byæ u³atwione.
+Przyk³adowo, by skompilowaæ wystêpuj±cy tylko w formie ¼ród³owej pakiet
+<package>pine</package>:
+<example>
+# apt-get build-dep pine
+# apt-get source -b pine
+</example>
+</sect1>
+
+<sect1 id="local">Lokalne archiwum pakietów
+<p>
+Aby utworzyæ zgodne z systemem APT i <prgn>dselect</prgn> lokalne archiwum
+pakietów, nale¿y utworzyæ plik <file>Packages</file>, a same pliki pakietów
+musz± byæ umieszczone
+w specjalnym drzewie katalogów.
+<p>
+Lokalne archiwum pakietów <tt>deb</tt> podobne do oficjalnego archiwum Debiana
+tworzy siê w nastêpuj±cy sposób:
+<example>
+# apt-get install dpkg-dev
+# cd <var>/usr/local</var>
+# install -d <var>pool</var> # tutaj umieszczane s± pakiety
+# install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
+# ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+# editor <var>override</var> # zmieñ <var>priority</var> oraz <var>section</var>
+# dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
+   &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
+# cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
+Archive: <var>unstable</var>
+Version: <var>3.0</var>
+Component: <var>main</var>
+Origin: <var>Local</var>
+Label: <var>Local</var>
+Architecture: <var>i386</var>
+EOF
+# echo "deb file:<var>/usr/local</var> <var>unstable</var> <var>main</var>" \
+   &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+Mo¿na te¿ u¿yæ szybszego sposobu:
+<example>
+# apt-get install dpkg-dev
+# mkdir <var>/usr/local/debian</var>
+# mv <var>/¶cie¿ka/do/pakietu.deb</var> <var>/usr/local/debian</var>
+# dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
+  gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
+#  echo "deb file:<var>/usr/local/debian</var> ./" &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+Zdalny dostêp do utworzonych archiwów jest mo¿liwy za po¶rednictwem HTTP
+lub FTP. Nale¿y wówczas odpowiednio ustawiæ wpisy w pliku
+<file>/etc/apt/sources.list</file>.
+
+<sect1 id="alien">Zmiana lub instalacja obcego pakietu binarnego
+<p>
+<package>alien</package> pozwala na konwersjê pakietów binarnych z formatów
+<tt>rpm</tt> Redhata, <tt>slp</tt> Stampede, <tt>tgz</tt> Slackware oraz
+<tt>pkg</tt> Solarisa na format pakietu <tt>deb</tt> Debiana.
+Je¶li chcesz u¿yæ pakietu z innej dystrybucji Linuksa, mo¿esz u¿yæ programu
+<prgn>alien</prgn> do zmiany go na twój preferowany format i pó¼niejszej
+instalacji. <package>alien</package> obs³uguje równie¿ pakiety LSB.
+</sect1>
+
+<sect1 id="debsums">Sprawdzanie poprawno¶ci zainstalowanych plików
+<p>
+<prgn>debsums</prgn> sprawdza poprawno¶æ zainstalowanych plików pakietów
+na podstawie sum kontrolnych MD5. Niektóre z pakietów nie posiadaj± sum
+MD5. W takim przypadku tymczasowym rozwi±zaniem dla administratorów jest:
+<example>
+# cat >>/etc/apt/apt.conf.d/90debsums
+DPkg::Post-Install-Pkgs {"xargs /usr/bin/debsums -sg";};
+^D
+</example>
+wg. pomys³u Joerga Wendlanda &lt;joergland@debian.org&gt;  (nieprzetestowane).
+
+<![%f-ref;[
+<sect1 id="spy">Zoptymalizowane <file>sources.list</file>
+<p>
+Wymy¶lne sposoby optymalizacji pliku <file>sources.list</file> nie spowodowa³y
+u mnie (w USA), znacz±cej poprawy. Rêcznie wybra³em najbli¿sze serwery przy
+u¿yciu <prgn>apt-setup</prgn>.
+<p>
+<prgn>apt-spy</prgn> automatycznie tworzy <file>sources.list</file>, kieruj±c
+siê opó¼nieniami i przepustowo¶ci±. <prgn>netselect-apt</prgn> tworzy
+bardziej kompletny <file>sources.list</file>, ale u¿ywa gorszej metody
+do wybrania najlepszego serwera lustrzanego (porównanie czasów odpowiedzi
+na pingi).
+<example>
+# apt-get install apt-spy
+# cd /etc/apt ; mv sources.list sources.list.org
+# apt-spy -d testing -l sources.apt
+</example>
+</sect1>
+
+]]>
+
+
+</sect>
+
+<sect id="pecuriarities">Inne osobliwo¶ci Debiana
+
+<sect1 id="dpkg-divert">Polecenie <prgn>dpkg-divert</prgn>
+<p>
+<!-- copied from manual page -->
+<strong>Objazdy</strong> (diversions) s± metod± zmuszenia <prgn>dpkg</prgn> w
+<strong>zmienionej</strong>, w stosunku do domy¶lnej lokalizacji.
+<strong>Objazdy</strong> mog± byæ u¿ywane przez skrypty pakietu Debiana
+do przeniesienia pliku, gdy ten powoduje konflikt. Administrator systemu
+mo¿e te¿ u¿yæ dywersji do zast±pienia pliku konfiguracyjnego pakietu lub
+gdy pewne pliki (nieoznaczone jako <strong>conffiles</strong>) musz± byæ
+zachowane przez <prgn>dpkg</prgn>, podczas instalacji nowej wersji pakietu je
+zawieraj±cego <![%f-ref;[
+(zobacz <ref id="conffile">)]]>.
+<example>
+# dpkg-divert [--add]  <var>filename</var> # dodaj ,,dywersjê''
+# dpkg-divert --remove <var>filename</var> # usuñ ,,dywersjê''
+</example>
+Zazwyczaj nie nale¿y stosowaæ <prgn>dpkg-divert</prgn>, gdy nie jest
+to absolutnie potrzebne.
+</sect1>
+
+<sect1 id="equivs">Pakiet <package>equivs</package>
+<p>
+Je¶li w³asnorêcznie kompilujesz program, najlepiej jest uczyniæ go prawdziwym,
+lokalnym pakietem zdebianizowanym (<tt>*.deb</tt>).
+W ostateczno¶ci u¿yj <tt>equivs</tt>.
+<example>
+Package: equivs
+Priority: extra
+Section: admin
+Description: Circumventing Debian package dependencies
+ This is a dummy package which can be used to create Debian
+ packages, which only contain dependency information.
+</example>
+</sect1>
+
+<sect1 id="alternatives">Alternatywne polecenia
+<p>
+U¿yj programu <prgn>update-alternatives</prgn>, je¶li chcesz, by
+polecenie <prgn>vi</prgn> uruchamia³o program <prgn>vim</prgn>:
+<example>
+# update-alternatives --display vi
+...
+# update-alternatives --config vi
+  Selection    Command
+-----------------------------------------------
+      1        /usr/bin/elvis-tiny
+      2        /usr/bin/vim
+*+    3        /usr/bin/nvi
+
+Enter to keep the default[*], or type selection number: 2
+</example>
+Poszczególne pozycje w systemie alternatyw Debiana s± trzymane
+jako dowi±zania symboliczne w katalogu <file>/etc/alternatives</file>.
+<p>
+Je¶li chcesz ustawiæ swoje ulubione ¶rodowisko graficzne X,
+u¿yj <prgn>update-alternatives</prgn> na
+<file>/usr/bin/x-session-manager</file> oraz
+<file>/usr/bin/x-window-manager</file>.
+<![%f-ref;[
+Szczegó³y w <ref id="custom-x">.
+]]>
+<p>
+<file>/bin/sh</file> jest bezpo¶rednim dowi±zaniem do <file>/bin/bash</file>
+lub <file>/bin/dash</file>. Bezpieczniej jest u¿yæ <file>/bin/bash</file>,
+by zachowaæ kompatybilno¶æ ze skryptami ska¿onymi star± sk³adni± Basha.
+Lepiej jednak zdyscyplinowaæ siê do u¿ywania <file>/bin/dash</file>, w celu
+wymuszenia zgodno¶ci z norm± POSIX.
+<file>/bin/dash</file>. Aktualizacja j±dra Linuksa do wersji 2.4 sk³ania
+siê do u¿ycia <file>/bin/dash</file>.
+</sect1>
+
+<sect1 id="sys-v">System-V <prgn>init</prgn> i poziomy startu (runlevels)
+<p>
+W pliku <file>/etc/inittab</file> mo¿na ustawiæ domy¶lny poziom startu.
+<p>
+W przeciwieñstwie do innych dystrybucji, Debian w pe³ni pozostawia zarz±dzanie
+poziomami startu administratori systemu. Zarz±dzanie skryptami <prgn>init</prgn>
+w stylu System-V w Debianie powinno odbywaæ siê za po¶rednictwem skryptu
+<prgn>update-rc.d</prgn>.
+<p>
+Poni¿ej znajduje siê przyk³ad polecenia, które tak ustawi skrypty startowe (skrypty
+<prgn>init</prgn>), by skrypt <file>/etc/init.d/<var>nazwa</var></file> by³
+uruchamiany na poziomach startu (runlevel) 1,2,3, a zatrzymywany na
+poziomach 4 i 5 z priorytetem równym 20 (normalnym).
+<example>
+# update-rc.d <var>nazwa</var> start 20 1 2 3 . stop 20 4 5 .
+</example>
+Usuniêcie dowi±zañ symbolicznych z pozostawieniem skryptu w <prgn>init.d</prgn>:
+<example>
+# update-rc.d -f <var>nazwa</var> remove
+</example>
+Je¶li chodzi o edycjê poziomów startu, nigdy nie u¿ywam narzêdzi do tego celu.
+Poszczególne elementy zmieniam rêcznie za pomoc± <prgn>mv</prgn> w lini poleceñ
+<prgn>mc</prgn>, kopiuj±c dowi±zania za pomoc± Alt-Enter. Przyk³ad:
+<example>
+# mv S99xdm K99xdm # wy³±cz xdm (X display manager)
+</example>
+Równie¿ wy³±czam demony przez wstawienie <tt>exit 0</tt> na pocz±tku
+skryptu w <prgn>init.d</prgn>. Ot, takie szybkie rozwi±zanie. W koñcu s±
+to pliki oznaczone jako <tt>conffile</tt>.
+</sect1>
+
+<sect1 id="disables">Wy³±czone us³ugi demonów
+<p>
+Bezpieczeñstwo systemu jest bardzo wa¿n± rzecz± w Debianie, który
+zak³ada, ¿e administrator jest osob± kompetentn±. Dlatego czasami
+³atwo¶æ u¿ycia stoi na drugim miejscu, a wiele us³ug demonów domy¶lnie
+ma ustawiony najwy¿szy poziom bezpieczeñstwa z w³±czonymi tylko nielicznymi
+us³ugami (lub nawet ¿adnymi).
+<p>
+Uruchom <tt>ps aux</tt> lub przejrzyj zawarto¶æ <file>/etc/init.d/*</file> oraz
+<file>/etc/inetd.conf</file>, je¶li masz jakiekolwiek w±tpliwo¶ci (odno¶nie
+Exima, DHCP, ...). Sprawd¼ równie¿ <![%f-ref;[opisany
+w <ref id="loginctrl"> ]]> plik <file>/etc/hosts.deny</file>. Pomocne mo¿e siê
+te¿ okazaæ polecenie <prgn>pidof</prgn> (patrz
+<manref name="pidof" section="8">).
+<p>
+W ostatnich wersjach Debiana, X11 domy¶lnie nie zezwala na (zdalne) po³±czenia
+TCP/IP.
+<![%f-ref;[
+Patrz te¿ <ref id="xtcp">.
+]]>
+Przekazywanie X przez SSH równie¿ jest wy³±czone.
+<![%f-ref;[
+Patrz <ref id="xssh">.
+]]>
+</sect1>
+</sect>
+
+</chapt>

@@ -31,6 +31,9 @@ export TEXMFCNF=texmf:
 MANUAL1 := reference
 MANUAL2 := quick-reference
 
+# Build option
+BILD_OPT := 
+
 # Basename for language-independent SGML-template and tar-ball name.
 MANUAL0 := qref
 
@@ -45,12 +48,12 @@ else
 PUBLISHDIR := ~/public_html
 endif
 
-# List of languages built for "distclean" target for DDP:
-LANGSALL := en fr it es fi pt-br de
-# List of languages built for "publish" target for DDP: pt_BR
-LANGS1 := en fr it es de pt-br
-# subset which has Quick Reference subset document
-LANGS2 := en fr it es de pt-br
+# Locales for "distclean" target for the DDP:
+LANGSALL := en fr it es de pt-br pl zh-tw zh-cn fi
+# Locale list of "publish" target for the DDP full documents:
+LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn
+# Locale list of "publish" target for the DDP short documents:
+LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -58,7 +61,7 @@ SGMLENTS := custom.ent default.ent
 # All SGML source files
 SGMLSRCS := $(foreach lang, $(LANGS1), $(MANUAL1).$(lang).sgml) \
 	    $(foreach lang, $(LANGS2), $(MANUAL2).$(lang).sgml) \
-	    $(foreach lang, $(subst pt-br,pt,$(LANGS1)), $(wildcard $(lang)/*.sgml ) ) \
+	    $(foreach lang, $(LANGS1), $(wildcard $(lang)/*.sgml ) ) \
 	    $(SGMLENTS)
 
 # Name for example directory
@@ -74,12 +77,19 @@ TARSRCS = $(EXAMPLES) bin/* texmf/* $(SGMLSRCS) Makefile README index.php
 # =================================================================== #
 # If some languages have problems building, filter-out in here.
 
+# Version list
+README: README.org
+	cat README.org > README
+	-bin/doc-check -ha  >README.html
+	-w3m -dump -cols 72 README.html >>README
+	-rm README.html
+
 ### Full guide
 
 # List of html stamp files to be built
 HTMLS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).html.stamp)
 
-# List of pdf to be built
+# List of txt to be built
 TXTS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).txt)
 
 # List of ps to be built
@@ -93,7 +103,7 @@ PDFS1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).pdf)
 # List of html stamp files to be built
 HTMLS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).html.stamp)
 
-# List of pdf to be built
+# List of txt to be built
 TXTS2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).txt)
 
 # List of ps to be built
@@ -116,9 +126,11 @@ text2 txt2:  $(TXTS2)
 text txt:  text1 text2
 ps1:   $(PSS1)
 ps2:   $(PSS2)
+zhps:   $(PSSX1) $(PSSX2)
 ps:   ps1 ps2
 pdf1:  $(PDFS1)
 pdf2:  $(PDFS2)
+zhpdf:  $(PDFSX1) $(PDFSX2)
 pdf:  pdf1 pdf2
 tar:  $(MANUAL1).tar.gz
 publish: publish-html publish-txt publish-examples publish-ps publish-pdf
@@ -132,7 +144,7 @@ publish-all: publish publish-tar
 $(MANUAL1).%.ent:
 	echo "<!ENTITY language \"$*\">"                 > $@
 	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
-	echo "<!ENTITY docdate \"`LC_ALL=C date '+%Y-%m-%d-%H:%M:%S'`\">" >> $@
+	echo "<!ENTITY docdate \"$$(bin/getdocdate $*)\">" >> $@
 	echo "<!ENTITY docversion \"CVS\">"             >> $@
 	echo "<!ENTITY % f-ref   \"INCLUDE\">" >> $@ 
 	echo "<!ENTITY % q-ref   \"IGNORE\">" >> $@ 
@@ -141,7 +153,7 @@ $(MANUAL1).%.ent:
 $(MANUAL2).%.ent:
 	echo "<!ENTITY language \"$*\">"                 > $@
 	echo "<!ENTITY % lang-$* \"INCLUDE\">"          >> $@
-	echo "<!ENTITY docdate \"`LC_ALL=C date '+%Y-%m-%d-%H:%M:%S'`\">" >> $@
+	echo "<!ENTITY docdate \"$$(bin/getdocdate $*)\">" >> $@
 	echo "<!ENTITY docversion \"CVS\">"             >> $@
 	# if "Debian Quick Reference" (about 20 pages max)
 	echo "<!ENTITY % f-ref   \"IGNORE\">" >> $@ 
@@ -158,13 +170,13 @@ $(MANUAL2).%.ent:
 
 $(MANUAL1).%.sgml: $(MANUAL0).sgml
 	sed -e "s/@@LANGS@@/$*/g" \
-	    -e "s/@@DIRS@@/$(subst pt-br,pt,$*)/g" \
+	    -e "s/@@DIRS@@/$*/g" \
 	    -e "s/@@NAME@@/$(MANUAL1)/g" \
 	        $< > $(MANUAL1).$*.sgml
 
 $(MANUAL2).%.sgml: $(MANUAL0).sgml
 	sed -e "s/@@LANGS@@/$*/g" \
-	    -e "s/@@DIRS@@/$(subst pt-br,pt,$*)/g" \
+	    -e "s/@@DIRS@@/$*/g" \
 	    -e "s/@@NAME@@/$(MANUAL2)/g" \
 	        $< > $(MANUAL2).$*.sgml
 
@@ -175,45 +187,42 @@ $(MANUAL2).%.sgml: $(MANUAL0).sgml
 # HTML
 
 $(MANUAL1).%.html.stamp: $(MANUAL1).%.sgml  $(MANUAL1).%.ent $(SGMLSRCS)
-	debiandoc2html -t$(MANUAL1) -l $(subst pt-br,pt_BR,$*) -c $<
+	debiandoc2html $(BUILD_OPT) -t$(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
+	bin/fixhtml $* $(MANUAL1).$*.html
 # since $(MANUAL1).%.html/index.%.html cannot be a target file
 	touch $(MANUAL1).$*.html.stamp
+
 $(MANUAL2).%.html.stamp: $(MANUAL2).%.sgml  $(MANUAL2).%.ent $(SGMLSRCS)
-	debiandoc2html -t$(MANUAL2) -l $(subst pt-br,pt_BR,$*) -c $<
+	debiandoc2html $(BUILD_OPT) -t$(MANUAL2) -l $$(echo $* | bin/getlocale) -c $<
+	bin/fixhtml $* $(MANUAL2).$*.html
 # since $(MANUAL2).%.html/index.%.html cannot be a target file
 	touch $(MANUAL2).$*.html.stamp
 
 # TXT
 
 $(MANUAL1).%.txt: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
-	debiandoc2text -l     $(subst pt-br,pt_BR,$*) $<
+	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
+	bin/fixtxt $* $(MANUAL1).$*.txt
 
 $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
-	debiandoc2text -l     $(subst pt-br,pt_BR,$*) $<
+	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
+	bin/fixtxt $* $(MANUAL2).$*.txt
 
 # PS
 
 $(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
-	debiandoc2latexps -l  $(subst pt-br,pt_BR,$*) $<
+	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
-	debiandoc2latexps -l  $(subst pt-br,pt_BR,$*) $<
+	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
 $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -l $(subst pt-br,pt_BR,$*) $<
+	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
-	debiandoc2latexpdf -l $(subst pt-br,pt_BR,$*) $<
-
-# TEX
-
-$(MANUAL1).%.tex: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
-	debiandoc2latex -l $(subst pt-br,pt_BR,$*) $<
-
-$(MANUAL2).%.tex: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
-	debiandoc2latex -l $(subst pt-br,pt_BR,$*) $<
+	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 # TAR
 
@@ -409,13 +418,13 @@ web:
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf:
-	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de"
+	$(MAKE) scp BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn"
 
 sf-test:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de" txt
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn" txt
 
 sf-clean:
-	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de fi" "LANGS2=en fr it es pt-br de" distclean 
+	$(MAKE) BUILD_TYPE=sf "LANGS1=en fr it es pt-br de pl zh-tw zh-cn pl" "LANGS2=en fr it es pt-br de pl zh-tw zh-cn pl" distclean 
 
 scp: publish-all scp0
 
@@ -465,7 +474,7 @@ publish-clean:
 clean:
 	rm -f $(MANUAL1)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
 	rm -f $(MANUAL2)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
-	rm -f *~ prior.aux pprior.aux tar.gz.log
+	rm -f *~ prior.aux pprior.aux *.log typescript README README.html
 	rm -f $(MANUAL0).tar.gz
 	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent date.ent
 	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent date.ent

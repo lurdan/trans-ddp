@@ -1,0 +1,942 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.63"  -->
+
+<chapt id="tips"> &debian;技巧
+
+
+<sect id="booting">启动系统
+<p>
+参阅LDP <url id="&bootprompt-howto;" name="BootPrompt-HOWTO">获得有关系统提示的详细信息。
+
+<sect1 id="crackroot">“我忘了root密码！”(1)
+<p>
+只要能访问控制台键盘，不需要root密码就可以启动系统登录到root帐号。（假设BIOS或<prgn>lilo</prgn>之类的启动引导器在启动时不需要密码。）
+<p>
+整个过程不需要另外的启动盘或对BIOS设置进行修改。在此，“Linux”仅是一个标签，它代表启动Debian默认安装的Linux内核。
+<p>
+在<prgn>lilo</prgn>启动屏幕中，一但出现<tt>boot:</tt>（对某些系统而言，必须按下shift键以阻止自动启动），就输入：
+<example>
+boot: Linux init=/bin/sh
+</example>
+它会指示系统启动内核后运行<file>/bin/sh</file>而不是<prgn>init</prgn>。现在你已获得root特权和root shell。由于当前<file>/</file>是以只读方式挂载，而其它的硬盘分区均未挂载，故你必须完成下列步骤才能获得一个有适当功能的系统。
+<example>
+init-2.03# mount -n -o remount,rw /
+init-2.03# mount -avt nonfs,noproc,nosmbfs
+init-2.03# cd /etc
+init-2.03# vi passwd
+init-2.03# vi shadow
+</example>
+（如果在<file>/etc/passwd</file>文件中所有用户的第二个域的数据为“x”，就表明系统使用了影子密码，必须编辑<file>/etc/shadow</file>。）要删除root密码，请编辑密码文件中第二个数据域，将它设置为空白。重启系统不用密码就能登录到root。当系统启动进入runlevel 1时，Debian（至少是Potato以后的版本）需要密码，一些较老的版本则不需要。
+<p>
+在<file>/bin</file>下装一个小编辑器是个好习惯，因为有时<file>/usr</file>是无法访问的（参阅<ref id="bin-editor">）。
+<p>
+如果安装<package>sash</package>软件包，当系统无法启动时，还可执行：
+<example>
+boot: Linux init=/bin/sash
+</example>
+当<file>/bin/sh</file>不可用时，<prgn>sash</prgn>可作为<prgn>sh</prgn>的交互式替代品，它是静态链接，内建了许多标准工具（在系统提示符下输入“help”可获得参考列表）。
+</sect1>
+
+<sect1 id="crackroot2">“我忘了root密码！”(2)
+<p>
+从急救盘启动系统。假设<file><var>/dev/hda3</var></file>是原始root分区，可用下面的方法编辑密码文件，与上述方法一样容易。
+<example>
+# mkdir <var>fixit</var>
+# mount <var>/dev/hda3</var> <var>fixit</var>
+# cd <var>fixit</var>/etc
+# vi shadow
+# vi passwd
+</example>
+<p>
+与上面的方法相比，该方法的好处在于不需要知道<prgn>lilo</prgn>密码（如果有的话）。但如果系统没有预先设置为从软盘或CD启动，就需要访问BIOS的权限。
+</sect1>
+
+<sect1 id="dead-lilo">无法启动系统
+<p>
+没在安装过程中制作启动盘？没关系。如果<prgn>lilo</prgn>损坏了，从Debian安装套件中拿出启动盘，用它来启动系统。假设你的root分区在<file><var>/dev/hda12</var></file>，你想进入runlevel 3，在启动提示符后输入：
+<example>
+boot: rescue root=<var>/dev/hda12</var> 3
+</example>
+接下来，系统使用软盘上的内核启动，你可登录到一个几乎拥有全部功能的系统了。（可能有少量特性或模块不可用。）
+<p>
+如果系统崩溃，亦可参阅<ref id="un-bootable">。
+<p>
+如果想做张自定义启动盘，参阅急救盘中的<prgn>readme.txt</prgn>文档。
+</sect1>
+
+<sect1 id="no-x-start">“我不想直接启动到X！”
+<p>
+玩<tt>unstable/sid</tt>很有趣，但在启动进程中执行不稳定的<prgn>xdm</prgn>、<prgn>gdm</prgn>、<prgn>kdm</prgn>和<prgn>wdm</prgn>会让你焦头烂额。
+<p>
+首先，在启动提示符后输入如下指令获得root shell：
+<example>
+boot: <var>Linux</var> vga=normal s
+</example>
+其中，<var>Linux</var>代表你要启动的内核镜像，“vga=normal”告诉lilo在普通VGA屏幕下运行，“s”（或“S”）是传给<prgn>init</prgn>的参数，告诉它进入单用户模式。在提示符后输入root密码。
+<p>
+有多种方法禁用X启动deaemons：
+<list>
+<item>run <tt>update-rc.d <var>?</var>dm stop 99 1 2 3 4 5 6</tt>
+<item>insert "exit 0" at the start of all <file>/etc/init.d/<var>?</var>dm</file> files.
+<item>rename all <file>/etc/rc<var>2</var>.d/S99<var>?</var>dm</file> files to <file>/etc/rc2.d/K99<var>?</var>dm</file>.
+<item>remove all <file>/etc/rc<var>2</var>.d/S99<var>?</var>dm</file> files.
+<item>run <tt>:&gt;/etc/X11/default-display-manager</tt>
+</list>
+其中，<file>rc<var>2</var>.d</file>必须与<file>/etc/inittab</file>中指定的runlevel一致。<file><var>?</var>dm</file>表示所有的<prgn>xdm</prgn>、<prgn>gdm</prgn>、<prgn>kdm</prgn>和<prgn>wdm</prgn>。
+<p>
+在Debian下只有第一种方法“最正确”。最后一种方法比较简单但只适用于&debian;，而且还需要使用<prgn>dpkg-reconfigure</prgn>重新设置一次。其它方法都是通用的中止daemons的方法。
+<p>
+你仍可在任何控制台shell中输入<prgn>startx</prgn>启动X。
+</sect1>
+
+<sect1 id="bootprompt">其它用于启动提示符的技巧
+<p>
+使用<prgn>lilo</prgn>启动提示符，可指定系统启动到特定的runlevel和配置。详情参阅<url id="&bootprompt-howto;" name="BootPrompt-HOWTO"> (LDP)。
+<p>
+如果希望系统启动到runlevel 4，可以<prgn>lilo</prgn>启动提示符后输入：
+<example>
+boot: Linux 4
+</example>
+<p>
+如果希望系统启动到正常功能的单用户模式，而且你知道root密码，可在<prgn>lilo</prgn>启动提示符后输入下列任一参数。
+<example>
+boot: Linux S
+boot: Linux 1
+boot: Linux -s
+</example>
+<p>
+如果希望系统以少于实际内存数的内存启动（也就是说机器有64MB内存，只分配48MB给系统使用），在<prgn>lilo</prgn>启动提示符后输入：
+<example>
+boot: Linux mem=48M
+</example>
+注意，不要指定大于实际内存数的内存，否则内核会崩溃。如果你有多于64MB的内存，如128MB，应在系统启动时执行<tt>mem=128M</tt>或在<file>/etc/lilo.conf</file>中添加类似的命令行，否则旧内核或使用旧BIOS的主板将无法使用大于64MB的内存。
+</sect1>
+
+<sect1 id="bootgrub">如何设置启动参数（GRUB）
+<p>
+GRUB是Hurd项目开发的新型启动管理器，比Lilo更灵活，不过启动参数也与之稍有不同。
+<example>
+grub&gt; find /vmlinuz
+grub&gt; root (hd0,0)
+grub&gt; kernel /vmlinuz root=/dev/hda1
+grub&gt; initrd /initrd
+grub&gt; boot
+</example>
+请注意Hurd中的设备名：
+<example>
+HURD/GRUB           Linux               MSDOS/Windows
+ (fd0)               /dev/fd0            A:
+ (hd0,1)             /dev/hda1           C: (usually)
+ (hd0,4)             /dev/hda4           F: (usually)
+ (hd1,4)             /dev/hdb4           ?
+</example>
+详情参阅<file>&f-grub;</file>和<file>&f-grub-doc;</file>。
+</sect>
+
+<sect>活动记录
+
+<sect1 id="script">记录shell活动
+<p>
+比起普通的个人电脑环境，Unix环境的系统管理包含了更多细致的任务。必须掌握所有基本的配置方法以便进行系统故障恢复。基于X的GUI配置工具看上去又好又方便，但不适用于紧急状况。
+<p>
+记录shell活动是个好习惯，特别是root用户。
+<p>
+Emacs：使用<tt>M-x shell</tt>在缓冲区中开始记录，使用<tt>C-x C-w</tt>将缓冲区中的记录写入文件。
+<p>
+Shell：使用<prgn>screen</prgn>命令和“^A H”，参阅<ref id="screen">或<prgn>script</prgn>命令：
+<example>
+$ script
+Script started, file is typescript
+ ... do whatever ...
+ Control-D
+$ col -bx &lt;typescript &gt;savefile
+$ vi savefile
+</example>
+还可使用下面的方法：
+<example>
+$ bash -i 2&gt;&amp;1 | tee typescript
+</example>
+</sect1>
+
+<sect1>记录X活动
+<p>
+如果需要X应用程序的活动记录图，包括xterm屏显，可使用<prgn>gimp</prgn>（GUI）。它可以对每个窗口或整个屏幕进行拍照。还可以使用<prgn>xwd</prgn>（<package>xbase-clients</package>）、<prgn>import</prgn>（<package>imagemagick</package>）或<prgn>scrot</prgn>（<package>scrot</package>）。
+</sect1>
+
+
+</sect>
+
+<sect id="archiving">拷贝及创建子目录
+<sect1>拷贝整个子目录的基本命令
+<p>
+如果想重新整理文件组织结构，可使用下面的方法移动文件及文件链接：
+<example>
+标准方法：
+# cp -a /source/directory /dest/directory # requires GNU cp
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        (cd /dest/directory &amp;&amp; tar xvfp - )
+如果包含硬链接，则需要更严谨的方法：
+# cd /path/to/old/directory
+# find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+如果是远程操作：
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+如果没有链接文件：
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
+</example>
+其中，<prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn>，<prgn>ssh</prgn>
+&lt;==&gt; <prgn>rsh</prgn>。
+<p>
+下面的有关拷贝整个子目录的信息由Manoj Srivastava &lt;srivasta@debian.org&gt;发表于debian-user@lists.debian.org。
+</sect1>
+
+<sect1><prgn>cp</prgn>
+<p>
+传统上，<prgn>cp</prgn>并不能真正完成这个任务，因为它既没对符号链接进行区别对待，又不能保存硬链接。另一件需要注意的事就是稀疏文件（有洞的文件）。
+<p>
+GNU <prgn>cp</prgn>克服了这缺陷，然而对于非GNU系统，<prgn>cp</prgn>仍存在问题。而且使用<prgn>cp</prgn>无法生成小巧轻便的文档包。
+<example>
+&percnt; cp -a . newdir
+</example>
+
+<sect1><prgn>tar</prgn>
+<p>
+Tar克服了<prgn>cp</prgn>在处理符号链接时出现的问题，然而，<prgn>cpio</prgn>可以处理特殊文件，传统的<prgn>tar</prgn>却不行。
+<p>                                                             
+对于某个有多重硬链接的文件，<prgn>tar</prgn>的处理方法是只将其中一个链接拷贝到磁带上，所以日后你只能找回拷贝中所保留那个的链接所指的文件；<prgn>cpio</prgn>会为每个链接做一个拷贝，日后你可以找回任意一个链接所指的文件。
+<p>
+在Potato和Woody中，操作<file>.bz2</file>文件的<prgn>tar</prgn>命令参数有所变化，所以请在脚本中使用<tt>--bzip2</tt>而不要简写为<tt>-I</tt>（Potato）或<tt>-j</tt>（Woody）。  
+</sect1>
+
+<sect1><prgn>pax</prgn>
+<p>
+全新的，符合POSIX（IEEE Std 1003.2-1992, pages 380&ndash;388 (section 4.48) and pages
+936&ndash;940 (section E.4.48)）标准的，众望所归的，轻便的文档包交互工具。<prgn>pax</prgn>可以读、写以及列出文档包的成员，并能拷贝文件目录层次。<prgn>pax</prgn>的操作独立于特定的文档包格式，支持各种各样不同的文档包格式。
+<p>
+<prgn>pax</prgn>工具刚刚成形，还很新。
+<example>
+# apt-get install pax
+$ pax -rw -p e . newdir
+ or
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1><prgn>cpio</prgn>
+<p>
+<prgn>cpio</prgn>从<prgn>cpio</prgn>或<prgn>tar</prgn>文档包提取/放入文件。该文档包可以是硬盘上的另一个文件，也可以是磁带或管道。
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1><prgn>afio</prgn>
+<p>
+<prgn>afio</prgn>更善于处理<prgn>cpio</prgn>格式的文档包。通常它比cpio要快，且提供了更多磁带选项，并且能更友好的处理有讹误的输入数据。它支持交互式处理多卷文档包。用<prgn>afio</prgn>制作压缩文档包比压缩<prgn>tar</prgn>或<prgn>cpio</prgn>文档包更安全。在备份处理脚本中<prgn>afio</prgn>是更佳的“文档处理引擎”。
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+对所有的磁带备份我都使用<prgn>afio</prgn>。
+</sect1>
+</sect>
+
+<sect id="diff-backup">差异备份与数据同步
+<p>
+要进行差异备份和数据同步可使用下列几种方法：
+<list>
+<item><package>rcs</package>：备份并进行历史记录，只支持文本。
+<item><package>rdiff-backup</package>：备份并进行历史记录。支持链接。
+<item><package>pdumpfs</package>：对文件系统进行备份和历史记录。支持链接。
+<item><package>rsync</package>：单路同步。
+<item><package>unison</package>：双路同步。
+<item><package>cvs</package>：多路同步服务器备份并进行历史记录，只支持文本，技术成熟。参阅<ref id="cvs">。
+<item><package>arch</package>：多路同步服务器备份并进行历史记录，但包括“处于工作中的目录”。
+<item><package>subversion</package>：多路同步服务器备份并进行历史记录，专用于Apache。 
+</list>
+有关将这些方法与文档包操作结合应用的讨论参阅<ref id="archiving">，有关自动进行备份的讨论参阅<ref id="cronjob">。
+<p>
+我只讲解三个较容易使用的工具。
+
+<sect1 id="rdiff-backup">使用rdiff进行差异备份
+<p>
+<package>Rdiff-backup</package>提供了简单好用的方法对任何文件包括链接进行历史差异备份。例如要对<file>~/</file>目录下的所有文件备份到<file>/mnt/backup</file>：
+<example>
+$ rdiff-backup --include ~/tmp/keep --exclude ~/tmp  ~/ /mnt/backup
+</example>
+从该文档包中取出3天前的旧数据恢复到<file>~/old</file>目录：
+<example>
+$ rdiff-backup -r 3D /mnt/backup ~/old
+</example>
+参阅<manref name="rdiff-backup" section="1">。
+
+<sect1 id="pdumpfs-backup">使用<package>pdumpfs</package>进行每日备份
+<p>
+<package>pdumpfs</package>是一种简单的每日备份系统，与Plan9的<prgn>dumpfs</prgn>一样，它每天都保存系统快照。任何时候都可以用它来恢复到某天的系统状态。请使用<prgn>pdumpfs</prgn>和<prgn>cron</prgn>来备份你的home目录。
+<p>
+在目标目录中，<prgn>pdumpfs</prgn>以<tt>YYYY/MM/DD</tt>的方式来组织系统快照。第一次运行时，它将所有源文件拷贝到快照目录。从每二次运行起，<prgn>pdumpfs</prgn>仅拷贝更新的或新建的文件，对于没有改变的文件用硬链接方式指向前一天的系统快照，以此来节省硬盘空间。
+<example>
+$ pdumpfs <var>src-dir</var> <var>dest-dir</var> [<var>dest-basename</var>]
+</example>
+See <manref name="pdumpfs" section="8">.
+</sect1>
+
+<sect1 id="backup">使用RCS进行定期差异备份
+<p>
+<package>Changetrack</package>会定期对RCS文档包中基于文本格式的配置文件的变化进行记录。参阅<manref name="changetrack" section="1">。
+<example>
+# apt-get install changetrack
+# vi changetrack.conf
+</example>
+</sect1>
+</sect>
+
+
+<sect>系统冻结恢复
+<sect1>中止一个进程
+<p>
+运行<prgn>top</prgn>看看什么进程的活动有异常。按“P”以cpu使用率排序，“M”以内存使用率排序，“k”可以中止一个进程。还有一种方法，使用BSD风格的<tt>ps aux | less</tt>或System V风格的<tt>ps -efH | less</tt>。System V风格的排列会显示父进程ID 
+<tt>PPID</tt>，这对中止出错的（死掉的）子进程十分有用。
+<p>
+知道了进程的ID，就可使用<prgn>kill</prgn>中止（或发信号给）某个进程，<prgn>killall</prgn>的作用正如其名一样。经常使用的信号有：
+<example>
+ 1: HUP，重启daemon
+15: TERM，普通中止
+ 9: KILL，强令中止
+</example>
+
+</sect1>
+
+<sect1>ALT-SysRq
+<p>
+内核编译选项“Magic SysRq key”提供系统强心针。在i386机器上按下<tt>ALT-SysRq</tt>组合键后，试试按下列各键<tt>r 0 k
+e i s u b</tt>，奇迹产生了：
+<p>
+Un'r'aw让键盘从X崩溃中重生。将控制台loglevel改为'0'以减少错误信息。sa'k'（system attention key）中止当前虚拟控制台的所有进程。t'e'rminate中止当前终端除init外的所有进程。k'i'll中止除init外的所有进程。
+<p>
+'S'ync，'u'mount和re'b'oot帮你逃离真正的险境。
+<p>
+本文写作之时，Debian默认安装的内核并未将该选项编译进去，需要重新编译内核激活该功能。详情参阅<file>/usr/share/doc/kernel-doc-version/Documentation/sysrq.txt.gz</file>或<file>/usr/src/<var>kernel-version</var>/Documentation/sysrq.txt.gz</file>。
+
+</sect1>
+</sect>
+
+
+<sect>记住这些可爱的小命令
+
+<sect1>Pager
+<p>
+<prgn>less</prgn>就是pager（文件内容浏览器）。按“h”可获得帮助。它比<prgn>more</prgn>更有用。在shell启动脚本中运行<tt>eval $(lesspipe)</tt>或<tt>eval $(lessfile)</tt>可以让<prgn>less</prgn>活力四射。详情参阅<file>&f-lessopen;</file>。使用<tt>-R</tt>选项可输出生癖字符and enables ANSI color escape sequences.参阅<manref name="less" section="1">。
+<p>
+对于某些编码系统（EUC）<prgn>w3m</prgn>可能是更好的选择。
+
+<sect1>释放内存
+<p>
+<prgn>free</prgn>和<prgn>top</prgn>能让你了解内存资源的许多有用信息。别担心“Mem:”行中“used”的大小，看看它下面的数字（本例的数字是38792）。
+<example>
+$ free -k # for 256MB machine
+             total       used       free     shared    buffers cached
+Mem:        257136     230456      26680      45736     116136 75528
+-/+ buffers/cache:      38792     218344
+Swap:       264996          0     264996
+</example>
+物理内存的准确大小可通过<tt>grep '^Memory'
+/var/log/dmesg</tt>得到，本例将显示“Memory: 256984k/262144k available (1652k kernel code, 412k reserved, 2944k data, 152k init)”。
+<example>
+Total         = 262144k = 256M (1k=1024, 1M=1024k)
+Free to dmesg = 256984k = Total - kernel - reserved - data - init
+Free to shell = 257136k = Total - kernel - reserved - data
+</example>
+约有5MB内存系统不能使用，因为内核需要它。
+</sect1>
+
+<sect1>设定时间（BIOS）
+<p>
+<example>
+# date MMDDhhmmCCYY
+# hwclock --utc
+# hwclock --systohc
+# hwclock --show
+</example>
+设定系统时间和硬件时间为MM/DD hh:mm, CCYY。显示时间为本地时间而硬件时间使用UTC。
+
+<sect1>设定时间（NTP）
+<p>
+参考：<url id="&time-howto;" name="Managing Accurate Date and Time HOWTO">。
+<p>
+<sect2>拥有永久Internet连接的系统设置时间
+<p>
+设置系统时钟通过远程服务器自动对时：
+<!-- [XXX FIXME XXX] some what broken ntpdate -->
+<example>
+# ntpdate <var>server</var>
+</example>
+如果你的系统拥有永久的Internet连接，应该将该命令加入<file>/etc/cron.daily</file>。
+
+<sect2>偶尔进行Internet连接的系统设置时间
+<p>
+使用<package>chrony</package>软件包。
+</sect1>
+
+<sect1>如何禁用屏幕保护程序
+<p>
+对于Linux控制台：
+<example>
+# setterm -powersave off
+</example>
+<p>
+启动kon2（kanji）控制台可执行：
+<example>
+# kon -SaveTime 0
+</example>
+<p>
+运行X可执行：
+<example>
+# xset s off
+ 或
+# xset -dpms
+ 或
+# xscreensaver-command -prefs
+</example>
+参阅相关的帮助页面。
+</sect1>
+
+<sect1 id="getent">搜索系统管理数据库
+<p>
+Glibc提供了<manref name="getent" section="1">搜索管理数据库的各类项目。例如passwd、group、hosts、services、protocols、networks。
+<example compact>
+getent database [key ...]
+</example>
+
+<sect1>禁用声音（响铃）
+<p>
+最直接的方法是拔掉PC喇叭;-)，对于Bash shell可执行：
+<example>
+echo "set bell-style none"&gt;&gt; ~/.inputrc
+</example>
+</sect1>
+
+<sect1>控制台上的错误信息
+<p>
+不想看屏幕显示的错误信息，首选的方法是检查<file>/etc/init.d/klogd</file>，在该脚本中设置<tt>KLOGD="-c <var>3</var>"</tt>然后运行<tt>/etc/init.d/klogd restart</tt>。另一种方法是执行<tt>dmesg -n<var>3</var></tt>。
+<p>
+这儿是各种错误级别的含义：
+<list compact>
+<item>0: KERN_EMERG,   系统不可用
+<item>1: KERN_ALERT,   必须立即执行
+<item>2: KERN_CRIT,    紧急状态
+<item>3: KERN_ERR,     错误状态
+<item>4: KERN_WARNING, 警告状态 
+<item>5: KERN_NOTICE,  正常状态且十分重要
+<item>6: KERN_INFO,    报告
+<item>7: KERN_DEBUG,   debug-level信息
+</list>
+<p>
+如果你很厌恶详细而无用的错误信息，可以试试这个小补丁<file>shutup-abit-bp6</file>（位于<url id="&examples;" name="样例脚本子目录">）。
+<p>
+另一个该看看的地方是<file>/etc/syslog.conf</file>;，检查一下是否有信息记录被发送到了控制台设备。
+</sect1>
+
+<sect1>正确设置控制台类型
+<p>
+在类Unix系统中，访问控制台屏幕通常要调用库例程，这就为用户提供了一种独立于终端的方式来优化字符的屏幕更新过程。参阅<manref name="ncurses" section="3X">和<manref name="terminfo" section="5">。
+<p>
+在&debian;系统中，有大量预定义项目：
+<example>
+$ toe | less                  # 所有项目
+$ toe /etc/terminfo/ | less   # 用户可再配置的项目
+</example>
+你的选择可导出到环境变量<tt>TERM</tt>。
+<p>
+当登录到远程Debian系统时，如果xterm的terminfo项目在非Debian的xterm中失效，请将终端类型改为支持较少特性的版本如“xterm-r6”。
+参阅<file>&f-libncurse;</file>。“dumb”是terminfo的最小公分母。
+</sect1>
+
+<sect1>恢复控制台的健壮性
+<p>
+如果执行<tt>$ cat <var>some-binary-file</var></tt>后屏幕一片混乱（命令的返回值与你的输入大相径庭）：
+<example>
+$ reset
+</example>
+</sect1>
+
+<sect1>将DOS下的文本文件转换为Unix类型
+<p>
+将DOS文本文件（行尾=^M^J）转换成Unix文本文件（行尾=^J）。
+<example>
+# apt-get install sysutils
+$ dos2unix <var>dosfile</var>
+</example>
+</sect1>
+
+<sect1>正规表达式的置换
+<p>
+将所有文件<var>FILES</var> ...中的所有<var>FROM_REGEX</var>字段替换成<var>TO_REGEX</var>字段。
+<example>
+$ perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_REGEX</var>/g;' <var>FILES</var> ...
+</example>
+<tt>-i</tt>表示“就地编辑”，<tt>-p</tt>表示“在<var>FILES</var>...各文件中循环”。如果置换很复杂，应使用参数<tt>-i.bak</tt>而非<tt>-i</tt>，这有助于出错恢复；它会将每个原始文件保存为以<tt>.bak</tt>为后缀的备份文件。
+</sect1>
+
+<sect1>使用脚本来编辑文件
+<p>
+下面的脚本将删除5-10行以及16-20行。
+<example>
+#!/bin/bash
+ed $1 &lt;&lt;EOF
+16,20d
+5,10d
+w
+q
+EOF
+</example>
+在此，<prgn>ed</prgn>命令与<prgn>vi</prgn>命令模式下的是一样的，从外部编辑文件的方式使它更适于脚本化。
+</sect1>
+
+<sect1>提取源文件修改部分合并到更新包
+<p>
+下面的操作将根据文件位置，提取源文件的修改部分并创建统一的diff文件<var>file.patch0</var>或<var>file.patch1</var>：
+<example>
+$ diff -u <var>file.old</var> <var>file.new1</var> &gt; <var>file.patch0</var>
+$ diff -u <var>old/file</var> <var>new1/file</var> &gt; <var>file.patch1</var>
+</example>
+diff文件（也称补丁文件）通常用于发送程序更新。收到的补丁文件可使用下面的方法更新另一个<var>文件</var>：
+<example>
+$ patch -p0 <var>file</var> &lt; <var>file.patch0</var>
+$ patch -p1 <var>file</var> &lt; <var>file.patch1</var>
+</example>
+如果有3个版本的源代码，使用<prgn>diff3</prgn>来合并效率更高：
+<example>
+$ diff3 -m <var>file.mine</var> <var>file.old</var> <var>file.yours</var> &gt; <var>file</var>
+</example>
+</sect1>
+
+<sect1>分割大文件
+<p>
+<example>
+$ split -b 650m <var>file</var>   # 将大文件分块成多个650MB的小文件
+$ cat x* ><var>largefile</var>    # 将所有小文件合并成一个大文件
+</example>
+</sect1>
+
+<sect1>从文本格式的表格中抽取数据
+<p>
+假设有一个文本文件名为<file>DPL</file>，其中存放着所有前&debian;项目领导人的名字和他们的上台日期，表格格式是以空格做为分隔的。
+<example>
+Ian     Murdock   August  1993
+Bruce   Perens    April   1996
+Ian     Jackson   January 1998
+Wichert Akkerman  January 1999
+Ben     Collins   April   2001
+Bdale   Garbee    April   2002
+Martin  Michlmayr March   2003
+</example>
+AWK经常用于从这类数据中提取数据。
+<example>
+$ awk '{ print $3 }' &lt;DPL                   # month started
+August
+April
+January
+January
+April
+April
+March
+$ awk '($1=="Ian") { print }' &lt;DPL          # DPL called Ian
+Ian     Murdock   August  1993
+Ian     Jackson   January 1998
+$ awk '($2=="Perens") { print $3,$4 }' &lt;DPL # When Perens started
+April 1996
+</example>
+</sect1>
+
+
+<sect1>精巧的管道命令辅助脚本
+<p>
+下列脚本做为管道的一部分十分有用。
+<example>
+find /usr | egrep -v "/usr/var|/usr/tmp|/usr/local"
+                     # find all files in /usr excluding some files
+xargs -n 1 <var>command</var>   # run command for all items from stdin
+xargs -n 1 echo |    # split white-space-separated items into lines
+xargs echo      |    # merge all lines into a line
+grep -e <var>pattern</var>|     # extract lines containing <var>pattern</var>
+cut -d: -f3 -|
+        # extract third field separated by : (passwd file etc.)
+awk '{ print $3 }' | # extract third field separated by whitespaces
+awk -F'\t' '{ print $3 }' |
+       # extract third field separated by tab
+col -bx |            # remove backspace and expand tabs to spaces
+expand -|            # expand tabs
+sort -u|             # sort and remove duplicates
+
+tr '\n' ' '|         # concatenate lines into one line
+tr '\r' ''|          # remove CR
+tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+sed 's/^/# /'|       # make each line a comment
+sed 's/\<var>.ext</var>//g'|    # remove <var>.ext</var>
+sed  -n -e 2p|       # print the second line 
+head -n 2 -|         # print the first 2 lines
+tail -n 2 -|         # print the last 2 lines
+</example>
+</sect1>
+
+<sect1>短小的Perl脚本
+<p>
+任何Awk脚本均可使用Perl重写，例如
+<example>
+awk '($2=="1957") { print $3 }' |
+</example>
+可以使用下列任意一行现实：
+<example>
+perl -ne '@f=split; if ($f[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne 'if ((@f=split)[1] eq "1957") { print "$f[2]\n"}' |
+perl -ne '@f=split; print $f[2] if ( $f[1]==1957 )' |
+perl -lane 'print $F[2] if $F[1] eq "1957"' |
+</example>
+<p>
+其实上面各行中所有perl参数中的空格均可去掉，这得益于Perl的数字字符串自动转换功能。
+<example>
+perl -lane 'print$F[2]if$F[1]eq+1957' |
+</example>
+有关命令行参数的信息可参阅<manref name="perlrun" section="1">，在<url id="&perlgolf;">有更多令人着魔的Perl脚本，你会感兴趣的。
+</sect1>
+
+<sect1>从网页上获取文本或邮件列表文档
+<p>
+下面的操作将网页转化为文本文件。从网上拷贝配置文件时十分有用。
+<example>
+$ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
+</example>
+<prgn>links</prgn>和<prgn>w3m</prgn>也可以这么用，只是生成的文本样式可能略有不同。
+<p>
+如果是邮件列表文档，可使用<prgn>munpack</prgn>从文本获得mime内容。
+</sect1>
+
+<sect1>打印网页
+<p>
+下面的操作将网页内容打印成PostScript文件或发送到打印机。
+<example>
+$ apt-get install html2ps
+$ html2ps <var>URL</var> | lpr
+</example>
+参阅<ref id="lprlpd">。还可使用<prgn>a2ps</prgn>和<prgn>mpage</prgn>软件包生成PostScript文件。
+</sect1>
+
+<sect1>打印帮助页面
+<p>
+下面的操作将帮助页面打印成PostScript文件或发送到打印机。
+<example>
+$ man -Tps <var>some-man-page</var> | lpr
+$ man -Tps <var>some-man-page</var> | mpage -2 | lpr
+</example>
+</sect1>
+
+<sect1>合并两个Postscript或PDF文件
+<p>
+可以将两个Postscript文件或PDF文件合并。
+<example>
+$ gs -q -dNOPAUSE -dBATCH -sDEVICE=pswrite \
+  -sOutputFile=<var>bla.ps</var> -f <var>foo1.ps</var> <var>foo2.ps</var>
+$ gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
+  -sOutputFile=<var>bla.pdf</var> -f <var>foo1.pdf</var> <var>foo2.pdf</var>
+</example>
+</sect1>
+ 
+<sect1>命令耗时
+<p>
+显示某进程的耗时
+<example>
+# time <var>some-command</var> &gt;/dev/null
+real    0m0.035s       # time on wall clock (elapsed real time)
+user    0m0.000s       # time in user mode
+sys     0m0.020s       # time in kernel mode
+</example>
+</sect1>
+
+<sect1><prgn>nice</prgn>命令
+<p>
+使用<prgn>nice</prgn>（来自GNU <package>shellutils</package>软件包）可设置命令启动时的nice值。<prgn>renice</prgn>（<package>bsdutils</package>）或<prgn>top</prgn>可以重设进程的nice值。nice值为19代表最慢的（优先级最低的）进程；负值就“not-nice”，如-20代表非常快的（优先级高的）进程。只有超级用户可以设定负nice值。
+<example>
+# nice  -19 <var>top</var>                                         # very nice
+# nice --20 <var>cdrecord -v -eject speed=2 dev=0,0 disk.img</var> # very fast
+</example>
+有时极端的nice值对系统弊大于利，所以使用该命令要小心。
+</sect1>
+
+<sect1 id="cronjob">日程安排（<prgn>cron</prgn>，<prgn>at</prgn>）
+<p>
+在Linux下使用<prgn>cron</prgn>和<prgn>at</prgn>进行任务日程安排。参阅<manref name="at" section="1">、<manref name="crontab" section="5">、<manref name="crontab" section="8">。
+<p> 
+执行命令<tt>crontab -e</tt>创建或编辑crontab文件，为规律事务（按周期循环的事务）安排日程。下面的一个crontab文件样例：
+<example>
+# use /bin/sh to run commands, no matter what /etc/passwd says
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+# Min Hour DayOfMonth Month DayOfWeek command (Day... are OR'ed)
+# run at 00:05, every day
+5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+# run at 14:15 on the first of every month -- output mailed to paul
+15 14 1  * *   $HOME/bin/monthly
+# run at 22:00 on weekdays(1-5), annoy Joe. &percnt; for newline, last &percnt; for cc:
+0 22 *   * 1-5 mail -s "It's 10pm" joe&percnt;Joe,&percnt;&percnt;Where are your kids?&percnt;.&percnt;&percnt;
+23 */2 1 2 *   echo "run 23 minutes after 0am, 2am, 4am ..., on Feb 1"
+5  4 *   * sun echo "run at 04:05 every sunday"
+# run at 03:40 on the first Monday of each month
+40 3 1-7 * *   [ "$(date +&percnt;a)" == "Mon" ] && command -args
+</example>
+执行<prgn>at</prgn>命令为偶然任务（只执行一次的任务）安排日程：
+<example>
+$ echo '<var>command -args</var>'| at 3:40 monday
+</example>
+</sect1>
+
+<sect1 id="screen">用<prgn>screen</prgn>来定制控制台
+<p>
+The <prgn>screen</prgn>程序允许在<strong>单一</strong>的物理终端或终端模拟窗口运行<strong>多个</strong>伪终端，每个伪终端都拥有自己的交互式shell。即便可以使用Linux伪终端或多个xterm窗口，研究一下如何设置<prgn>screen</prgn><strong>丰富的特性</strong>仍很有益，这些特性包括：
+<list compact>
+<item>回溯历史显示， 
+<item>拷贝和粘贴，
+<item>输出到日志，
+<item>图形入口， 
+<item>将终端与整个<prgn>screen</prgn>会话<strong>分离</strong>，稍后再连接。
+</list>
+
+<sect2>远程访问方案
+<p>
+If you frequently log on to a Linux machine
+如果你经常从远程终端登录到Linux机器或使用VT100终端程序，<prgn>screen</prgn>的<strong>detach</strong>（分离）特性将简化你的生活。
+<p>
+<enumlist compact>
+<item>通过拔号连接登录，运行了一个非常复杂的<prgn>screen</prgn>会谈，打开了好几个窗口，有编辑器和其它一些程序。
+<item>突然你需要离开终端一下，但你并不想挂断连接中止工作。
+<item>输入<tt>^A d</tt><strong>离开</strong>会话，然后登出系统。（或者更简单些，输入<tt>^A DD</tt>离开会话并自动登出系统）
+<item>当你回来时，需要再次登录，可输入命令<tt>screen -r</tt>，<prgn>screen</prgn>会如魔法般地重新连接上所有打开的窗口。
+</enumlist>
+
+<sect2>典型的<prgn>screen</prgn>命令
+<p>
+一但打开了<prgn>screen</prgn>程序，除了命令按键（默认为<tt>^A</tt>）所有的键盘输入都被送到当前窗口，所有的<prgn>screen</prgn>命令均按特定方式输入：<tt>^A</tt>加一个单键命令[加一些参数]的。常用的命令有：
+<example>
+^A ?     显示帮助屏幕（显示命令集）
+^A c     创建并切换到新窗口
+^A n     跳到下一个窗口
+^A p     跳到上一个窗口
+^A <var>0</var>     跳到<var>0</var>号窗口
+^A w     显示窗口列表
+^A a     将Ctrl-A做为键盘输入发送到当前窗口
+^A h     对当前窗口做硬拷贝写入到文件
+^A H     开始/中止将当前窗口事件记录到文件
+^A ^X    锁定终端（密码保护）
+^A d     从终端分离屏幕会话
+^A DD    分离屏幕会话并退出登录
+</example>
+以上只是<prgn>screen</prgn>命令的一个很小的子集。只要是你认为<prgn>screen</prgn>能干的事，没准它真就可以！详情参阅<manref name="screen" section="1">。
+
+<sect2><prgn>screen</prgn>会话中的退格键和Ctrl-H
+<p>
+在运行<prgn>screen</prgn>时，如果发现退格键和/或Ctrl-H无法正常工作，可编辑<file>/etc/screenrc</file>，找到这行：
+<example compact>
+bindkey -k kb stuff "\177"
+</example>
+将这注释掉（例如在句首添加“#”）。
+
+<sect2>X下与<prgn>screen</prgn>等价的程序
+<p>
+找找<prgn>xmove</prgn>。参阅<manref name="xmove" section="1">。
+
+</sect1>
+
+<sect1>网络测试基础
+<p>
+安装<package>netkit-ping</package>、<package>traceroute</package>、<package>dnsutils</package>、<package>ipchains</package>（适用于2.2版内核）、<package>iptables</package>（适用于2.4版内核）和<package>net-tools</package>软件包，然后执行：
+<example>
+$ ping <var>yahoo.com</var>            # 检查Internet连接
+$ traceroute <var>yahoo.com</var>      # 跟踪IP数据包
+$ ifconfig                  # 检查主机设置
+$ route -n                  # 检查路由设置
+$ dig <var>[@dns-server.com] host.dom [{a|mx|any}]</var> |less
+      # 检查<var>dns-server.com</var>的<var>host.dom</var> DNS记录
+      # 查找<var>{mx|any}</var>记录
+$ ipchains  -L -n |less     # 检查包过滤(2.2 kernel)
+$ iptables -L -n |less      # 检查包过滤(2.4 kernel)
+$ netstat -a                # 查找系统上所有打开的端口
+$ netstat -l --inet         # 查找系统监听的端口
+$ netstat -ln --tcp         # 查找系统监听的TCP端口（端口数字）
+</example>
+</sect1>
+
+<sect1>从本地缓冲池中清空（flush）邮件
+<p>
+从本地缓冲池中清空邮件：
+<example>
+# exim -q    # 清空待读邮件
+# exim -qf   # 清空所有邮件
+# exim -qff  # 清空冻结邮件
+</example>
+<tt>-qff</tt>选项用在<file>/etc/ppp/ip-up.d/exim</file>脚本中效果更好。
+</sect1>
+
+<sect1>删除本地缓冲池中的冻结邮件
+<p>
+删除本地缓冲池中的冻结邮件并返回出错信息：
+<example>
+# exim -Mg `mailq | grep frozen | awk '{ print $3 }'`
+</example>
+</sect1>
+
+<sect1>再分发mbox中的信件
+<p>
+如果home目录没有空间继续处理邮件，就需要对磁盘空间进行扩容，扩容完成后需要手工分发<file>/var/mail/<var>username</var></file>目录中的邮件到home目录中的分类邮箱，执行：
+<example>
+# /etc/init.d/exim stop
+# formail -s procmail &lt;/var/mail/<var>username</var>
+# /etc/init.d/exim start
+</example>
+</sect1>
+
+<sect1>清空文件内容
+<p>
+要清空某些文件如日志文件的内容，千万不要使用<tt>rm</tt>删除文件然后再创建一个新的空文件，因为在两次操作的间隔，系统可能需要访问该文件。下面是清空文件内容的安全方法：
+<example>
+$ :&gt;<var>file-to-be-cleared</var>
+</example>
+</sect1>
+
+<sect1>空文件
+<p>
+下面的命令可以创建空文件：
+<example>
+$ dd if=/dev/zero    of=<var>filename</var> bs=1k count=5 # 5KB of zero content
+$ dd if=/dev/urandom of=<var>filename</var> bs=1m count=7 # 7MB of random content
+$ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
+</example>
+例如，最实用的用法是从&debian;启动软盘的shell中执行下列命令将硬盘<file>/dev/hda</file>的内容完全清空。
+<example>
+# dd if=/dev/urandom of=/dev/hda ; dd if=/dev/zero of=/dev/hda
+</example>
+
+</sect1>
+
+<sect1 id="chroot"><prgn>chroot</prgn>
+<!-- updated using the idea from Colin Walters walters@debian.org -->
+<p>
+<prgn>chroot</prgn>程序，<manref name="chroot" section="8">，不需要重启系统，就可以在单独的系统上同时运行多个不同的GNU/Linux环境。
+<p>
+还可以在较快主机的chroot下运行某些需耗大量系统资源内存的程序如<prgn>apt-get</prgn>和<prgn>dselect</prgn>，并将较慢子机的硬盘通过NFS方式挂载到主机，开放读/写权限，在主机上以chroot方式操作子机。
+
+<sect2 id="chroot-debian">用<prgn>chroot</prgn>来运行不同版本的&debian;
+<p>
+在Woody中使用<prgn>debootstrap</prgn>命令很容易构造chroot &debian;体系。例如，在一台拥有快速Internet连接的机器的<var>/sid-root</var>下创建一个Sid chroot：
+<example>
+main # cd / ; mkdir <var>/sid-root</var>
+main # debootstrap sid <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+... watch it download the whole system
+main # echo "proc-sid <var>/sid-root</var>/proc proc none 0 0" >> /etc/fstab
+main # mount proc-sid <var>/sid-root</var>/proc -t proc
+main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+main # chroot <var>/sid-root</var> /bin/bash
+chroot # apt-setup # set-up /etc/apt/sources.list
+chroot # vi /etc/apt/sources.list # point the source to unstable
+chroot # dselect  # you may use aptitude, install mc and vim :-)
+</example>
+<p>
+现在你就拥有了一个全功能&debian;子系统，可以尽情享受而不必担心主&debian;受到不利影响。
+<p>
+该<prgn>debootstrap</prgn>应用技巧还可以实现在没有&debian;安装盘的情况下，从另一个GNU/Linux发行版下安装&debian;。参阅<url id="&setup-chroot;">。
+
+<sect2 id="chroot-console">设置<prgn>chroot</prgn>登录
+<p>
+输入<tt>chroot <var>/sid-root</var> /bin/bash</tt>非常简单，但这将沿用当前的所有环境变量，你可能并不希望这样并且有时还会出问题。更好的方法是，在别的虚拟终端上执行另一个登录进程，登录到chroot目录。
+<p>
+在&debian;系统中默认从<tt>tty1</tt>到<tt>tty6</tt>运行Linux控制台，<tt>tty7</tt>运行X Window系统，在本例中，我们将<tt>tty8</tt>设置成chroot控制台。按照<ref
+id="chroot-debian">中的描述创建好chroot系统后，就可以在主系统的root shell中输入：
+<example>
+main # echo "8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> "\
+       "/sbin/getty 38400 tty8"  >> /etc/inittab
+main # init q    # reload init
+</example>
+
+<sect2 id="chroot-x">配置<prgn>chroot</prgn>下的X
+<p>
+想在chroot下安全地运行最新版的X和GNOME吗？完全可以！下面的例子将实现在虚拟终端<tt>vt9</tt>下运行GDM。
+<p>
+首先，按照<ref id="chroot-debian">中描述的方法安装好chroot系统，从主系统的root下拷贝关键配置文件到chroot系统。
+<example>
+main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+main # chroot <var>/sid-root</var> # or use chroot console
+chroot # apt-get install gdm gnome x-window-system
+chroot # vi /etc/gdm/gdm.conf # do s/vt7/vt9/ in [servers] section
+chroot # /etc/init.d/gdm start
+</example>
+在此，编辑<file>/etc/gdm/gdm.conf</file>，使其在<tt>vt7</tt>到<tt>vt9</tt>上创建虚拟终端。
+<p>
+现在可以很容易地能过切换Linux虚拟终端来实现在主系统的X环境和chroot系统的X环境之间转换，例如使用Ctrl-Alt-F7和Ctrl-Alt-F9。酷吧！
+<p>
+[FIXME] 在chroot系统下gdm的init脚本中添加一条注释和一条链接。
+
+<sect2 id="chroot-dist">使用<prgn>chroot</prgn>来运行其它发行版
+<p>
+很容易创建一个包含其它发行版的chroot环境。使用其它发行版的安装程序将它们安装到单独的硬盘分区中。例如root分区位于<file><var>/dev/hda9</var></file>。
+<example>
+main # cd / ; mkdir <var>/other-dist</var>
+main # mount -t ext3 <var>/dev/hda9</var> <var>/other-dist</var>
+main # chroot <var>/other-dist</var> /bin/bash
+</example>
+接下来的工作与<ref id="chroot-debian">、<ref id="chroot-console">和<ref id="chroot-x">中描述的内容基本相似。
+
+<sect2 id="chroot-build">使用<prgn>chroot</prgn>来编译软件包
+<p>
+这儿有一个很特殊的chroot软件包<package>pbuilder</package>，它构造一个chroot系统并在其中编译软件包。该体系可用于检查软件包编译时关联关系是否正确，并确保编译生成的软件包中没有不必要的或错误的关联关系。
+
+</sect1>
+
+<sect1>怎样检查硬链接
+<p>
+检查两个文件是否是指向同一个文件的两个硬链接：
+<example> 
+$ ls -li <var>file1</var> <var>file2</var>
+</example>
+ 
+<sect1><prgn>mount</prgn>硬盘上的镜像文件
+<p>
+如果<file><var>file.img</var></file>文件是硬盘内容的镜像文件，而且原始硬盘的配置参数为<var>xxxx</var> = (bytes/sector) * (sectors/cylinder)，那么，下面的命令将其挂载到<file>/mnt</file>：
+<example>
+# mount -o loop,offset=<var>xxxx</var> <var>file.img</var> /mnt
+</example>
+注意绝大部分的硬盘都是512 bytes/sector。
+
+<sect1>Samba
+<p>
+获取Windoze文件的基本方法：
+<example>
+# mount -t smbfs -o <var>username=myname,uid=my_uid,gid=my_gid</var> \
+        <var>//server/share /mnt/smb</var>  # mount Windows files to Linux
+# smbmount <var>//server/share /mnt/smb</var> \
+        -o "<var>username=myname,uid=my_uid,gid=my_gid</var>"
+# smbclient -L <var>192.168.1.2</var> # list the shares on a computer
+</example>
+<p>
+可从Linux检查Samba网上邻居：
+<example>
+# smbclient -N -L <var>ip_address_of_your_PC</var> | less
+# nmblookup -T "*"
+</example>
+</sect1>
+
+<sect1>外来文件系统的操作工具
+<p>
+Linux内核支持多种外来文件系统，想访问它们只需将其挂载到合适的文件系统下就行了。对某些文件系统，还提供专门工具不需要挂载，只依靠用户空间的程序，不需要内核提供文件系统支持，就能完成访问。
+<list compact>
+<item><package>mtools</package>: for MSDOS filesystem (MS-DOS, Windows)
+<item><package>cpmtools</package>: for CP-M filesystem
+<item><package>hfsutils</package>: for HFS filesystem (native Macintosh)
+<item><package>hfsplus</package>: for HFS+ filesystem (modern Macintosh)
+</list>
+对于创建和检查MS-DOS FAT文件系统<package>dosfstools</package>非常有用。
+</sect1>
+
+</sect>
+
+</chapt>
+

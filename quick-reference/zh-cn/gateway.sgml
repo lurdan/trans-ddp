@@ -1,0 +1,248 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.30"  -->
+
+<chapt id="gateway">使用&debian;系统架设网关
+
+<p>
+用&debian;可以架设一个全能的网关，它可以承担NAT、mail、DHCP、DNS cache、HTTP proxy cache、CVS、NFS的工作以及提供面向家庭LAN系统的Samba services。有关这方面网络配置的讨论可参阅<url id="&netfilterhome;" name="Netfilter">。
+
+<sect>网络配置
+<p>
+
+<sect1 id="ip-class">网关的主机设置
+<p>
+LAN按下面方法分段使用IP地址以避免Internet上的IP地址冲突。
+<example>
+Class A: 10.0.0.0                    with mask 255.0.0.0
+Class B: 172.16.0.0 - 172.31.0.0     with mask 255.255.0.0
+Class C: 192.168.0.0 - 192.168.255.0 with mask 255.255.255.0
+</example>
+<p>
+在&debian;中<file>/etc/network/interfaces</file>文件用于IP设置。
+<p>
+举个例子，假如某台机器的<file>eth0</file>使用DHCP动态IP地址连接Internet，<file>eth1</file>连接LAN，则其<file>/etc/network/interfaces</file>的设置如下（适用于Woody及后继版本）
+<example>
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet static
+address 192.168.1.1
+network 192.168.1.0
+netmask 255.255.255.0
+broadcast 192.168.1.255
+</example>
+修改了<file>/etc/network/interfaces</file>后，可执行下面的命令使其生效：
+<example>
+# /etc/init.d/networking restart
+</example>
+注意：在Woody及其后继版本中的<file>/etc/network/interfaces</file>文件不适用于Potato。（同样的差异会出现在Sarte和Woody之间。）
+<p>
+如果系统使用PCMCIA NIC，则在Potato系统中需要设置<file>/etc/pcmcia/network.opts</file>而不是interfaces，在Woody就不必了，系统已解决了这个问题。
+<p>
+想检查设置结果可查看下列命令输出：
+<example>
+# ifconfig
+# cat /proc/pci
+# cat /proc/interrupts
+# dmesg | more
+</example>
+有时，DSL（PPPoE）连接存在MTU问题，参阅<url id="&dsl-howto;" name="DSL-HOWTO">。如果存在无法访问某些站点的问题，参阅<ref id="killecn">。
+</sect1>
+
+<sect1 id="ip-check">网络设置检查
+<p>
+典型的软件集合：
+<example>
+# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
+# apt-get install ssh cvs
+</example>
+<p>
+检查下列文件：
+<example>
+/etc/init.d/dhcpd       (edit to serve only LAN = eth1)
+/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) for NFS
+/etc/exports            (Need this for NFS)
+/etc/bind/db.192.168.1  (add)
+/etc/bind/db.lan        (add)
+/etc/bind/named.conf    (edit)
+/etc/resolv.conf        (edit)
+/etc/hosts
+/etc/dhcpd.conf         (edit for LAN = eth1)
+/etc/dhclient.conf      (edit to force local DNS)
+/etc/samba/smb.conf
+/etc/exim/exim.conf
+/etc/mailname
+/etc/aliases
+/etc/squid.conf         (add all LAN host IPs as allowed)
+</example>
+<prgn>bind</prgn>创建一个本地的cache DNS server并且changes DNS to localhost。检查<file>/etc/resolv.conf</file>：
+<example>
+nameserver 127.0.0.1
+search lan.aokiconsulting.com
+</example>
+</sect1>
+
+<sect id="netfilter">Netfilter设置
+<p>
+在Linux 2.4及其后继版本中加入了netfilter/iptables项目，作为一个防火墙子系统。参阅<url id="&netfilterhome;" name="Netfilter">，那儿有许多有关其配置的讨论和解释。
+
+<sect1 id="netfilter-basics">netfilter基础
+<p>
+Netfilter内建了5条链路来处理数据包，它们分别是：PREROUTING、INPUT、FORWARD、OUTPUT和POSTROUTING：
+<example>
+                routing
+                decision
+IN ------> PRE ---> ------> FORWARD -----> ----> POST -----> OUT
+interface  ROUTING  \       filter       /       ROUTING     interface
+           DNAT     |       tracking     ^       SNAT
+           REDIRECT |                    |       MASQUERADE
+                    v                    |
+                  INPUT                OUTPUT
+                    | filter             ^ filter,DNAT 
+                    v                    |
+                    \--&gt; Local Process --/
+                         user-space programs
+</example>
+
+<sect1 id="netfilter-table">过滤表（Netfilter table）
+<p>
+数据包在每条内建的链路中传输时按如下过滤表中的规则进行处理。
+<list compact>
+<item>filter（数据包过滤器，链路中默认的过滤器）
+<list compact>
+<item>INPUT（作用于进入本机的数据包）
+<item>FORWARD（作用于路由到本机的数据包）
+<item>OUTPUT（作用于本地产生的数据包）
+</list>
+<item>nat（网络地址翻译）
+<list compact>
+<item>PREROUTING（作用于刚进入的待转换数据包）
+<item>OUTPUT（作用于在路由之前待转换的本地产生的数据包）
+<item>POSTROUTING（作用于待发出的已转换的数据包）
+</list>
+<item>mangle (network address mangling, good only after 2.4.18)
+<list compact>
+<item>适用于所有5条链路。 
+</list>
+</list>
+
+<sect1 id="netfilter-target">过滤目标（Netfilter target）
+<p>
+Firewall rules have several targets:
+<list compact>
+<item>4个基本目标：
+<list compact>
+<item>ACCEPT 允许数据包通过。
+<item>DROP 阻拦数据包。
+<item>QUEUE 允许数据包进入用户空间（userspace）（如果内核支持的话）。
+<item>RETURN means stop traversing this chain and resume at the next 
+  rule in the previous (calling) chain.  
+</list>
+<item>扩展目标：
+<list compact>
+<item>LOG 打开内核日志。
+<item>REJECT 回送错误数据包并阻拦该数据包。
+<item>SNAT 修改数据包源地址，仅作用于POSTROUTING链路。（仅适用于nat过滤表）
+<example compact>
+--to-source ipaddr[-ipaddr][:port-port]
+</example>
+<item>MASQUERADE 作用和SNAT一样，但面向使用动态IP请求建立的连接（拔号连接）。（仅适用于nat过滤表）
+<example compact>
+--to-ports port[-port]
+</example>
+<item>DNAT 修改数据包目的地址，仅作用于PREROUTING、OUTPUT链路以及由它们调用的用户自定义链路。（仅适用于nat过滤表）
+<example compact>
+--to-destination ipaddr[-ipaddr][:port-port]
+</example>
+<item>REDIRECT 修改数据包目标地址使其发送给本机。
+<example compact>
+--to-ports port[-port]
+</example>
+</list>
+</list>
+
+<sect1 id="netfilter-command">网络过滤器命令
+<p>
+<prgn>iptables</prgn>的基本命令有：
+<example compact>
+iptables -N <var>chain</var>                   # create a <var>chain</var>
+
+iptables -A <var>chain</var> \                 # add rule to <var>chain</var>
+         -t <var>table</var> \                 # use <var>table</var> (filter, nat, mangle)
+         -p <var>protocol</var> \              # tcp, udp, icmp, or all,
+         -s <var>source-address[/mask]</var> \
+         --sport <var>port[:port]</var> \      # source port if -p is tcp or udp
+         -d <var>destination-address[/mask]</var> \
+         --dport <var>port[:port]</var> \      # dest. port if -p is tcp or udp
+         -j <var>target</var> \                # what to do if match
+         -i <var>in-interface-name</var> \     # for INPUT,  FORWARD, PREROUTING
+         -o <var>out-interface-name</var>      # for FORWARD, OUTPUT, POSTROUTING
+</example>
+
+<sect1 id="ip-masq">IP伪装（IP-masquerade）
+<p>
+一个运用IP伪装（NAT）的网关可实现LAN内的机器通过共享一个单独的可访问外网的IP地址来访问Internet资源。
+<example>
+# apt-get install ipmasq
+</example>
+执行样例规则来加强<prgn>ipmasq</prgn>的保护机制。
+参阅<file>/usr/share/doc/ipmasq/examples/stronger/README</file>。对于使用2.4版内核镜像的Debian，请确认加载了相应的模块。有关的必要设置参阅<ref id="kernel-net">。
+<p>
+对于使用2.2版内核镜像的Debian，可按下面的方法编辑<file>/etc/masq/rules</file>中的<file>Z92timeouts.rul</file>文件，以保证可长时间连接远程站点（如发送大容量的email，等）：
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - default
+# 1 day, 10 min, 10 min - longer example
+$IPCHAINS -M -S 86400 600 600
+</example>
+同样，如果是通过PCMCIA NIC访问网络，<prgn>ipmasq</prgn>需要从<file>/etc/pcmcia/network.opts</file>启动。参阅<file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file>.
+</sect1>
+
+<sect1 id="ip-redirect">重定向SMTP联接（2.4版内核）
+<p>
+假设你将一台笔记本电脑重新配置成可连入其它的LAN环境，而你不想再重新配置用户邮件代理，即：想直接用原来的配置收发邮件。
+<p>
+使用<prgn>iptables</prgn>命令向网关机器中加入下面的规则，就可以实现重定向与网关机器的SMTP连接。
+<example>
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25, INPUT is open
+</example>
+想使用更完备的重定向规则集，建议安装<package>ipmasq</package>软件包，并在<file>/etc/ipmasq/rules/</file>目录中添加<file><url id="&examples;" name="M30redirect.def"></file>文件。
+
+</sect>
+
+<sect>管理多重网络联接
+<p>
+[FIXME] 路由策略(by Phil Brutsche
+<email>pbrutsch@tux.creighton.edu</email>):
+详情参阅<url id="&iproute;" name="iproute manual">。Traffic control (tc) 也很有趣。
+<p>
+Environment:
+<example>
+eth0: 192.168.1.2/24; gateway 192.168.1.1
+eth1: 10.0.0.2/24; gateway 10.0.0.1
+No masquerading on this machine.
+</example>
+Special magic:
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
+<p>
+[FIXME] 我没亲自做过。如何利用自动拔号特性使拔号连接保持高速？如果你知道请发补丁我:)
+</sect>
+
+
+</chapt>

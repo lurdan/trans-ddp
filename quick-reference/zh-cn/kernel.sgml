@@ -1,0 +1,287 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.51"  -->
+
+<chapt id="kernel">Debian下的Linux内核
+<p>
+Debian运用自己的方式来编译内核及相关模块。参阅<ref id="kernel-details">。
+
+<sect id="kernel-compile">内核编译
+<p>
+Debian unstable发行版中的<prgn>gcc</prgn>、<prgn>binutils</prgn>和<prgn>modutils</prgn>可用来编译最新的Linux内核。这方面的官方信息，参阅<file>&f-kernel-readme;</file>文件的后半部分。
+
+<p>
+内核编译是个很困难的议题，由于目标在不断的变化，即使是最受人尊敬的开发者也会有不同的见解：
+<taglist compact>
+<tag>Manoj Srivastava写到：
+<item><tt>--initrd</tt>需要Debian专用cramfs补丁。
+<tag>Herbert Xu写到：
+<item>不，它不需要，想使用除CRAMFS以外的文件系统只需在<file>/etc/mkinitrd/mkinitrd.conf</file>中设置MKIMAGE。
+</taglist>
+<p>
+按照Manoj和Kent撰写的<file>&f-kernel-readme;</file>的指导小心行事，如果要编译最新版本的内核请确认安装了最新unstable版<package>kernel-package</package>软件包。
+<p>
+对于单机内核编译，<tt>initrd</tt>不是必须的。我用它是希望我新编译的内核与相应的内核镜像一模一样。如果使用<tt>initrd</tt>，请先阅读一下<manref name="mkinitrd" section="8">和<manref name="mkinitrd.conf" section="5">。亦可参阅<url id="&bug-initrd;">。
+
+<sect1 id="kernel-debian">Debian标准方式
+<p>
+关心一下有关<package>kernel-package</package>、<prgn>gcc</prgn>、<prgn>binutils</prgn>和<prgn>modutils</prgn>的错误报告。请按有关要求使用较新的版本。
+<p>
+在Debian系统中用源码编译自定义内核要特别小心。用<prgn>make-kpkg</prgn>的<tt>--append_to_version</tt>选项来创建多重内核镜像比较安全。
+<example>
+# apt-get install debhelper modutils kernel-package libncurses5-dev
+# apt-get install kernel-source-<var>2.4.18</var>   # 使用最新版本
+# apt-get install fakeroot
+# vi /etc/kernel-pkg.conf                # 输入我的名字和email
+$ cd /usr/src                            # 创建目录
+$ tar --bzip2 -xvf kernel-source-<var>2.4.18</var>.tar.bz2
+$ cd kernel-source-<var>2.4.18</var>                # 如果这是你的内核源码
+$ cp /boot/config-<var>2.4.18-386</var> .config     # 将当前配置设定为默认配置
+$ make menuconfig                        # 按自己的喜好来定制
+$ make-kpkg clean                        # 必须执行这步(per: man make-kpkg)
+$ fakeroot make-kpkg --append_to_version -<var>486</var> --initrd \
+        --revision=<var>rev.01</var> kernel_image \
+        modules_image # modules_image可以是pcmcia-cs*等。
+$ cd ..
+# dpkg -i kernel-image*.deb pcmcia-cs*.deb # 安装
+</example>
+<tt>make-kpkg kernel_image</tt>实际上执行了<tt>make oldconfig</tt>和<tt>make dep</tt>。如果没使用initrd就不要使用<tt>--initrd</tt>选项。
+<p>
+如果想加载pcmcia-cs模块或没有pcmcia，应该在<tt>make menuconfig</tt>后选“General setup  &mdash;&gt;”进入“PCMCIA/CardBus support  &mdash;&gt;”,配置“&lt;&nbsp;&gt; PCMCIA/CardBus support”选项（例如，取消复选项）。
+<p>
+对于SMP机器，参照<manref name="kernel-pkg.conf" section="5">的说明设置CONCURRENCY_LEVEL。
+</sect1>
+
+<sect1 id="kernel-classic">经典方式
+<p>
+从下列地址获得干净的源代码：
+<list compact>
+<item>Linux:     <url id="&linuxsrc;">
+<item>pcmcia-cs: <url id="&pcmciasrc;">
+</list>
+或使用Debian所附的等价的源代码：
+<example>
+# cd /usr/src
+# tar xfvz linux-<var>whatever</var>.tar.gz
+# rm -rf linux
+# ln -s linux-<var>whatever</var> linux
+# tar xfvz pcmcia-cs-<var>whatever</var>.tar.gz
+# ln -s pcmcia-cs-<var>whatever</var> pcmcia
+# cd linux
+# make menuconfig
+... 配置内核选项 ...
+# make dep
+# make bzImage
+... 编辑lilo/grub ...
+... 移动/usr/src/linux/arch/i386/boot/bzImage到boot ...
+... /sbin/lilo or whatever you do for grub
+# make modules; make modules_install
+# cd ../pcmcia
+# make config
+# make all
+# make install
+... 添加需要的模块名称到/etc/modules
+# shutdown -r now
+... 启动到新内核 ...
+</example>
+</sect1>
+
+<sect1 id="kernel-headers">内核头文件
+<p>
+绝大多数“普通”程序不需要内核头文件，事实上如果直接引用它们会出错。这些程序应该引用那些<strong>编译<prgn>glibc</prgn></strong>所用的头文件，它们位于Debian系统的<file>/usr/include/linux</file>和<file>/usr/include/asm</file>目录下。
+<p>
+故不要在<file>/usr/src/linux</file>目录中创建指向<file>/usr/include/linux</file>和<file>/usr/include/asm</file>的链接，一些过时的文档曾建议创建它们。
+<p>
+如果某些内核类应用程序<strong>需要</strong>特定的内核头文件，可修改<file>Makefile</file>(s)，使其包含指向“<file><var>特定内核头文件目录</var>/include/linux</file>”和“<file><var>特定内核头文件目录</var>/include/asm</file>”的路径。
+</sect1>
+
+</sect>
+
+<sect id="kernel-modules">模块化的2.4内核
+<p>
+kerntl-mage-2.4.<var>NN</var>提供了新版的Debian 2.4内核，该版内核模块化程度极高。你必须激活相关的模块才能获得想要的内核功能。
+<p>
+尽管在接下来的部分中提供了许多通过配置<file>/etc/modules</file>来解决问题的样例，但据说，在<file>/etc/modutils/</file>中用一个文件来提供所有的设备别名，就可解决这类有关模块问题，当前的内核有足够多的别名供你使用。
+<p>
+参阅Linux内核源码目录中的<file>Documentation/*.txt</file>获取详细信息。
+
+<sect1 id="kernel-pcmcia">PCMCIA
+<p>
+要使用PCMCIA，需在<file>/etc/modules</file>中包含下列内容：
+<example>
+# ISA PnP driver
+isa-pnp
+# Low level PCMCIA driver
+# yenta_socket # 我的机器上似乎不需要
+</example>
+剩下的工作就由PCMCIA脚本（来自<package>pcmcia-cs</package>软件包）、<prgn>depmod</prgn>和<prgn>kmod</prgn>负责了。我需要<prgn>isa-pnp</prgn>因为我的笔记本电脑使用的是旧ISA-PCMCIA。较新的笔记本电脑使用CardBus/PCMCIA，不再需要它。
+<p>
+慷慨的Miquel van Smoorenburg <email>miquels@cistron.nl</email>说：
+<p>
+“我将笔记中所有有关pcmcia的东西包括cardmgr等一鼓脑全删了，只装了支持cardbus的2.4版内核和woody中新的<package>hotplug</package>软件包。
+<p>
+只要你使用的是32-bit卡，你就不需要pcmcia软件包；2.4内置了cardservices。标准的tulip驱动亦可在dlink卡上正常工作。
+<p>
+&mdash;Mike。”
+</sect1>
+
+<sect1 id="kernel-scsi">SCSI
+<p>  <!-- Osamu: maybe test this section? I do not have SCSI :(  
+                                     But this is almost sure :) -->
+[没有测试过] 想要SCSI工作，请在<file>/etc/modules</file>中包含如下内容：
+<example>
+# SCSI core
+scsi_mod
+# SCSI generic driver
+sg
+# SCSI disk
+sd_mod
+# All other needed HW modules
+...
+</example>
+可用<prgn>depmod</prgn>来操作上述某些模块。
+</sect1>
+
+<sect1 id="kernel-net">网络功能
+<p>
+<file>/etc/modules</file>中需要包含如下内容以扩充网络功能：
+<example>
+# net/ipv-4
+ip_gre
+ipip
+
+# net/ipv-4/netfilter
+# iptable (in order)
+ip_tables
+ip_conntrack
+ip_conntrack_ftp
+iptable_nat
+iptable_filter
+iptable_mangle
+#
+ip_nat_ftp
+ip_queue
+#
+ipt_LOG
+ipt_MARK
+ipt_MASQUERADE
+ipt_MIRROR
+ipt_REDIRECT
+ipt_REJECT
+ipt_TCPMSS
+ipt_TOS
+ipt_limit
+ipt_mac
+ipt_mark
+ipt_multiport
+ipt_owner
+ipt_state
+ipt_tcpmss
+ipt_tos
+ipt_unclean
+#
+#ipchains
+#ipfwadm
+</example>
+上述内容并没有进行优化。可用<prgn>depmod</prgn>来操作上述某些模块。
+</sect1>
+
+<sect1 id="ext3">EXT3文件系统（&gt; 2.4.17）
+<p>
+对预编译内核镜像包（&gt; 2.4.17）执行下述操作可激活EXT3日志文件系统。
+<example>
+# cd /etc; mv fstab fstab.old
+# sed 's/ext2/ext3,ext2/g' &lt;fstab.old &gt;fstab
+# vi /etc/fstab
+... 将root文件系统类型设置成“auto”而非“ext3,ext2”
+# cd /etc/mkinitrd
+# echo jbd &gt;&gt;modules
+# echo ext3 &gt;&gt;modules
+# echo ext2 &gt;&gt;modules
+# cd /
+# apt-get update; apt-get install kernel-image-<var>2.4.17-686-smp</var>
+... 安装最新内核并配置boot（lilo从这儿运行）
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... 将所有EXT2 FS转化成EXT3
+# shutdown -r now
+</example>
+现在就可使用EXT3日志文件系统了。在<prgn>fstab</prgn>的“type”中使用<tt>ex3、ext2</tt>的是为了保险起见，如果内核不支持非root分区采用EXT3还可退回到EXT2。
+<p>
+如果你已安装了2.4版内核并且不想再次重装，执行上述步骤中<prgn>apt-get</prgn>命令之前的步骤就行了。接着：
+<example>
+# mkinitrd -o /boot/initrd.img-<var>2.4.17-686-smp</var> /lib/modules/<var>2.4.17-686-smp</var>
+# lilo
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... 将所有EXT2 FS转化成EXT3
+# shutdown -r now
+</example>
+现在EXT3日志文件系统已生效。
+<p>
+如果没有设置<file>/etc/mkinitrd/modules</file>就<prgn>mkinitrd</prgn>运行，最好在系统启动时加载一些模块：
+<example>
+... 当initrd提示获取shell时（5秒钟），输入RETURN
+# insmod jbd
+# insmod ext3 # modprobe ext3会负责一切
+# insmod ext2
+# ^D
+... 继续启动
+</example>
+在系统启动屏幕（<prgn>dmesg</prgn>）中，会出现“cramfs: wrong magic”，别担心这没有什么害处。在Sarge（2002/10）中已解决了这个问题。参阅<url id="&bug-ext3;">和<url id="&howtoext3;" name="EXT3 File System mini-HOWTO">，或者是<file>&f-howtoext3;</file>获得有关详情。
+<p>
+激活EXT3功能会造成某些系统发生严重内核死锁的情况，不过我没遇到过这种问题（我的内核是2.4.17）。
+</sect1>
+
+<sect1 id="ss-rtl8139">2.4版内核对Realtek RTL-8139的支持
+<p>
+不知何故，RTL-8139支持模块已不再叫rtl8139，现在它叫8139too。从2.2版内核升级到2.4版时，请记得在<file>/etc/modules</file>中做相应修改。
+</sect1>
+
+<sect1 id="parport">并行端口支持
+<p>
+对于<package>kernel-image-2.4.*</package>，并行端口支持已被模块化，要激活可执行：
+<example>
+# modprobe lp
+# echo lp >> /etc/modules
+</example>
+参阅Linux内核源码目录中的<file>Documentation/parport.txt</file>。
+
+</sect1>
+</sect>
+
+<sect id="proc-sys">通过proc文件系统调整内核
+<p>
+通过proc文件系统，可在运行状态下进行调整Linux内核行为。
+<p>
+在关在<file>/proc</file>文件系统下修改内核参数的基础知识，可参阅Linux源码包中的<file>Documentation/sysctl/*</file>文件。
+<p>
+调整内核参数的例子，可参考<file>/etc/init.d/networking</file>和<ref id="killecn">。
+
+<sect1 id="many-files">打开了太多文件
+<p>
+Linux内核有时会报告“Too many open files”，起因是<tt>file-max</tt>默认值（8096）太小。要解决这个问题，可以root身份执行下列命令（或将它们加入<file>/etc/rcS.d/*</file>下的init脚本。）
+<example>
+# echo "65536"  &gt; /proc/sys/fs/file-max  # 适用于2.2和2.4版内核
+# echo "131072" &gt; /proc/sys/fs/inode-max # 仅适用于2.2版内核
+</example>
+
+<sect1 id="bdflush">磁盘缓存清除时间（Disk flush intervals）
+<p>
+可通过proc文件系统来修改磁盘缓存清除时间。下面的操作将默认的5秒时间间隔缩短到1秒。
+<example>
+# echo "40 0 0 0 100 30000 60 0 0"  &gt; /proc/sys/vm/bdflush
+</example>
+这可能对文件I/O性能产生一点儿负面影响。但它能保证文件内容是最近1秒的，比默认的5秒更短。对日志文件系统来说更是如此。
+</sect1>
+
+<sect1 id="over-commit">迟缓的小内存旧机器
+<p>
+对某些小内存的旧机器来说，在proc文件系统中打开内存的over-commit功能会很有效果：
+<example>
+# echo 1 &gt; /proc/sys/vm/overcommit_memory
+</example> 
+</sect1>
+
+</sect>
+</chapt>
+

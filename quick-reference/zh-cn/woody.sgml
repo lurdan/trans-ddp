@@ -1,0 +1,135 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.35"  -->
+
+<chapt id="woody">发行版升级
+
+<![%f-ref;[
+<p>
+升级的官方发布通知位于
+<url id="&stable-release;">
+和
+<url id="&testing-release;">（不断更新中）。
+
+<p>
+将系统升级到<tt>testing/unstable</tt>的过程如下：
+<list>
+ <item>如果使用的系统是Potato请将APT版本升级到Woody，因为Potato版中的APT不具备Woody版中<manref name="apt_preferences" section="5">所描述的某些特性。
+ <item>修改<file>/etc/apt/sources.list</file>和<file>/etc/apt/preferences</file>文件，加入所使用的安装服务器上与“testing”相关下载目录，如果有兴趣，亦可加入“unstable”相关下载目录。
+ <item> 更新软件包列表，安装可以升级的软件包。
+</list> 
+]]>
+
+
+<sect id="woody-transition">将APT升级到Woody版本
+<p>
+如果运行的是Potato，可在<file>/etc/apt/sources.list</file>中加入<tt>stable</tt>镜像源，然后使用下列步骤将APT系统以及一些核心包在线升级到Woody版本。
+<example>
+# apt-get update
+# apt-get install libc6 perl libdb2 debconf
+# apt-get install apt apt-utils dselect dpkg
+</example>
+
+
+<sect id="testing-transition">迁移准备工作（从“stable”到“testing”）
+<p>
+请注意，升级到<tt>testing</tt>有一个负面影响，安全补丁更新将会非常缓慢。
+<p>
+下面的操作可实现通过网络升级到“testing”（亦可执行样例目录中的<url id="&examples;" name="go-woody">脚本）：
+<p>
+清空现存的<file>sources.list</file>文件
+<example>
+# cd /etc/apt
+# cp -f sources.list sources.old 
+# :&gt;sources.list  
+</example>
+<p>
+为“stable”系统生成一张干净的下载目录列表
+<example>
+# cd /
+# apt-setup noprobe 
+    ... 通过http或ftp，选择下载目录
+</example>
+在这张新列表文件中添加“testing”版本下载目录，将<tt>deb-src</tt>行注释掉。
+<example>
+# cd /etc/apt
+# grep -e "^deb " sources.list  &gt;sources.deb
+# grep -e "^deb-" sources.list  &gt;sources.src
+# sed -e "s/stable/testing/"  sources.deb \
+     &gt;&gt;sources.list
+# sed -e "s/stable/testing/" sources.src | \
+     sed -e "s/^deb-/#deb-/"  &gt;&gt;sources.list
+
+# apt-get update
+# apt-get install apt apt-utils
+# cat &gt;preferences &lt;&lt;EOF
+ Package: *
+ Pin: release a=testing
+ Pin-Priority: 600
+ 
+ Package: *
+ Pin: release a=unstable
+ Pin-Priority: 50
+
+ EOF
+</example>
+或者，添加“unstable”版本下载目录。
+<example>
+# sed -e "s/stable/unstable/" sources.deb \
+     &gt;&gt;sources.list
+# sed -e "s/stable/unstable/" sources.src | \
+     sed -e "s/^deb-/#deb-/"  &gt;&gt;sources.list
+</example>
+See <ref id="apt-install"> for the art of tuning 
+<file>/etc/apt/sources.list</file> and <file>/etc/apt/preferences</file>.
+<p>
+现在就可以下一节所讲的任意一种方法更新和升级系统了。
+</sect>
+
+<sect id="upgrade-system">升级&debian;系统
+<p>
+正确的设置好<file>/etc/apt/sources.list</file>和<file>/etc/apt/preferences</file>文件后，系统即可升级到<tt>testing</tt>了。基础知识可参阅<ref id="package">，如果遇到问题可参阅<ref id="apt-trouble">。
+
+<sect1>最好使用<prgn>dselect</prgn>升级
+<p>
+如果系统在许多软件包都包含了<tt>-dev</tt>等软件包，推荐使用下面的<prgn>dselect</prgn>操作方法进行软件包细操作（fine-grained package control）。
+<example>
+# dselect update  # 升级前请先完成这步
+# dselect select  # 选择附加软件包
+</example>
+运行<prgn>dselect</prgn>时当前所有软件包均被选中，<prgn>dselect</prgn>会提示你基于<tt>depends</tt>，<tt>suggests</tt>和<tt>recommends</tt>的附加软件包，如果不想添加任何软件包，只需输入<tt>Q</tt>退出<prgn>dselect</prgn>。
+<example>
+# dselect install
+</example>
+在安装过程中，必须回答一些有关软件包配置的问题，准备好你的笔记本花点时间处理它们。参阅<ref id="dselect">。
+<p>
+使用<prgn>dselect</prgn>。<strong>它能干得不赖 :)</strong>
+
+<![%f-ref;[
+<sect1>最好别用<prgn>apt-get</prgn>升级
+<p>
+<strong>下面描述了<prgn>apt-get</prgn>下面描述了apt-get非常广泛的用途，但建议<em>不要</em>用它来进行系统升级。</strong>
+]]>
+
+如果你不想用<prgn>dselect</prgn>对Woody进行升级，请考虑<prgn>aptitude</prgn>或其它工具。
+
+<![%f-ref;[
+<p>
+如果系统中的软件包不多，或Debian包文件没有进行重大修改，下述操作就能胜任（有时是这样）。
+<example>
+# apt-get update # 升级前请先完成这步
+ ... 升级系统包括“depends”类软件包： 
+# apt-get upgrade                     # 升级前请先完成这步
+ ... 升级整个系统包括“depends”类软件包：
+# apt-get -u dist-upgrade
+ ... 或按当前dselect的设置进行升级(new, better):
+# apt-get -u dselect-upgrade         # 使用dselect进行后期处理
+</example>
+<p>
+使用<prgn>apt-get</prgn>方式升级将无法对<em>recommends</em>和<em>suggests</em>类软件包进行操控。参阅<ref id="depends">。
+]]>
+</sect>
+
+
+
+</chapt>
+

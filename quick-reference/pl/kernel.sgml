@@ -1,0 +1,370 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.53"  -->
+
+<chapt id="kernel">J±dro systemu Linux w Debianie
+<p>
+Debian posiada swoj± w³asn± metodê kompilacji j±dra i powi±zanych z nim modu³ów.
+Zobacz równie¿ <ref id="kernel-details">.
+
+<sect id="kernel-compile">Kompilacja j±dra
+<p>
+U¿ycie <prgn>gcc</prgn>, <prgn>binutils</prgn> i
+<prgn>modutils</prgn> z Debiana <tt>unstable</tt> mo¿e pomóc
+przy kompilacji najnowszych wydañ j±dra systemu Linux.
+Zobacz <file>&f-kernel-readme;</file>, szczególnie koniec,
+aby uzyskaæ oficjalne informacje.
+<p>
+Od zawsze kompilacja j±dra by³a trudnym tematem,
+który nawet najbardziej zaawansowanych developerów mo¿e
+wprowadziæ w zak³opotanie:
+<taglist compact>
+<tag>Manoj Srivastava napisa³:
+<item><tt>--initrd</tt> wymaga specjalnej ³atki dla Debiana: cramfs.
+<tag>Herbert Xu napisa³:
+<item>Nie, wcale nie, wszystko co musisz zrobiæ aby u¿yæ innego systemu
+plików ni¿
+ CRAMFS, to ustawienie MKIMAGE w <file>/etc/mkinitrd/mkinitrd.conf</file>.
+</taglist>
+<p>
+B±d¼ ostro¿ny i zawsze polegaj na <file>&f-kernel-readme;</file>
+napisanym przez Manoj i Kent'a. Upewnij siê, ¿e zdoby³e¶ najnowsz± wersjê pakietu
+unstable <package>kernel-package</package>, je¶li chcesz kompilowaæ
+najnowsz± wersjê j±dra.
+<p>
+<tt>initrd</tt> nie jest wymagane dla j±dra kompilowanego tylko dla jednej
+maszyny. U¿ywam tego od czasu, kiedy chcê aby moje j±dro by³o niemal
+takie samo, jak to dostarczane przez pakiety kernel-image. 
+Je¶li u¿ywasz <tt>initrd</tt>,
+powiniene¶ przeczytaæ <manref name="mkinitrd" section="8"> i
+<manref name="mkinitrd.conf" section="5">. Zobacz równie¿
+<url id="&bug-initrd;">.
+
+<sect1 id="kernel-debian">Standardowa metoda Debiana
+<p>
+¦led¼ uwa¿nie raporty o b³êdach w <package>kernel-package</package>,
+<prgn>gcc</prgn>, <prgn>binutils</prgn> i <prgn>modutils</prgn>.
+W miarê mo¿liwo¶ci u¿ywaj ich nowych wersji.
+<p>
+Kompilacja spersonalizowanego j±dra ze ¼róde³ pod Debianem wymaga specjalnej
+uwagi. U¿yj nowego <tt>--append_to_version</tt> wraz z
+<prgn>make-kpkg</prgn>, aby zbudowaæ obrazy j±dra wielokrotnego u¿ytku.
+<example>
+# apt-get install debhelper modutils kernel-package libncurses5-dev
+# apt-get install kernel-source-<var>2.4.18</var>    # u¿yj najnowszej wersji
+# apt-get install fakeroot
+# vi /etc/kernel-pkg.conf                # wpisz nazwisko i e-mail
+$ cd /usr/src                            # stwórz katalog
+$ tar --bzip2 -xvf kernel-source-<var>2.4.18</var>.tar.bz2
+$ cd kernel-source-<var>2.4.18</var>                 # je¿eli s± to ¼ród³a Twojego j±dra
+$ cp /boot/config-<var>2.4.18-386</var> .config      # ustaw obecny plik konfiguracyjny jako domy¶lny
+$ make menuconfig                        # wybierz potrzebne Ci opcje
+$ make-kpkg clean                        # musi byæ uruchomione (per: man make-kpkg)
+$ fakeroot make-kpkg --append_to_version -<var>486</var> --initrd \
+        --revision=<var>rev.01</var> kernel_image \ 
+        modules_image # modules_image u¿ywa siê dla pcmcia-cs* itd.
+$ cd ..
+# dpkg -i kernel-image*.deb pcmcia-cs*.deb # instalacja
+</example>
+<tt>make-kpkg kernel_image</tt> w³a¶ciwie wykonuje <tt>make oldconfig</tt>
+i <tt>make dep</tt>. Nie u¿ywaj <tt>--initrd</tt> je¿eli initrd nie jest u¿ywane.
+<p>
+Je¿eli kto¶ chce u¿ywaæ modu³ów z pcmcia-cs lub bez pcmcia, powinien
+wybraæ ,,General setup  &mdash;&gt;'',
+nastêpnie ,,PCMCIA/CardBus support  &mdash;&gt;'' przy <tt>make menuconfig</tt> i
+ustawiæ konfiguracjê na ,,&lt;&nbsp;&gt; PCMCIA/CardBus support'' (np. odznaczyæ
+pole).
+<p>
+Na maszynie z SMP (Simetric Multi processing), ustaw CONCURRENCY_LEVEL zgodnie z
+<manref name="kernel-pkg.conf" section="5">.
+</sect1>
+
+<sect1 id="kernel-classic">Metoda klasyczna
+<p>
+Pobierz ¼ród³a z:
+<list compact>
+<item>Linux:     <url id="&linuxsrc;">
+<item>pcmcia-cs: <url id="&pcmciasrc;">
+</list>
+lub u¿yj równowa¿nych ¼róde³ z Debiana i postêpuj nastêpuj±co:
+<example>
+# cd /usr/src
+# tar xfvz linux-<var>whatever</var>.tar.gz
+# rm -rf linux
+# ln -s linux-<var>whatever</var> linux
+# tar xfvz pcmcia-cs-<var>whatever</var>.tar.gz
+# ln -s pcmcia-cs-<var>whatever</var> pcmcia
+# cd linux
+# make menuconfig
+... konfiguracja j±dra ...
+# make dep
+# make bzImage
+... edycja lilo / grub ...
+... przeniesienie /usr/src/linux/arch/i386/boot/bzImage do  /boot ...
+... uruchomienie /sbin/lilo lub równowa¿nego polecenia dla grub
+# make modules; make modules_install
+# cd ../pcmcia
+# make config
+# make all
+# make install
+... dodanie niezbêdnych nazw modu³ów do /etc/modules
+# shutdown -r now
+... wystartowanie systemu z nowym j±drem ...
+</example>
+</sect1>
+
+<sect1 id="kernel-headers">Pliki nag³ówkowe j±dra
+<p>
+Wiêkszo¶æ ,,zwyk³ych'' programów nie potrzebuje plików nag³ówkowych j±dra, a
+nawet mo¿e siê popsuæ
+je¶li u¿yjesz ich bezpo¶rednio; zamiast tego powinny byæ skompilowane z
+plikami nag³ówkowymi, z
+którymi <strong>zbudowano/skompilowano <prgn>glibc</prgn></strong>, które s± wersjami
+z <file>/usr/include/linux</file> i <file>/usr/include/asm</file>
+systemu &debian;.
+<p>
+Nie twórz wiêc dowi±zañ symbolicznych do katalogów w <file>/usr/src/linux</file>
+z <file>/usr/include/linux</file> i <file>/usr/include/asm</file>,
+jak jest to sugerowane w pewnych przestarza³ych dokumentach.
+<p>
+Je¿eli szczególnie <strong>potrzebujesz</strong> plików nag³ówkowych j±dra dla
+aplikacji zale¿nych od j±dra, zmieñ plik/pliki Makefile.
+tak aby ich ¶cie¿ki do plików do³±czanych (include) wskazywa³y na
+<file><var>katalog-specjalnych-plików-nag³ówkowych-j±dra</var>/include/linux</file>
+i
+<file><var>katalog-specjalnych-plików-nag³ókowych-j±dra</var>/include/asm</file>.
+</sect1>
+
+</sect>
+
+<sect id="kernel-modules">Zmodularyzowane j±dro 2.4
+<p>
+Nowe j±dra 2.4 w Debianie, dostarczone przez
+<package>kernel-image-2.4.<var>NN</var></package>
+s± bardzo zmodularyzowane. Musisz siê upewniæ czy modu³y
+te s± aktywne, aby j±dro dzia³a³o tak, jak zamierza³e¶.
+<p>
+W nastêpnej czê¶ci, jako szybkie rozwi±zania, prezentujê wiele
+przyk³adów pliku <file>/etc/modules</file>.
+Jednak¿e, lepsz± metod± rozwi±zywania problemów z modu³ami jest
+przypisanie ich, jako nazw zastêpczych (aliasów) dla urz±dzeñ,
+w plikach w <file>/etc/modutils/</file>
+<p>
+Zobacz <file>Documentation/*.txt</file> w ¼ród³ach Linuksa
+aby zdobyæ szczegó³owe informacje.
+<sect1 id="kernel-pcmcia">PCMCIA
+<p>
+<file>/etc/modules</file> musi zawieraæ nastêpuj±ce wpisy, aby urz±dzenia
+PCMCIA mog³y dzia³aæ:
+<example>
+# sterownik ISA PnP
+isa-pnp
+# Niskopoziomowy sterownik PCMCIA
+# yenta_socket # w moim przypadku nie jest potrzebny
+</example>
+O resztê zadbaj± skrypty PCMCIA (z pakietu
+<package>pcmcia-cs</package>),
+<prgn>depmod</prgn> i <prgn>kmod</prgn>. Wydaje mi siê, ¿e potrzebowa³em
+<prgn>isa-pnp</prgn> poniewa¿ mój laptop jest starym
+ISA-PCMCIA. Nowsze laptopy z CardBus/PCMCIA byæ mo¿e tego nie wymagaj±.
+<p>
+Zdanie wspania³omy¶lnego Miquela van Smoorenburga
+<email>miquels@cistron.nl</email>:
+<p>
+,,Po prostu wyrzuci³em ca³o¶æ pcmcia
+z laptopa w pracy, w³±cznie z cardmgr itd.
+Nastêpnie zainstalowa³em j±dro 2.4 ze wsparciem dla CardBus, i nowy
+pakiet <package>hotplug</package> z woody'ego.''
+<p>
+Je¶li masz 32-bitowe karty, nie potrzebujesz pakietu pcmcia
+; 2.4 ma wbudowan± obs³ugê tych kart.
+Zwyk³y sterownik tulip powinien pracowaæ dobrze z Twoj± kart± dlink.
+<p>
+&mdash;Mike."
+</sect1>
+
+<sect1 id="kernel-scsi">SCSI
+<p>  <!-- Osamu: maybe test this section? I do not have SCSI :(
+                                     But this is almost sure :) -->
+[NIE SPRAWDZANE] <file>/etc/modules</file> musi zawieraæ nastêpuj±ce wpisy,
+aby urz±dzenia SCSI mog³y dzia³aæ:
+<example>
+# rdzeñ SCSI
+scsi_mod
+# ogólny sterownik SCSI
+sg
+# dysk SCSI
+sd_mod
+# wszystkie inne niezbêdne modu³y
+...
+</example>
+<prgn>depmod</prgn> zajmie siê niektórymi z powy¿szych modu³ów.
+</sect1>
+
+<sect1 id="kernel-net">Obs³uga sieci
+<p>
+<file>/etc/modules</file> musi zawieraæ nastepuj±ce wpisy dla dzia³ania dodatkowych funkcji sieciowych:
+<example>
+# net/ipv-4
+ip_gre
+ipip
+
+# net/ipv-4/netfilter
+# iptable (in order)
+ip_tables
+ip_conntrack
+ip_conntrack_ftp
+iptable_nat
+iptable_filter
+iptable_mangle
+#
+ip_nat_ftp
+ip_queue
+#
+ipt_LOG
+ipt_MARK
+ipt_MASQUERADE
+ipt_MIRROR
+ipt_REDIRECT
+ipt_REJECT
+ipt_TCPMSS
+ipt_TOS
+ipt_limit
+ipt_mac
+ipt_mark
+ipt_multiport
+ipt_owner
+ipt_state
+ipt_tcpmss
+ipt_tos
+ipt_unclean
+#
+#ipchains
+#ipfwadm
+</example>
+Powy¿szewpisy mog± nie byæ zoptymalizowane. <prgn>depmod</prgn> zajmie siê cze¶ci±
+z wy¿ej wymienionych modu³ów.
+</sect1>
+
+<sect1 id="ext3">System plików EXT3 ( &gt; 2.4.17)
+<p>
+Umo¿liwienie ksiêgowania systemu plików z EXT3 FS przy u¿yciu Debianowego
+pakietu prekompilowanego obrazu j±dra ( &gt; 2.4.17) wymaga nastêpuj±cych kroków:
+<example>
+# cd /etc; mv fstab fstab.old
+# sed 's/ext2/ext3,ext2/g' &lt;fstab.old &gt;fstab
+# vi /etc/fstab
+... ustaw typ g³ównego systemu plików na ,,auto'' zamiast ,,ext3,ext2''
+# cd /etc/mkinitrd
+# echo jbd &gt;&gt;modules
+# echo ext3 &gt;&gt;modules
+# echo ext2 &gt;&gt;modules
+# cd /
+# apt-get update; apt-get install kernel-image-<var>2.4.17-686-smp</var>
+... zainstaluj najnowsze j±dro i ustaw bootowanie (uruchom tu lilo)
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... dla wszystkich, którzy przekonwertowali EXT2 FS do EXT3
+# shutdown -r now
+</example>
+Teraz ksiêgowanie EXT3 ju¿ dzia³a.
+U¿ywaj±c <tt>ext3,ext2</tt> jako wpis ,,typ'' w <prgn>fstab</prgn>
+zapewniasz bezpieczny powrót do EXT2, je¿eli j±dro nie wspiera EXT3
+dla partycji innych ni¿ g³ówna.
+<p>
+Je¿eli wcze¶niej zainstalowa³e¶ sobie j±dro 2.4 i nie chcesz go
+przeinstalowywaæ,
+wykonaj powy¿sze kroki a¿ do poleceñ <prgn>apt-get</prgn>, nastêpnie:
+<example>
+# mkinitrd -o /boot/initrd.img-<var>2.4.17-686-smp</var> /lib/modules/<var>2.4.17-686-smp</var>
+# lilo
+# tune2fs -j -i 0 <var>/dev/hda1</var>
+# tune2fs -j -i 0 <var>/dev/hda2</var>
+... dla wszystkich, którzy przekonwertowali EXT2 FS do EXT3
+# shutdown -r now
+</example>
+Teraz ksiêgowanie EXT3 ju¿ dzia³a.
+<p>
+Je¿eli <file>/etc/mkinitrd/modules</file> nie zosta³o ustawione, podczas uruchomienia <prgn>mkinitrd</prgn> i chcia³by¶ dodaæ jakie¶ modu³y w
+czasie startu to :
+<example>
+... przy zg³oszeniu initrd, aby uzyskaæ pow³okê (5 sek.), wci¶nij RETURN
+# insmod jbd
+# insmod ext3 # modprobe ext3 zajmie siê wszystkim
+# insmod ext2
+# ^D
+... kontynuuj uruchamianie.
+</example>
+Na ekranie uruchamiania pojawia siê (<prgn>dmesg</prgn>), ,,cramfs: wrong magic'',
+ale jest to uznawane za nieszkodliwe. To wyj¶cie zosta³o uchwalone
+w Sarge (2002/10). Zobacz <url id="&bug-ext3;"> i
+<url id="&howtoext3;" name="EXT3 File System mini-HOWTO"> lub
+<file>&f-howtoext3;</file> w celu uzyskania dalszych informacji.
+<p>
+W niektórych systemach donoszone jest o do¶wiadczaniu powa¿nych blokad j±dra,
+gdy u¿ywane jest EXT3, ale ja nie mia³em problemów (przynajmniej z 2.4.17).
+</sect1>
+
+<sect1 id="ss-rtl8139">Wsparcie uk³adu Realtek RTL-8139 w j±drze 2.4
+<p>
+Z nieznanych przyczyn, wsparcie dla modu³u RTL-8139 nie nazywa siê ju¿ rtl8139,
+tylko 8139too. Po prostu wyedytuj swój <file>/etc/modules</file> by
+uwzglêdniæ tê zmianê przy zmianie j±dra 2.2 na 2.4.
+</sect1>
+
+<sect1 id="parport">Wsparcie dla portów równoleg³ych
+<p>
+Dla <package>kernel-image-2.4.*</package>, wsparcie portu równoleg³ego jest
+udostêpniane jako modu³. Uaktywniasz je przez:
+<example>
+# modprobe lp
+# echo lp >> /etc/modules
+</example>
+Zobacz <file>Documentation/parport.txt</file> w ¼ród³ach Linuksa.
+
+</sect1>
+</sect>
+
+<sect id="proc-sys">Dostrajanie j±dra przy pomocy systemu plików proc
+<p>
+Zachowanie j±dra systemu Linux mo¿e byæ zmieniane ,,w locie'' przy pomocy
+systemu plików proc.
+<p>
+Podstawowych informacji o zmianach parametrów j±dra przez
+system plików <file>/proc</file> szukaj w ¼ród³ach Linuksa w
+<file>Documentation/sysctl/*</file>.
+<p>
+Zobacz kilka przyk³adów dla modyfikacji parametrów j±dra w
+<file>/etc/init.d/networking</file> i <ref id="killecn">.
+
+<sect1 id="many-files">Za du¿o otwartych plików
+<p>
+J±dro Linuksa mo¿e zg³aszaæ problem ,,Za du¿o otwartych plików''. Spowodowane jest to ma³± domy¶ln± warto¶ci± (8096) dla <tt>file-max</tt>. Aby naprawiæ ten problem,
+wywo³aj nastêpuj±ce polecenie jako root (albo umie¶æ to w w skrypcie w <file>/etc/rcS.d/*</file>.
+<example>
+# echo "65536"  &gt; /proc/sys/fs/file-max  # dla j±der 2.2 i 2.4
+# echo "131072" &gt; /proc/sys/fs/inode-max # tylko dla j±der 2.2
+</example>
+
+<sect1 id="bdflush">Przedzia³y czasu miêdzy operacjami dyskowymi
+<p>
+Mo¿esz zmieniæ przedzia³y czasu miêdzy operacjami dyskowymi przy pomocy systemu plików proc.
+ Nastêpuj±co skrócimy je z domy¶lnych 5 sekund do 1 sekundy.
+<example>
+# echo "40 0 0 0 100 30000 60 0 0"  &gt; /proc/sys/vm/bdflush
+</example>
+Mo¿e to trochê negatywnie wp³ywaæ na osi±gi pliku wej¶cia/wyj¶cia. Ale zabezpiecza to
+zawarto¶æ pliku, z wyj±tkiem ostatniej sekundy, co i tak jest krótszym czasem,
+ni¿ domy¶lne 5 sekund. Dzia³a to nawet dla systemu plików z ksiêgowaniem.
+</sect1>
+
+<sect1 id="over-commit">Stare, powolne maszyny z ma³± ilo¶ci± pamiêci
+<p>
+Dla niektórych starych systemów z ma³± ilo¶ci± pamiêci, u¿yteczne wci±¿ mo¿e byæ uruchomienie,
+przy pomocy systemu plików proc, przydzielania nieosi±galnej w danym momencie pamiêci:
+<example>
+# echo 1 &gt; /proc/sys/vm/overcommit_memory
+</example>
+</sect1>
+
+</sect>
+</chapt>

@@ -1,0 +1,275 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.32" -->
+
+<chapt id="gateway">使用 &debian; 系統架設 gateway
+
+<p>
+用 &debian; 可以架設一個全功能的 gateway，它可以處理 NAT, mail, DHCP, DNS cache,
+HTTP proxy cache, CVS, NFS 並提供家庭 LAN 系統的 Samba services。有關這方面網路
+配置的討論可參閱 <url id="&netfilterhome;" name="Netfilter">。
+
+<sect>Network 設定
+<p>
+
+<sect1 id="ip-class">gateway 的主機設定
+<p>
+LAN 使用下面私有網路範圍的 IP 地址以避免和 Internet 上的 IP 地址衝突。
+<example>
+Class A: 10.0.0.0                    with mask 255.0.0.0
+Class B: 172.16.0.0 - 172.31.0.0     with mask 255.255.0.0
+Class C: 192.168.0.0 - 192.168.255.0 with mask 255.255.255.0
+</example>
+<p>
+&debian; 使用 <file>/etc/network/interfaces</file> 來設定 IP。
+<p>
+舉個例子，假如某台機器的 <file>eth0</file> 使用 DHCP 提供的 IP 地址來連接至 
+Internet，<file>eth1</file> 連接至 LAN，則其 
+<file>/etc/network/interfaces</file> 的設置如下（適用於 Woody 及之後版本）
+<example>
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+
+auto eth1
+iface eth1 inet static
+address 192.168.1.1
+network 192.168.1.0
+netmask 255.255.255.0
+broadcast 192.168.1.255
+</example>
+修改了 <file>/etc/network/interfaces</file> 後，可執行下面的命令使網路設定生效：
+<example>
+# /etc/init.d/networking restart
+</example>
+注意：在 Woody 及之後版本中的 <file>/etc/network/interfaces</file> 文件不相容於
+Potato。（同樣的情況會出現在 Sarte 和 Woody 之間。）
+<p>
+如果系統使用 PCMCIA NIC 的話，則在 Potato 系統中需要設定
+<file>/etc/pcmcia/network.opts</file> ，在 Woody 系統中已解決了這個問題。
+<p>
+如果懷疑的話可查看下列命令輸出：
+<example>
+# ifconfig
+# cat /proc/pci
+# cat /proc/interrupts
+# dmesg | more
+</example>
+有時，DSL (PPPoE) 連接存在 MTU 問題，參閱 <url id="&dsl-howto;"
+name="DSL-HOWTO">。如果存在無法訪問某些站台的問題，參閱 <ref id="killecn">。
+</sect1>
+
+<sect1 id="ip-check">檢查網路設定
+<p>
+一些具代表性的軟體：
+<example>
+# apt-get install nfs samba dhcpd dhcp-client bind squid procmail fetchmail 
+# apt-get install ssh cvs
+</example>
+<p>
+然後檢查一下下列的檔案：
+<example>
+/etc/init.d/dhcpd       (edit to serve only LAN = eth1)
+/etc/host.allow         (ALL: 192.168.0.0/16 127.0.0.0/8) for NFS
+/etc/exports            (Need this for NFS)
+/etc/bind/db.192.168.1  (add)
+/etc/bind/db.lan        (add)
+/etc/bind/named.conf    (edit)
+/etc/resolv.conf        (edit)
+/etc/hosts
+/etc/dhcpd.conf         (edit for LAN = eth1)
+/etc/dhclient.conf      (edit to force local DNS)
+/etc/samba/smb.conf
+/etc/exim/exim.conf
+/etc/mailname
+/etc/aliases
+/etc/squid.conf         (add all LAN host IPs as allowed)
+</example>
+<prgn>bind</prgn> 建立一個本地端的 cache DNS server 並且將 DNS 改成 localhost。
+檢查一下 <file>/etc/resolv.conf</file> ：
+<example>
+nameserver 127.0.0.1
+search lan.aokiconsulting.com
+</example>
+</sect1>
+
+<sect id="netfilter">Netfilter 設定
+<p>
+Netfilter/iptables 是針對 Linux 2.4 及其後繼版本的一個防火牆子系統。
+參閱 <url id="&netfilterhome;" name="Netfilter"> ，那兒有許多有關其設定的討論和解釋。
+
+<sect1 id="netfilter-basics">netfilter 基礎
+<p>
+Netfilter 內建了 5 條 chain 來處理封包：
+PREROUTING 、 INPUT 、 FORWARD 、 OUTPUT 和 POSTROUTING ：
+<example>
+                routing
+                decision
+IN ------> PRE ---> ------> FORWARD -----> ----> POST -----> OUT
+interface  ROUTING  \       filter       /       ROUTING     interface
+           DNAT     |       tracking     ^       SNAT
+           REDIRECT |                    |       MASQUERADE
+                    v                    |
+                  INPUT                OUTPUT
+                    | filter             ^ filter,DNAT 
+                    v                    |
+                    \--&gt; Local Process --/
+                         user-space programs
+</example>
+
+<sect1 id="netfilter-table">Netfilter table
+<p>
+封包在每條內建的 chain 中傳輸時按如下過濾表中的規則進行處理。
+<list compact>
+<item>filter (packet filter, default)
+<list compact>
+<item>INPUT (for packets coming into the box itself)
+<item>FORWARD (for packets being routed through the box)
+<item>OUTPUT (for locally generated packets).
+</list>
+<item>nat (network address translation )
+<list compact>
+<item>PREROUTING (for altering packets as soon as they come in)
+<item>OUTPUT (for altering locally generated packets before routing)
+<item>POSTROUTING (for altering packets as they are about to go out)
+</list>
+<item>mangle (network address mangling, good only after 2.4.18)
+<list compact>
+<item>all 5 built-in chains.
+</list>
+</list>
+
+<sect1 id="netfilter-target">Netfilter 的目標
+<p>
+防火牆規則有幾個目標：
+<list compact>
+<item>4 basic targets:
+<list compact>
+<item>ACCEPT means to let the packet through.
+<item>DROP means to drop the packet.  
+<item>QUEUE means to pass the packet to userspace (if supported by the kernel).
+<item>RETURN means stop traversing this chain and resume at the next 
+  rule in the previous (calling) chain.  
+</list>
+<item>extended targets:
+<list compact>
+<item>LOG turns on kernel logging.
+<item>REJECT sends back an error packet and drops the packet.
+<item>SNAT alters the source address of the packet and is used only 
+  in the POSTROUTING chain. (nat table only)
+<example compact>
+--to-source ipaddr[-ipaddr][:port-port]
+</example>
+<item>MASQUERADE is the same as SNAT but for dynamically assigned IP 
+  (dialup)  connections. (nat table only)
+<example compact>
+--to-ports port[-port]
+</example>
+<item>DNAT alters the destination address of the packet and is used 
+  in the PREROUTING and OUTPUT chains, and user-defined chains 
+  which are only  called  from  those chains. (nat table only)
+<example compact>
+--to-destination ipaddr[-ipaddr][:port-port]
+</example>
+<item>REDIRECT alters the destination IP address to send the packet to the
+  machine itself.
+<example compact>
+--to-ports port[-port]
+</example>
+</list>
+</list>
+
+<sect1 id="netfilter-command">Netfilter 命令
+<p>
+<prgn>iptables</prgn> 的基本命令有:
+<example compact>
+iptables -N <var>chain</var>                   # 建立一個 <var>chain</var>
+
+iptables -A <var>chain</var> \                 # 在 <var>chain</var> 加入規則
+         -t <var>table</var> \                 # 建立 <var>table</var> (filter, nat, mangle)
+         -p <var>protocol</var> \              # tcp, udp, icmp, or all,
+         -s <var>source-address[/mask]</var> \
+         --sport <var>port[:port]</var> \      # source port if -p is tcp or udp
+         -d <var>destination-address[/mask]</var> \
+         --dport <var>port[:port]</var> \      # dest. port if -p is tcp or udp
+         -j <var>target</var> \                # what to do if match
+         -i <var>in-interface-name</var> \     # for INPUT,  FORWARD, PREROUTING
+         -o <var>out-interface-name</var>      # for FORWARD, OUTPUT, POSTROUTING
+</example>
+
+<sect1 id="ip-masq">IP 偽裝 (IP-masquerade)
+<p>
+在 LAN 中的機器可經由一個執行 IP-masquerade (NAT) 的 gateway 來共享一個可連外的 
+IP 位址以存取 Internet 資源。
+<example>
+# apt-get install ipmasq
+</example>
+套用範例規則來加強 <prgn>ipmasq</prgn> 的保護機制。
+參閱 <file>/usr/share/doc/ipmasq/examples/stronger/README</file>。
+對於使用 Debian kernel-image-2.4 ，請確認載入了適當的模組。
+有關的必要設定請參閱 <ref id="kernel-net"> 。
+<p>
+對於使用 Debian kernel-image-2.2 ，可按下面的方法編輯 <file>/etc/masq/rules</file>
+中的 <file>Z92timeouts.rul</file> 文件，以保證可長時間連接遠端站台 (有利於發送大容量的 email 等等)：
+<example>
+# tcp, tcp-fin, udp
+# 2hr, 10 sec, 160 sec - default
+# 1 day, 10 min, 10 min - longer example
+$IPCHAINS -M -S 86400 600 600
+</example>
+同樣，如果是通過 PCMCIA NIC 連接網絡，
+<prgn>ipmasq</prgn> 需要從 <file>/etc/pcmcia/network.opts</file> 啟動。
+參閱 <file>/usr/share/doc/ipmasq/ipmasq.txt.gz</file> 。
+</sect1>
+
+
+<sect1 id="ip-redirect">SMTP 連線重導向 (2.4)
+<p>
+假設你將一台筆記型電腦重新配置成可連入其它的 LAN 環境，你想使用筆記型電腦的郵件代理而不想重新設定。
+<p>
+使用 <prgn>iptables</prgn> 命令向 gateway 機器中加入下面的規則，
+就可重導向與 gateway 機器的 SMTP 連接。
+<example>
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25, INPUT is open
+</example>
+想使用更完備的重導向規則，建議安裝 <package>ipmasq</package> 套件，
+並在 <file>/etc/ipmasq/rules/</file> 目錄中加入
+<file><url id="&examples;" name="M30redirect.def"></file>。
+
+</sect>
+
+<sect>管理多重網路連接
+<p>
+[FIXME] Policy routing (by Phil Brutsche
+<email>pbrutsch@tux.creighton.edu</email>):
+詳情請參閱 <url id="&iproute;" name="iproute manual"> 。
+Traffic control (tc) may also be interesting.
+<p>
+Environment:
+<example>
+eth0: 192.168.1.2/24; gateway 192.168.1.1
+eth1: 10.0.0.2/24; gateway 10.0.0.1
+No masquerading on this machine.
+</example>
+Special magic:
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
+<p>
+[FIXME] I've never done this.  How to set up dialup as backup to a fast
+connection with auto dial-features?  Please send me a patch here :)
+</sect>
+
+
+</chapt>
