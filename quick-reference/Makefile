@@ -36,13 +36,13 @@ ALLFILES=$(foreach ext,$(EXTS),\
 
 
 #====[ build rules ]===========================================================
-# generate anything some dirs want version.ent to be builded, some not
+# generate anything some dirs want version.ent to be built, some not
 
 DEBIAN=$(wildcard debian)
 ifeq ($(DEBIAN),"debian")
-all: version.ent $(HTMLDIRS) $(ALLFILES)
+all: version.ent $(HTMLDIRS) $(ALLFILES) publish
 else
-all: $(HTMLDIRS) $(ALLFILES)
+all: $(HTMLDIRS) $(ALLFILES) publish
 endif
 
 version.ent: debian/changelog
@@ -150,12 +150,20 @@ publish: publish-html
 
 #----[ publish html ]----------------------------------------------------------
 publish-html: $(HTMLDIRS)
+	rm -rf $(PUBLISHDIR)/qref # Sorry, I made a junk tree, removed
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	 # install any translated html
 	$(foreach lang,$(ORIG_LANG) $(LANGS),\
 	  install -p -m 644 $(MANUAL).$(lang).html/*.html $(PUBLISHDIR)/$(MANUAL)/;)
+#	# excuse me for ugly script (skip CVS directory)
+	test -d $(PUBLISHDIR)/$(MANUAL)/examples \
+	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
+	install -p -m 644  --preserve-timestamps \
+	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
+
+######### 
 	 # install original html
 	 #install -p -m 644 $(MANUAL).html/*.html \
 	 #                  $(PUBLISHDIR)/$(MANUAL)/
@@ -171,7 +179,6 @@ publish-html: $(HTMLDIRS)
 
 #----[ publish the files ]-----------------------------------------------------
 publish-files: $(ALLFILES)
-	rm -rf $(PUBLISHDIR)/qref # Sorry, I made a junk tree, removed
 	test -d $(PUBLISHDIR)/$(MANUAL) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	$(foreach ext,$(EXTS),\
@@ -186,13 +193,8 @@ publish-files: $(ALLFILES)
 	 \
 	 rm -f $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	 ln -s $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ORIG_LANG).$(ext)\
-               $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
+	       $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).$(ext);\
 	)
-#	# excuse me for ugly script (skip CVS directory)
-	test -d $(PUBLISHDIR)/$(MANUAL)/examples \
-	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)/examples
-	install -p -m 644  --preserve-timestamps \
-#	 examples/[_AIOa-z]* $(PUBLISHDIR)/$(MANUAL)/examples/
 
 
 #----[ publish the ps ]--------------------------------------------------------
