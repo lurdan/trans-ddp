@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.5 $"  -->
+<!-- CVS revision of this document "$Revision: 1.6 $"  -->
 
 <chapt id="tips"> GNU/Linux tips
 
@@ -157,26 +157,101 @@ screen. Alternatives are <prgn>xwd</prgn>
 </sect1>
 </sect>
 
-<sect>Move / Copy File
+<sect>Copy and archive a whole subdirectory
+<sect1>Basic commands for copying a whole subdirectory
 <p>
 If you need to rearrange file structure, move content including file links by:
 <example>
+Standard method:
+# cp -a /source/directory /dest/directory # must be GNU
 # (cd /source/directory &amp;&amp; tar cf - . ) | \
         (cd /dest/directory &amp;&amp; tar xvfp - )
-# cp -a /source/directory /dest/directory
+If hardlink is involved, petandic method is needed:
+# cd /path/to/old/directory
+# find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+If remote:
 # (cd /source/directory &amp;&amp; tar cf - . ) | \
         ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
 If there are no linked files:
-# scp -pr user1@host1.dom:/source/directory user2@host2.dom:/dest/directory
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
 </example>
 Here, <prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn> and <prgn>ssh</prgn>
 &lt;==&gt; <prgn>rsh</prgn>.
 <p>
-If you worry about details such as hardlinks, the right way is
+Method of copy a whole subdirectory is based on the information provided by 
+Manoj Srivastava &lt;srivasta@debian.org&gt; on debian-user@lists.debian.org.
+</sect1>
+
+<sect1>cp:
+<p>
+Traditionally, cp was not really a candidate since it did not
+derenference symbolic links, or preserve hard links
+either. Another thing to consider was sparse files (with
+holes).
+<p>
+GNU cp has overcome these limitations, however, on a non GNU
+system, cp could still have problems. Also, you can't genrate
+small, portable archives using cp.
 <example>
-# cd /path/to/old/directory
-# find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+% cp -a . newdir
 </example>
+<sect1>tar:
+<p>
+Tar overcame some of the problems that cp had with symbolic
+links. However, `cpio' handles special files; traditional
+`tar' doesn't.
+<p>								
+`tar's way of handling multiple hard links to a file places
+only one copy of the link on the tape, but the name attached
+to that copy is the <em>only</em> one you can use to retrieve the
+file; `cpio's way puts one copy for every link, but you can
+retrieve it using any of the names.
+</sect1>
+
+<sect1>pax:
+<p>
+The new, POSIX (IEEE Std 1003.2-1992, pages 380-388 (section
+4.48) and pages 936-940 (section E.4.48)), all singing, all
+dancing, Portable archive interchange utility.  pax will read,
+write, and list the members of an archive file, and will copy
+directory hierarchies.  pax operation is independent of the
+specific archive format, and supports a wide variety of
+different archive formats.
+<p>
+pax implementations are still new and wet behind the ears.
+<example>
+$ pax -rw -p e . newdir
+ or
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1>cpio:
+<p>
+copies files into or out of a cpio or tar archive, The archive
+can be another file on the disk, a magnetic tape, or a pipe.
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1>afio:
+<p>
+Afio is a better way of dealing with cpio-format archives. It is
+generally faster than cpio, provides more diverse magnetic tape
+options and deals somewhat gracefully with input data corruption.  It
+deals somewhat gracefully with input data corruption.  Supports
+multi-volume archives during interactive operation.  Afio can make
+compressed archives that are much safer than compressed tar or cpio
+archives.  Afio is best used as an `archive engine' in a backup
+script.
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+All my backups onto tape use afio. 
+</sect1>
+
 </sect>
 
 <sect>Modify files with regular-expression substitution
@@ -339,7 +414,7 @@ Read the corresponding man pages.
 <p>
 One can always unplug the PC speaker ;-)  For the shell:
 <example>
-echo "set bell-style none">> ~/.inputrc:
+echo "set bell-style none"&gt;&gt; ~/.inputrc:
 </example>
 </sect1>
 
@@ -384,7 +459,8 @@ The following scripts will do nice things as a part of a pipe.
 xargs -n 1 command   # run command for all items from stdin
 xargs -n 1 echo|     # split white space separated items into lines
 grep -e pattern|     # extract lines containing pattern
-cut -d: -f3 -|       # extract third field separated by :  (passwd file etc.)
+cut -d: -f3 -|       # extract third field separated by :  
+                     # (passwd file etc.)
 col -bx |            # remove backspace and expand tabs to spaces
 expand -|            # expand tabs
 sort -u|             # sort and remove duplicates
@@ -526,8 +602,9 @@ $ ping yahoo.com            # check Internet connection
 $ traceroute yahoo.com      # trace IP packets
 $ ifconfig                  # check host config
 $ route -n                  # check routing config
-$ dig [@dns-server.com] host.dom [{a|mx|any}] |less    \
-      # check host.dom DNS records [@ dns-server.com] for a [{mx|any}] record
+$ dig [@dns-server.com] host.dom [{a|mx|any}] |less
+      # check host.dom DNS records [@ dns-server.com] for a [{mx|any}] 
+      # record
 $ ichains  -L -n |less      # check packet filter (2.2 kernel)
 $ iptables -L -n |less      # check packet filter (2.4 kernel)
 $ netstat -a | grep LISTEN  # find out all open ports (needs net-tools)
@@ -555,7 +632,7 @@ $ :>file-to-be-cleared
 <example>
 $ dd if=/dev/zero    of=filename bs=1k count=5 # 5KB of zero content
 $ dd if=/dev/urandom of=filename bs=1m count=7 # 7MB of random content
-$ touch filename                        #  create 0B file or update mtime
+$ touch filename #  create 0B file or update mtime
 </example>
 </sect1>
 
@@ -563,7 +640,8 @@ $ touch filename                        #  create 0B file or update mtime
 <p>
 You can create an independent system that shares the same kernel.
 <example>
-# mount /dev/hda1 /mnt/target   # supposing /dev/hda1 contains one system
+# mount /dev/hda1 /mnt/target   
+        # supposing /dev/hda1 contains one system
 # chroot /mnt/target
 ... Now the contents of /dev/hda1 are seen as the root directory.
 # mount proc /proc              # just in case
@@ -573,18 +651,25 @@ This enables stable/testing/unstable to be loaded on one machine.  Also, one
 may run a memory-hungry program such as <prgn>dselect</prgn> by running it on
 a host machine while NFS-mounting a satellite machine to the host as r/w and
 pointing <prgn>chroot</prgn> to the satellite machine.
+<p>
+chroot system can easily be created by <prgn>debootstrap</prgn> command 
+in woody.
+<example>
+# mkdir potatochroot
+# debootstrap potato potatochroot
+# chroot potatochroot
+# apt-setup # set-up /etc/apt/sources.list
+</example>
 </sect1>
 
 <sect1>Samba
 <p>
 Basics of getting files from Windoze:
 <example>
-# mount -t smb -o username=myname,uid=my_uid,gid=my_gid\
-   //server/share/mnt/smb/ # mount Windows file to Linux
-<!-- Osamu: I believe the above needs to be
-  mount -t smbfs -o "username=myname,uid=my_uid,gid=my_gid" //server/share /mnt/smb
-I usually use "smbmount" instead (which has a slightly different syntax. [DS]
--->
+# mount -t smbfs -o username=myname,uid=my_uid,gid=my_gid \
+        //server/share /mnt/smb  # mount Windows file to Linux
+# smbmount //server/share /mnt/smb \
+        -o "username=myname,uid=my_uid,gid=my_gid"
 # smbclient -L 192.168.1.2 # list the shares on a computer
 </example>
 </sect1>

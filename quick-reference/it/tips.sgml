@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.4 $"  -->
-<!-- CVS revision of original english document "1.15"  -->
+<!-- CVS revision of this document "$Revision: 1.5 $"  -->
+<!-- CVS revision of original english document "1.22"  -->
 <chapt id="tips"> Trucchi per GNU/Linux
 
 <sect>Il sistema di boot
@@ -148,26 +148,102 @@ schermo intero. Un'alternativa è xwd (da console).
 </sect1>
 </sect>
 
-<sect>Muovi / Copia File
+<sect>Copy and archive a whole subdirectory
+<sect1>Basic commands for copying a whole subdirectory
 <p>
 Se dovete riarrangiare l'organizzazione delle directory, muovete il
 contenuto, links compresi con:
 <example>
-# (cd /directory_di_partenza &amp;&amp; tar cf - . ) | \
-        (cd /directory_di_arrivo &amp;&amp; tar xvfp - )
-# cp -a /directory_di_partenza /directory_di_arrivo
-# (cd /directory_di_partenza &amp;&amp; tar cf - . ) | \
-        ssh user@host.dom (cd /directory_di_arrivo &amp;&amp; tar xvfp - )
-Se non ci sono links:
-# scp -pr user1@host1.dom:/directory_di_partenza user2@host2.dom:/directory_di_arrivo
-</example>
-Qui, scp &lt;==&gt; rcp e ssh &lt;==&gt; rsh.
-<p>
-If you worry about details such as hardlinks, right way is
-<example>
+Standard method:
+# cp -a /source/directory /dest/directory # must be GNU
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        (cd /dest/directory &amp;&amp; tar xvfp - )
+If hardlink is involved, petandic method is needed:
 # cd /path/to/old/directory
 # find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+If remote:
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+Se non ci sono links:
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
 </example>
+Qui, <prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn> e <prgn>ssh</prgn>
+&lt;==&gt; <prgn>rsh</prgn>.
+<p>
+Method of copy a whole subdirectory is based on the information provided by 
+Manoj Srivastava &lt;srivasta@debian.org&gt; on debian-user@lists.debian.org.
+</sect1>
+
+<sect1>cp:
+<p>
+Traditionally, cp was not really a candidate since it did not
+derenference symbolic links, or preserve hard links
+either. Another thing to consider was sparse files (with
+holes).
+<p>
+GNU cp has overcome these limitations, however, on a non GNU
+system, cp could still have problems. Also, you can't genrate
+small, portable archives using cp.
+<example>
+% cp -a . newdir
+</example>
+<sect1>tar:
+<p>
+Tar overcame some of the problems that cp had with symbolic
+links. However, `cpio' handles special files; traditional
+`tar' doesn't.
+<p>								
+`tar's way of handling multiple hard links to a file places
+only one copy of the link on the tape, but the name attached
+to that copy is the <em>only</em> one you can use to retrieve the
+file; `cpio's way puts one copy for every link, but you can
+retrieve it using any of the names.
+</sect1>
+
+<sect1>pax:
+<p>
+The new, POSIX (IEEE Std 1003.2-1992, pages 380-388 (section
+4.48) and pages 936-940 (section E.4.48)), all singing, all
+dancing, Portable archive interchange utility.  pax will read,
+write, and list the members of an archive file, and will copy
+directory hierarchies.  pax operation is independent of the
+specific archive format, and supports a wide variety of
+different archive formats.
+<p>
+pax implementations are still new and wet behind the ears.
+<example>
+$ pax -rw -p e . newdir
+ or
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1>cpio:
+<p>
+copies files into or out of a cpio or tar archive, The archive
+can be another file on the disk, a magnetic tape, or a pipe.
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1>afio:
+<p>
+Afio is a better way of dealing with cpio-format archives. It is
+generally faster than cpio, provides more diverse magnetic tape
+options and deals somewhat gracefully with input data corruption.  It
+deals somewhat gracefully with input data corruption.  Supports
+multi-volume archives during interactive operation.  Afio can make
+compressed archives that are much safer than compressed tar or cpio
+archives.  Afio is best used as an `archive engine' in a backup
+script.
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+All my backups onto tape use afio. 
+</sect1>
+
 </sect>
 
 <sect>Modificare i files con le espressioni regolari
@@ -325,7 +401,7 @@ Leggete le pagine man corrispondenti.
 <p>
 Potete sempre staccare gli altoparlanti del PC... ;-)  Da shell:
 <example>
-echo "set bell-style none">> ~/.inputrc:
+echo "set bell-style none"&gt;&gt; ~/.inputrc:
 </example>
 </sect1>
 
@@ -370,7 +446,8 @@ Gli script seguenti fanno cose utili come parti di una pipe.
 xargs -n 1 command   # lancia i comandi per tutti gli oggetti da stdin
 xargs -n 1 echo|     # divide lo spazio fra gli oggetti in righe
 grep -e pattern|     # estrae le righe contenenti i modelli
-cut -d: -f3 -|       # estrae il terzo campo separato da :  (file passwd, ecc.)
+cut -d: -f3 -|       # estrae il terzo campo separato da :  
+                     # (file passwd, ecc.)
 col -bx |            # rimuove il backspace ed espande le tabs in spazi
 expand -|            # espande le tabs
 sort -u|             # trova e rimuove i doppioni
@@ -466,12 +543,13 @@ $ ping yahoo.com            # prova la connessione internet
 $ traceroute yahoo.com      # traccia i pacchetti
 $ ifconfig                  # prova la configurazione dell'host
 $ route -n                  # prova la cofigurazione di routing
-$ dig [@dns-server.com] host.dom [{a|mx|any}] |less    \
-      # controlla i registri DNS di host.dom [@ dns-server.com] per 
-il record [{a|mx|any}]
+$ dig [@dns-server.com] host.dom [{a|mx|any}] |less 
+      # controlla i registri DNS di host.dom [@ dns-server.com] 
+      # per il record [{a|mx|any}]
 $ ichains  -L -n |less      # controlla il packet filter (2.2 kernel)
 $ iptables -L -n |less      # controlla il packet filter (2.4 kernel)
-$ netstat -a | grep LISTEN  # scopre tutte le porte aperte (richiede net-tools)
+$ netstat -a | grep LISTEN  # scopre tutte le porte aperte 
+                            # (richiede net-tools)
 </example>
 </sect1>
 
@@ -496,7 +574,7 @@ $ :>file-da-ripulire
 <example>
 $ dd if=/dev/zero    of=nomefile bs=1k count=5 # 5KB di zeri
 $ dd if=/dev/urandom of=nomefile bs=1m count=7 # 7MB di contenuto casuale
-$ touch nomefile                        #  crea un file di 0B, od aggiorna mtime
+$ touch nomefile #  crea un file di 0B, od aggiorna mtime
 </example>
 </sect1>
 
@@ -504,7 +582,8 @@ $ touch nomefile                        #  crea un file di 0B, od aggiorna mtime
 <p>
 Potete creare un sistema indipendente condividendo lo stesso kernel.
 <example>
-# mount /dev/hda1 /mnt/target   # supponiamo che /dev/hda1 contenga 1 sistema
+# mount /dev/hda1 /mnt/target   
+        # supponiamo che /dev/hda1 contenga 1 sistema
 # chroot /mnt/target
 ... A questo punto è come se root fosse il contenuto di /dev/hda1
 # mount proc /proc              # nel caso serva
@@ -515,14 +594,25 @@ macchina. In più, si può far girare un programma che utilizza molta
 memoria come dselect, su una macchina host, montando tramite NSF una
 macchina satellite sull'host ed entrare tramite chroot con permessi di
 lettura e scrittura.
+<p>
+chroot system can easily be created by <prgn>debootstrap</prgn> command 
+in woody.
+<example>
+# mkdir potatochroot
+# debootstrap potato potatochroot
+# chroot potatochroot
+# apt-setup # set-up /etc/apt/sources.list
+</example>
 </sect1>
 
 <sect1>Samba
 <p>
 Le basi per ottenere un file da Window$:
 <example>
-# mount -t smb -o username=mionome,uid=mio_uid,gid=mio_gid\
-   //server/share/mnt/smb/ # monta il file Windows su Linux
+# mount -t smbfs -o username=myname,uid=my_uid,gid=my_gid \
+        //server/share /mnt/smb  # monta il file Windows su Linux
+# smbmount //server/share /mnt/smb \
+        -o "username=myname,uid=my_uid,gid=my_gid"
 # smbclient -L 192.168.1.2 # elenca le condivisioni su un computer
 </example>
 </sect1>

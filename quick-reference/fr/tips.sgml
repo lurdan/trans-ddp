@@ -1,5 +1,5 @@
-<!-- CVS revision of this document "$Revision: 1.6 $"  -->
-<!-- CVS revision of original english document "1.14"  -->
+<!-- CVS revision of this document "$Revision: 1.7 $"  -->
+<!-- CVS revision of original english document "1.22"  -->
 <chapt id="tips">Astuces GNU/Linux 
 
 <sect>Démarrer le système
@@ -162,26 +162,102 @@ existent comme <prgn>xwd</prgn> (paquet <package>xbase-clients</package>),
 </sect1>
 </sect>
 
-<sect>Déplacer / copier des fichiers
+<sect>Copy and archive a whole subdirectory
+<sect1>Basic commands for copying a whole subdirectory
 <p>
 En cas de réarrangement de la sructure de fichiers, déplacez le contenu des 
 dossiers y compris les liens par les commandes:
 <example>
+Standard method:
+# cp -a /source/directory /dest/directory # must be GNU
 # (cd /source/directory &amp;&amp; tar cf - . ) | \
         (cd /dest/directory &amp;&amp; tar xvfp - )
-# cp -a /source/directory /dest/directory
-# (cd /source/directory &amp;&amp; tar cf - . ) | \
-        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
-S'il n'y a pas de lien:
-# scp -pr user1@host1.dom:/source/directory user2@host2.dom:/dest/directory
-</example>
-Ici, <prgn>scp</prgn> &lt;==&gt; rcp et ssh &lt;==&gt; rsh.
-<p>
-If you worry about details such as hardlinks, right way is
-<example>
+If hardlink is involved, petandic method is needed:
 # cd /path/to/old/directory
 # find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+If remote:
+# (cd /source/directory &amp;&amp; tar cf - . ) | \
+        ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+If there are no linked files:
+# scp -pr user1@host1.dom:/source/directory \
+          user2@host2.dom:/dest/directory
 </example>
+Ici, <prgn>scp</prgn> &lt;==&gt; <prgn>rcp</prgn> et <prgn>ssh</prgn>
+&lt;==&gt; <prgn>rsh</prgn>.
+<p>
+Method of copy a whole subdirectory is based on the information provided by 
+Manoj Srivastava &lt;srivasta@debian.org&gt; on debian-user@lists.debian.org.
+</sect1>
+
+<sect1>cp:
+<p>
+Traditionally, cp was not really a candidate since it did not
+derenference symbolic links, or preserve hard links
+either. Another thing to consider was sparse files (with
+holes).
+<p>
+GNU cp has overcome these limitations, however, on a non GNU
+system, cp could still have problems. Also, you can't genrate
+small, portable archives using cp.
+<example>
+% cp -a . newdir
+</example>
+<sect1>tar:
+<p>
+Tar overcame some of the problems that cp had with symbolic
+links. However, `cpio' handles special files; traditional
+`tar' doesn't.
+<p>								
+`tar's way of handling multiple hard links to a file places
+only one copy of the link on the tape, but the name attached
+to that copy is the <em>only</em> one you can use to retrieve the
+file; `cpio's way puts one copy for every link, but you can
+retrieve it using any of the names.
+</sect1>
+
+<sect1>pax:
+<p>
+The new, POSIX (IEEE Std 1003.2-1992, pages 380-388 (section
+4.48) and pages 936-940 (section E.4.48)), all singing, all
+dancing, Portable archive interchange utility.  pax will read,
+write, and list the members of an archive file, and will copy
+directory hierarchies.  pax operation is independent of the
+specific archive format, and supports a wide variety of
+different archive formats.
+<p>
+pax implementations are still new and wet behind the ears.
+<example>
+$ pax -rw -p e . newdir
+ or
+$ find . -depth  | pax -rw -p e  newdir
+</example>
+</sect1>
+
+<sect1>cpio:
+<p>
+copies files into or out of a cpio or tar archive, The archive
+can be another file on the disk, a magnetic tape, or a pipe.
+<example>
+$ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</example>
+</sect1>
+
+<sect1>afio:
+<p>
+Afio is a better way of dealing with cpio-format archives. It is
+generally faster than cpio, provides more diverse magnetic tape
+options and deals somewhat gracefully with input data corruption.  It
+deals somewhat gracefully with input data corruption.  Supports
+multi-volume archives during interactive operation.  Afio can make
+compressed archives that are much safer than compressed tar or cpio
+archives.  Afio is best used as an `archive engine' in a backup
+script.
+<example>
+$ find . -depth -print0 | afio -px -0a new-dir
+</example>
+All my backups onto tape use afio. 
+</sect1>
+
 </sect>
 
 <sect>Modifier les fichiers grâce aux expressions régulières
@@ -352,7 +428,7 @@ Lisez les pages de manuel correspondantes.
 On peut toujours débrancher le haut-parleur PC ;-)
 Pour le shell :
 <example>
-echo "set bell-style none">> ~/.inputrc:
+echo "set bell-style none"&gt;&gt; ~/.inputrc:
 </example>
 </sect1>
 
@@ -397,13 +473,14 @@ $ cat x* >largefile    # Assemble les fichiers en 1 gros fichier
 <p>
 Les scripts suivants font des choses sympa avec les tubes.
 <example>
-xargs -n 1 command   # exécute "command" avec tous les arguments de stdin
-xargs -n 1 echo|     # place chaque argument séparé par des espaces sur une
-ligne
+xargs -n 1 command   
+        # exécute "command" avec tous les arguments de stdin
+xargs -n 1 echo|     
+        # place chaque argument séparé par des espaces sur une ligne
 grep -e pattern|     # extrait les lignes contenant "pattern"
-cut -d: -f3 -|       # extrait le 3e champ séparé par : (fichier passwd, etc.)
-col -bx |            # supprime backspace et transforme les tabulations en
-espaces
+cut -d: -f3 -|       # extrait le 3e champ séparé par : 
+                     # (fichier passwd, etc.)
+col -bx | # supprime backspace et transforme les tabulations en espaces
 expand -|            # transforme les tabulations
 sort -u|             # trie et supprime les doublons
 tr '\n' ' '|         # concatène les lignes en une seule
@@ -519,8 +596,8 @@ envoyées à la fenêtre excepté la combinason de touche de commande, par défaut
 ^A w     affiche la liste des fenêtres
 ^A a     envoie Ctrl-A à la fenêtre courante
 ^A h     enregistre une copie de la fenêtre courante dans un fichier
-^A H     commence/Termine l'enregistrement de la fenêtre courante dans un
-fichier
+^A H     commence/Termine l'enregistrement de la fenêtre courante dans
+         un fichier
 ^A ^X    verrouille le terminal (protection par mot de passe)
 ^A d     détache la session screen du terminal
 ^A DD    détache la session screen du terminal et déconnecte
@@ -559,9 +636,9 @@ $ ping yahoo.com            # teste la connexion Internet
 $ traceroute yahoo.com      # trace les paquets IP
 $ ifconfig                  # affiche la configuration de la machine
 $ route -n                  # affiche la configuration de routage
-$ dig [@dns-server.com] host.dom [{a|mx|any}] |less    \
-      # affiche les enregistrements DNS de host.com [sur dns-server.com] pour
-      # un enregistrement [{mx|any}]
+$ dig [@dns-server.com] host.dom [{a|mx|any}] |less
+      # affiche les enregistrements DNS de host.com 
+      # [sur dns-server.com] pour un enregistrement [{mx|any}]
 $ ichains  -L -n |less      # affiche le filtre de paquets (noyau 2.2)
 $ iptables -L -n |less      # affiche le filtre de paquets (noyau 2.4)
 $ netstat -a | grep LISTEN  # recherche tous les ports ouverts (nécessite
@@ -590,8 +667,8 @@ $ :>file-to-be-cleared
 <example>
 $ dd if=/dev/zero    of=filename bs=1k count=5 # 5Ko sans contenu
 $ dd if=/dev/urandom of=filename bs=1m count=7 # 7Mo de contenu aléatoire
-$ touch filename                        # crée un fichier de 0o ou met à jour
-mtime (NdT : date de dernière modification)
+$ touch filename # crée un fichier de 0o ou met à jour mtime 
+                 # (NdT : date de dernière modification)
 </example>
 </sect1>
 
@@ -599,7 +676,8 @@ mtime (NdT : date de dernière modification)
 <p>
 Vous pouvez créer un système indépendant qui utilise le même noyau.
 <example>
-# mount /dev/hda1 /mnt/target   # en supposant que /dev/hda1 contient un système
+# mount /dev/hda1 /mnt/target   
+        # en supposant que /dev/hda1 contient un système
 # chroot /mnt/target
 ... Maintenant le contenu de /dev/hda1 est vu comment répertoire racine /
 # mount proc /proc              # au cas où
@@ -610,19 +688,25 @@ on peut exécuter un programme nécessitant beaucoup de mémoire comme
 <prgn>dselect</prgn> en le lançant sur une machine pendant que l'on monte par
 NFS une machine auxiliaire en r/w et que l'on pointe <prgn>chroot</prgn> vers
 la machine auxiliaire.
+<p>
+chroot system can easily be created by <prgn>debootstrap</prgn> command 
+in woody.
+<example>
+# mkdir potatochroot
+# debootstrap potato potatochroot
+# chroot potatochroot
+# apt-setup # set-up /etc/apt/sources.list
+</example>
 </sect1>
 
 <sect1>Samba
 <p>
 Bases pour récupérer des fichiers depuis Windows :
 <example>
-# mount -t smb -o username=myname,uid=my_uid,gid=my_gid\
-   //server/share/mnt/smb/ # monte un répertoire Windows sous Linux
-<!-- Osamu: I believe the above needs to be
-  mount -t smbfs -o "username=myname,uid=my_uid,gid=my_gid" //server/share
-/mnt/smb
-I usually use "smbmount" instead (which has a slightly different syntax. [DS]
--->
+# mount -t smbfs -o username=myname,uid=my_uid,gid=my_gid \
+      //server/share /mnt/smb  # monte un répertoire Windows sous Linux
+# smbmount //server/share /mnt/smb \
+      -o "username=myname,uid=my_uid,gid=my_gid"
 # smbclient -L 192.168.1.2 # liste les partages d'une machine
 </example>
 </sect1>
