@@ -1,0 +1,413 @@
+<chapt id="pkg_basics">Fondamenti sul sistema di gestione dei pacchetti Debian
+
+<sect id="package">Cos'è un pacchetto Debian?
+
+<p>I pacchetti generalmente contengono tutti quei file necessari a
+implementare una serie di comandi o funzionalità. Ci
+sono due tipi di pacchetti Debian:
+<list>
+  <item><em>Pacchetti binari</em>, che contengono eseguibili, file di configurazione,
+  pagine man/info, informazioni sul copyright ed altra documentazione.
+  Questi pacchetti sono distribuiti in un formato archivio specifico di Debian
+  (si veda <ref id="deb-format">); sono solitamente caratterizzati dall'estensione
+  '.deb'. I pacchetti binari possono essere spacchettati usando l'utilità Debian
+  <tt>dpkg</tt>; i dettagli vengono forniti nella sua pagina manuale.
+  
+  <item><em>Pacchetti sorgente</em>, che consistono in un file <tt>.dsc</tt>
+  che descrive il pacchetto sorgente (inclusi i nomi dei file seguenti),
+  un file <tt>.orig.tar.gz</tt> che contiene il sorgente originale non
+  modificato nel formato tar compresso con gzip e solitamente un file
+  <tt>.diff.gz</tt> che contiene le modifiche specifiche di Debian fatte
+  al sorgente originale. L'utilità <tt>dpkg-source</tt> pacchetta e spacchetta
+  gli archivi sorgente Debian; i dettagli vengono forniti nella sua pagina di manuale.
+</list>
+
+<p>L'installazione di software attraverso il sistema dei pacchetti usa "dipendenze" che
+vengono progettate con cura dai manutentori dei pacchetti. Queste dipendenze sono
+documentate nel file <tt>control</tt> associato ad ogni pacchetto.
+Per esempio, il pacchetto contenente il compilatore C della GNU (<package/gcc/)
+"dipende" dal pacchetto <package/binutils/ che include il linker e
+l'assemblatore. Se un utente tentasse di installare <package/gcc/ senza avere prima
+installato <package/binutils/, il sistema di gestione dei pacchetti (dpkg) invierà
+un messaggio di errore avvertendo che necessita anche di <package/binutils/, e
+fermerà l'installazione di <package/gcc/. (Comunque, questa funzione può essere superata
+dall'utente tenace, si veda
+<manref name="dpkg" section="8">.) Si veda di più su <ref id="depends"> sotto.
+
+<p>Gli strumenti Debian per la gestione dei pacchetti possono essere usati per:
+<list>
+  <item>manipolare e gestire pacchetti o parti di pacchetti,
+  <item>aiutare l'utente nella divisione di pacchetti che devono essere
+    trasmessi attraverso mezzi di dimensioni limitate come i floppy disk,
+  <item>aiutare gli sviluppatori nella costruzione degli archivi dei pacchetti e
+  <item>aiutare gli utenti nell'installazione di pacchetti residenti su un sito FTP remoto.
+</list>
+
+<sect id="deb-format">Qual è il formato di un pacchetto binario Debian?
+
+<p>Un "pacchetto" Debian, od un file archivio Debian, contiene i file
+eseguibili, le librerie e la documentazione associati ad un gruppo o suite
+di programmi correlati. Normalmente, un file archivio Debian
+ha un nome che termina in <tt>.deb</tt>.
+
+<p>L'interno di questi pacchetti binari Debian è descritto
+nella pagina di manuale <manref name="deb" section="5">. Questo formato interno
+è soggetto a modifiche (tra una release maggiore di &debian;), quindi per favore
+si usi sempre <manref name="dpkg-deb" section="8"> per manipolare file <tt>.deb</tt>.
+
+<sect id="pkgname">Perché i nomi dei pacchetti Debian sono così lunghi?
+
+<p>Il nome dei pacchetti binari Debian è conforme alla seguente convenzione:
+&lt;foo&gt;_&lt;NumeroVersione&gt;-&lt;NumeroRevisioneDebian&gt;.deb
+
+<p>Si noti che si suppone che <tt>foo</tt> sia il nome del pacchetto. Come verifica,
+si può conoscere il nome del pacchetto associato ad un particolare archivio Debian
+(file.deb) in uno di questi modi:
+<list>
+  <item>esaminando il file "Packages" nella directory dove era stato archiviato
+  su un archivio FTP Debian. Questo file contiene una sezione che descrive
+  ogni pacchetto; il primo campo in ogni sezione è il nome formale del pacchetto.
+  <item>utilizzando il comando <tt>dpkg --info foo_VVV-RRR.deb</tt> (dove VVV e
+  RRR sono rispettivamente la versione e la revisione del pacchetto in questione).
+  Questo mostra, tra le altre cose, il nome del pacchetto corrispondente al file
+  archivio spacchettato.
+</list>
+
+<p>La componente <tt>VVV</tt> è il numero di versione specificato dallo sviluppatore.
+Non ci sono standard qui, per cui il numero di versione può avere formati differenti
+come "19990513" e "1.3.8pre1".
+
+<p>La componente <tt>RRR</tt> è il numero di revisione Debian e viene specificata
+dallo sviluppatore Debian (o un singolo utente se sceglie
+di costruirsi il pacchetto da sé). Questo numero corrisponde al livello di revisione
+del pacchetto Debian, quindi un nuovo livello di revisione significa solitamente
+modifiche nel Makefile Debian (<tt>debian/rules</tt>), nel file di controllo Debian
+(<tt>debian/control</tt>), negli script di installazione o rimozione
+(<tt>debian/p*</tt>) oppure nei file di configurazione utilizzati con il pacchetto.
+
+<!--
+<p>The <tt>Arch</tt> component identifies the processor for which
+the package was built.  This is commonly <tt>i386</tt>, which refers to
+chips compatible to Intel's 386 or later versions.  For other
+possibilities see <ref id="dirtree" name="Debian's FTP directory structure">.
+-->
+
+<sect id="controlfile">Cos'è un file di controllo Debian?
+
+<p>Le specifiche riguardanti il contenuto di un file di controllo Debian sono
+fornite nel "Debian Packaging manual", capitolo 4, si veda <ref id="debiandocs">.
+
+<p>Brevemente, un esempio di file di controllo è mostrato di seguito per il
+pacchetto Debian hello:
+<example>
+Package: hello
+Priority: optional
+Section: devel
+Installed-Size: 45
+Maintainer: Adam Heath &lt;doogie@debian.org&gt;
+Architecture: i386
+Version: 1.3-16
+Depends: libc6 (>= 2.1)
+Description: The classic greeting, and a good example
+ The GNU hello program produces a familiar, friendly greeting.  It
+<!-- XXX below 'non-programmers' were better, but this is a verbatim copy -->
+ allows nonprogrammers to use a classic computer science tool which
+ would otherwise be unavailable to them.
+ .
+ Seriously, though: this is an example of how to do a Debian package.
+ It is the Debian version of the GNU Project's `hello world' program
+ (which is itself an example for the GNU Project).
+</example>
+
+<p>Il campo Package fornisce il nome del pacchetto. Questo è il nome attraverso
+il quale il pacchetto può essere manipolato con gli strumenti dei pacchetti
+ed è solitamente simile ma non necessariamente lo stesso rispetto alla prima
+componente della stringa nel nome dell'archivio Debian.
+
+<p>Il campo Version fornisce sia il numero della versione dello
+sviluppatore, che (nell'ultima componente) il livello di revisione
+del pacchetto Debian di questo programma, come spiegato
+in <ref id="pkgname">. <!-- XXX missing name -->
+
+<p>Il campo Architecture specifica il chip per il quale questo particolare
+binario è stato compilato.
+
+<p>Il campo Depends fornisce una lista di pacchetti che devono essere
+installati per poter installare questo pacchetto con successo.
+
+<p>Installed-Size indica quanto spazio su disco occuperà il pacchetto
+installato. È progettato per essere usato dai front-end di installazione
+per poter mostrare se c'è abbastanza spazio disponibile su disco
+per installare il programma.
+
+<p>La riga Section fornisce la sezione dove questo pacchetto Debian è
+archiviato presso i siti FTP Debian. Questo è il nome di una sottodirectory
+(all'interno di una delle directory principali, si veda <ref id="dirtree">) dove è
+archiviato il pacchetto.
+
+<p>Priority indica quanto è importante questo pacchetto per
+l'installazione, così che i software semi-intelligenti come dselect
+o apt possano ordinare il pacchetto dentro una categoria
+di pacchetti opzionali già installati per esempio. Si veda <ref id="priority">.
+
+<p>Il campo Maintainer fornisce l'indirizzo e-mail della persona che è
+attualmente responsabile per la manutenzione di questo pacchetto.
+
+<p>Il campo Description fornisce un breve riassunto delle funzionalità del pacchetto.
+
+<p>Per ulteriori informazioni riguardo tutti i campi possibili che può avere
+un pacchetto, si veda il Debian Packaging Manual, sezione 4., "Control files and their fields".
+
+<sect id="conffile">Cos'è un conffile Debian?
+
+<p>Conffiles è una lista di file di configurazione (solitamente situata in
+<tt>/etc</tt>) che il sistema di gestione dei pacchetti non sovrascriverà
+quando il pacchetto viene aggiornato. Questo assicura che i valori locali
+per il contenuto di questi file vengano conservati, ed è una caratteristica
+critica che permette l'aggiornamento di pacchetti su un sistema in esecuzione.
+
+<p>Per determinare esattamente quali file sono conservati durante un aggiornamento, si esegua:
+  <example>dpkg --status pacchetto</example>
+E si guardi sotto "Conffiles:".
+
+<sect id="maintscripts">Cosa sono gli script preinst, postinst, prerm e postrm di Debian?
+
+<p>Questi file sono script eseguibili che vengono automaticamente eseguiti prima
+o dopo che un pacchetto viene installato. Insieme ad un file chiamato <tt>control</tt>,
+tutti questi file sono parte della sezione "control" di un file Debian.
+
+<p>I singoli file sono:
+<taglist>
+<tag/preinst/
+  <item>Questo script viene eseguito prima che il pacchetto venga spacchettato
+  dall'archivio Debian (".deb"). Molti script 'preinst' interrompono i servizi per
+  i pacchetti che devono essere aggiornati fino a che la loro installazione o aggiornamento
+  non sono completati (a seguito dell'esecuzione con successo dello script 'postinst').
+
+<tag/postinst/
+  <item>Questo script tipicamente completa ogni configurazione richiesta dal
+  pacchetto <tt>foo</tt> una volta che <tt>foo</tt> è stato spacchettato dal suo archivio
+  Debian (".deb"). Spesso gli script 'postinst' richiedono all'utente degli input
+  e/o lo avvertono che se accetta le impostazioni predefinite deve ricordarsi
+  di tornare indietro e riconfigurare il pacchetto se la situazione lo richiede.
+  Molti script 'postinst' poi eseguono tutti i comandi necessari ad avviare o
+  riavviare un servizio una volta che il pacchetto è stato installato o aggiornato.
+
+<tag/prerm/
+  <item>Questo script tipicamente ferma tutti i demoni associati con
+  un pacchetto. Viene eseguito prima della rimozione di file associati
+  al pacchetto.
+
+<tag/postrm/
+  <item>Questo script tipicamente modifica i link (collegamenti) od altri file associati a
+  <tt>foo</tt>, e/o rimuove i file creati da quel pacchetto. (Si veda anche
+  <ref id="virtual">.)
+</taglist>
+
+<p>Attualmente tutti i file di controllo si possono trovare nella directory
+<tt>/var/lib/dpkg/info</tt>. I file attinenti al pacchetto <tt>foo</tt>
+iniziano con il nome "foo" ed hanno le estensioni "preinst", "postinst",
+ecc., a seconda della funzione. Il file <tt>foo.list</tt> nella stessa directory
+elenca tutti i file installati con il pacchetto <tt>foo</tt>.
+(Si noti che la localizzazione di questi file è propria di dpkg; non ci si dovrebbe
+fare affidamento.)
+
+<sect id="priority">Cosa sono i pacchetti <em/Required/, <em/Important/, <em/Standard/,
+  <em/Optional/, o <em/Extra/?
+
+<p>Ad ogni pacchetto Debian viene assegnata una <em>priorità</em> dai manutentori
+della distribuzione, come aiuto al sistema di gestione dei pacchetti. Le priorità sono:
+
+<list>
+  <item><strong>Required (Richiesto)</strong>: pacchetti necessari al corretto
+    funzionamento del sistema.
+    <p>Comprende tutti gli strumenti necessari alla riparazione di difetti di sistema.
+    Non si rimuovano questi pacchetti o il proprio sistema potrebbe diventare completamente
+    non funzionante e probabilmente non si riuscirebbe nemmeno ad usare dpkg per
+    rimettere le cose a posto. I sistemi con solo i pacchetti Required sono probabilmente
+    inutilizzabili, ma hanno abbastanza funzionalità per permettere all'amministratore di
+    sistema di avviare ed installare altri programmi.
+  <item><strong>Important (Importante)</strong>: pacchetti che si dovrebbero trovare su di
+    un qualsiasi sistema simile a Unix (Unix-like).
+    <p>Altri pacchetti necessari ad un corretto funzionamento del sistema, senza i quali
+    non sarebbe utilizzabile. Tra questi NON sono inclusi Emacs o X11 o TeX o qualsiasi altra
+    grossa applicazione. Questi pacchetti costituiscono solo l'infrastruttura di base.
+  <item><strong>Standard</strong>: pacchetti comuni su qualsiasi sistema Linux,
+    compreso un ragionevolmente piccolo ma nemmeno troppo limitato sistema a carattere.
+    <p>Questo è quello che viene installato di base se l'utente non seleziona nient'altro.
+    Non include molte grosse applicazioni, ma include Emacs (che è più un pezzo di
+    infrastruttura che un'applicazione) ed un ragionevole sottogruppo di TeX e LaTeX (se
+    risulta possibile senza X).
+  <item><strong>Optional (Opzionale)</strong>: pacchetti che comprendono tutto
+    quello che si può voler installare senza nemmeno sapere cos'è, o se non si hanno
+    delle necessità particolari.
+    <p>Comprende X11, una distribuzione completa di TeX e molte applicazioni.
+  <item><strong>Extra</strong>: pacchetti che o entrano in conflitto con altri
+    di priorità più alta, probabilmente utili se già si sa a cosa servono,
+    oppure hanno requisiti speciali che li rendono non adatti come "Optional".
+</list>
+
+<sect id="virtual">Cos'è un pacchetto virtuale?
+
+<p>Un pacchetto virtuale è un nome generico che si applica ad ognuno di un gruppo
+di pacchetti, che fornisce simili funzionalità di base. Per esempio,
+entrambi i programmi <tt>tin</tt> e <tt>trn</tt> sono news reader, e dovrebbero
+quindi soddisfare qualsiasi dipendenza di un programma che richiede un news
+reader su di un sistema per poter lavorare o essere utile.
+Si dice quindi che entrambi forniscono il "pacchetto virtuale" chiamato
+<tt>news-reader</tt>.
+
+<p>Similmente, <tt>smail</tt> e <tt>sendmail</tt> forniscono entrambi la
+funzionalità di agente di trasporto posta (mail transport agent). Si dice quindi
+che fornisco il pacchetto virtuale "mail transport agent".
+Se uno dei due è installato, allora ogni pacchetto che dipende dall'installazione
+di un <tt>mail-transport-agent</tt> vedrà le proprie dipendenze soddisfatte
+dall'esistenza di questo pacchetto virtuale.
+
+<p>Debian fornisce un meccanismo che, se più di un pacchetto che fornisce
+lo stesso pacchetto virtuale è installato su di un sistema, allora l'amministratore
+di sistema può impostarne uno come pacchetto preferito. Il relativo comando
+è <tt>update-alternatives</tt>, ed è maggiormente descritto su
+<ref id="diverse">.
+
+<sect id="depends">Cosa significa dire che un pacchetto <em/Dipende/ da,
+  <em/Raccomanda/, <em/Suggerisce/, <em/Va in conflitto/ con, <em/Sostituisce/ o
+  <em/Fornisce/ un altro pacchetto?
+
+<p>Il sistema dei pacchetti Debian ha una serie di "dipendenze" dei pacchetti
+che sono pensate per indicare (con un singolo termine) il livello con cui un
+determinato Programma A può operare indipendentemente dall'esistenza
+di un Programma B su un dato sistema:
+<list>
+  <item>Il pacchetto A <em>dipende</em> dal Pacchetto B se B deve essere
+    assolutamente installato per eseguire A. In alcuni casi, A dipende non solo
+    da B, ma da una versione di B. In questo caso la dipendenza dalla versione è
+    solitamente un limite minore, nel senso che A dipende da qualsiasi versione
+    di B più recente di quella specificata.
+  <item>Il pacchetto A <em>raccomanda</em> il Pacchetto B se il manutentore
+    del pacchetto giudica che la maggior parte degli utenti non vorrebbe A senza
+    le funzionalità provviste da B.
+  <item>Il pacchetto A <em>suggerisce</em> il Pacchetto B se B contiene file
+    attinenti alle funzioni di A (e che solitamente le migliorano).
+  <item>Il pacchetto A <em>va in conflitto</em> con il Pacchetto B quando A non è
+    in grado di funzionare se B è installato sul sistema. Molto spesso i conflitti
+    si hanno quando A contiene dei file che rappresentano dei miglioramenti di quelli
+    in B. Spesso "va in conflitto" è combinato con "sostituisce".
+  <item>Il pacchetto A <em>sostituisce</em> il Pacchetto B quando i file installati
+    da B vengono rimossi e (in alcuni casi) sovrascritti dai file di A.
+  <item>Il pacchetto A<em>fornisce</em> il Pacchetto B quando tutti i file e le
+    funzionalità di B sono incorporate in A. Questo meccanismo permette agli utenti
+    con limitato spazio sul disco rigido di avere solo la parte del pacchetto A
+    realmente necessaria.
+</list>
+
+<p>Informazioni più dettagliate sull'utilizzo di ognuno di questi termini possono
+essere trovate nel Packaging manual e nel Policy manual.
+
+<sect id="pre-depends">Cosa significa Pre-Depends?
+
+<p>"Pre-Depends" è una dipendenza speciale. Con la maggior parte dei pacchetti,
+<tt>dpkg</tt> spacchetterà il file di archivio (ovvero il suo file <tt>.deb</tt>)
+indipendentemente dal fatto che i file da cui dipende siano o meno sul sistema.
+Semplificando, spacchettare vuol dire che <tt>dpkg</tt> estrarrà i file da installare
+dall'archivio e li metterà al loro posto. Se quei pacchetti <em>dipendono</em>
+dall'esistenza di qualche altro pacchetto sul sistema, <tt>dpkg</tt> si rifiuterà
+di completare l'installazione (eseguendo l'azione "configura"), finché gli altri
+pacchetti non saranno installati. 
+
+
+<p>Tuttavia, per alcuni pacchetti, <tt>dpkg</tt> si rifiuterà persino di spacchettarli
+finché certe dipendenze non vengono risolte. Tali pacchetti si dice che "Pre-dipendono"
+dalla presenza di altri pacchetti. Il progetto Debian forniva questo meccanismo per
+supportare un aggiornamento sicuro di sistemi dal formato <tt>a.out</tt> al formato
+<tt>ELF</tt>, dove l'<tt>ordine</tt> in cui i pacchetti venivano spacchettati era
+critico. Esistono altre situazioni di aggiornamenti estesi in cui questo metodo è
+utile, per esempio pacchetti con priorità richiesta e dipendenza da libC.
+
+<p>Come sopra, informazioni più dettagliate al riguardo possono essere reperite
+nel Packaging manual.
+
+<sect id="pkgstatus">Cosa significa <em/sconosciuto/, <em/installa/, <em/rimuovi/
+  <em/elimina/ e <em/mantieni/ nello stato di un pacchetto?
+
+<p>Queste etichette "voglio" indicano il volere dell'utente riguardo ad un pacchetto
+(come indicato dalle azioni dell'utente nella sezione "Seleziona" di <tt>dselect</tt> o
+dal richiamo diretto dell'utente di <tt>dpkg</tt>).
+
+<p>I loro significati sono:
+<list>
+  <item>sconosciuto - l'utente non ha mai indicato se vuole il pacchetto
+  <item>installa - l'utente vuole il pacchetto installato od aggiornato
+  <item>rimuovi - l'utente vuole che il pacchetto sia rimosso, ma non i
+    file di configurazione esistenti.
+  <item>elimina - l'utente vuole il pacchetto completamente rimosso, compresi
+    i file di configurazione.
+  <item>mantieni - l'utente non vuole che il pacchetto sia processato, ovvero
+    vuole mantenere la versione attuale con lo stato corrente, qualunque essi siano.
+</list>
+
+<sect id="puttingonhold">Come mantengo un pacchetto?
+
+<p>Esistono due maniere per mantenere (hold) pacchetti, con dpkg o con dselect.
+
+<p>Con dpkg, si deve solo esportare la lista delle selezioni dei pacchetti con:
+  <example>dpkg --get-selections \* > selections.txt</example>
+Poi modificare il file risultante <file/selections.txt/, modificare la riga
+contenente il pacchetto che si desidera mantenere, p.e. <package/libc6/, da questo:
+  <example>libc6                                           install</example>
+a questo:
+  <example>libc6                                           hold</example>
+Salvare il file e ricaricarlo dentro il database di dpkg con:
+  <example>dpkg --set-selections < selections.txt</example>
+
+<p>Con dselect, si deve solo entrare nella schermata [S]eleziona, trovare il pacchetto
+che si desidera mantenere al suo stato attuale e premere il tasto '=' (o
+'H'). Le modifiche diverranno attive immediatamente dopo che si è usciti dalla schermata
+[S]eleziona.
+
+<sect id="sourcepkgs">Come si installa un pacchetto sorgente?
+
+<p>I pacchetti sorgenti Debian non possono realmente venire "installati", vengono solo
+spacchettati in qualsiasi directory si voglia per compilare i pacchetti binari che producono.
+
+<p>I pacchetti sorgenti sono distribuiti sulla maggior parte dei mirror dove si
+possono ottenere i pacchetti binari. Se si imposta il proprio
+<manref name="sources.list" section="5"> di APT per includere le righe "deb-src"
+appropriate, si sarà in grado di scaricare facilmente qualsiasi pacchetto sorgente
+eseguendo
+
+  <example>apt-get source foo</example>
+
+<p>Per aiutare nella reale compilazione del pacchetto sorgente, il pacchetto
+sorgente Debian fornisce il cosiddetto meccanismo di dipendenze di compilazione.
+Significa che il manutentore del pacchetto sorgente conserva una lista di altri
+pacchetti che sono richiesti per compilare il proprio pacchetto. Per
+vedere come questo sia utile, si esegua
+
+  <example>apt-get build-dep foo</example>
+
+prima di compilare il sorgente.
+
+<sect id="sourcebuild">Come si compilano pacchetti binari da un pacchetto sorgente?
+
+<p>Si avrà bisogno di tutti i file foo_*.dsc, foo_*.tar.gz e foo_*.diff.gz per compilare
+il sorgente (nota: non c'è nessun .diff.gz per alcuni pacchetti nativi Debian).
+
+<p>Una volta che li si ha (<ref id="sourcepkgs">), se si ha il pacchetto
+<package/dpkg-dev/ installato, il seguente comando:
+  <example>dpkg-source -x foo_versione-revisione.dsc</example>
+estrarrà il pacchetto in una directory denominata <tt>foo-versione</tt>.
+
+<p>Se si vuole solo compilare il pacchetto, si può entrare nella directory
+<tt>foo-versione</tt> e lanciare il comando
+  <example>dpkg-buildpackage -rfakeroot -b</example>
+per compilare il pacchetto (si noti che questo richiede anche il pacchetto
+<package/fakeroot/), e poi
+  <example>dpkg -i ../foo_versione-revisione_arch.deb</example>
+per installare il pacchetto appena compilato.
+
+<sect id="creatingdebs">Come ci si crea pacchetti Debian da sé?
+
+<p>Per maggiori dettagli al riguardo, si legga la New Maintainers' Guide,
+disponibile nel pacchetto <package/maint-guide/ o su
+<url id="http://www.debian.org/doc/devel-manuals#maint-guide">.
