@@ -4,34 +4,41 @@
 # (Repository HOWTO, How software producers can distribute software
 # in .deb format, etc)
 
-manual := $(notdir $(CURDIR))
+manual := $(notdir $(CURDIR)).fr \
+	  $(notdir $(CURDIR)) 
 
+manualdir := $(notdir $(CURDIR))
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
-sources := $(manual).xml
+sources := $(foreach manual, $(manual), $(wildcard $(manual).xml))
 
 all: html pdf # dvi ps # god damn dvi and ps don't work
 
 publish: all
-	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
-	rm -f $(PUBLISHDIR)/$(manual)/*.html
-	install -p -m 644 $(manual).html $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).pdf $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).dvi $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).ps $(PUBLISHDIR)/$(manual)
+	test -d $(PUBLISHDIR)/$(manualdir) || install -d -m 755 $(PUBLISHDIR)/$(manualdir)
+	rm -f $(PUBLISHDIR)/$(manualdir)/*.{html,pdf,dvi,ps}
+	for built in $(manual); do \
+	install -p -m 644 $$built.html $(PUBLISHDIR)/$(manualdir) ; \
+	install -p -m 644 $$built.pdf $(PUBLISHDIR)/$(manualdir) ; \
+	done
+	# Since dvi and ps do not work remove the following rules
+	#install -p -m 644 $$built.dvi $(PUBLISHDIR)/$(manualdir) ; 
+	#install -p -m 644 $$built.ps $(PUBLISHDIR)/$(manualdir) ; 
 
-validate:
-	xmllint --noout --loaddtd --catalogs $(sources)
+validate: $(sources)
+	for checking in $(sources); do \
+	xmllint --noout --loaddtd --catalogs $$checking ;\
+	done
 
-html: $(manual).html
-$(manual).html: $(sources)
+html:  $(addsuffix .html,$(manual))
+%.html: %.xml
 	xsltproc --catalogs -o $@ \
 	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/html/docbook.xsl \
 	$<
 
-fo: $(manual).fo
-$(manual).fo: $(sources)
+fo: $(addsuffix .fo,$(manual))
+%.fo:  %.xml
 	xsltproc --catalogs -o $@ \
 	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/docbook.xsl \
 	$<
@@ -40,26 +47,28 @@ $(manual).fo: $(sources)
 	# /usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/pagesetup.xsl
 	sed 's/margin-left="1in - -4pc"/margin-left="1in"/g' $@ > $@.tmp && mv $@.tmp $@
 
-dvi: $(manual).dvi
-$(manual).dvi: $(manual).fo
+dvi: $(addsuffix .dvi,$(manual))
+%.dvi:  %.fo
 	# needs being run twice to generate toc
 	xmltex --interaction=batchmode $<
 	xmltex --interaction=batchmode $<
 
-ps: $(manual).ps
-$(manual).ps: $(manual).dvi
+ps: $(addsuffix .ps,$(manual))
+%.ps:  %.dvi
 	dvips $<
 
-pdf: $(manual).pdf
-$(manual).pdf: $(manual).fo
+pdf: $(addsuffix .pdf,$(manual))
+%.pdf: %.fo
 	# needs being run twice to generate toc
 	# yes, this is suboptimal but it's the easiest way
 	pdfxmltex --interaction=batchmode $<
 	pdfxmltex --interaction=batchmode $<
 
 clean distclean:
-	rm -f $(manual).aux $(manual).html $(manual).dvi $(manual).fo \
-	$(manual).log $(manual).pdf $(manual).ps $(manual).out $(manual).toc
-	rm -f *~ .*~ core tsa*
+	for removal in $(manual); do \
+	 rm -f $$removal.{aux,html,dvi,fo,log,pdf,ps,out,toc} ; \
+	done
+	rm -f *~ .*~ core tsa* ;
+	
 
 .PHONY: all publish clean distclean dvi fo html pdf ps validate
