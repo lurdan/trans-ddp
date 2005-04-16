@@ -4,11 +4,22 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
+# Build type: Possible values are BUILD_TYPE = web|package|...
+BUILD_TYPE  := web
+
+# For DDP web build, we need to use woody machine.
+ifeq ("$(BUILD_TYPE)", "web")
 # temporary workaround until www-master updates debiandoc-sgml
 export PATH:=../quick-reference/bin/:${PATH}
 
 # Woodys default LaTeX settings need more memory for Korean PDF
 export TEXMFCNF=../quick-reference/texmf:
+
+# Osamu thinks Makefile dependence to the outside of package source 
+# tree is inherently risky.  Thus these are intentionally excluded 
+# for the package build.  But this is nessasary for woking around
+# the current DDP CVS publish infrastructure.
+endif
 
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
