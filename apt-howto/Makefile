@@ -17,6 +17,10 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
+# define $(locale) for the following targets
+$(MANUAL).%.txt $(MANUAL).%.ps $(MANUAL).%.pdf: \
+  locale=$(subst pt-br,pt_BR,$*)
+
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
@@ -35,37 +39,28 @@ html:
 # generating plain text
 txt text: $(patsubst %.sgml,%.txt,$(wildcard *.??*.sgml))
 
-$(MANUAL).pt-br.txt: $(MANUAL).pt-br.sgml
-	debiandoc2text -l pt_BR $<
-
 $(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $* $<
+	debiandoc2text -l $(locale) $<
 
 # generating PostScript
 #texfriendly := $(filter-out $(MANUAL).ko.sgml,$(wildcard *.??*.sgml))
 texfriendly := $(wildcard *.??*.sgml)
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
-$(MANUAL).pt-br.ps: $(MANUAL).pt-br.sgml
-	debiandoc2latexps -l pt_BR $<
-
 $(MANUAL).el.ps: $(MANUAL).el.sgml
 	@echo Locale 'el' not yet supported
 	
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $* $<
+	debiandoc2latexps -l $(locale) $<
 
 # generating Portable Document Format
 pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
-
-$(MANUAL).pt-br.pdf: $(MANUAL).pt-br.sgml
-	debiandoc2latexpdf -l pt_BR $<
 
 $(MANUAL).el.pdf: $(MANUAL).el.sgml
 	@echo Locale 'el' not yet supported
 	
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -l $(locale) $<
 
 # publishing to the DDP web pages
 publish: all
