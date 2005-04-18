@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.15" -->
+<!-- CVS revision of original english document "1.21" -->
 
 <chapt>Après l'installation
 
@@ -665,42 +665,134 @@ les applications qui supportent PAM (accès refusé par défaut).
 <sect1 id="user-limits">Restreindre l'utilisation des ressources&nbsp;: le fichier <file>limits.conf</file>
 
 <p>
-Vous devriez sérieusement jeter un &oelig;il à ce fichier. Voux pouvez
-définir dans celui-ci les limites des ressources par utilisateur. Si vous utilisez
-PAM, le fichier <file>/etc/limits.conf</file> est ignoré et vous 
-devriez utiliser <file>/etc/security/limits.conf</file> à la place.
+Vous devriez vraiment jeter un sérieux &oelig;il à ce fichier. Vous pouvez
+définir dans celui-ci les limites des ressources par utilisateur. Dans
+d'anciennes versions, ce fichier de configuration était
+<file>/etc/limits.conf</file>, mais dans les nouvelles versions (avec
+PAM), le fichier de configuration à utiliser devrait être
+<file>/etc/security/limits.conf</file>.
 
 <p>Si vous ne désirez pas restreindre l'utilisation des ressources,
 <em>n'importe quel</em> utilisateur ayant un shell valide sur votre système (ou
-même un intrus qui aurait compromis le système par un service) pourra utiliser
+même un intrus qui aurait compromis le système par un service ou un
+démon devenu fou) pourra utiliser
 autant de CPU, de mémoire, de pile, etc. que le système pourra fournir. Ce
-problème d'<em>épuisement de ressources</em> ne peut être réglé que par
-l'utilisation de PAM. Veuillez noter qu'il existe un moyen d'ajouter des limites
+problème d'<em>épuisement de ressources</em> peut être réglé par
+l'utilisation de PAM.
+
+<p>Il existe un moyen d'ajouter des limites
 de ressources pour certains shells (par exemple, <prgn>bash</prgn> a
 <prgn>ulimit</prgn>, voir <manref section="1" name="bash">), mais comme ils ne
 fournissent pas tous les mêmes limites et comme l'utilisateur peut changer de
 shell (voir <manref section="1" name="chsh">), il est préférable de placer ces
-limites dans les modules PAM.
+limites dans les modules PAM ainsi elles s'appliqueront quel que soit le
+shell utilisé et également aux modules PAM qui ne sont pas orientés shell.
+
+<p>Les limites de ressources sont imposées par le noyau, mais elles
+doivent être configurées par le fichier <file>limits.conf</file> et la
+configuration PAM des différents services doit charger le module PAM
+approprié. Vous pouvez vérifier quels services imposent des limites en
+exécutant&nbsp;:
+
+<example>
+$ find /etc/pam.d/ \! -name "*.dpkg*" | xargs -- grep limits |grep -v ":#"
+</example>
+
+<P>Habituellement, <file>login</file>, <file>ssh</file> et les
+gestionnaires de session graphique (<file>gdm</file>, <file>kdm</file>
+ou <file>xdm</file>) devraient imposer des limites aux utilisateurs,
+mais vous pouvez vouloir faire cela dans d'autres fichiers de
+configuration de PAM, comme <file>cron</file>, pour empêcher les démons
+système d'accaparer toutes les ressources système..
+
+<p>Les paramètres de limites spécifiques que vous pouvez vouloir imposer
+dépend des ressources de votre système, c'est l'une des principales
+raisons pour lesquelles aucune limite n'est imposée dans l'installation
+par défaut.</p>
+
+<p>Par exemple, l'exemple de configuration ci-desous impose une limite
+de 100&nbsp;processus pour chaque utilisateur (pour empêcher les
+<em>bombe de fork</em>) ainsi qu'une limite de 10&nbsp;Mo de mémoire par
+processus et une limite de 10&nbsp;connexions simultanées. Les
+utilisateurs du groupe <tt>adm</tt> ont des limites supérieures et
+peuvent créer des fichiers core s'ils le désirent (c'est simplement une
+limite <em>douce</em> (soft)).
+
+<p>
+<example>
+*              soft    core            0
+*              hard    core            0
+*              hard    rss             1000
+*              hard    memlock         1000
+*              hard    nproc           100
+*              -       maxlogins       1
+*              hard    data            102400
+*              hard    fsize           2048
+@adm           hard    core            100000
+@adm           hard    rss             100000
+@adm           soft    nproc           2000
+@adm           hard    nproc           3000
+@adm           hard    fsize           100000
+@adm           -       maxlogins       10
+</example>
+
+<p>Voici les limites qu'un utilisateur standard (y compris les démons
+système) aurait&nbsp;:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 2048
+max locked memory     (kbytes, -l) 10000
+max memory size       (kbytes, -m) 10000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 100
+virtual memory        (kbytes, -v) unlimited
+</example>
+
+<p>Et voici les limites d'un utilisateur administratif&nbsp;:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 100000
+max locked memory     (kbytes, -l) 100000
+max memory size       (kbytes, -m) 100000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 2000
+virtual memory        (kbytes, -v) unlimited
+</example>
+
 
 <p>
 Pour plus d'informations, lisez&nbsp;:
 <list>
 
-<item><url
-id="http://www.samag.com/documents/s=1161/sam0009a/0009a.htm"
-name="PAM configuration article">.
+<item>le <url
+id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam-6.html"
+name="guide de référence PAM pour les modules disponibles">,
 
-<item> <url
+<item>l'<url
+id="http://www.samag.com/documents/s=1161/sam0009a/0009a.htm"
+name="article de configuration de PAM">,
+
+<item>l'article <url
 id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.html"
 name="Seifried's Securing Linux Step by Step"> pour la section <em>Limiting
-users overview</em>.
+users overview</em>,
 
-<item><url id="http://seifried.org/lasg/users/" name="LASG"> pour la section 
+<item>le <url id="http://seifried.org/lasg/users/" name="LASG"> pour la section 
 <em>Limiting and monitoring users</em>.
 
 </list>
-
-<p>FIXME&nbsp;: Placer un fichier exemple de <file>limits.conf</file> ici
 
 <sect1>Actions de connexion de l'utilisateur&nbsp;: éditer <file>/etc/login.defs</file>
 
@@ -722,7 +814,10 @@ Cette variable devrait être fixée à une valeur suffisamment grande de façon
 à rendre plus difficile les tentatives de connexion en utilisant la 
 manière forte. Si un mauvais mot de passe est fourni, le pirate potentiel 
 (ou le simple utilisateur&nbsp;!) doit attendre 10 secondes avant d'obtenir un 
-nouveau prompt de connexion, ce qui prend pas mal de temps quand vous testez des mots de passe.
+nouveau prompt de connexion, ce qui prend pas mal de temps quand vous
+testez des mots de passe. Veuillez noter que ce paramètre est inopérant
+si vous utilisez un programme autre que <prgn>getty</prgn>, comme par
+exemple <prgn>mingetty</prgn>.
 
 <example>
   FAILLOG_ENAB        yes
@@ -896,7 +991,7 @@ le fichier d'initialisation su shell exécute les commandes suivantes&nbsp;:
 
 <example>
 umask 077
-exec script -q -a "/var/log/sessions/$USER
+exec script -q -a "/var/log/sessions/$USER"
 </example>
 
 <p>Bien sûr, si vous faites cela pour tout le système, cela veut dire que le
@@ -927,7 +1022,7 @@ exec script -q -a "/var/log/sessions/$USER-`date +%Y%m%d`"
 <p>Si vous voulez passer en revue ce que les utilisateurs entrent dans le shell
 (mais pas voir le résultat), vous pouvez configurer un <file>/etc/profile</file>
 pour tout le système qui configure l'environnement pour que toutes les comandes
-soient sauvées dans le fichier <tt>history</tt>. La configuration pour tout le
+soient sauvées dans le fichier d'historique. La configuration pour tout le
 système doit être réalisée de telle façon que les utilisateurs ne puissent pas
 enlever les capacités d'audit de leur shell. Cela est plutôt spécifique au
 shell, donc assurez-vous que tous les utilisateurs utilisent un shell qui le
@@ -966,8 +1061,8 @@ positionner l'attribut <em>ajout-uniquement</em> en utilisant le programme
 <prgn>chattr</prgn> sur <file>.bash_history</file> pour tous les utilisateurs.
 <footnote>
 Sans l'attribut ajout-uniquement les utilisateurs seraient capables de
-vider le contenu du fichier des historiques en exécutant le programme
-<prgn> > .bash_history</prgn>.
+vider le contenu du fichier des historiques avec
+<tt> > .bash_history</tt>.
 </footnote>
 
 <p>
@@ -1627,7 +1722,6 @@ voie dérobée d'apache, il pourra facilement supprimer les fichiers de log.
 -->
 
 <sect id="kernel-patches">Les utilitaires pour mettre des rustines au noyau
-<!-- éditer en dernier par Frédéric Schütz <schutz@mathgen.ch> -->
 
 <p>FIXME: Cette section a besoin de couvrir la manière d'installer ces
 rustines spécifiques sur Debian en utilisant les paquets kernel-2.x.x-patch-XXX.
@@ -1643,45 +1737,49 @@ sa sécurité du système. En voici quelques-unes&nbsp;:
 
 <list>
 
-<item>LIDS &mdash; «&nbsp;Linux intrusion detection system&nbsp;» (du paquet
-<package>lids-2.2.19</package>), par Huagang Xie et
-Philippe Biondi. Cette rustine du noyau rend le processus de renforcement d'un système
+<item>LIDS &mdash; <url id="http://www.lids.org" name="Linux Intrusion
+Detection"> fourni dans le paquet <package>kernel-patch-2.4-lids</package>.
+Cette rustine du noyau rend le processus de renforcement d'un système 
 Linux plus facile en vous permettant de restreindre, cacher et protéger des
-processus, même par rapport au root. Il vous permet égaelemnt de protéger ou
+processus, même par rapport au root. Elle implémente des fonctionnalités de
+contrôle d'accès obligatoire («&nbsp;Mandatory Access Control&nbsp;»).
+
+<!--
+Il vous permet également de protéger ou
 cacher certains fichiers pour que même root ne puisse les modifier. C'est un outil incontournable
 pour l'administrateur paranoïaque de système. Site Internet&nbsp;: <url
 name="http://www.lids.org" id="http://www.lids.org">
+-->
 
-<item>POSIX Access Control Lists (ACLs) pour Linux (du paquet
-<package>kernel-patch-acl</package>). Cette rustine
-ajoute les listes de contrôle d'accès, une méthode avancée pour restreindre 
-l'accès aux fichiers, par le noyau linux. Cette rustine a été ajoutée au noyau
-de développement 2.5 et sera inclue par défaut dans le futur noyau 2.6. Site
-Internet&nbsp;: <url name="http://acl.bestbits.at/" id="http://acl.bestbits.at/">
+<item><url id="http://acl.bestbits.at/" name="POSIX Access Control Lists">
+(ACL) pour Linux fourni dans le paquet <package>kernel-patch-acl</package>).
+Cette rustine du noyau ajoute les listes de contrôle d'accès, une méthode
+avancée pour restreindre l'accès aux fichiers, par le noyau linux. Cela vous
+permet de contrôler finement l'accès aux fichiers et répertoires.
 
-<item>Linux trustees (du paquet <package>trustees</package>). Cette rustine ajoute un
+<item><url id="http://trustees.sourceforge.net/" name="Linux Trustees"> fourni
+dans le paquet <package>trustees</package>). Cette rustine ajoute un
 système avancé décent de gestion des permissions à votre noyau Linux. Des objets
 spéciaux (les trustees) sont associés à chaque fichier ou répertoire et ils sont
 stockés dans la mémoire noyau, ce qui permet un accès rapide pour
-toutes les permissions. Site Internet&nbsp;: <url name="http://trustees.sourceforge.net/" 
-id="http://trustees.sourceforge.net/">
+toutes les permissions.
 
 <item>NSA Enhanced Linux (du paquet <package>selinux</package>,
 également disponible depuis
 <url id="http://www.coker.com.au/selinux/" name="le site web du développeur">)
 
-<item><package>kernel-patch-2.2.18-openwall</package> par Solar Designer.  C'est un ensemble utile de restrictions
-pour le noyau, comme la restriction de liens, FIFOs dans /tmp, une restriction de
-/proc, maniement de la description de fichiers spéciaux, pile de l'utilisateur
-non exécutable et bien plus.  Site Internet&nbsp;:
-<url name="http://www.openwall.com/linux/" id="http://www.openwall.com/linux/">
+<item>Le <url id="http://people.redhat.com/mingo/exec-shield/"
+name="correctif exec-shield"> fourni dans le paquet
+<package>kernel-patch-exec-shield</package>. Ce correctif fournit une
+protection contre plusieurs dépassements de tampon (attaques par
+écrasement de pile).
 
-<item><package>kernel-patch-2.4-grsecurity</package>&nbsp;: le correctif
-Grsecurity
+<item>Le <url id="http://www.grsecurity.net/" name="correctif Grsecurity">
+fourni par les paquets <package>kernel-patch-2.4-grsecurity</package> et
+<package>kernel-patch-grsecurity2</package>
 <footnote>
-Notez que, selon le paquet source du noyau&nbsp;2.4 que vous utilisez, vous
-pouvez rencontrer des problèmes à applique le correctif aux sources du noyau. Si
-c'est votre cas, vous pourrez devoir utiliser le noyau d'origine (sans
+Notez que ce correctif entre en conflit avec des correctifs déjà inclus dans
+le paquet de source du noyau Debian. Vous devrez utiliser le noyau d'origine (sans
 correctifs Debian). Vous pouvez faire cela en suivant les étapes suivantes&nbsp;:
 <example>
 # apt-get install kernel-source-2.4.22 kernel-patch-debian-2.4.22
@@ -1700,27 +1798,46 @@ name="#211213"> et la <url
 id="http://lists.debian.org/debian-devel/2003/debian-devel-200309/msg01133.html"
 name="discussion sur debian-devel">
 </footnote>
-implémente le contrôle d'accès obligatoire (<em>Mandatory Access
-Control</em>) qui fournit une protection de dépassement de tampon, des ACL, un
-caractère aléatoire du réseau (pour rendre la reconnaissance de système
-d'exploitation plus difficile) et <url
+implémentent le contrôle d'accès obligatoire (<em>Mandatory Access
+Control</em>) grâce à RBAC, fournissent une protection de dépassement de
+tampon grâce à PaX, des ACL, un caractère aléatoire du réseau (pour rendre la
+reconnaissance de système d'exploitation plus difficile) et <url
 id="http://www.grsecurity.net/features.php" name="beaucoup d'autres
 fonctionnalités">.
 
+<item>Le <package>kernel-patch-adamantix</package> fournit les
+correctifs développés par <url id="http://www.adamantix.org/"
+name="Adamantix">, une distribution basée sur Debian. Le correctif noyau
+pour les versions 2.4.x du noyau introduit des fonctionnalités de
+sécurité comme une pile non exécutable grâce à l'utilisation de
+<url id="http://pageexec.virtualave.net/" name="PaX"> et du contrôle
+d'accès obligatoire basé sur <url id="http://www.rsbac.org/"
+name="RSBAC" >. Parmi les autres fonctionnalités, on trouve&nbsp;:
+<url name="le correctif PID aléatoire"
+id="http://www.vanheusden.com/Linux/sp/">, le périphérique
+«&nbsp;loop&nbsp;» chiffré AES, le support MPPE et un
+rétroportage&nbsp;2.6 d'IPSEC.
 
-<item><package>kernel-patch-2.2.19-harden</package>
+
+<item><package>cryptoloop-source</package>. Ce correctif vous permet
+d'utiliser les fonctions de l'API de cryptage du noyau pour créer des
+systèmes de fichiers cryptés en utilisant le périphérique
+«&nbsp;loopback&nbsp;».
+
 
 <item>Support IPSEC du noyau (du paquet
 <package>kernel-patch-freeswan</package>). Si vous voulez utiliser le protocole IPSec avec Linux, vous avez besoin 
 de cette rustine. Vous pouvez ainsi créer des VPNs très facilement, même vers les machines
-Windows, puisque IPSec est un standard courant. Des fonctionnalités IPSec ont
+Windows, puisque IPSec est un standard courant. Des fonctionnalités IPsec ont
 été ajoutées au noyau de développement 2.5, cette fonctionnalité sera donc
 présente par défaut dans le futur noyau Linux 2.6. Site Internet&nbsp;: <url
-id="http://www.freeswan.org">
+id="http://www.freeswan.org">. Note&nbsp;: l'utilisation de FreeSwan a
+été rendue obsolète en faveur d'OpenSwan.
 
 <em>FIXME</em>&nbsp;: les derniers noyaux&nbsp;2.4 fournis dans Debian incluent
 un rétro-portage du code IPSEC du noyau&nbsp;2.5. Commentaire sur cela.
 
+<!--
 <item><package>cryptoapi-core-source</package>.  Cette rustine noyau ajoute des
 fonctionnalités de cryptage au noyau Linux, comme des fonctions cipher et
 digest. L'utilisation habituelle de ces fonctions est pour le cryptage des
@@ -1734,12 +1851,29 @@ Site Internet&nbsp;: <url name="http://www.kerneli.org" id="http://www.kerneli.o
 <item><package>cryptoloop-source</package>. Cette rustine vous permet d'utiliser
 les fonctions du paquet <package>cryptoapi-core-source</package> pour créer des
 systèmes de fichiers encryptés en utilisant le périphérique loopback.
+-->
+
+</list>
+
+<p>Les correctifs de sécurité du noyau suivants ne sont disponibles que
+pour d'anciennes versions du noyau dans <em>Woody</em> et ils sont obsolètes&nbsp;:
+
+<list>
+<item><url name="Openwall" id="http://www.openwall.com/linux/"> par
+Solar Designer, fourni dans le paquet
+<package>kernel-patch-2.2.18-openwall</package>.  C'est un ensemble
+utile de restrictions pour le noyau, comme la restriction de liens,
+FIFOs dans <file>/tmp</file>, une restriction de <file>/proc</file>,
+une gestion de descripeur de fichiers spéciaux, une pile de
+l'utilisateur non exécutable et bien plus. Note&nbsp;: ce paquet
+s'applique à la version&nbsp;2.2, aucun paquet n'est disponible pour les
+correctifs de la version&nbsp;2.4 fournie par Solar.
 
 <item><package>kernel-patch-int</package>. Cette rustine vous permet également
 d'ajouter des fonctionnalités de cryptographie au noyau Linux et elle était
 utile pour les versions de Debian jusqu'à Potato. Elle ne fonctionne pas avec
 Woody et si vous utilisez Sarge ou une version plus récente, vous devriez
-utiliser le plus récent <package>cryptoapi-core-source</package>.
+utiliser un noyau plus récent qui inclut déjà ces fonctionnalités.
 
 </list>
 
@@ -1751,13 +1885,18 @@ id="http://www.debian.org/wnpp">.  Certains d'entre eux sont&nbsp;:
 
 <list>
 
+<!--
 <item><url id="http://pageexec.virtualave.net/" name="
 rustine PaX">
+-->
 
 <item>
 <url name="rustine HAP"
-id="http://www.theaimsgroup.com/~hlein/hap-linux/">
+id="http://www.theaimsgroup.com/~hlein/hap-linux/"> (HAP veut dire
+<em>Hank Approved Paranoid Linux</em>). Une collection de correctifs de
+sécurité pour les noyaux&nbsp;2.2.
 
+<!-- 
 <item>
 <url name="rustine Stealth"
 id="http://www.energymech.net/madcamel/fm/">
@@ -1767,12 +1906,14 @@ privilèges pour des programmes potentiellement peu sûrs. SubDomain complète et
 étend les contrôles d'accès natifs. Bien qu'il soit sembable à un environnement
 <prgn>chroot</prgn>, il prétend être plus facile à construire et plus créer
 qu'un environnement <prgn>chroot</prgn>.
+-->
 <!-- FIXME URL is not found, and I wasn't able to find the new location 
 Homepage:
 <url name="http://www.immunix.org/subdomain.html"
 id="http://www.immunix.org/subdomain.html">
 -->
 
+<!--
 <item><em>Correctif de contextes (ctx)</em>. Une extension du noyau conçue pour
 implémenter des serveurs privés virtuels. Il est semblable à <prgn>jail</prgn> dans BSD.
 Site Internet&nbsp;: <url
@@ -1783,6 +1924,7 @@ id="http://www.immunix.org/subdomain.html">
 mais cela vous permet de créer des quotas par utilisateur pour le trafic sur votre
 serveur. Vous pouvez aussi obtenir des statistiques sur le trafic utilisateur.
 Site Internet&nbsp;: <url id="http://ramses.smeyers.be/useripacct">.
+-->
 
 </list>
 
@@ -1805,8 +1947,9 @@ dépassement de tampon&nbsp;:
 
 <list>
 
-<item>appliquer une rustine au noyau pour empêcher l'exécution de la pile (vous
-pouvez utiliser les correctifs OpenWall ou Grsecurity)&nbsp;;
+<item>appliquer une rustine au noyau pour empêcher l'exécution de la
+pile. Vous pouvez utiliser soit Exec-shield, OpenWall ou PaX (incluant
+les correctifs Grsecurity et Adamantix)&nbsp;;
 
 <!-- FIXME: ajouter un lien vers libsafe à l'endroit principal -->
 
@@ -1814,7 +1957,7 @@ pouvez utiliser les correctifs OpenWall ou Grsecurity)&nbsp;;
 id="http://www.research.avayalabs.com/project/libsafe/"
 name="libsafe">, pour ré-écrire des fonctions
 vulnérables et introduire une vérification correcte (pour des informations sur
-l'installation de libsafe, veuillez lire
+l'installation de <package>libsafe</package>, veuillez lire
 <url id="http://www.Linux-Sec.net/harden/libsafe.uhow2.txt" name="ceci">)&nbsp;;
 
 <item>corriger le code source en utilisant des outils pour trouver des fragments
@@ -1871,11 +2014,24 @@ magazine phrack ou dans l'alert du CORE
 <url id="http://online.securityfocus.com/archive/1/269246"
 name="Failles multuples dans les technologies de protection d'écrasement de la pile">.
 
+<p>Si vous voulez tester votre protection contre les dépassements de
+tampon, une fois que vous avez mis une en place (quelque que soit la
+méthode), vous pouvez vouloir installer le <package>paxtest</package> et
+exécuter les tests qu'il fournit.
+
 <sect1>Correctif du noyau de protection pour les dépassements de tampon
 
 <p>Des correctifs du noyau liés aux dépasements de tampon incluant le correctif
 Openwall fournissent une protection contre les dépassements de tampon dans les
-noyaux Linux&nbsp;2.2. Pour les noyaux&nbsp;2.4 et supérieurs, vous devez
+noyaux Linux&nbsp;2.2.
+
+Pour les noyaux&nbsp;2.4 et plus récents, vous devrez utiliser
+l'implémentation Exec-shield ou l'implémentation PaX (fourni dans le correctif 
+grsecurity, <package>kernel-patch-2.4-grsecurity</package> et dans le
+correctif Adamantix, <package>kernel-patch-adamantix</package>). 
+
+<!--
+Pour les noyaux&nbsp;2.4 et supérieurs, vous devez
 utiliser le correctif Grsecurity (dans le paquet
 <package>kernel-patch-2.4-grsecurity</package>) qui inclut le correctif
 Openwall et beaucoup plus d'autres <url
@@ -1883,11 +2039,14 @@ id="http://www.grsecurity.net/features.php" name="fonctionnalités">
 (y compris des ACL, le caractère aléatoire du réseau pour rendre plus difficile
 la reconnaissance à distance du système d'exploitation) ou les Linux Security
 Modules (dans les paquet <package>kernel-patch-2.4-lsm</package> et
-<package>kernel-patch-2.5-lsm</package>). Pour plus d'informations sur
+<package>kernel-patch-2.5-lsm</package>).
+-->
+
+Pour plus d'informations sur
 l'utilisation de ces correctifs, veuillez lire la section <ref
 id="kernel-patches">.
 
-<sect1>Protection Libsafe
+<sect1>Protection <prgn>Libsafe</prgn>
 
 <p>Protéger un système Debian GNU/Linux avec <package>libsafe</package> est
 plutôt facile. Installez simplement le paquet et répondez <em>Yes</em> pour
@@ -1898,7 +2057,7 @@ id="http://bugs.debian.org/libsafe" name="rapports de bogue rapportés"> en
 premier et testez d'abord les programmes les plus critiques dans votre logiciel
 avec le programme d'enveloppement <prgn>libsafe</prgn>.
 
-<p><em>Note importante</em>&nbsp;: la protection Libsafe peut ne pas être
+<p><em>Note importante</em>&nbsp;: la protection <prgn>Libsafe</prgn> peut ne pas être
 actuellement effective comme décrit dans <url id="http://bugs.debian.org/173227"
 name="173227">. Considérez de le tester de manière approfondie avant de
 l'utiliser dans un environnement de production et ne dépendez pas exclusivement
@@ -2008,7 +2167,7 @@ système de fichiers sur lequel vous voulez utiliser les quotas (<tt>touch
 /home/quota.user /home/quota.group</tt> pour un système de fichier <file>/home</file>).
 
 <p>
-Redémarrez le quota en faisant <tt>/etc/init.d/quota stop;/etc/init.d/quota
+Redémarrez <prgn>quota</prgn> en faisant <tt>/etc/init.d/quota stop;/etc/init.d/quota
 start</tt>. Maintenant les quotas devraient être en fonction et leurs tailles peuvent 
 être configurées.
 
@@ -2028,7 +2187,7 @@ commande quota et le quota mini-howto
 
 <p>
 Vous pouvez apprécier ou non <package>lshell</package>, puisque il 
-transgresse le FHS. Aussi prenez note que pam_limits.so peut vous
+transgresse le FHS. Aussi prenez note que <file>pam_limits.so</file> peut vous
 fournir la même fonctionnalité et <package>lshell</package>
 est actuellement <url id="http://bugs.debian.org/93894" name="orphelin">
 <!-- Section dupliquée "Logfile permissions" supprimée (era) -->
@@ -2173,11 +2332,11 @@ parties que l'utilisateur nobody peut voir), vous pouvez remplacer
 <package>locate</package> par <package>slocate</package>. slocate est étiqueté
 comme une version améliorée au niveau sécurité de GNU locate, mais il fournit en
 fait une fonctionnalité de localisation de fichier supplémentaire. Quand il
-utilise slocate, l'utilisateur ne peut voir que les fichiers auxquels il a
+utilise <prgn>slocate</prgn>, l'utilisateur ne peut voir que les fichiers auxquels il a
 vraiment accès et vous pouvez exclure tout fichier ou répertoire du système. Le
-paquet slocate exécute le processus de mise à jour avec des privilèges augmentés
+paquet <package>slocate</package> exécute le processus de mise à jour avec des privilèges augmentés
 par rapport à locate et il indexe tous les fichiers. Les utilisateurs peuvent
-alors rechercher rapidement tout fichier qu'ils peuvent voir. slocate ne leur
+alors rechercher rapidement tout fichier qu'ils peuvent voir. <prgn>slocate</prgn> ne leur
 laisse pas voir les nouveaux fichiers&nbsp;; il filtre la sortie selon votre UID
 
 <p>FIXME: put references to the snapshot taken after installation.
@@ -2518,7 +2677,8 @@ Ces attaques (empoisonnement du cache, falsification ARP, etc.) permettent à
 l'attaquant de renifler le trafic même sur des réseaux switchés, pour pirater
 facilement des connexions, pour déconnecter tout hôte du réseau, etc. Les
 attaques arp sont puissantes et simples à implémenter et plusieurs outils
-existent comme <prgn>arpspoof</prgn> du paquet <package>dsniff</package>).
+existent comme <prgn>arpspoof</prgn> du paquet <package>dsniff</package>
+ou <url name="arpoison" id="http://arpoison.sourceforge.net/">.
 
 <!-- removed <url name="arpmim"
  id="http://www.team-teso.net/releases/arpmim-0.2.tar.gz">, <url
@@ -2530,7 +2690,7 @@ existent comme <prgn>arpspoof</prgn> du paquet <package>dsniff</package>).
 <list>
 
 <item>Utiliser un cache statique arp. Vous pouvez mettre en place des entrées
-«&nbsp;statiques&nbsp;» dans votre cache arp&nbsp;:
+«&nbsp;statiques&nbsp;» dans votre cache arp avec&nbsp;:
 
 <example>
 arp -s host_name hdwr_addr 
