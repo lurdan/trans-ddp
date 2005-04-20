@@ -1,0 +1,84 @@
+<!--
+   English version: 1.9
+   Chinese version: $Revision: 1.1 $
+   -->  
+
+<chapt id="kernel">Debian 与内核
+
+<sect id="non-debian-kernel">可以不考虑 Debian 因素编译内核吗?
+
+<p>可以.
+
+<p>需要注意的是: Debian 的 C 库文件是在最新的 <em>stable</em> 发行版的 <strong>kernel</strong> headers 基础上构建的, 如果你碰巧需要使用比  <em>stable</em> 发行版的 kernel headers 更高版本编译一个程序, 那么要么升级包含headers的软件包(<package/libc6-dev/), 要么从新版的 kernel 中解压出 headera 来使用, 如果 kernel 源文件在 <file>/usr/src/linux</file> 目录下, 那么编译时需要在命令行加入 <tt>-I/usr/src/linux/include/</tt>.
+
+<sect id="customkernel">Debian 的编译内核工具
+
+<p>如果用户想(或必须)定制内核, 建议下载使用 <package/kernel-package/ 软件包, 其包含构建 kernel软件包的脚本, 并提供了创建 Debian kernel-image 软件包, 在 kernel 源文件的最上层目录运行命令:
+  <example>make-kpkg kernel_image</example>
+要获取帮助, 运行 
+  <example>make-kpkg --help</example>, 
+或者查询 <manref name="make-kpkg" section="8">.
+
+<p>如果没有现成的 kernel-source-version 软件包(这里 "version" 指 kernel 版本号), 则用户必须自己到 Linx 站点上下载新版的 kernel(或者需要的那个版本)..
+
+<p>在 <tt>/usr/share/doc/kernel-package/README.gz</tt> 处有 <package/kernel-package/ 的详细使用说明.
+主要步骤:
+
+<list>
+  <item>将 Kernel 源代码解包, 切换到新建目录.
+  <item>用下面(任一)命令修改 kernel 配置:
+    <list>
+      <item><tt>make config</tt>  (命令行界面).
+      <item><tt>make menuconfig</tt>  (一个基于 ncurses 的菜单界面).
+        注意必须安装了 <package/libncurses5-dev/ 软件包.
+      <item><tt>make xconfig</tt>  (X11 界面).
+        需要安装相关的 X 和 Tcl/TK 软件包.
+    </list>
+    置完成后, 就会在 kernel 源文件的最上层目录生成一个 <tt>.config</tt> 文件.
+  <item>执行命令: 
+	<tt>make-kpkg -rev Custom.N kernel_image</tt>,
+	N 指用户指定的版本数字. 就会生成一个修正版为 Custom.1 的新 Debian 包, 例如 Linux 2.2.14 内核，就会是<tt>kernel-image-2.2.14_Custom.1_i386.deb</tt>.
+  <item>安装生成的软件包.
+    <list>
+    <item><tt>运行 dpkg --install /usr/src/kernel-image-VVV_Custom.N.deb</tt>
+      安装内核. 安装脚本会:
+      <list>
+        <item>运行启动加载程序, LILO(如果安装了的话),
+        <item>安装放在 boot/vmlinuz_VVV-Custom.N 下定制的 kernel, 并生成相应的符号连接.
+        <item>提示用户制作启动软盘, 启动盘仅包含基本内核. 见<ref id="custombootdisk">.
+      </list>
+    <item>如果使用第三方启动加载程序, 如 <package/grub/ 或 <tt/loadlin/, 把这个影像考到相应位置(如 /boot/grub 或 <tt>MS-DOS</tt> 分区).
+  </list>
+</list>
+
+<!-- TODO: check out a new source of details, this README isn't too useful,
+I'm told (joy) -->
+<sect id="custombootdisk">如何制作启动软盘?
+
+<p>制作启动盘需要用到 Debian 的 <package/boot-floppies/ 工具, 该软件包位于 Debian　FTP 的 <tt>admin</tt> 目录下. 该软件包的脚本会生成一个 <tt>SYSLINUX</tt> 格式的启动盘, 对于那些使用 <tt>MS-DOS</tt> 格式化的软盘, 其主引导扇区的记录将被修改为直接引导 linxux(或在 syslinux.cfg 中定义的其它系统). 这个包中的其它脚本还可以制作应急盘, 甚至重建基本系统.
+
+<p>安装 <package/boot-floppies/ 后可以在 <tt>/usr/doc/boot-floppies/README</tt> 中找到更详细信息..
+
+<sect id="modules">Debian 下的模块管理?
+
+<p>Debian 的 <package/modconf/ 软件包提供了一个 shell 脚本(<tt>/usr/sbin/modconf</tt>)用于完成模块的配置.该脚本使用菜单界面, 用户通过它给出系统中可挂载设备驱动的有关细节, 它再将这些细节信息生成 <tt>/etc/modules.conf</tt> 文件(其中列出了别名 aliases 和其它参数, 用于连接各种模块), 该配置文件用来加载 <tt>/etc/modutils/</tt> 目录下和 <tt>/etc/modules</tt>(其中列出了需要在系统启动时加载的模块)目录的相关模块. 
+
+package provides a shell script
+(<tt>/usr/sbin/modconf</tt>) which can be used to customize the
+configuration of modules.  This script presents a menu-based interface,
+prompting the user for particulars on the loadable device drivers
+in his system.  The responses are used to customize the file
+<tt>/etc/modules.conf</tt> (which lists aliases, and other arguments that
+must be used in conjunction with various modules) through files in
+<tt>/etc/modutils/</tt>, and <tt>/etc/modules</tt> (which lists the
+modules that must be loaded at boot time).
+
+<p>新版的配置帮助文件可为构造自定义内核提供帮助, 同样, modconf 软件包中也有一系列帮助文件(位于<tt>/usr/lib/modules_help/</tt>), 告诉你如何对模块设定合适的参数.
+
+<sect id="removeoldkernel">我可以删除旧内核吗, 如果可以, 怎么做?
+
+<p>是的. <tt>kernel-image-NNN.prerm</tt> 脚本检查当前运行 kernel 是否与你要删掉的相同. 因此用下边的命令删除你不想要的内核影像:
+
+<example>dpkg --purge --force-remove-essential kernel-image-NNN</example>
+
+("NNN" 当然要用你的内核版本和修订号替换)

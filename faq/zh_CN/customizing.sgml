@@ -1,0 +1,141 @@
+<!--
+   English version: 1.10
+   Chinese version: $Revision: 1.1 $
+   -->  
+
+<chapt id="customizing">定制 &debian; 的安装
+<sect id="papersize">如何确定所有的程序使用的是相同的页面尺寸(paper size)?
+
+<p>安装 <package/libpaperg/ 软件包时, 会询问整个系统的默认页面尺寸, 设定会保存在 <tt>/etc/papersize</tt>文件里.
+
+<p>用户可以不用理会使用 <tt>PAPERSIZE</tt> 环境变量时的页面尺寸设置, 详见 <manref name="papersize" section="5"> 联机手册.
+
+<sect id="hardwareaccess">访问硬件设备的安全问题
+
+<p><tt>/dev</tt> 目录下的许多设备文件属于预先设定的组, 例如 <tt>/dev/fd0</tt>属于 <tt>floppy</tt> 组, <tt>/dev/dsp</tt> 属于 <tt>audio</tt> 组.
+
+<p>如果要某个用户对设备有存取权限, 只要将他加入设备所属组就可以了, 即:
+  <example>adduser user group</example>
+这样就不需要修改设备权限了.
+
+<sect id="consolefont">如何启动Debian时加载控制台字体?
+
+<p><package/kbd/ 和 <package/console-tools/ 软件包支持这种操作, 编辑<tt>/etc/kbd/config</tt> 或 <tt>/etc/console-tools/config</tt> 文件.
+
+<sect id="appdefaults">如何配置一个 X11 程序的默认值?
+
+<p>Debian 的 X 程序配置数据位于 <tt>/etc/X11/app-defaults/</tt> 目录下, 如果你要定制一个 X 应用程序, 把你的配置数据放在那些文件里, 这样在升级时才不会被破坏.
+
+<sect id="booting">好像每 个linux 发行版都有不同的启动方式, 告诉我 Debian 的方式.
+
+<p>同所有的 Unix 一样, Debian 启动时要执行 <tt>init</tt> 程序. <tt>init</tt> 的配置文件(<tt>/etc/inittab</tt>)中指定的第一个执行脚本应该是 <tt>/etc/init.d/rcS</tt>. 该脚本执行 <tt>/etc/rcS.d/</tt> 目录中各脚本的扩展名指定或衍生进程完成诸如检查并挂载文件系, 装载内核模块, 启动网络服务, 设定时钟等系统初始化工作. 接着, 为了兼容性考虑, 它运行 <tt>/etc/rc.boot/</tt> 目录下的文件(除了那些文件名中包含 `.' 的文件), 目录中的脚本通常是供系统管理员使用的, 用于有兼容性问题的软件包.
+
+<p>完成系统启动进程后, <tt>init</tt> 执行默认运行级别(该运行级别由 <tt>/etc/inittab</tt> 中的 <tt>id</tt> 给出)指定的所有的启动脚本. 同大多数 System V 兼 容Unix 一样, Linux 有 7 个运行级别:
+<list>
+  <item>0 (关闭系统),
+  <item>1 (单用户模式),
+  <item>2 到 5 (各种多用户模式), 以及
+  <item>6 (重启系统).
+</list>
+Debian 系统运行 id=2, 它表示进入多用户模式时默认运行级别为 '2', 所以将运行 <tt>/etc/rc2.d/</tt> 中的脚本.
+
+<p>实际上, 任意目录 <tt>/etc/rcN.d/</tt> 中的脚本都是指向 <tt>/etc/init.d/</tt> 的符号链接. 然而, 每个 <tt>/etc/rcN.d/</tt> 目录中文件的<em>名称</em>用来指定 /etc/init.d相应脚本的运行<em>方式</em>. 特别是, 在进入任何运行级别之前, 所有名称以 'K' 打头的脚本均被运行, 这些脚本的工作是中止进程. 然后, 所有名称以 'S' 打头的脚本被运行, 这些脚本的工作是启动进程. 名称中跟在 'K' 或 'S' 后的两位数规定了脚本运行的先后次序, 数字小的脚本先运行. 
+
+<p>采用这种工作方式是因为  <tt>/etc/init.d/</tt> 中的脚本均有一个参数规定脚本`start', `stop', `reload', `restart' 或 `force-reload', 脚本按各自参数的赋值执行任务. 这些脚本甚至可以在系统启动后, 用来控制各种进程.
+
+<p>例如, 使用带 `reload' 参数的命令
+  <example>/etc/init.d/sendmail reload</example>
+发给 sendmail daemon 进程一个信号, 要它重读配置文件.
+
+<sect id="custombootscripts">好像 Debian 不使用 <tt>rc.local</tt> 定制启动过程; 那么提供了什么工具?
+
+<p>假设系统要在启动时运行 <tt>foo</tt> 脚本, 或进入指定的 (System V) 运行级别. 那系统管理员可以这样:
+<list>
+  <item>将 <tt>foo</tt> 脚本加入 <tt>/etc/init.d/</tt> 目录.
+  <item>使用合适的参数运行 Debian 命令 <tt>update-rc.d</tt>, 这样就在(命令行指定的)rc?.d目录和 <tt>/etc/init.d/foo</tt> 之间建立了链接, 这里？是 0 到 6 中的一个数字, 对应于 System V 的各个运行级别.
+  <item>重启系统.
+</list>
+
+<p><tt>update-rc.d</tt> 命令会建立rc?.d目录中文件与 <tt>/etc/init.d/</tt> 目录中脚本的链接, 每个链接名会以  'S' 或  'K' 打头, 接下来是一个数字, 再就是脚本名. <tt>/etc/rcN.d/</tt>中以 'S' 打头的脚本在系统进入运行级别 <tt>N</tt> 时被执行. 以 'K' 打头的脚本在离开运行级别 <tt>N</tt> 时被执行.
+
+<p>还可以这样来做, 将脚本 <tt>foo</tt> 放在 <tt>/etc/init.d/</tt> 下然后使用 <tt>update-rc.d foo defaults 19</tt> 建立链接, 让 <tt>foo</tt> 脚本在系统启动期间执行. 参数 'defaults' 指默认运行级别, 它可以是 2 到 5 中某个值. 参数 '19' 确保 <tt>foo</tt>  在其它参数大于 20 的脚本之前执行.
+
+<sect id="interconffiles">软件包管理工具怎样处理非 Debian 格式的包?
+
+<p>有些用户可能想建立一个由 Debian 格式的包和非 Debian 格式的包混合组成的服务器, 通常这不是一个好主意, 因为 <prgn/dpkg/ 无法了解非 Debian 格式包的配置文件, 因此在软件包升级时可能会出现冲突.
+
+<p>可以创建一个非 Debian 格式的包, 修改其配置文件所属组为 Debian 软件包所属组, 这样 <prgn/dpkg/ 和其它的软件包管理系统就能识别本地系统管理员对于这个文件所作的修改,并且在升级时不会覆盖调它们.
+
+<!-- check against dpkg-divert description -->
+<sect id="divert">不同版本软件包的文件的替代
+
+<p>假设系统管理员或本地用户想使用 "login-local" 而不是 Debian 提供的登录程序 <package/login/.
+
+<p><strong/不/ 要这样做:
+<list>
+  <item>用 <tt>login-local</tt> 将 <tt>/bin/login</tt> 覆盖掉.
+</list>
+包管理系统并不知道这个变化, 当 <tt>login</tt>(或其它依赖 <tt>/bin/login</tt> 的软件包)安装或升级时, 你定制的 <tt>/bin/login</tt> 就会被覆盖掉.
+
+<!-- XXX dpkg-divert: is this correct ? -->
+<p>应该是
+<list>
+  <item>运行:
+    <example>dpkg-divert --divert /bin/login.debian /bin/login</example>
+  使将来Debian的 <package/login/ 包安装时, 写入 <tt>/bin/login.debian</tt> 而不是<tt>/bin/login</tt>.
+
+  <item>然后:
+    <example>cp login-local /bin/login</example>
+  将你定制的程序移到相应位置.
+</list>
+
+<p>Debian 提供了 <manref name="dpkg-divert" section="8"> 连接手册.
+
+<sect id="localpackages">如何让 Debian 的包管理系统管理非 Debian 格式软件包?
+
+<p>执行:
+
+<example>
+dpkg-scanpackages BIN_DIR OVERRIDE_FILE [PATHPREFIX] > my_Packages
+</example>
+
+<p>其中:
+  <list>
+    <item>BIN-DIR 指 Debian 格式软件包(通常扩展名为 ".deb")的存放路径i.
+    <item>OVERRIDE_FILE 这个文件由发行版的维护者编辑, 对于 "main" 发行版中的软件包, 通常保存在 Debian FTP 文档的 <tt>indices/override.main.gz</tt> 中. 对于非 Debian 格式软件包, 可以忽略这个文件.
+    <item>PATHPREFIX 是一个 <em>可选</em> 字符串, 在制作 <tt>my_Packages</tt> 文件时可以预先考虑.
+  </list>
+
+<p>一旦你构建了 <tt>my_Packages</tt> 文件, 使用以下命令告诉软件包管理系统:
+
+<example>
+dpkg --merge-avail my_Packages
+</example>
+
+<p>如果你使用 APT, 也可以把本地源加入你的 <manref name="sources.list" section="5"> 文件.
+
+<sect id="diverse">Debian 对不同喜好的支持?
+
+<p>有这样一些情况, 两个不同的软件包提供了相同的基本功能, 一些用户因为习惯问题, 或者感觉界面比较友好选择其中一个, 而使用同一系统的另一些用户却有不同的选择.
+
+<p>Debian 使用虚拟软件包系统, 当有两个或两个以上包提供相同的基本功能时, 而没有指定特殊依赖时, 使得系统管理员(或用户)可以选择他们喜欢的工具.
+
+<p>例如, 系统中可能存在两个不同版本的新闻阅读器. 新闻服务器可能需要系统中新闻阅读器的支持 ,但是选 <tt>tin</tt> 还是<tt>trn</tt>就有用户决定了, 因为 <package/tin/ 和 <package/trn/ 提供的 <package/news-reader/ 虚拟包都能满足要求, 通过指向所选文件(如 <tt>/usr/bin/trn</tt> )的称作 <tt>/etc/alternatives/news-reader</tt> 虚拟包的一个连接来调用该程序.
+
+<p>单个的连接并不能满足所有程序的要求, 通常系统中提供同一虚拟包的软件了安装了多个, Perl 脚本 <tt>update-alternatives</tt> 提供了一个方法指定一个软件包作为系统的默认A.
+
+<p>例如检查可用的 `x-window-manager', 运行:
+  <example>update-alternatives --display x-window-manager</example>
+要更改,则:
+  <example>update-alternatives --config x-window-manager</example>
+然后屏幕等待指令(敲入一个数字, 选择你喜欢的).
+
+<p>如果以为自身的原因, 没有注册为窗口管理器(比如存在一个错误), 或你使用了 /usr/locale 目录下的窗口管理器, 屏幕上可能没有你要的选择, 可以使用如下命令:
+  <example>update-alternatives --install /usr/bin/x-window-manager \
+  x-window-manager /usr/local/bin/wmaker-cvs 50</example>
+
+<p>`--install' 选项的第一个参数是指向 /etc/alternatives/NAME 的一个符号连接, NAME 是第二个参数, 第三个参数是 /etc/alternatives/NAME 指向的程序, 第四个参数是优先级(值越大运行的可能性越大).
+
+<p>运行:
+  <example>update-alternatives --remove x-window-manager /usr/local/bin/wmaker-cvs</example>
+来删除你的添加.
