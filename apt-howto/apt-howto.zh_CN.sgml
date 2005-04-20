@@ -1,0 +1,1584 @@
+<!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN">
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!-- CVS revision of original english document "1.22"  -->
+<debiandoc>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+<translator>
+<name>刘浩</name> <email>iamlyoo@163.com</email>
+</translator>
+
+<version>1.8.10.4 - 2005年3月</version>
+
+<abstract>
+这篇文档试图让用户对于Debian包管理工具APT的工作方式有一个很好的理解。
+它的目标是让新的Debian用户更容易上手，也让那些想帮助那些想更深入理解
+如何管理他们的系统的人。它为Debian项目而编写，目的是提高此发行版对它
+的用户的支持水平。
+</abstract>
+
+<copyright>
+<copyrightsummary>
+版权所有 &copy; 2001, 2002, 2003, 2004 Gustavo Noronha Silva
+</copyrightsummary>
+<p>
+This manual is free software; you may redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
+</p>
+
+<p>
+This is distributed in the hope that it will be useful, but without
+any warranty; without even the implied warranty of merchantability or
+fitness for a particular purpose. See the GNU General Public License
+for more details.
+</p>
+
+<p>
+A copy of the GNU General Public License is available as
+/usr/share/common-licenses/GPL in the Debian GNU/Linux distribution or
+on the World Wide Web at the GNU General Public Licence. You can also
+obtain it by writing to the Free Software Foundation, Inc., 59 Temple
+Place - Suite 330, Boston, MA 02111-1307, USA.
+</p>
+</copyright>
+
+<toc>
+
+<chapt>导言
+<p>
+最初只有.tar.gz的打包文件，用户必须编译每个他想在GNU/Linux上运行的软件。
+用户们普遍认为系统很有必要提供一种方法来管理这些安装在机器上的软件包，
+当Debian诞生时，这样一个管理工具也就应运而生，它被命名为<prgn>dpkg</prgn>。
+从而著名的“package”概念第一次出现在GNU/Linux系统中，稍后Red Hat才决定开
+发自己的“rpm”包管理系统。
+<p>
+很快一个新的问题难倒了GNU/Linux制作者，他们需要一个快速、实用、高效的方
+法来安装软件包，当软件包更新时，这个工具应该能自动管理关联文件和维护已有
+配置文件。Debian在次率先解决了这个问题，APT(Advanced Packaging Tool)诞生
+了。APT后来还被Conectiva改造用来管理rpm，并被其它Linux发行版本采用为它们
+的软件包管理工具。
+<p>
+本文档不打算讲解apt-rpm相关知识，因为Conectiva移植的APT已很有名了，不过
+提供有关这部分的补充文档还是欢迎的。
+<p>
+本文档是基于Debian下一个发行版<tt>Sarge</tt>的。
+</chapt>
+
+<chapt id="basico">基础设置
+
+<sect id="sources.list">/etc/apt/sources.list文件
+<p>
+作为操作的一部分，APT使用一个文件列出可获得软件包的镜像站点地址，这个文
+件就是<tt>/etc/apt/sources.list</tt>。
+<p>
+文件中的各项信息通常按如下格式列出：
+
+<p>
+<example>
+deb http://host/debian distribution section1 section2 section3
+deb-src http://host/debian distribution section1 section2 section3
+</example>
+
+<p>
+当然，上面所列的地址项都是假设的且不应该使用它们。每行的第一个单词<tt>deb</tt>
+或<tt>deb-src</tt>描述了文件类型：目录中包含的是二进制软件包(<tt>deb</tt>)，
+即我们通常使用的已编译好的软件包；或包含的是源码包(<tt>deb-src</tt>)，源码
+包包含源程序编码、Debian控制文件(<tt>.dsc</tt>)和“Debian化”该程序所做更改的
+记录文件<tt>diff.gz</tt>。
+<p>
+在Debian缺省的sources.list中通常是如下内容：
+<p>
+<example>
+# See sources.list(5) for more information, especially
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+</example>
+
+<p>
+这些是Debian基本安装所需的软件包来源地址。第一个<tt>deb</tt>行指向官方正
+式软件包来源，第二个行指向non-US软件包来源，第三行指向Debian安全补丁更新
+包来源。
+<p>
+最后两行被注释掉了(在句首加“#”)，所以apt-get将忽略它们。这些是<tt>deb-src
+</tt>行指向Debian源码包来源，如果你常下载程序源码来测试或重编译，可取消对
+它们的注释。
+<p>
+<tt>/etc/apt/sources.list</tt>文件可包含多种类型的地址，APT知道如何处理这
+些不同的地址类型：<tt>http</tt>、<tt>ftp</tt>、<tt>file</tt>(本地文件，例
+如：一个加载了ISO9600文件系统的目录)和<tt>ssh</tt>。
+<p>
+别忘了在修改完<tt>/etc/apt/sources.list</tt>文件后运行<tt>apt-get</tt>使
+更改生效。你必须完成这个步骤，以便让APT从你指定的地方获得新的软件包列表。
+</sect>
+
+<sect id="dpkg-scanpackages">如何在本地使用APT
+<p>
+有时你硬盘上有许多.deb软件包，你会希望通过APT来安装它们，以便让它去处理软
+件包间复杂的依赖关系。
+<p>
+想这么做，就建一个目录，将所有你想要安装的.deb文件放入其中。例如：
+<p>
+<example>
+# mkdir /root/debs
+</example>
+<p>
+你可以使用一个<tt>override</tt>文件直接去修改软件包中控制文件中的定义，使
+之符合你的软件储藏库管理规则。在这个覆盖文件中，你可能希望定义一些选项来覆
+盖那些软件包的定义，如下所示：
+<p>
+<example>
+package priority section
+</example>
+<p>
+package是软件包的名称，priority有三个级别low、medium或high，section是软件
+包所属的section，重载文件可任意命名，文件名将在接下来的步骤中做为参数传递
+给<prgn>dpkg-scanpackages</prgn>。如果你不想写重载文件，只需在调用<tt>
+dpkg-scanpackages</tt>时使用<tt>/dev/null</tt>就行了。
+<p>
+仍是在/root目录下执行：
+<p>
+<example>
+# dpkg-scanpackages debs <var>file</var> | gzip &gt; debs/Packages.gz
+</example>
+<p>
+在上述的命令行中，<var>file</var>为<tt>override</tt>文件，命令生成一个<file>
+Packages.gz</file>文件，它包含了APT所需的各种软件包信息。最后，如果要使用
+这些软件包，加上：
+<p>
+<example>
+deb file:/root debs/
+</example>
+<p>
+完成了上面的工作，就可以通常那样使用APT命令操作这些软件包了。你可以使用同
+样的方法生成一个源码库，但请记住你需要将<tt>.orig.tar.gz</tt>文件、<tt>
+.dsc</tt>文件和<tt>.diff.gz</tt>文件包含在目录中，同时必须生成<tt>
+Source.gz</tt>文件而不是<tt>Packages.gz</tt>文件。所使用的命令也不相同，
+要使用<prgn>dpkg-scansources</prgn>，命令如下所示：
+<p>
+<example>
+# dpkg-scansources debs | gzip &gt; debs/Sources.gz
+</example>
+<p>
+Notice that <prgn>dpkg-scansources</prgn> doesn't need an 
+<tt>override</tt> file. The sources.list's line is:
+<p>
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">选择最佳镜像发布站点加入source.list文件：netselect，netselect-apt
+<p>
+一个新用户经常问到的问题：“该将哪个Debian镜像发布站点加入<tt>source.list
+</tt>文件？”。有很多方法来选择镜像发布站点，专家们可能会写一个脚本去测试
+不同站点的ping时间。不过其实有一个程序可以帮你：
+<strong>netselect</strong>。
+<p>
+要安装netselect，通常使用：
+<p>
+<example>
+# apt-get install netselect
+</example>
+<p>
+不带参数运行它时会显示它的帮助信息。运行它时加上以空格分隔的镜像主机列表，
+它会返回一个分值和列表中的一个主机名。这个分值通过评估ping时间和hops数(一
+个网络请求报文到达目标主机所经过的转发主机的个数)得出，它与镜像站点预计下
+载速度成反比(数值越小越好)。返回的主机名是主机列表中得分最低的那个(查看列
+表中所以主机的得分情况可使用-vv选项）。看出下的例子：
+<p>
+<example>
+# netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+#
+</example>
+<p>
+它表示，在netselect后列出的所有主机中，<tt>ftp.debian.org.br</tt>是下载速
+度最快的主机，其得分为365。(注意！！这是在我电脑上的测试结果，不同的网络
+节点网速会大不相同，所以这个分值不一定适用于其它电脑)
+<p>
+现在将netselect找到的连接速度最快的镜像站点加入<tt>/etc/apt/sources.list
+</tt>文件(参考<ref id="sources.list">)并按照<ref id="apt-get">中的技巧来做。
+<p><strong>注意：</strong>镜像站点列表通常包含在文件
+<url id="http://www.debian.org/mirror/mirrors_full"
+name="http://www.debian.org/mirror/mirrors_full">中。
+<p>
+从0.3.ds1版开始，netselect源码包中包含了<strong>netselect-apt</strong>二
+进制包，它使上述操作自动完成。只需将发布目录树做为参数(默认为stable)输入，
+<tt>sources.list</tt>文件就会生成速度最快的main和non-US镜像站点列表，并保
+存在当前目录下。下面的例子生成一个包含stable发布镜像站点列表的sources.list：
+<p>
+<example>
+# ls sources.list
+ls: sources.list: File or directory not found
+# netselect-apt stable
+(...)
+# ls -l sources.list
+sources.list
+#
+</example>
+<p>
+<strong>记住：</strong><tt>sources.list</tt>生成在当前目录下，必须将其移
+至<tt>/etc/apt</tt>目录。
+<p>
+接着，按照<ref id="apt-get">中的技巧来做。
+</sect>
+
+<sect id="cdrom">将CD-ROM加入source.list文件
+<p>
+如果你用APT从CD-ROM上安装及升级软件包，你可以将它加入到<tt>sources.list
+</tt>文件中。完成该操作，可使用<prgn>apt-cdrom</prgn>程序：
+
+<p>
+<example>
+# apt-cdrom add
+</example>
+
+<p>
+将Debian光盘放入光驱，它将加载光盘目录，并在光盘上查找软件包信息。如果你
+的光驱需要额外设置，可使用以下选项：
+
+<p>
+<example>
+-h           - program help
+-d directory - CD-ROM mount point
+-r           - Rename a recognized CD-ROM
+-m           - No mounting
+-f           - Fast mode, don't check package files
+-a           - Thorough scan mode
+</example>
+
+<p>
+例如：
+
+<p>
+<example>
+# apt-cdrom -d /home/kov/mycdrom add
+</example>
+
+<p>
+你还可以扫描一张光盘，但不将其加入列表：
+
+<p>
+<example>
+# apt-cdrom ident
+</example>
+
+<p>
+注意，只有当你在系统的<tt>/etc/fstab</tt>中正确设置了光驱后，该程序才会工作。
+</sect>
+
+</chapt>
+
+<chapt id="apt-get">软件包管理
+<sect id="update">更新可用软件包列表
+<p>
+软件包管理系统使用一个私有数据库跟踪列表中软件包的当前状态：已安装、未安
+装或可安装。<prgn>apt-get</prgn>通过该数据库来确定如何安装用户想用的软件
+包以及正常运行该软件包所必须的其它关联包。
+<p>
+你可以使用<prgn>apt-get update</prgn>来更新数据库列表。这个命令将扫描
+<tt>/etc/apt/sources.list</tt>文件中所指路径中的软件包列表文件。有关该列
+表文件的更多信息请参考<ref id="sources.list">。
+<p>
+定时运行这个程序是个好主意，它将使你和你的系统获得最新的软件包更新和安全
+更新等信息。
+</sect>
+
+<sect id="install">安装软件包
+<p>
+现在，终于到了你一直期待的阶段！准备好了sources.list和最新版的的可用软件
+包，你所需做的就是运行<tt>apt-get</tt>来安装你渴望已久的软件了。例如，你
+可以这样：
+
+<p>
+<example>
+# apt-get install xchat
+</example>
+
+<p>
+APT会扫描它的数据库找到最新的版本的软件包，并将它从<tt>sources.list</tt>中
+所指的地方下载到本地。如果该软件包需要其它软件包才能正常运行——如本例一样
+——APT会做关联性检查并自动安装所关联软件包。如下所示：
+
+<p>
+<example>
+# apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+<tt>nautilus</tt>软件包需要引用共享函数库，因此APT会从镜像源处下载相关共
+享函数库，如果你在<tt>apt-get</tt>命令行中手动指定了这些共享函数库的名称，
+APT不会询问你是否要继续；它会自动认为你希望安装所有这些软件包。
+<p>
+也就是说APT只会在安装那些没有在命令行中指定的软件包时提示确认。
+<p>
+下列apt-get选项也许对你有用：
+
+<p>
+<example>
+-h  这个帮助信息
+-d  只下载——不安装或解压档案
+-f  即便完整性检查失败了仍然继续
+-s  不做什么。只是按顺序模拟
+-y  对于所有问题都假定为Yes，不询问
+-u  显示一系列已经将要更新的包
+</example>
+
+<p>
+可以用一条命令安装多个软件包。包文件从网络上下载到本地
+<tt>/var/cache/apt/archives</tt>目录，稍后再安装。
+<p>
+你可以用同样的命令行删除指定软件包，只需在软件包名称后紧跟一个“-”，如下所示：
+
+<p>
+<example>
+# apt-get install nautilus gnome-panel-       
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+参考<ref id="remove">一节以获得更多的关于删除软件包的信息。
+<p>
+假如你不小心损坏了已安装的软件包而想修复它，或者仅仅想重新安装软件包中某
+些文件的最新版本，这是可以做到的，你可以用如下的<tt>--reinstall</tt>选项：
+
+<p>
+<example>
+# apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+</sect>
+
+<sect id="remove">移除软件包
+<p>
+如果你不再使用某些软件包，你可以用APT将其从系统中删除。要删除软件包只需
+输入：<tt>apt-get remove package</tt>。如下所示：
+
+<p>
+<example>
+# apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+由上例可知，APT会关注那些与被删除的软件包有依赖关系的软件包。使用APT删除
+一个软件包将会连带删除那些与该软件包有依赖关系的软件包。
+
+<p>
+上例中运行<prgn>apt-get</prgn>会删除指定软件包以及与之有依赖关系的软件
+包，但它们的配置文件，如果有的话，会完好无损地保留在系统里。如果想彻底删
+除这些包及其配置文件，运行：
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+注意：软件包名字后面的*表示该软件包所有的配置文件也将被删除。
+<p>
+就象<tt>install</tt>时一样，你可以在<tt>remove</tt>命令中用一个符号来指
+定安装某个软件包。在删除软件包时，如果你在软件包名字后面紧跟一个
+“<tt>+</tt>”，那么该软件包就会被安装而不是删除。
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+注意，<prgn>apt-get</prgn>列出了那些将要被安装的额外软件包(即保证该软件
+包正常运行的其它软件包)和将要被删除关联软件包，然后，再次列出了将要被安
+装的软件包(包括了额外的包)。
+</sect>
+
+<sect id="upgrade">更新软件包
+<p>
+软件包更新是APT最成功的特点。只需一条命令即可完成更新：
+<tt>apt-get upgrade</tt>。你可以使用这条命令从相同版本号的发布版中更新
+软件包，也可以从新版本号的发布版中更新软件包，尽管实现后一种更新的推荐
+命令为<tt>apt-get dist-upgrade</tt>；详情请参考<ref id="dist-upgrade">。
+<p>
+在运行该命令时加上<tt>-u</tt>选项很有用。这个选项让APT显示完整的可更新
+软件包列表。不加这个选项，你就只能盲目地更新。APT会下载每个软件包的最新
+更新版本，然后以合理的次序安装它们。注意在运行该命令前应先运行
+<tt>apt-get update</tt>更新数据库。详情请参考<ref id="update">。请看下
+面的例子：
+
+<p>
+<example>
+# apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+整个更新过程非常简单。注意在本例中头几行，<tt>apt-get</tt>报告有些软件包
+的更新被<tt>kept back</tt>，这表明这些软件包的更新版本因故无法安装，可能
+的原因有关联不同步(当前没有供下载的新版本关联包)或关联扩展(需要安装新的
+关联包以配合新版软件包)。
+<p>
+对于第一种原因没有很好的解决方法，对于第二次原因，运行<tt>apt-get intall
+</tt>安装所需的新关联包就可以。另一个更好的解决方法就是使用<tt>dist-upgrade
+</tt>。详情请参考<ref id="dist-upgrade">。
+</sect>
+
+<sect id="dist-upgrade">升级到新版本
+<p>
+APT的绝活就是让你一次就完成整个系统的更新，不论是通过Internet还是通过光
+盘文件(购买的碟片或下载的ISO镜像文件)。
+<p>
+它也可以用来更新那些关联关系发生改变的软件包。即如前所述的那些使用<tt>
+apt-get upgrade</tt>时被不被更新(kept back)的软件包。
+<p>
+例如，假设你目前使用的Debian为stable revision 0，而你购买了revision 3的
+新版Debian，你可以使用APT从新光盘上升级你的系统。使用apt-cdrom(参考<ref
+id="cdrom">)将光盘加载到<tt>/etc/apt/sources.list</tt>中，然后运行<tt>
+apt-get dist-upgrade</tt>。
+<p>
+请注意，APT总是搜索最新版本的软件包，因此，如果一个软件包在你的
+<tt>/etc/apt/sources.list</tt>中所列的版本比光盘上所列的版本要新，那么
+APT会下载其中的软件包而不是使用光盘上的软件包。
+<p>
+在<ref id="upgrade">节的例子中，我们看到有些包被<tt>kept back</tt>了，现
+在我们就用<tt>dist-upgrade</tt>方法来解决这个问题：
+
+<p>
+<example>
+# apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx 
+The following packages have been kept back
+  lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc 
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+注意现在那些软件包将会被更新，那些新的关联软件包也会被安装。但是lilo仍被
+<tt>kept back</tt>，可能还存在一些比建立新关联更棘手的问题，我们通过如下
+方法确定问题所在：
+
+<p>
+<example>
+# apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be REMOVED:
+  debconf-tiny 
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be upgraded
+  lilo 
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+查看上述提示信息可知，lilo与<package>debconf-tiny</package>包产生了一个
+新冲突，这表明除非删除debconf-tiny，否则将无法安装(或更新)lilo。
+<p>
+想知道该保留或删除哪些软件包，你可以使用：
+
+<p>
+<example>
+# apt-get -o Debug::pkgProblemResolver=yes dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Starting
+Starting 2
+Investigating python1.5
+Package python1.5 has broken dep on python1.5-base
+  Considering python1.5-base 0 as a solution to python1.5 0
+  Holding Back python1.5 rather than change python1.5-base
+Investigating python1.5-dev
+Package python1.5-dev has broken dep on python1.5
+  Considering python1.5 0 as a solution to python1.5-dev 0
+  Holding Back python1.5-dev rather than change python1.5
+ Try to Re-Instate python1.5-dev
+Done
+Done
+The following packages have been kept back
+  gs python1.5-dev 
+0 packages upgraded, 0 newly installed, 0 to remove and 2  not upgraded.
+</example>
+
+<p>
+现在，你很容易就知道不能安装python1.5-dev软件包是因为无法满足另一个软件
+包python1.5的关联要求。
+
+</sect>
+
+<sect id="clean">移除无用软件包文件：apt-get clean and autoclean
+<p>
+当你需要安装某个软件包时，APT从/etc/apt/sources.list中所列的主机下载所
+需的文件，将它们保存到本机软件库(<file>/var/cache/apt/archives/</file>)，
+然后开始安装，参考<ref id="install">。
+<p>
+本地软件库会不断膨胀占用大量硬盘空间，幸运的是，APT提供了工具来管理本地
+软件库：<prgn>apt-get</prgn>的<tt>clean</tt>方法和<tt>autoclean</tt>方法。
+<p>
+<prgn>apt-get clean</prgn>将删除<file>/var/cache/apt/archives</file>目录
+和<file>/var/cache/apt/archives/partial</file>目录下锁文件以外的所有文件。
+这样以来，当你需要再次安装某个软件包时，APT将重新下载它。
+<p>
+<prgn>apt-get autoclean</prgn>仅删除那些不需要再次下载的文件。
+<p>
+下面这个例子显示了apt-get autoclean如何工作：
+
+<p>
+<example>
+# ls /var/cache/apt/archives/logrotate* /var/cache/apt/archives/gpm*
+logrotate_3.5.9-7_i386.deb
+logrotate_3.5.9-8_i386.deb
+gpm_1.19.6-11_i386.deb
+</example>
+
+<p>
+在/var/cache/apt/archives目录下有两个不同版本的<package>logrotate</package>
+软件包文件以及一个<package>gpm</package>软件包文件。
+
+<p>
+<example>
+# apt-show-versions -p logrotate
+logrotate/stable uptodate 3.5.9-8
+# apt-show-versions -p gpm
+gpm/stable upgradeable from 1.19.6-11 to 1.19.6-12
+</example>
+
+<p>
+<prgn>apt-show-versions</prgn>显示<file>logrotate_3.5.9-8_i386.deb</file>
+提供了<package>logrotate</package>的升级版本，所以
+<file>logrotate_3.5.9-7_i386.deb</file>没用了。同样
+<file>gpm_1.19.6-11_i386.deb</file>也没有用了，因为可以下载该软件包的更新
+版本。
+
+<p>
+<example>
+# apt-get autoclean
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Del gpm 1.19.6-11 [145kB]
+Del logrotate 3.5.9-7 [26.5kB]
+</example>
+
+<p>总之，apt-get autoclean仅删除那些过时的文件。参考
+<ref id="apt-show-versions">以了解apt-show-versions的更多详情。
+</sect>
+
+<sect id="dselect-upgrade">在dselect中操作APT
+<p>
+<prgn>dselect</prgn>工具帮助用户选取想要安装的Debian软件包。它有点复杂甚
+至令人望而生厌，但经过实践你就能掌握它恐怖的终端界面。
+
+<p>
+dselect高级功能之一就是它知道利用Debian软件包的“推荐”和“建议”能力。(Debian软
+件包有一种能力：推荐或建议系统在安装自己的同时，安装别的软件包以配合自身的
+工作，当然这些推荐的软件包不一定是必须的；而dselect工具可以识别和利用这个能
+力，使用dselect时你就能体会到。译者注)以root身份运行<tt>dselect</tt>，进入程
+序后选择apt作为连接方式(access)。该步骤不是必须的，但如果你没有光驱而且想通
+过Internet下载安装软件包，这是使用dselect的最好方法。
+<p>
+想深入学习dselect的用法，请到Debian网站查阅dselect文档页面<url
+id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+<p>
+
+在dselect中选好了软件包后，运行：
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+</example>
+
+<p>
+如下例所示：
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy 
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images 
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+
+比较一下我们在相同系统上运行apt-get dist-upgrade时的情形：
+
+<p>
+<example>
+# apt-get -u dist-upgrade   
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+我们看到在前例中许多软件包被安装是其它软件包“推荐”或“建议”的结果。另外一
+些软件包被安装或删除(例如lbxproxy软件包)是我们通过dselect工具作出的决定。
+由此可见dselect与APT结合起来将是一个功能强大的工具。
+</sect>
+
+<sect id="default-version">如何保持一个混合系统
+<p>
+人们有时会对这种情况有兴趣——使用一个版本的Debain作为其主发行版，但从另一
+个分支上安装一个或多个包。
+<p>
+要设定你的Debian主版本，应当修改<file>/etc/apt/apt.conf</file>文件，并加
+入：
+<p>
+<example>
+APT::Default-Release "<var>version</var>";
+</example>
+<p>
+其中<var>version</var>是你希望作为主发行版使用的Debian版本。你可以使用的
+版本有<tt>stable</tt>、<tt>testing</tt>和<tt>unstable</tt>。
+要从另外一个版本中安装软件包，你必须按照如下方式执行APT：
+
+<p>
+<example>
+# apt-get -t <var>distribution</var> install <var>package</var>
+</example>
+<p>
+
+为了使其可以个工作，在你的<file>/etc/apt/sources.list</file>中至少有一行
+是关于你要使用的那个版本的，而且要使用的软件包也必须存在于该版本中。
+<p>
+你也可以要求使用某个特定把本的软件包，如下所示：
+
+<example>
+# apt-get install <var>package</var>=<var>version</var>
+</example>
+
+例如，下面的命令将会安装<tt>2.2.4-1</tt>版的<package>nautilus</package>软
+件包：
+
+<example>
+# apt-get install nautilus=2.2.4-1
+</example>
+
+<p>
+<em>重要信息</em>：最新版的Debian软件包首先会上传到“unstable”发布版中，
+这个发布版包含了软件包所有更改阶段，无论是小修小补还是影响到众多软件包
+乃至整个系统的重大修改。所以，新手和那些强调系统稳定性的用户<em>不</em>
+会使用这个发布版。
+<p>
+“testing”发布版比起“unstable”发布版，多注重了些系统稳定性，但正式运行的
+系统应当使用“stable”发布版。
+</sect>
+
+<sect id="apt-show-versions">如何从Debian的专用版本下升级软件包
+<p>
+<prgn>apt-show-versions</prgn>提供了一个安全的途径，让那些使用混合系统的
+用户放心升级他们的系统，不必担心升级会将原来属于stable的包升级成了unstable包。
+例如，在安装了<package>apt-show-versions</package>软件包之后，
+使用这条命令将只升级你的unstable软件包：
+<p>
+<example>
+# apt-get install `apt-show-versions -u -b | grep unstable | cut -d ' ' -f 1`
+</example>
+</sect>
+
+<sect id="pin">如何维护已安装软件包的多个版本（复杂）
+How to keep specific versions of packages installed (complex)
+<p>
+你可能会遇到这种情况，更改了某个软件包中的一些文件，但你没有时间或根本就
+不想将这些更改引入到新版本中。或者，你将系统升级到3.0，但仍想继续使用Debian
+2.2下的某个软件包。你可以“钉住”这个版本，这样它就不会被更新了。
+<p>
+操作起来十分简单，你只需编辑<tt>/etc/apt/preferences</tt>文件。
+<tt>/etc/apt/preferences</tt>.
+<p>
+文件格式很简单：
+<p>
+<example>
+Package: &lt;package&gt;
+Pin: &lt;pin definition&gt;
+Pin-Priority: &lt;pin's priority&gt;
+</example>
+<p>
+每个条目都要以空白行与其它条目分割开。例如，我对<package>sylpheed</package>
+软件包做了某些修改以使用“reply-to-list”功能，其版本为0.4.99。我想保留这
+些修改不被更新，可加上：
+<p>
+<example>
+Package: sylpheed
+Pin: version 0.4.99*
+</example>
+<p>
+注意我用了一个<tt>*</tt>(星号)。这是一个“通配符”；它表明我希望“钉住”所有
+以0.4.99打头的版本(以防它们被下载并安装到我机器上。pin控制的是服务器端的
+更新软件包而非本地的已安装软件包。译者注)。因为Debian使用“Debian版本号”
+为其软件包定版本，我不想进行所有这些版本的升级，如果不用通配符，
+那么0.4.99-1版或0.4.99-10版只要一出炉系统就会安装它们。如果你修改了软件包，
+你一定不希望这么做。
+<p>
+Pin的优先级帮助我们检查一个与“Packages:”和“Pin:”相符合的软件包是否应该被
+安装。当优先级比较高时，符合的软件包将会被安装。你可以查阅<manref
+name="apt_preferences" section="7">，其中有关于优先级的详细讨论，但通过
+一些简单的例子也可以了解基本的概念。下面就说明了在上面的sylpheed例子中设
+定优先级域的效果。
+</p>
+<p>
+<taglist>
+<tag>1001</tag>
+<item>
+Sylpheed 0.4.99永远不会被apt替换。如果可能，apt甚至会用0.4.99版替换已经
+安装的更高的版本呢。只有那些优先级比1000大的软件包才会降级。
+</item>
+<tag>1000</tag>
+<item>
+除了不会将高版本降级以外，与1001的效果相同。
+</item>
+<tag>990</tag>
+<item>
+版本0.4.99只会被首选发布系列中高版本的的软件包替换，首选发行版由变量
+“APT::Default-Release”定义(参考<ref id="default-version">。
+</item>
+<tag>500</tag>
+<item>
+任何发布系列中比0.4.99版本高的sylpheed都会被安装，但相对于低版本而言，仍然
+建议使用0.4.99。
+</item>
+<tag>100</tag>
+<item>
+任何发布系列中高版本的sylpheed都会被安装；因此只有没有其它版本可以安装时
+才会安装0.4.99。已安装包的优先级。
+</item>
+<tag>-1</tag>
+<item>
+负的优先级也是允许的，它会组织0.4.99版被安装。
+</item>
+</taglist>
+<p>
+钉子也可以用来指定软件包的<tt>version</tt>、<tt>release</tt>或
+<tt>origin</tt>。
+<p>
+我们已经看到，钉在一个<tt>version</tt>上，可以使用具体的版本号，也可以使
+用通配符一次指定多个版本。
+<!-- what's available?  standard shell globs?  ?*[]   or more? -->
+<p>
+<tt>release</tt>选项依赖于APT仓库上的或者CD中的Release文件。如果你使用的
+APT仓库并没有提供这个文件，这个选项就没有任何用处了。你可以在
+<tt>/var/lib/apt/lists/</tt>中看到Release文件的内容。release的参数是：
+<tt>a</tt>(存档)、<tt>c</tt>(部件)、<tt>v</tt>(版本)、<tt>o</tt>(起源)
+和<tt>l</tt>(标签)。
+<p>
+例如：
+<p>
+<example>
+Package: *
+Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+Pin-Priority: 1001
+</example>
+<p>
+在这个例子中，我们选择了Debian版本2.2*(可以是2.2r2、2.2r3——这些版本中通常
+包含了对安全问题的修复和其它重要更新)，<tt>stable</tt>仓库，<tt>main</tt>
+(相应的还有<tt>contrib</tt>或者<tt>non-free</tt>)区段、起源和标签都是
+Debian。origin(o=)定义了谁制作了这个Release文件，label(l=)定义了发行版的
+名字：Debian自己就使用Debian而Progeny则使用Progeny。Release文件的例子如下
+所示：
+<p>
+<example>
+$ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+Archive: stable
+Version: 2.2r3
+Component: main
+Origin: Debian
+Label: Debian
+Architecture: i386
+</example>
+</sect>
+</chapt>
+
+<chapt id="helpers">几个非常有用的工具
+<sect id="equivs">如何安装本地编译的软件包：equivs
+<p>
+有时，用户想使用某些软件的特殊版本，它们只以源代码的形式存在，没有现成
+的Debian软件包。软件包管理系统在处理这类事务时可能会出问题。假设你想编
+译新版本的邮件服务器，所有的事情都很正常，但是Debian中的很多软件包是依
+赖于MTA(邮件传输代理)的。由于你是自己手工编译安装软件，软件包管理系统
+对此一无所知。
+<p>
+现在是<package>equivs</package>登台的时候了。用它来安装软件包，它所做
+的工作就是创建一个新的空软件包来实现关联，让软件包管理系统相信所有的依
+赖关系都可以满足。
+<p>
+在我们开始以前，我必须提醒你，编译某个软件最安全的方法是对该软件现有
+的Debian软件包进行修改后重新编译，如果你并不知道你正在干什么，劝你不要使
+用equivs替换关联包。更多信息请参考<ref id="sourcehandling">。
+<p>
+继续上面的例子，你安装好了新编译的<prgn>postfix</prgn>，接下来打算安装
+<package>mutt</package>。突然你发现<package>mutt</package>想安装另外一
+个MTA，但实际上你已经有了你的MTA。
+<p>
+转到某个目录(例如<file>/tmp</file>)执行：
+
+<p>
+<example>
+# equivs-control <var>name</var>
+</example>
+
+<p>
+将<var>name</var>替换为你创建的控制文件，控制文件按如下格式创建：
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;enter package name; defaults to equivs-dummy&gt;
+Version: &lt;enter version here; defaults to 1.0&gt;
+Maintainer: &lt;your name and email address; defaults to username&gt;
+Pre-Depends: &lt;packages&gt;
+Depends: &lt;packages&gt;
+Recommends: &lt;packages&gt;
+Suggests: &lt;package&gt;
+Provides: &lt;(virtual)package&gt;
+Architecture: all
+Copyright: &lt;copyright file; defaults to GPL2&gt;
+Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+Readme: &lt;README.Debian file; defaults to a generic one&gt;
+Extra-Files: &lt;additional files for the doc directory, comma-separated&gt;
+Description: &lt;short description; defaults to some wise words&gt;
+ long description and info
+ .
+ second paragraph
+</example>
+
+<p>
+我们只需按自己的需要修改相关项目就行了。文件中每个项目都描述得很清楚，我
+们不必在此逐行解释它们。现在开始修改吧：
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+<p>
+行了，就是这样。<package>mutt</package>依赖于<package>mail-transport-agent
+</package>，这是所有MTA共同提供的一个虚拟包，我可以简单地将这个软件包命名
+为<package>mail-transport-agent</package>，不过我更愿意使用系统的虚拟包方
+案，使用Provides选项。
+<p>
+现在你可以开始构建软件包了：
+
+<p>
+<example>
+# equivs-build <var>name</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+
+软件包已经被创建了，注意，软件包是创建在当前目录中的。
+</example>
+
+<p>
+然后安装这个<tt>.deb</tt>文件。
+<p>
+众所周知，<prgn>equivs</prgn>的用法很多，譬如你可以创建一个<tt>my-favorites
+</tt>软件包，它依赖于你通常安装的软件包。尽情发挥你的想像力吧，当然还是要小心。
+<p>
+重要提示：在<file>/usr/share/doc/equivs/examples</file>目录下有控制文件
+的例子，最好看一下。
+</sect>
+
+<sect id="localepurge">移除无用的地区配置(locale)文件：localepurge
+<p>
+许多Debian用户仅在固定地区使用Debian。例如，在巴西的Debian用户，通常使
+用<tt>pt_BR</tt>地区配置文件而不会关心<tt>es</tt>地区配置文件。
+<p>
+对于这类用户而言<package>localepurge</package>是一个非常有用的工具，你可
+以仅保留你当前所用的地区配置文件，删除其它无用的文件，从而释放大量硬盘空
+间。运行<tt>apt-get install localepurge</tt>就行了。
+<p>
+它配置起来非常容易，debconf的提问将引导用户一步一步完成设置。在回答第一
+个问题时请务必谨慎，如果回答错了，系统可能删掉所有的地区配置文件，包括你
+正在使用的这个。复原它们的唯一方法就是重装那些软件包。
+</sect>
+
+<sect id="helper-show-versions">如何知晓哪些软件包可以升级
+<p>
+<prgn>apt-show-versions</prgn>工具可以告诉你系统中哪些包可以更新以及其它
+一些有用的信息。<tt>-u</tt>选项可以显示可更新软件包列表：
+
+<p>
+<example>
+$ apt-show-versions -u    
+libeel0/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+libeel-data/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+</example>
+</sect>
+
+</chapt>
+
+<chapt id="search">获取软件包信息
+<p>
+有些基于APT系统的前端程序，能十分方便地获得系统软件包列表，列表包括可安
+装或已安装的软件包，还可以显示某软件包属于哪个section，它的优先级是多少，
+它的说明文档等等。
+<p>
+但是...在此我们想的学习如何使用APT本身来完成。你如何找出你想要安装的软件
+包的名称？
+<p>
+我们完成这个任务的方法有很多。我们从<tt>apt-cache</tt>开始，APT系统使用
+这个程序来维护它的数据库。下面我们通过一些实际操作来对它做个概览。
+
+<sect id="cache">获得软件包名称
+<p>
+假设你十分怀念玩Atari 2600的好日子，你决定用APT安装一个Atari emulator，
+随后再下载几个游戏，你可以这样：
+
+<p>
+<example>
+# apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+<p>
+
+我们找到了几个相关的软件包，以及有关的简单描述。想进一步获得某个软件包的
+详细信息，你可以运行：
+
+<p>
+<example>
+# apt-cache show stella  
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (&gt;= 2.1), libstdc++2.10, xlib6g (&gt;= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella is a portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+<p>
+屏幕上显示出这个软件包的详细信息及其用途的完整描述。如果你的系统中已安装
+了某个软件包而系统又搜索到它的新版本，系统会将它们的详细信息一并列出。如
+下例：
+
+<p>
+<example>
+# apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (&gt;= 2.2.1-2), debconf (&gt;=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (&lt;&lt;1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (&gt;= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+<p>
+注意，首先列出的是可用软件包，接着列出的是已安装软件包。获取某个软件包的
+常规信息可运行：
+
+<p>
+<example>
+# apt-cache showpkg penguin-command
+Package: penguin-command
+Versions: 
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends: 
+Dependencies: 
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+Provides: 
+1.4.5-1 - 
+Reverse Provides: 
+</example>
+
+<p>
+如果仅想了解某软件包的与哪些软件包关联，可运行：
+
+<p>
+<example>
+# apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+<p>
+总之，有一系列工具可帮助我们找到我们想要的软件包。
+</sect>
+
+<sect id="dpkg-search">使用dpkg查找软件包名称
+<p>
+另一个定位软件包的方法是知道软件包中某个关键文件的名称。例如，你编译时需
+要某个“<tt>.h</tt>”头文件，查找提供该文件的软件包，你可以运行：
+
+<p>
+<example>
+# dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+<p>
+或者：
+
+<p>
+<example>
+# dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+<p>
+解系统中已安装软件的软件包名称十分有用，譬如当你想清理硬盘空间时，可以运行：
+
+<p>
+<example>
+# dpkg -l | grep mozilla
+ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+</example>
+<p>
+这个命令的缺点是它会“截断”软件包的名字。在上例中，软件包的全称是
+<tt>mozilla-browser</tt>，解决这个问题可以使用<tt>COLUMNS</tt>环境变量：
+
+<p>
+<example>
+[kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+</example>
+
+<p>
+或显示成这样：
+
+<p>
+<example>
+# apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">如何“按需”安装软件包
+<p>
+你正在编译某段程序，突然，停住了！一条错误信息报告说你没有它需要的<tt>.h
+</tt>头文件。让<prgn>auto-apt</prgn>来救你吧，它问你是否要安装需要
+的软件包，然后挂起编译进程，安装好软件包后再恢复编译进程。
+<p>
+你所要做的仅仅是：
+
+<p>
+<example>
+# auto-apt run command
+</example>
+
+<p>
+这里“command”指在运行过程中可能出现“需求文件不存在”问题的命令。例如：
+
+<p>
+<example>
+# auto-apt run ./configure
+</example>
+
+<p>
+一会儿，它就会告诉你要安装所需的软件包并自动转到apt-get处理。如果你正在
+运行X，就会一个图形界面提示窗口。
+<p>
+为了提高效率auto-apt所用的数据库需要实时更新。可调用
+<tt>auto-apt update</tt>，<tt>auto-apt updatedb</tt>和
+<tt>auto-apt update-local</tt>来完成更新。
+</sect>
+
+<sect id="apt-file">如何知道文件属于哪个软件包
+<p>
+如果你想安装某个软件包，但用<prgn>apt-cache</prgn>查不出它的名称，不过你
+知道这个程序的文件名，或这个软件包中某些文件的文件名，那么你可以用<prgn>
+apt-file</prgn>来查找软件包名称。如下所示：
+
+<p>
+<example>
+$ apt-file search <var>filename</var>
+</example>
+
+<p>
+它用起来很象<tt>dpkg -S</tt>，不过它还会列出包含该文件的已删除软件包。它
+也可以用来查找哪个软件包包含编译时所缺的文件，当然，解决这类问题<prgn>
+auto-apt</prgn>可能是更好的方案，请参考<ref id="auto-apt">。
+<p>
+用这个命令，你可以列出软件包的内容：
+
+<p>
+<example>
+$ apt-file list <var>packagename</var>
+</example>
+
+<p>
+<prgn>apt-file</prgn>用一个数据库来存放所有软件包的内容信息，和auto-apt
+一样，这个数据库也需要实时更新，完成更新可以运行：
+
+<p>
+<example>
+# apt-file update
+</example>
+
+<p>
+缺省情况下，<prgn>apt-file</prgn>和<prgn>auto-apt</prgn>使用同一个数据库，
+参考<ref id="auto-apt">。
+
+</sect>
+
+<sect id="apt-listchanges">如何掌握软件包的变化情况
+<p>
+在每个软件包被安装以后，都会在文档目录(<tt>/usr/share/doc/packagename</tt>)
+生成一个<tt>changelog.Debian.gz</tt>的文件，这个文件记录了该软件包最后一
+次更新对系统做了哪些修改，你可以用<tt>zless</tt>阅读这些信息。不过当你对
+整个系统进行升级以后，逐个查看软件包的更新信息可不是件容易事。
+<p>
+有一个工具能帮你完成这项任务，它就是<prgn>apt-listchanges</prgn>。首先你
+要装上<prgn>apt-listchanges</prgn>软件包。在安装的过程中，为了进行配
+置，Debconf会问你一些问题，按你的要求回答它们就行了。
+<p>
+第一个问题是问你希望apt-listchanges如何来显示修改日志。你可以让它把信息
+通过邮件的方式发送给你，这对于自动更新是非常有用的。或者你可以让它在<prgn>
+less</prgn>等程序中显示修改日志，这样在继续升级前你就可以查看它们了。如果
+你不希望<prgn>apt-listchanges</prgn>在升级的时候自动的运行，可以
+回答<tt>none</tt>。
+<p>
+安装了apt-listchanges后，每当apt下载软件包之后(不论来源是Internet、光盘
+或是硬盘)都会显示这些软件包的系统更新信息。
+
+</sect>
+</chapt>
+
+<chapt id="sourcehandling">源码包操作
+<sect id="source">下载源码包
+<p>
+在自由软件的世界里，经常需要学习源码或为程序除错，所以你需要下载它们。APT提
+供了一套简便的方法帮你获得发布版中众多程序的源代码以及创建一个.debs所需的
+所有文件。
+<p>
+Debian源码的另一个普遍用途是将unstable发布版的新版程序进行改写以供别的发
+布版使用。例如，从stable发布版外引入新的软件包，需要重新生成.debs将它在
+原发布版中的关联关系迁移到新的发布版。
+<p>
+要完成这些工作，<tt>/etc/apt/sources.list</tt>文件中<tt>deb-src</tt>所指
+引用镜像源应该是unstable，别忘了将行首的注释符去掉。详情参考
+<ref id="sources.list">。
+<p>
+用下面的命令下载源码包：
+
+<p>
+<example>
+$ apt-get source packagename
+</example>
+<p>
+通常会下载三个文件：一个<tt>.orig.tar.gz</tt>、一个<tt>.dsc</tt>和一个<tt>
+.diff.gz</tt>。对于Debian专用的软件包，不会下载最后一个文件，第一个文件的文
+件名中没有“<tt>orig</tt>”项。
+<p>
+dpkg-source通过<tt>.dsc</tt>文件中的信息，将源码包解包到
+<var>packagename-version</var>目录，下载下来的源码包中有一个
+<tt>debian/</tt>目录，里面是创建.deb包所需的文件。
+<p>
+想要下载的源码包自动编译成软件包，只需在命令行中加上<tt>-b</tt>，如下：
+
+<p>
+<example>
+$ apt-get -b source packagename
+</example>
+
+<p>
+如果你不打算在下载后就立刻创建.deb文件，你可以在之后用下面的命令创建：
+
+<p>
+<example>
+$ dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+<p>
+上述命令应当在下载后为软件包创建的目录中执行。要安装用这种方式构建好的
+软件包，只能直接使用软件包管理器，例如：
+
+<p>
+<example>
+# dpkg -i <var>file.deb</var>
+</example>
+
+<p>
+<prgn>apt-get</prgn>的<tt>source</tt>命令与它的其它命令有所不同，普通用
+户就可以运行source命令。文件被下载到用户调用<tt>apt-source package</tt>
+命令时所处的目录中。
+</sect>
+
+<sect id="build-dep">编译源码包所需的软件包
+<p>
+通常，编译源码包时要用到某些头文件和共享库，所有的源码包的控制文件中都
+有一个域“Build-Depends：”，域中指出了编译该源码包需要哪些附加包。
+<p>
+APT提供了一个简单的方法下载这些附加包，你只需运行<tt>apt-get build-dep
+package</tt>，其中“package”就是你打算编译的源码包
+名称。见下例：
+
+<p>
+<example>
+# apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev 
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+这些将要被安装的包是用于正确编译<package>gmc</package>的。注意这个命令不
+能用来搜索某个软件的源码包，你得另外运行<tt>apt-get source</tt>下载源码包。
+
+<p>
+如果你想做的是检查要编译一个软件包需要哪些其它的软件包，<tt>apt-cache show
+</tt>可以显示它(从那考<ref id="search">，在众多信息之中，<tt>Build-Depends
+</tt>一行会列出那些需要的软件包。
+
+<p>
+<example>
+# apt-cache showsrc <var>package</var>
+</example>
+
+</sect>
+</chapt>
+
+<chapt id="erros">如何处理错误
+<sect id="erros-comuns">一般错误
+<p>
+错误总是发生，大部分是因为用户的粗心，下面列举一些常见错误及处理方法。
+<p>
+如果在运行<tt>apt-get install package</tt>时，你的系统报告如下信息：
+
+<p>
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+<p>
+上次你修改<tt>/etc/apt/sources.list</tt>后，忘了运行<tt>apt-get update
+</tt>更新。
+<p>
+如果出现这样的信息：
+
+<p>
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+<p>
+
+如果你没有root权限，运行除<tt>source</tt>外的其它<prgn>apt-get</prgn>命
+令，如会出现上面的错误信息。这是因为你是普通用户。
+<p>
+当你同时运行两个<prgn>apt-get</prgn>进程，或者当你试图运行<prgn>apt-get
+</prgn>时已有一个的<prgn>dpkg</prgn>进程处于激活状态，系统也
+会报告与上面相似的错误信息。唯一能与其它命令同时运行的只有<tt>source</tt>
+命令。
+<p>
+如果在安装过程中出现中断，然后你发现该软件包既不能重装又不能删除，试试下
+面两个命令：
+
+<p>
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+<p>
+再试着安装那个软件包，如果不行再次运行上述命令后再试。这两个命令对于那些
+使用unstable的玩家非常有用。
+
+<p>
+如果你在运行<tt>apt-get update</tt>时看到“E: Dynamic MMap ran out of room”，
+那么在<file>/etc/apt/apt.conf</file>加入如下内容：
+
+<example>
+APT::Cache-Limit 10000000;
+</example>
+
+</sect>
+
+<sect id="help">在哪儿获得帮助？
+<p>
+如果你发现自己有太多疑问，没关系，有大量的Debian软件包管理系统文档供你参
+考。<tt>--help</tt>和帮助文档能为你提供巨大的帮助，这些文档位于<tt>
+/usr/share/doc</tt>目录中，如<tt>/usr/share/doc/apt</tt>。
+<p>
+如果本文档没法帮你排忧解难，可以去Debian邮件列表找找答案，在相关栏目内你
+会获得更多信息。Debian的网址是：<url id="http://www.debian.org"
+name="http://www.debian.org">。
+<p>
+记住只有Debian用户才能这些邮件列表和资源，其它操作系统的用户请到相关系统
+发布者建立的社区中获取更多资源。
+</sect>
+</chapt>
+
+<chapt id="distros">哪些发行版支持APT？
+<p>
+
+下面是部分使用APT系统的发行版的名称：
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- APT正是为这个发行版开发的
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- 这是第一个将APT移植到rpm上的发行版
+<p>
+Libranet (<url id="http://www.libranet.com" name="http://www.libranet.com">)
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://www.pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+<p>
+Alt Linux (<url id="http://www.altlinux.ru/" name="http://www.altlinux.ru/">)
+<p>
+Red Hat (<url id="http://www.redhat.com/" name="http://www.redhat.com/">)
+<p>
+Sun Solaris (<url id="http://www.sun.com/" name="http://www.sun.com/">)
+<p>
+SuSE (<url id="http://www.suse.de/" name="http://www.suse.de/">)
+<p>
+Yellow Dog Linux (<url id="http://www.yellowdoglinux.com/"
+name="http://www.yellowdoglinux.com/">)
+</chapt>
+
+<chapt id="agradecimentos">致谢
+<p>
+非常感谢你们，我Debian-BR项目组的好朋友们！还有你Debian，始终在我身边帮助
+我，给我动力不停工作为全人类做出贡献，帮助我树立拯救世界的理想。:)
+<p>
+我还要感谢CIPSGA，他们给予我们项目组乃至整个自由软件项目巨大的帮助，是我
+们灵感的源泉。
+<p>
+
+特别感谢：
+<p>
+Yooseong Yang &lt;yooseong@debian.org&gt;
+<p>
+Michael Bramer &lt;grisu@debian.org&gt;
+<p>
+Bryan Stillwell &lt;bryan@bokeoa.com&gt;
+<p>
+Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt;
+<p>
+Hugo Mora &lt;h.mora@melix.com.mx&gt;
+<p>
+Luca Monducci &lt;luca.mo@tiscali.it&gt;
+<p>
+Tomohiro KUBOTA &lt;kubota@debian.org&gt;
+<p>
+Pablo Lorenzzoni &lt;spectra@debian.org&gt;
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt;
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt;
+<p>
+Erik Rossen &lt;rossen@freesurf.ch&gt;
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt;
+<p>
+Matt Kraai &lt;kraai@debian.org&gt;
+<p>
+Aaron M. Ucko &lt;ucko@debian.org&gt;
+<p>
+Jon &Aring;slund &lt;d98-jas@nada.kth.se&gt;
+</chapt>
+
+<chapt id="novas">本使用指南的新版本 
+<p>
+本操作手册由<url id="http://www.debian-br.org" name="Debian-BR项目组">撰
+写，我们希望它能为Debian用户提供有效的帮助。
+<p>
+你可以从Debian文档项目页面获得本文档的新版本：<url
+id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">。
+<p>
+对本文档有任何意见或建议可直接发email给我：<email>kov@debian.org</email>。
+(中文用户请发给译者)
+</chapt>
+
+</book>
+
+</debiandoc>
