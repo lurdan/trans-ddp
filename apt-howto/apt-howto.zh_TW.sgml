@@ -1,0 +1,1585 @@
+<!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN">
+ <!-- CVS revision of this document "$Revision: 1.1 $"  -->
+ <!-- CVS revision of original english document "1.22"  -->
+ <debiandoc>
+ 
+ <book>
+ 
+ <title>APT HOWTO</title>
+ 
+ <author>
+ <name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+ </author>
+ <translator>
+ <name>劉浩</name> <email>iamlyoo@163.com</email>
+ </translator>
+ 
+ <version>1.8.10.4 - 2005年3月</version>
+ 
+ <abstract>
+ 這篇文件試圖讓使用者對於Debian包管理工具APT的工作方式有一個很好的理解。
+ 它的目標是讓新的Debian使用者更容易上手，也讓那些想幫助那些想更深入理解
+ 如何管理他們的系統的人。它為Debian項目而編寫，目的是提高此發行版對它
+ 的使用者的支援水平。
+ </abstract>
+ 
+ <copyright>
+ <copyrightsummary>
+ 版權所有 &copy; 2001, 2002, 2003, 2004 Gustavo Noronha Silva
+ </copyrightsummary>
+ <p>
+ This manual is free software; you may redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 2, or (at your option) any
+ later version.
+ </p>
+ 
+ <p>
+ This is distributed in the hope that it will be useful, but messageout
+ any warranty; messageout even the implied warranty of merchantability or
+ fitness for a particular purpose. See the GNU General Public License
+ for more details.
+ </p>
+ 
+ <p>
+ A copy of the GNU General Public License is available as
+ /usr/share/common-licenses/GPL in the Debian GNU/Linux distribution or
+ on the World Wide Web at the GNU General Public Licence. You can also
+ obtain it by writing to the Free Software Foundation, Inc., 59 Temple
+ Place - Suite 330, Boston, MA 02111-1307, USA.
+ </p>
+ </copyright>
+ 
+ <toc>
+ 
+ <chapt>導言
+ <p>
+ 最初只有.tar.gz的打包檔案，使用者必須編譯每個他想在GNU/Linux上執行的軟體。
+ 使用者們普遍認為系統很有必要提供一種方法來管理這些安裝在機器上的套裝軟體，
+ 當Debian誕生時，這樣一個管理工具也就應運而生，它被命名為<prgn>dpkg</prgn>。
+ 從而著名的“package”概念第一次出現在GNU/Linux系統中，稍後Red Hat才決定開
+ 發自己的“rpm”包管理系統。
+ <p>
+ 很快一個新的問題難倒了GNU/Linux製作者，他們需要一個快速、實用、高效的方
+ 法來安裝套裝軟體，當套裝軟體更新時，這個工具應該能自動管理關聯檔案和維護已有
+ 組態檔案。Debian在次率先解決了這個問題，APT(Advanced Packaging Tool)誕生
+ 了。APT後來還被Conectiva改造用來管理rpm，並被其它Linux發行版本采用為它們
+ 的套裝軟體管理工具。
+ <p>
+ 本文件不打算講解apt-rpm相關知識，因為Conectiva移植的APT已很有名了，不過
+ 提供有關這部分的補充文件還是歡迎的。
+ <p>
+ 本文件是基於Debian下一個發行版<tt>Sarge</tt>的。
+ </chapt>
+ 
+ <chapt id="basico">基礎設定
+ 
+ <sect id="sources.list">/etc/apt/sources.list檔案
+ <p>
+ 作為操作的一部分，APT使用一個檔案列出可獲得套裝軟體的鏡像站台位址，這個文
+ 件就是<tt>/etc/apt/sources.list</tt>。
+ <p>
+ 檔案中的各項資訊通常按如下格式列出：
+ 
+ <p>
+ <example>
+ deb http://host/debian distribution section1 section2 section3
+ deb-src http://host/debian distribution section1 section2 section3
+ </example>
+ 
+ <p>
+ 當然，上面所列的位址項都是假設的且不應該使用它們。每行的第一個單字<tt>deb
+ </tt>或<tt>deb-src</tt>描述了檔案類型：目錄中包含的是二進位套裝軟體(<tt>deb
+ </tt>)，
+ 即我們通常使用的已編譯好的套裝軟體；或包含的是來源碼包(<tt>deb-src</tt>)，來源碼
+ 包包含來源程序編碼、Debian控制檔案(<tt>.dsc</tt>)和“Debian化”這個程式所做變更的
+ 記錄檔案<tt>diff.gz</tt>。
+ <p>
+ 在Debian預設的sources.list中通常是如下內容：
+ <p>
+ <example>
+ # See sources.list(5) for more information, especially
+ # Remember that you can only use http, ftp or file URIs
+ # CDROMs are managed through the apt-cdrom tool.
+ deb http://http.us.debian.org/debian stable main contrib non-free
+ deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+ deb http://security.debian.org stable/updates main contrib non-free
+ 
+ # Uncomment if you want the apt-get source function to work
+ #deb-src http://http.us.debian.org/debian stable main contrib non-free
+ #deb-src http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+ </example>
+ 
+ <p>
+ 這些是Debian基本安裝所需的套裝軟體來來源位址。第一個<tt>deb</tt>行指向官方正
+ 式套裝軟體來來源，第二個行指向non-US套裝軟體來來源，第三行指向Debian安全補綴更新
+ 包來來源。
+ <p>
+ 最後兩行被註解掉了(在句首加“#”)，所以apt-get將忽略它們。這些是<tt>deb-src
+ </tt>行指向Debian來源碼包來來源，如果你常下載程序來源碼來測試或重編譯，可取消對
+ 它們的註解。
+ <p>
+ <tt>/etc/apt/sources.list</tt>檔案可包含多種類型的位址，APT知道如何處理這
+ 些不同的位址類型：<tt>http</tt>、<tt>ftp</tt>、<tt>file</tt>(本地檔案，例
+ 如：一個加載了ISO9600檔案系統的目錄)和<tt>ssh</tt>。
+ <p>
+ 別忘了在修改完<tt>/etc/apt/sources.list</tt>檔案後執行<tt>apt-get</tt>使
+ 變更生效。你必須完成這個步驟，以便讓APT從你指定的地方獲得新的套裝軟體列表。
+ </sect>
+ 
+ <sect id="dpkg-scanpackages">如何在本地使用APT
+ <p>
+ 有時你硬碟上有許多.deb套裝軟體，你會希望通過APT來安裝它們，以便讓它去處理軟
+ 件包間複雜的依賴關係。
+ <p>
+ 想這麼做，就建一個目錄，將所有你想要安裝的.deb檔案放入其中。例如：
+ <p>
+ <example>
+ # mkdir /root/debs
+ </example>
+ <p>
+ 你可以使用一個<tt>override</tt>檔案直接去修改套裝軟體中控制檔案中的定義，使
+ 之符合你的軟體儲藏庫管理規則。在這個覆寫檔案中，你可能希望定義一些選項來覆
+ 蓋那些套裝軟體的定義，如下所示：
+ <p>
+ <example>
+ package priority section
+ </example>
+ <p>
+ package是套裝軟體的名稱，priority有三個層級low、medium或high，section是軟體
+ 包所屬的section，多載檔案可任意命名，檔案名稱將在接下來的步驟中做為參數傳遞
+ 給<prgn>dpkg-scanpackages</prgn>。如果你不想寫多載檔案，只需在調用<tt>
+ dpkg-scanpackages</tt>時使用<tt>/dev/null</tt>就行了。
+ <p>
+ 仍是在/root目錄下執行：
+ <p>
+ <example>
+ # dpkg-scanpackages debs <var>file</var> | gzip &gt; debs/Packages.gz
+ </example>
+ <p>
+ 在上述的命令行中，<var>file</var>為<tt>override</tt>檔案，命令產生一個<file>
+ Packages.gz</file>檔案，它包含了APT所需的各種套裝軟體資訊。最後，如果要使用
+ 這些套裝軟體，加上：
+ <p>
+ <example>
+ deb file:/root debs/
+ </example>
+ <p>
+ 完成了上面的工作，就可以通常那樣使用APT命令操作這些套裝軟體了。你可以使用同
+ 樣的方法產生一個來源碼庫，但請記住你需要將<tt>.orig.tar.gz</tt>檔案、<tt>
+ .dsc</tt>檔案和<tt>.diff.gz</tt>檔案包含在目錄中，同時必須產生<tt>
+ Source.gz</tt>檔案而不是<tt>Packages.gz</tt>檔案。所使用的命令也不相同，
+ 要使用<prgn>dpkg-scansources</prgn>，命令如下所示：
+ <p>
+ <example>
+ # dpkg-scansources debs | gzip &gt; debs/Sources.gz
+ </example>
+ <p>
+ Notice that <prgn>dpkg-scansources</prgn> doesn't need an 
+ <tt>override</tt> file. The sources.list's line is:
+ <p>
+ <example>
+ deb-src file:/root debs/
+ </example>
+ </sect>
+ 
+ <sect id="netselect">選擇最佳鏡像發佈站台加入source.list檔案：netselect，netselect-apt
+ <p>
+ 一個新使用者經常問到的問題：“該將哪個Debian鏡像發佈站台加入<tt>source.list
+ </tt>檔案？”。有很多方法來選擇鏡像發佈站台，專家們可能會寫一個腳本去測試
+ 不同站台的ping時間。不過其實有一個程序可以幫你：
+ <strong>netselect</strong>。
+ <p>
+ 要安裝netselect，通常使用：
+ <p>
+ <example>
+ # apt-get install netselect
+ </example>
+ <p>
+ 不帶參數執行它時會顯示它的幫助資訊。執行它時加上以空格分隔的鏡像主機列表，
+ 它會傳回一個分值和列表中的一個主電腦名稱。這個分值通過評估ping時間和hops數(一
+ 個網路請求報文到達目標主機所經過的轉發主機的個數)得出，它與鏡像站台預計下
+ 載速度成反比(數值越小越好)。傳回的主電腦名稱是主機列表中得分最低的那個(檢視列
+ 表中所以主機的得分情況可使用-vv選項）。看出下的例子：
+ <p>
+ <example>
+ # netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+   365 ftp.debian.org.br
+ #
+ </example>
+ <p>
+ 它表示，在netselect後列出的所有主機中，<tt>ftp.debian.org.br</tt>是下載速
+ 度最快的主機，其得分為365。(注意！！這是在我電腦上的測試結果，不同的網路
+ 節點网速會大不相同，所以這個分值不一定適用於其它電腦)
+ <p>
+ 現在將netselect找到的連線速度最快的鏡像站台加入<tt>/etc/apt/sources.list
+ </tt>檔案(參考<ref id="sources.list">)並按照<ref id="apt-get">中的技巧來做。
+ <p><strong>注意：</strong>鏡像站台列表通常包含在檔案
+ <url id="http://www.debian.org/mirror/mirrors_full"
+ name="http://www.debian.org/mirror/mirrors_full">中。
+ <p>
+ 從0.3.ds1版開始，netselect來源碼包中包含了<strong>netselect-apt</strong>二
+ 進制包，它使上述操作自動完成。只需將發佈目錄樹做為參數(預設為stable)輸入，
+ <tt>sources.list</tt>檔案就會產生速度最快的main和non-US鏡像站台列表，並保
+ 存在目前目錄下。下面的例子產生一個包含stable發佈鏡像站台列表的sources.list：
+ <p>
+ <example>
+ # ls sources.list
+ ls: sources.list: File or directory not found
+ # netselect-apt stable
+ (...)
+ # ls -l sources.list
+ sources.list
+ #
+ </example>
+ <p>
+ <strong>記住：</strong><tt>sources.list</tt>產生在目前目錄下，必須將其移
+ 至<tt>/etc/apt</tt>目錄。
+ <p>
+ 接著，按照<ref id="apt-get">中的技巧來做。
+ </sect>
+ 
+ <sect id="cdrom">將CD-ROM加入source.list檔案
+ <p>
+ 如果你用APT從CD-ROM上安裝及升級套裝軟體，你可以將它加入到<tt>sources.list
+ </tt>檔案中。完成該操作，可使用<prgn>apt-cdrom</prgn>程序：
+ 
+ <p>
+ <example>
+ # apt-cdrom add
+ </example>
+ 
+ <p>
+ 將Debian光碟放入光碟機，它將加載光碟目錄，並在光碟上尋找套裝軟體資訊。如果你
+ 的光碟機需要額外設定，可使用以下選項：
+ 
+ <p>
+ <example>
+ -h           - program help
+ -d directory - CD-ROM mount point
+ -r           - Rename a recognized CD-ROM
+ -m           - No mounting
+ -f           - Fast mode, don't check package files
+ -a           - Thorough scan mode
+ </example>
+ 
+ <p>
+ 例如：
+ 
+ <p>
+ <example>
+ # apt-cdrom -d /home/kov/mycdrom add
+ </example>
+ 
+ <p>
+ 你還可以掃瞄一張光碟，但不將其加入列表：
+ 
+ <p>
+ <example>
+ # apt-cdrom ident
+ </example>
+ 
+ <p>
+ 注意，只有當你在系統的<tt>/etc/fstab</tt>中正確設定了光碟機後，這個程式才會工作。
+ </sect>
+ 
+ </chapt>
+ 
+ <chapt id="apt-get">套裝軟體管理
+ <sect id="update">更新可用套裝軟體列表
+ <p>
+ 套裝軟體管理系統使用一個私有資料庫追蹤列表中套裝軟體的目前狀態：已安裝、未安
+ 裝或可安裝。<prgn>apt-get</prgn>通過該資料庫來確定如何安裝使用者想用的軟體
+ 包以及正常執行該套裝軟體所必須的其它關聯包。
+ <p>
+ 你可以使用<prgn>apt-get update</prgn>來更新資料庫列表。這個命令將掃瞄
+ <tt>/etc/apt/sources.list</tt>檔案中所指路徑中的套裝軟體列表檔案。有關該列
+ 表檔案的更多資訊請參考<ref id="sources.list">。
+ <p>
+ 定時執行這個程序是個好主意，它將使你和你的系統獲得最新的套裝軟體更新和安全
+ 更新等資訊。
+ </sect>
+ 
+ <sect id="install">安裝套裝軟體
+ <p>
+ 現在，終於到了你一直期待的階段！準備好了sources.list和最新版的的可用軟體
+ 包，你所需做的就是執行<tt>apt-get</tt>來安裝你渴望已久的軟體了。例如，你
+ 可以這樣：
+ 
+ <p>
+ <example>
+ # apt-get install xchat
+ </example>
+ 
+ <p>
+ APT會掃瞄它的資料庫找到最新的版本的套裝軟體，並將它從<tt>sources.list</tt>中
+ 所指的地方下載到本地。如果該套裝軟體需要其它套裝軟體才能正常執行──如本例一樣
+ ──APT會做關聯性檢查並自動安裝所關聯套裝軟體。如下所示：
+ 
+ <p>
+ <example>
+ # apt-get install nautilus
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following extra packages will be installed:
+   bonobo libmedusa0 libnautilus0 
+ The following NEW packages will be installed:
+   bonobo libmedusa0 libnautilus0 nautilus 
+ 0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+ Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ <tt>nautilus</tt>套裝軟體需要參照共享函式庫，因此APT會從鏡像來源處下載相關共
+ 享函式庫，如果你在<tt>apt-get</tt>命令行中手動指定了這些共享函式庫的名稱，
+ APT不會詢問你是否要繼續；它會自動認為你希望安裝所有這些套裝軟體。
+ <p>
+ 也就是說APT只會在安裝那些沒有在命令行中指定的套裝軟體時提示確認。
+ <p>
+ 下列apt-get選項也許對你有用：
+ 
+ <p>
+ <example>
+ -h  這個幫助資訊
+ -d  只下載──不安裝或解壓檔案
+ -f  即便完整性檢查失敗了仍然繼續
+ -s  不做什麼。只是按順序類比
+ -y  對於所有問題都假定為Yes，不詢問
+ -u  顯示一系列已經將要更新的包
+ </example>
+ 
+ <p>
+ 可以用一條命令安裝多個套裝軟體。包檔案從網路上下載到本地
+ <tt>/var/cache/apt/archives</tt>目錄，稍後再安裝。
+ <p>
+ 你可以用同樣的命令行刪除指定套裝軟體，只需在套裝軟體名稱後緊跟一個“-”，如下所示：
+ 
+ <p>
+ <example>
+ # apt-get install nautilus gnome-panel-       
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following extra packages will be installed:
+   bonobo libmedusa0 libnautilus0 
+ The following packages will be REMOVED:
+   gnome-applets gnome-panel gnome-panel-data gnome-session 
+ The following NEW packages will be installed:
+   bonobo libmedusa0 libnautilus0 nautilus 
+ 0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+ Need to get 8329kB of archives. After unpacking 2594kB will be used.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ 參考<ref id="remove">一節以獲得更多的關於刪除套裝軟體的資訊。
+ <p>
+ 假如你不小心損壞了已安裝的套裝軟體而想修復它，或是只有只有想重新安裝套裝軟體中某
+ 些檔案的最新版本，這是可以做到的，你可以用如下的<tt>--reinstall</tt>選項：
+ 
+ <p>
+ <example>
+ # apt-get --reinstall install gdm
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ 0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+ Need to get 0B/182kB of archives. After unpacking 0B will be used.
+ Do you want to continue? [Y/n]
+ </example>
+ </sect>
+ 
+ <sect id="remove">移除套裝軟體
+ <p>
+ 如果你不再使用某些套裝軟體，你可以用APT將其從系統中刪除。要刪除套裝軟體只需
+ 輸入：<tt>apt-get remove package</tt>。如下所示：
+ 
+ <p>
+ <example>
+ # apt-get remove gnome-panel
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following packages will be REMOVED:
+   gnome-applets gnome-panel gnome-panel-data gnome-session 
+ 0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+ Need to get 0B of archives. After unpacking 14.6MB will be freed.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ 由上例可知，APT會關注那些與被刪除的套裝軟體有依賴關係的套裝軟體。使用APT刪除
+ 一個套裝軟體將會連帶刪除那些與該套裝軟體有依賴關係的套裝軟體。
+ 
+ <p>
+ 上例中執行<prgn>apt-get</prgn>會刪除指定套裝軟體以及與之有依賴關係的軟體
+ 包，但它們的組態檔案，如果有的話，會完好無損地保留在系統裡。如果想徹底刪
+ 除這些包及其組態檔案，執行：
+ 
+ <p>
+ <example>
+ # apt-get --purge remove gnome-panel
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following packages will be REMOVED:
+   gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+ 0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+ Need to get 0B of archives. After unpacking 14.6MB will be freed.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ 注意：套裝軟體名字後面的*表示該套裝軟體所有的組態檔案也將被刪除。
+ <p>
+ 就像<tt>install</tt>時一樣，你可以在<tt>remove</tt>命令中用一個符號來指
+ 定安裝某個套裝軟體。在刪除套裝軟體時，如果你在套裝軟體名字後面緊跟一個
+ “<tt>+</tt>”，那麼該套裝軟體就會被安裝而不是刪除。
+ 
+ <p>
+ <example>
+ # apt-get --purge remove gnome-panel nautilus+
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following extra packages will be installed:
+   bonobo libmedusa0 libnautilus0 nautilus 
+ The following packages will be REMOVED:
+   gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+ The following NEW packages will be installed:
+   bonobo libmedusa0 libnautilus0 nautilus 
+ 0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+ Need to get 8329kB of archives. After unpacking 2594kB will be used.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ 注意，<prgn>apt-get</prgn>列出了那些將要被安裝的額外套裝軟體(即保證該軟體
+ 包正常執行的其它套裝軟體)和將要被刪除關聯套裝軟體，然後，再次列出了將要被安
+ 裝的套裝軟體(包括了額外的包)。
+ </sect>
+ 
+ <sect id="upgrade">更新套裝軟體
+ <p>
+ 套裝軟體更新是APT最成功的特點。只需一條命令即可完成更新：
+ <tt>apt-get upgrade</tt>。你可以使用這條命令從相同版本號的發佈版中更新
+ 套裝軟體，也可以從新版本號的發佈版中更新套裝軟體，盡管實作後一種更新的推薦
+ 命令為<tt>apt-get dist-upgrade</tt>；詳情請參考<ref id="dist-upgrade">。
+ <p>
+ 在執行該命令時加上<tt>-u</tt>選項很有用。這個選項讓APT顯示完整的可更新
+ 套裝軟體列表。不加這個選項，你就只能盲目地更新。APT會下載每個套裝軟體的最新
+ 更新版本，然後以合理的次序安裝它們。注意在執行該命令前應先執行
+ <tt>apt-get update</tt>更新資料庫。詳情請參考<ref id="update">。請看下
+ 面的例子：
+ 
+ <p>
+ <example>
+ # apt-get -u upgrade
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following packages have been kept back
+   cpp gcc lilo 
+ The following packages will be upgraded
+   adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+   ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+   libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+   libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+ 29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+ Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+ Do you want to continue? [Y/n] 
+ </example>
+ 
+ <p>
+ 整個更新程序非常簡單。注意在本例中頭幾行，<tt>apt-get</tt>報告有些套裝軟體
+ 的更新被<tt>kept back</tt>，這表明這些套裝軟體的更新版本因故無法安裝，可能
+ 的原因有關聯不同步(目前沒有供下載的新版本關聯包)或關聯延伸(需要安裝新的
+ 關聯包以配合新版套裝軟體)。
+ <p>
+ 對於第一種原因沒有很好的解決方法，對於第二次原因，執行<tt>apt-get intall
+ </tt>安裝所需的新關聯包就可以。另一個更好的解決方法就是使用<tt>dist-upgrade
+ </tt>。詳情請參考<ref id="dist-upgrade">。
+ </sect>
+ 
+ <sect id="dist-upgrade">升級到新版本
+ <p>
+ APT的絕活就是讓你一次就完成整個系統的更新，不論是通過Internet還是通過光
+ 槃檔案(購買的碟片或下載的ISO鏡像檔案)。
+ <p>
+ 它也可以用來更新那些關聯關係發生改變的套裝軟體。即如前所述的那些使用<tt>
+ apt-get upgrade</tt>時被不被更新(kept back)的套裝軟體。
+ <p>
+ 例如，假設你目前使用的Debian為stable revision 0，而你購買了revision 3的
+ 新版Debian，你可以使用APT從新光碟上升級你的系統。使用apt-cdrom(參考<ref
+ id="cdrom">)將光碟加載到<tt>/etc/apt/sources.list</tt>中，然後執行<tt>
+ apt-get dist-upgrade</tt>。
+ <p>
+ 請注意，APT總是搜索最新版本的套裝軟體，因此，如果一個套裝軟體在你的
+ <tt>/etc/apt/sources.list</tt>中所列的版本比光碟上所列的版本要新，那麼
+ APT會下載其中的套裝軟體而不是使用光碟上的套裝軟體。
+ <p>
+ 在<ref id="upgrade">節的例子中，我們看到有些包被<tt>kept back</tt>了，現
+ 在我們就用<tt>dist-upgrade</tt>方法來解決這個問題：
+ 
+ <p>
+ <example>
+ # apt-get -u dist-upgrade
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ Calculating Upgrade... Done
+ The following NEW packages will be installed:
+   cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+   libpcre2 logrotate mailx 
+ The following packages have been kept back
+   lilo 
+ The following packages will be upgraded
+   adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+   indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+   libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+   liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+   procps psmisc 
+ 31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+ Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+ Do you want to continue? [Y/n]
+ </example>
+ 
+ <p>
+ 注意現在那些套裝軟體將會被更新，那些新的關聯套裝軟體也會被安裝。但是lilo仍被
+ <tt>kept back</tt>，可能還存在一些比建立新關聯更棘手的問題，我們通過如下
+ 方法確定問題所在：
+ 
+ <p>
+ <example>
+ # apt-get -u install lilo
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following extra packages will be installed:
+   cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+   logrotate mailx 
+ The following packages will be REMOVED:
+   debconf-tiny 
+ The following NEW packages will be installed:
+   cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+   logrotate mailx 
+ The following packages will be upgraded
+   lilo 
+ 1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+ Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+ Do you want to continue? [Y/n]
+ </example>
+ 
+ <p>
+ 檢視上述提示資訊可知，lilo與<package>debconf-tiny</package>包產生了一個
+ 新衝突，這表明除非刪除debconf-tiny，否則將無法安裝(或更新)lilo。
+ <p>
+ 想知道該保留或刪除哪些套裝軟體，你可以使用：
+ 
+ <p>
+ <example>
+ # apt-get -o Debug::pkgProblemResolver=yes dist-upgrade
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ Calculating Upgrade... Starting
+ Starting 2
+ Investigating python1.5
+ Package python1.5 has broken dep on python1.5-base
+   Considering python1.5-base 0 as a solution to python1.5 0
+   Holding Back python1.5 rather than change python1.5-base
+ Investigating python1.5-dev
+ Package python1.5-dev has broken dep on python1.5
+   Considering python1.5 0 as a solution to python1.5-dev 0
+   Holding Back python1.5-dev rather than change python1.5
+  Try to Re-Instate python1.5-dev
+ Done
+ Done
+ The following packages have been kept back
+   gs python1.5-dev 
+ 0 packages upgraded, 0 newly installed, 0 to remove and 2  not upgraded.
+ </example>
+ 
+ <p>
+ 現在，你很容易就知道不能安裝python1.5-dev套裝軟體是因為無法滿足另一個軟體
+ 包python1.5的關聯要求。
+ 
+ </sect>
+ 
+ <sect id="clean">移除無用套裝軟體檔案：apt-get clean and autoclean
+ <p>
+ 當你需要安裝某個套裝軟體時，APT從/etc/apt/sources.list中所列的主機下載所
+ 需的檔案，將它們保存到本機軟體庫(<file>/var/cache/apt/archives/</file>)，
+ 然後開始安裝，參考<ref id="install">。
+ <p>
+ 本地軟體庫會不斷膨脹占用大量硬碟空間，幸運的是，APT提供了工具來管理本地
+ 軟體庫：<prgn>apt-get</prgn>的<tt>clean</tt>方法和<tt>autoclean</tt>方法。
+ <p>
+ <prgn>apt-get clean</prgn>將刪除<file>/var/cache/apt/archives</file>目錄
+ 和<file>/var/cache/apt/archives/partial</file>目錄下鎖檔案以外的所有檔案。
+ 這樣以來，當你需要再次安裝某個套裝軟體時，APT將重新下載它。
+ <p>
+ <prgn>apt-get autoclean</prgn>只有刪除那些不需要再次下載的檔案。
+ <p>
+ 下面這個例子顯示了apt-get autoclean如何工作：
+ 
+ <p>
+ <example>
+ # ls /var/cache/apt/archives/logrotate* /var/cache/apt/archives/gpm*
+ logrotate_3.5.9-7_i386.deb
+ logrotate_3.5.9-8_i386.deb
+ gpm_1.19.6-11_i386.deb
+ </example>
+ 
+ <p>
+ 在/var/cache/apt/archives目錄下有兩個不同版本的<package>logrotate</package>
+ 套裝軟體檔案以及一個<package>gpm</package>套裝軟體檔案。
+ 
+ <p>
+ <example>
+ # apt-show-versions -p logrotate
+ logrotate/stable uptodate 3.5.9-8
+ # apt-show-versions -p gpm
+ gpm/stable upgradeable from 1.19.6-11 to 1.19.6-12
+ </example>
+ 
+ <p>
+ <prgn>apt-show-versions</prgn>顯示<file>logrotate_3.5.9-8_i386.deb</file>
+ 提供了<package>logrotate</package>的升級版本，所以
+ <file>logrotate_3.5.9-7_i386.deb</file>沒用了。同樣
+ <file>gpm_1.19.6-11_i386.deb</file>也沒有用了，因為可以下載該套裝軟體的更新
+ 版本。
+ 
+ <p>
+ <example>
+ # apt-get autoclean
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ Del gpm 1.19.6-11 [145kB]
+ Del logrotate 3.5.9-7 [26.5kB]
+ </example>
+ 
+ <p>總之，apt-get autoclean只有刪除那些過時的檔案。參考
+ <ref id="apt-show-versions">以了解apt-show-versions的更多詳情。
+ </sect>
+ 
+ <sect id="dselect-upgrade">在dselect中操作APT
+ <p>
+ <prgn>dselect</prgn>工具幫助使用者選取想要安裝的Debian套裝軟體。它有點複雜甚
+ 至令人望而生厭，但經過實踐你就能掌握它恐怖的終端機界面。
+ 
+ <p>
+ dselect進階功能之一就是它知道利用Debian套裝軟體的“推薦”和“建議”能力。(Debian軟
+ 件包有一種能力：推薦或建議系統在安裝自己的同時，安裝別的套裝軟體以配合自身的
+ 工作，當然這些推薦的套裝軟體不一定是必須的；而dselect工具可以識別和利用這個能
+ 力，使用dselect時你就能體會到。譯者注)以root身份執行<tt>dselect</tt>，進入程
+ 序後選擇apt作為連線方式(access)。該步驟不是必須的，但如果你沒有光碟機而且想通
+ 過Internet下載安裝套裝軟體，這是使用dselect的最好方法。
+ <p>
+ 想深入學習dselect的使用方式，請到Debian网站查閱dselect文件頁面<url
+ id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+ <p>
+ 
+ 在dselect中選好了套裝軟體後，執行：
+ 
+ <p>
+ <example>
+ # apt-get -u dselect-upgrade
+ </example>
+ 
+ <p>
+ 如下例所示：
+ 
+ <p>
+ <example>
+ # apt-get -u dselect-upgrade
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following packages will be REMOVED:
+   lbxproxy 
+ The following NEW packages will be installed:
+   bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+   gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+   libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+   libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+   util-linux-locales vacation xbill xplanet-images 
+ The following packages will be upgraded
+   debian-policy 
+ 1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+ Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+ Do you want to continue? [Y/n]
+ </example>
+ 
+ <p>
+ 
+ 比較一下我們在相同系統上執行apt-get dist-upgrade時的情形：
+ 
+ <p>
+ <example>
+ # apt-get -u dist-upgrade   
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ Calculating Upgrade... Done
+ The following packages will be upgraded
+   debian-policy 
+ 1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+ Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+ Do you want to continue? [Y/n]
+ </example>
+ 
+ <p>
+ 我們看到在前例中許多套裝軟體被安裝是其它套裝軟體“推薦”或“建議”的結果。另外一
+ 些套裝軟體被安裝或刪除(例如lbxproxy套裝軟體)是我們通過dselect工具作出的決定。
+ 由此可見dselect與APT結合起來將是一個功能強大的工具。
+ </sect>
+ 
+ <sect id="default-version">如何保持一個混合系統
+ <p>
+ 人們有時會對這種情況有興趣──使用一個版本的Debain作為其主發行版，但從另一
+ 個分支上安裝一個或多個包。
+ <p>
+ 要設定你的Debian主版本，應當修改<file>/etc/apt/apt.conf</file>檔案，並加
+ 入：
+ <p>
+ <example>
+ APT::Default-Release "<var>version</var>";
+ </example>
+ <p>
+ 其中<var>version</var>是你希望作為主發行版使用的Debian版本。你可以使用的
+ 版本有<tt>stable</tt>、<tt>testing</tt>和<tt>unstable</tt>。
+ 要從另外一個版本中安裝套裝軟體，你必須按照如下方式執行APT：
+ 
+ <p>
+ <example>
+ # apt-get -t <var>distribution</var> install <var>package</var>
+ </example>
+ <p>
+ 
+ 為了使其可以個工作，在你的<file>/etc/apt/sources.list</file>中至少有一行
+ 是關於你要使用的那個版本的，而且要使用的套裝軟體也必須存在於該版本中。
+ <p>
+ 你也可以要求使用某個特定把本的套裝軟體，如下所示：
+ 
+ <example>
+ # apt-get install <var>package</var>=<var>version</var>
+ </example>
+ 
+ 例如，下面的命令將會安裝<tt>2.2.4-1</tt>版的<package>nautilus</package>軟
+ 件包：
+ 
+ <example>
+ # apt-get install nautilus=2.2.4-1
+ </example>
+ 
+ <p>
+ <em>重要資訊</em>：最新版的Debian套裝軟體首先會上傳到“unstable”發佈版中，
+ 這個發佈版包含了套裝軟體所有變更階段，無論是小修小補還是影響到眾多套裝軟體
+ 乃至整個系統的重大修改。所以，新手和那些強調系統穩定性的使用者<em>不</em>
+ 會使用這個發佈版。
+ <p>
+ “testing”發佈版比起“unstable”發佈版，多注重了些系統穩定性，但正式執行的
+ 系統應當使用“stable”發佈版。
+ </sect>
+ 
+ <sect id="apt-show-versions">如何從Debian的專用版本下升級套裝軟體
+ <p>
+ <prgn>apt-show-versions</prgn>提供了一個安全的途徑，讓那些使用混合系統的
+ 使用者放心升級他們的系統，不必擔心升級會將原來屬於stable的包升級成了unstable包。
+ 例如，在安裝了<package>apt-show-versions</package>套裝軟體之後，
+ 使用這條命令將只升級你的unstable套裝軟體：
+ <p>
+ <example>
+ # apt-get install `apt-show-versions -u -b | grep unstable | cut -d ' ' -f 1`
+ </example>
+ </sect>
+ 
+ <sect id="pin">如何維護已安裝套裝軟體的多個版本（複雜）
+ How to keep specific versions of packages installed (complex)
+ <p>
+ 你可能會遇到這種情況，變更了某個套裝軟體中的一些檔案，但你沒有時間或根本就
+ 不想將這些變更引入到新版本中。或是，你將系統升級到3.0，但仍想繼續使用Debian
+ 2.2下的某個套裝軟體。你可以“釘住”這個版本，這樣它就不會被更新了。
+ <p>
+ 操作起來十分簡單，你只需編輯<tt>/etc/apt/preferences</tt>檔案。
+ <tt>/etc/apt/preferences</tt>.
+ <p>
+ 檔案格式很簡單：
+ <p>
+ <example>
+ Package: &lt;package&gt;
+ Pin: &lt;pin definition&gt;
+ Pin-Priority: &lt;pin's priority&gt;
+ </example>
+ <p>
+ 每個條目都要以空白行與其它條目分割開。例如，我對<package>sylpheed</package>
+ 套裝軟體做了某些修改以使用“reply-to-list”功能，其版本為0.4.99。我想保留這
+ 些修改不被更新，可加上：
+ <p>
+ <example>
+ Package: sylpheed
+ Pin: version 0.4.99*
+ </example>
+ <p>
+ 注意我用了一個<tt>*</tt>(星號)。這是一個“萬用字元”；它表明我希望“釘住”所有
+ 以0.4.99打頭的版本(以防它們被下載並安裝到我機器上。pin控制的是伺服器端的
+ 更新套裝軟體而非本地的已安裝套裝軟體。譯者注)。因為Debian使用“Debian版本號”
+ 為其套裝軟體定版本，我不想進行所有這些版本的升級，如果不用萬用字元，
+ 那麼0.4.99-1版或0.4.99-10版只要一出爐系統就會安裝它們。如果你修改了套裝軟體，
+ 你一定不希望這麼做。
+ <p>
+ Pin的優先等級幫助我們檢查一個與“Packages:”和“Pin:”相符合的套裝軟體是否應該被
+ 安裝。當優先等級比較高時，符合的套裝軟體將會被安裝。你可以查閱<manref
+ name="apt_preferences" section="7">，其中有關於優先等級的詳細討論，但通過
+ 一些簡單的例子也可以了解基本的概念。下面就說明了在上面的sylpheed例子中設
+ 定優先等級網域的效果。
+ </p>
+ <p>
+ <taglist>
+ <tag>1001</tag>
+ <item>
+ Sylpheed 0.4.99永遠不會被apt取代。如果可能，apt甚至會用0.4.99版取代已經
+ 安裝的更高的版本呢。只有那些優先等級比1000大的套裝軟體才會降級。
+ </item>
+ <tag>1000</tag>
+ <item>
+ 除了不會將高版本降級以外，與1001的效果相同。
+ </item>
+ <tag>990</tag>
+ <item>
+ 版本0.4.99只會被偏好發佈系列中高版本的的套裝軟體取代，偏好發行版由變數
+ “APT::Default-Release”定義(參考<ref id="default-version">。
+ </item>
+ <tag>500</tag>
+ <item>
+ 任何發佈系列中比0.4.99版本高的sylpheed都會被安裝，但相對於低版本而言，仍然
+ 建議使用0.4.99。
+ </item>
+ <tag>100</tag>
+ <item>
+ 任何發佈系列中高版本的sylpheed都會被安裝；因此只有沒有其它版本可以安裝時
+ 才會安裝0.4.99。已安裝包的優先等級。
+ </item>
+ <tag>-1</tag>
+ <item>
+ 負的優先等級也是允許的，它會組織0.4.99版被安裝。
+ </item>
+ </taglist>
+ <p>
+ 釘子也可以用來指定套裝軟體的<tt>version</tt>、<tt>release</tt>或
+ <tt>origin</tt>。
+ <p>
+ 我們已經看到，釘在一個<tt>version</tt>上，可以使用具體的版本號，也可以使
+ 用萬用字元一次指定多個版本。
+ <!-- what's available?  standard shell globs?  ?*[]   or more? -->
+ <p>
+ <tt>release</tt>選項依賴於APT倉庫上的或是CD中的Release檔案。如果你使用的
+ APT倉庫並沒有提供這個檔案，這個選項就沒有任何用處了。你可以在
+ <tt>/var/lib/apt/lists/</tt>中看到Release檔案的內容。release的參數是：
+ <tt>a</tt>(存檔)、<tt>c</tt>(部件)、<tt>v</tt>(版本)、<tt>o</tt>(起來源)
+ 和<tt>l</tt>(標籤)。
+ <p>
+ 例如：
+ <p>
+ <example>
+ Package: *
+ Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+ Pin-Priority: 1001
+ </example>
+ <p>
+ 在這個例子中，我們選擇了Debian版本2.2*(可以是2.2r2、2.2r3──這些版本中通常
+ 包含了對安全問題的修復和其它重要更新)，<tt>stable</tt>倉庫，<tt>main</tt>
+ (相應的還有<tt>contrib</tt>或是<tt>non-free</tt>)區段、起來源和標籤都是
+ Debian。origin(o=)定義了誰製作了這個Release檔案，label(l=)定義了發行版的
+ 名字：Debian自己就使用Debian而Progeny則使用Progeny。Release檔案的例子如下
+ 所示：
+ <p>
+ <example>
+ $ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+ Archive: stable
+ Version: 2.2r3
+ Component: main
+ Origin: Debian
+ Label: Debian
+ Architecture: i386
+ </example>
+ </sect>
+ </chapt>
+ 
+ <chapt id="helpers">幾個非常有用的工具
+ <sect id="equivs">如何安裝本地編譯的套裝軟體：equivs
+ <p>
+ 有時，使用者想使用某些軟體的特殊版本，它們只以來源程式碼的形式存在，沒有現成
+ 的Debian套裝軟體。套裝軟體管理系統在處理這類事務時可能會出問題。假設你想編
+ 譯新版本的信件伺服器，所有的事情都很正常，但是Debian中的很多套裝軟體是依
+ 賴於MTA(信件傳輸代理)的。由於你是自己手動編譯安裝軟體，套裝軟體管理系統
+ 對此一無所知。
+ <p>
+ 現在是<package>equivs</package>登台的時候了。用它來安裝套裝軟體，它所做
+ 的工作就是建立一個新的空套裝軟體來實作關聯，讓套裝軟體管理系統相信所有的依
+ 賴關係都可以滿足。
+ <p>
+ 在我們開始以前，我必須提醒你，編譯某個軟體最安全的方法是對該軟體現有
+ 的Debian套裝軟體進行修改後重新編譯，如果你並不知道你正在干什麼，勸你不要使
+ 用equivs取代關聯包。更多資訊請參考<ref id="sourcehandling">。
+ <p>
+ 繼續上面的例子，你安裝好了新編譯的<prgn>postfix</prgn>，接下來打算安裝
+ <package>mutt</package>。突然你發現<package>mutt</package>想安裝另外一
+ 個MTA，但實際上你已經有了你的MTA。
+ <p>
+ 前往某個目錄(例如<file>/tmp</file>)執行：
+ 
+ <p>
+ <example>
+ # equivs-control <var>name</var>
+ </example>
+ 
+ <p>
+ 將<var>name</var>取代為你建立的控制檔案，控制檔案按如下格式建立：
+ 
+ <p>
+ <example>
+ Section: misc
+ Priority: optional
+ Standards-Version: 3.0.1
+ 
+ Package: &lt;enter package name; defaults to equivs-dummy&gt;
+ Version: &lt;enter version here; defaults to 1.0&gt;
+ Maintainer: &lt;your name and email address; defaults to username&gt;
+ Pre-Depends: &lt;packages&gt;
+ Depends: &lt;packages&gt;
+ Recommends: &lt;packages&gt;
+ Suggests: &lt;package&gt;
+ Provides: &lt;(virtual)package&gt;
+ Architecture: all
+ Copyright: &lt;copyright file; defaults to GPL2&gt;
+ Changelog: &lt;changelog file; defaults to a generic changelog&gt;
+ Readme: &lt;README.Debian file; defaults to a generic one&gt;
+ Extra-Files: &lt;additional files for the doc directory, comma-separated&gt;
+ Description: &lt;short description; defaults to some wise words&gt;
+  long description and info
+  .
+  second paragraph
+ </example>
+ 
+ <p>
+ 我們只需按自己的需要修改相關專案就行了。檔案中每個項目都描述得很清楚，我
+ 們不必在此逐行解釋它們。現在開始修改吧：
+ 
+ <p>
+ <example>
+ Section: misc
+ Priority: optional
+ Standards-Version: 3.0.1
+ 
+ Package: mta-local
+ Provides: mail-transport-agent
+ </example>
+ 
+ <p>
+ 行了，就是這樣。<package>mutt</package>依賴於<package>mail-transport-agent
+ </package>，這是所有MTA共同提供的一個虛擬包，我可以簡單地將這個套裝軟體命名
+ 為<package>mail-transport-agent</package>，不過我更愿意使用系統的虛擬包方
+ 案，使用Provides選項。
+ <p>
+ 現在你可以開始組建套裝軟體了：
+ 
+ <p>
+ <example>
+ # equivs-build <var>name</var>
+ dh_testdir
+ touch build-stamp
+ dh_testdir
+ dh_testroot
+ dh_clean -k
+ # Add here commands to install the package into debian/tmp.
+ touch install-stamp
+ dh_testdir
+ dh_testroot
+ dh_installdocs
+ dh_installchangelogs
+ dh_compress
+ dh_fixperms
+ dh_installdeb
+ dh_gencontrol
+ dh_md5sums
+ dh_builddeb
+ dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+ 
+ 套裝軟體已經被建立了，注意，套裝軟體是建立在目前目錄中的。
+ </example>
+ 
+ <p>
+ 然後安裝這個<tt>.deb</tt>檔案。
+ <p>
+ 眾所周知，<prgn>equivs</prgn>的使用方式很多，譬如你可以建立一個<tt>my-favorites
+ </tt>套裝軟體，它依賴於你通常安裝的套裝軟體。盡情發揮你的想像力吧，當然還是要小心。
+ <p>
+ 重要提示：在<file>/usr/share/doc/equivs/examples</file>目錄下有控制檔案
+ 的例子，最好看一下。
+ </sect>
+ 
+ <sect id="localepurge">移除無用的地區組態(locale)檔案：localepurge
+ <p>
+ 許多Debian使用者只有在固定地區使用Debian。例如，在巴西的Debian使用者，通常使
+ 用<tt>pt_BR</tt>地區組態檔案而不會關心<tt>es</tt>地區組態檔案。
+ <p>
+ 對於這類使用者而言<package>localepurge</package>是一個非常有用的工具，你可
+ 以只有保留你目前所用的地區組態檔案，刪除其它無用的檔案，從而釋放大量硬碟空
+ 間。執行<tt>apt-get install localepurge</tt>就行了。
+ <p>
+ 它組態起來非常容易，debconf的提問將引導使用者一步一步完成設定。在回答第一
+ 個問題時請務必謹慎，如果回答錯了，系統可能刪掉所有的地區組態檔案，包括你
+ 正在使用的這個。複原它們的唯一方法就是重裝那些套裝軟體。
+ </sect>
+ 
+ <sect id="helper-show-versions">如何知曉哪些套裝軟體可以升級
+ <p>
+ <prgn>apt-show-versions</prgn>工具可以告訴你系統中哪些包可以更新以及其它
+ 一些有用的資訊。<tt>-u</tt>選項可以顯示可更新套裝軟體列表：
+ 
+ <p>
+ <example>
+ $ apt-show-versions -u    
+ libeel0/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+ libeel-data/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+ </example>
+ </sect>
+ 
+ </chapt>
+ 
+ <chapt id="search">獲取套裝軟體資訊
+ <p>
+ 有些基於APT系統的前端程序，能十分方便地獲得系統套裝軟體列表，列表包括可安
+ 裝或已安裝的套裝軟體，還可以顯示某套裝軟體屬於哪個section，它的優先等級是多少，
+ 它的說明文件等等。
+ <p>
+ 但是...在此我們想的學習如何使用APT本身來完成。你如何找出你想要安裝的軟體
+ 包的名稱？
+ <p>
+ 我們完成這個工作的方法有很多。我們從<tt>apt-cache</tt>開始，APT系統使用
+ 這個程序來維護它的資料庫。下面我們通過一些實際操作來對它做個概覽。
+ 
+ <sect id="cache">獲得套裝軟體名稱
+ <p>
+ 假設你十分懷念玩Atari 2600的好日子，你決定用APT安裝一個Atari emulator，
+ 隨後再下載幾個游戲，你可以這樣：
+ 
+ <p>
+ <example>
+ # apt-cache search atari
+ atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+ circuslinux - The clowns are trying to pop balloons to score points!
+ madbomber - A Kaboom! clone
+ tcs - Character set translator.
+ atari800 - Atari emulator for svgalib/X/curses
+ stella - Atari 2600 Emulator for X windows
+ xmess-x - X binaries for Multi-Emulator Super System
+ </example>
+ 
+ <p>
+ 
+ 我們找到了幾個相關的套裝軟體，以及有關的簡單描述。想進一步獲得某個套裝軟體的
+ 詳細資訊，你可以執行：
+ 
+ <p>
+ <example>
+ # apt-cache show stella  
+ Package: stella
+ Priority: extra
+ Section: non-free/otherosfs
+ Installed-Size: 830
+ Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+ Architecture: i386
+ Version: 1.1-2
+ Depends: libc6 (&gt;= 2.1), libstdc++2.10, xlib6g (&gt;= 3.3.5-1)
+ Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+ Size: 483430
+ MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+ Description: Atari 2600 Emulator for X windows
+  Stella is a portable emulator of the old Atari 2600 video-game console
+  written in C++.  You can play most Atari 2600 games message it.  The latest
+  news, code and binaries for Stella can be found at:
+  http://www4.ncsu.edu/~bwmott/2600
+ </example>
+ 
+ <p>
+ 螢幕上顯示出這個套裝軟體的詳細資訊及其用途的完整描述。如果你的系統中已安裝
+ 了某個套裝軟體而系統又搜索到它的新版本，系統會將它們的詳細資訊一並列出。如
+ 下例：
+ 
+ <p>
+ <example>
+ # apt-cache show lilo
+ Package: lilo
+ Priority: important
+ Section: base
+ Installed-Size: 271
+ Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+ Architecture: i386
+ Version: 1:21.7-3
+ Depends: libc6 (&gt;= 2.2.1-2), debconf (&gt;=0.2.26), logrotate
+ Suggests: lilo-doc
+ Conflicts: manpages (&lt;&lt;1.29-3)
+ Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+ Size: 143052
+ MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+ Description: LInux LOader - The Classic OS loader can load Linux and others
+  This Package contains lilo (the installer) and boot-record-images to
+  install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+  .
+  You can use Lilo to manage your Master Boot Record (message a simple text screen)
+  or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+ 
+ Package: lilo
+ Status: install ok installed
+ Priority: important
+ Section: base
+ Installed-Size: 190
+ Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+ Version: 1:21.4.3-2
+ Depends: libc6 (&gt;= 2.1.2)
+ Recommends: mbr
+ Suggests: lilo-doc
+ Description: LInux LOader - The Classic OS loader can load Linux and others
+  This Package contains lilo (the installer) and boot-record-images to
+  install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+  .
+  You can use Lilo to manage your Master Boot Record (message a simple text screen)
+  or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+ </example>
+ 
+ <p>
+ 注意，首先列出的是可用套裝軟體，接著列出的是已安裝套裝軟體。獲取某個套裝軟體的
+ 一般資訊可執行：
+ 
+ <p>
+ <example>
+ # apt-cache showpkg penguin-command
+ Package: penguin-command
+ Versions: 
+ 1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+ 
+ Reverse Depends: 
+ Dependencies: 
+ 1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+ Provides: 
+ 1.4.5-1 - 
+ Reverse Provides: 
+ </example>
+ 
+ <p>
+ 如果只有想了解某套裝軟體的與哪些套裝軟體關聯，可執行：
+ 
+ <p>
+ <example>
+ # apt-cache depends penguin-command
+ penguin-command
+   Depends: libc6
+   Depends: libpng2
+   Depends: libsdl-mixer1.1
+   Depends: libsdl1.1
+   Depends: zlib1g
+ </example>
+ 
+ <p>
+ 總之，有一系列工具可幫助我們找到我們想要的套裝軟體。
+ </sect>
+ 
+ <sect id="dpkg-search">使用dpkg尋找套裝軟體名稱
+ <p>
+ 另一個定位套裝軟體的方法是知道套裝軟體中某個關鍵檔案的名稱。例如，你編譯時需
+ 要某個“<tt>.h</tt>”頭檔案，尋找提供該檔案的套裝軟體，你可以執行：
+ 
+ <p>
+ <example>
+ # dpkg -S stdio.h
+ libc6-dev: /usr/include/stdio.h
+ libc6-dev: /usr/include/bits/stdio.h
+ perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+ </example>
+ 
+ <p>
+ 或是：
+ 
+ <p>
+ <example>
+ # dpkg -S /usr/include/stdio.h
+ libc6-dev: /usr/include/stdio.h
+ </example>
+ 
+ <p>
+ 解系統中已安裝軟體的套裝軟體名稱十分有用，譬如當你想清理硬碟空間時，可以執行：
+ 
+ <p>
+ <example>
+ # dpkg -l | grep mozilla
+ ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+ </example>
+ <p>
+ 這個命令的缺點是它會“截斷”套裝軟體的名字。在上例中，套裝軟體的全稱是
+ <tt>mozilla-browser</tt>，解決這個問題可以使用<tt>COLUMNS</tt>環境變數：
+ 
+ <p>
+ <example>
+ [kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+ </example>
+ 
+ <p>
+ 或顯示成這樣：
+ 
+ <p>
+ <example>
+ # apt-cache search "Mozilla Web Browser"
+ mozilla-browser - Mozilla Web Browser
+ </example>
+ </sect>
+ 
+ <sect id="auto-apt">如何“按需”安裝套裝軟體
+ <p>
+ 你正在編譯某段程序，突然，停住了！一條錯誤資訊報告說你沒有它需要的<tt>.h
+ </tt>頭檔案。讓<prgn>auto-apt</prgn>來救你吧，它問你是否要安裝需要
+ 的套裝軟體，然後挂起編譯進程，安裝好套裝軟體後再恢復編譯進程。
+ <p>
+ 你所要做的只有只有是：
+ 
+ <p>
+ <example>
+ # auto-apt run command
+ </example>
+ 
+ <p>
+ 這裡“command”指在執行程序中可能出現“需求檔案不存在”問題的命令。例如：
+ 
+ <p>
+ <example>
+ # auto-apt run ./configure
+ </example>
+ 
+ <p>
+ 一會兒，它就會告訴你要安裝所需的套裝軟體並自動前往apt-get處理。如果你正在
+ 執行X，就會一個圖形界面提示視窗。
+ <p>
+ 為了提高效率auto-apt所用的資料庫需要實時更新。可調用
+ <tt>auto-apt update</tt>，<tt>auto-apt updatedb</tt>和
+ <tt>auto-apt update-local</tt>來完成更新。
+ </sect>
+ 
+ <sect id="apt-file">如何知道檔案屬於哪個套裝軟體
+ <p>
+ 如果你想安裝某個套裝軟體，但用<prgn>apt-cache</prgn>查不出它的名稱，不過你
+ 知道這個程序的檔案名稱，或這個套裝軟體中某些檔案的檔案名稱，那麼你可以用<prgn>
+ apt-file</prgn>來尋找套裝軟體名稱。如下所示：
+ 
+ <p>
+ <example>
+ $ apt-file search <var>filename</var>
+ </example>
+ 
+ <p>
+ 它用起來很象<tt>dpkg -S</tt>，不過它還會列出包含該檔案的已刪除套裝軟體。它
+ 也可以用來尋找哪個套裝軟體包含編譯時所缺的檔案，當然，解決這類問題<prgn>
+ auto-apt</prgn>可能是更好的方案，請參考<ref id="auto-apt">。
+ <p>
+ 用這個命令，你可以列出套裝軟體的內容：
+ 
+ <p>
+ <example>
+ $ apt-file list <var>packagename</var>
+ </example>
+ 
+ <p>
+ <prgn>apt-file</prgn>用一個資料庫來存放所有套裝軟體的內容資訊，和auto-apt
+ 一樣，這個資料庫也需要實時更新，完成更新可以執行：
+ 
+ <p>
+ <example>
+ # apt-file update
+ </example>
+ 
+ <p>
+ 預設情況下，<prgn>apt-file</prgn>和<prgn>auto-apt</prgn>使用同一個資料庫，
+ 參考<ref id="auto-apt">。
+ 
+ </sect>
+ 
+ <sect id="apt-listchanges">如何掌握套裝軟體的變化情況
+ <p>
+ 在每個套裝軟體被安裝以後，都會在文件目錄(<tt>/usr/share/doc/packagename</tt>)
+ 產生一個<tt>changelog.Debian.gz</tt>的檔案，這個檔案記錄了該套裝軟體最後一
+ 次更新對系統做了哪些修改，你可以用<tt>zless</tt>閱讀這些資訊。不過當你對
+ 整個系統進行升級以後，逐個檢視套裝軟體的更新資訊可不是件容易事。
+ <p>
+ 有一個工具能幫你完成這項工作，它就是<prgn>apt-listchanges</prgn>。首先你
+ 要裝上<prgn>apt-listchanges</prgn>套裝軟體。在安裝的程序中，為了進行配
+ 置，Debconf會問你一些問題，按你的要求回答它們就行了。
+ <p>
+ 第一個問題是問你希望apt-listchanges如何來顯示修改日誌。你可以讓它把資訊
+ 通過信件的方式發送給你，這對於自動更新是非常有用的。或是你可以讓它在<prgn>
+ less</prgn>等程序中顯示修改日誌，這樣在繼續升級前你就可以檢視它們了。如果
+ 你不希望<prgn>apt-listchanges</prgn>在升級的時候自動的執行，可以
+ 回答<tt>none</tt>。
+ <p>
+ 安裝了apt-listchanges後，每當apt下載套裝軟體之後(不論來來源是Internet、光碟
+ 或是硬碟)都會顯示這些套裝軟體的系統更新資訊。
+ 
+ </sect>
+ </chapt>
+ 
+ <chapt id="sourcehandling">來源碼包操作
+ <sect id="source">下載來源碼包
+ <p>
+ 在自由軟體的世界裡，經常需要學習來源碼或為程序除錯，所以你需要下載它們。APT提
+ 供了一套簡便的方法幫你獲得發佈版中眾多程序的來源程式碼以及建立一個.debs所需的
+ 所有檔案。
+ <p>
+ Debian來源碼的另一個普遍用途是將unstable發佈版的新版程序進行改寫以供別的發
+ 布版使用。例如，從stable發佈版外引入新的套裝軟體，需要重新產生.debs將它在
+ 原發佈版中的關聯關係遷移到新的發佈版。
+ <p>
+ 要完成這些工作，<tt>/etc/apt/sources.list</tt>檔案中<tt>deb-src</tt>所指
+ 參照鏡像來源應該是unstable，別忘了將行首的註解符去掉。詳情參考
+ <ref id="sources.list">。
+ <p>
+ 用下面的命令下載來源碼包：
+ 
+ <p>
+ <example>
+ $ apt-get source packagename
+ </example>
+ <p>
+ 通常會下載三個檔案：一個<tt>.orig.tar.gz</tt>、一個<tt>.dsc</tt>和一個<tt>
+ .diff.gz</tt>。對於Debian專用的套裝軟體，不會下載最後一個檔案，第一個檔案的文
+ 件名中沒有“<tt>orig</tt>”項。
+ <p>
+ dpkg-source通過<tt>.dsc</tt>檔案中的資訊，將來源碼包解包到
+ <var>packagename-version</var>目錄，下載下來的來源碼包中有一個
+ <tt>debian/</tt>目錄，裡面是建立.deb包所需的檔案。
+ <p>
+ 想要下載的來源碼包自動編譯成套裝軟體，只需在命令行中加上<tt>-b</tt>，如下：
+ 
+ <p>
+ <example>
+ $ apt-get -b source packagename
+ </example>
+ 
+ <p>
+ 如果你不打算在下載後就立刻建立.deb檔案，你可以在之後用下面的命令建立：
+ 
+ <p>
+ <example>
+ $ dpkg-buildpackage -rfakeroot -uc -b
+ </example>
+ 
+ <p>
+ 上述命令應當在下載後為套裝軟體建立的目錄中執行。要安裝用這種方式組建好的
+ 套裝軟體，只能直接使用套裝軟體管理器，例如：
+ 
+ <p>
+ <example>
+ # dpkg -i <var>file.deb</var>
+ </example>
+ 
+ <p>
+ <prgn>apt-get</prgn>的<tt>source</tt>命令與它的其它命令有所不同，普通用
+ 戶就可以執行source命令。檔案被下載到使用者調用<tt>apt-source package</tt>
+ 命令時所處的目錄中。
+ </sect>
+ 
+ <sect id="build-dep">編譯來源碼包所需的套裝軟體
+ <p>
+ 通常，編譯來源碼包時要用到某些頭檔案和共享庫，所有的來源碼包的控制檔案中都
+ 有一個網域“Build-Depends：”，網域中指出了編譯該來源碼包需要哪些附加包。
+ <p>
+ APT提供了一個簡單的方法下載這些附加包，你只需執行<tt>apt-get build-dep
+ package</tt>，其中“package”就是你打算編譯的來源碼包
+ 名稱。見下例：
+ 
+ <p>
+ <example>
+ # apt-get build-dep gmc
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ The following NEW packages will be installed:
+   comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+   libgpmg1-dev 
+ 0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+ Need to get 1069kB of archives. After unpacking 3514kB will be used.
+ Do you want to continue? [Y/n]
+ </example>
+ 
+ <p>
+ 這些將要被安裝的包是用於正確編譯<package>gmc</package>的。注意這個命令不
+ 能用來搜索某個軟體的來源碼包，你得另外執行<tt>apt-get source</tt>下載來源碼包。
+ 
+ <p>
+ 如果你想做的是檢查要編譯一個套裝軟體需要哪些其它的套裝軟體，<tt>apt-cache show
+ </tt>可以顯示它(從那考<ref id="search">，在眾多資訊之中，<tt>Build-Depends
+ </tt>一行會列出那些需要的套裝軟體。
+ 
+ <p>
+ <example>
+ # apt-cache showsrc <var>package</var>
+ </example>
+ 
+ </sect>
+ </chapt>
+ 
+ <chapt id="erros">如何處理錯誤
+ <sect id="erros-comuns">一般錯誤
+ <p>
+ 錯誤總是發生，大部分是因為使用者的粗心，下面列舉一些常見錯誤及處理方法。
+ <p>
+ 如果在執行<tt>apt-get install package</tt>時，你的系統報告如下資訊：
+ 
+ <p>
+ <example>
+ Reading Package Lists... Done
+ Building Dependency Tree... Done
+ W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+ W: You may want to run apt-get update to correct these missing files
+ E: Couldn't find package penguineyes
+ </example>
+ 
+ <p>
+ 上次你修改<tt>/etc/apt/sources.list</tt>後，忘了執行<tt>apt-get update
+ </tt>更新。
+ <p>
+ 如果出現這樣的資訊：
+ 
+ <p>
+ <example>
+ E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+ E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+ </example>
+ 
+ <p>
+ 
+ 如果你沒有root權限，執行除<tt>source</tt>外的其它<prgn>apt-get</prgn>命
+ 令，如會出現上面的錯誤資訊。這是因為你是普通用戶。
+ <p>
+ 當你同時執行兩個<prgn>apt-get</prgn>進程，或是當你試圖執行<prgn>apt-get
+ </prgn>時已有一個的<prgn>dpkg</prgn>進程處於活化狀態，系統也
+ 會報告與上面相似的錯誤資訊。唯一能與其它命令同時執行的只有<tt>source</tt>
+ 命令。
+ <p>
+ 如果在安裝程序中出現插斷，然後你發現該套裝軟體既不能重裝又不能刪除，試試下
+ 面兩個命令：
+ 
+ <p>
+ <example>
+ # apt-get -f install
+ # dpkg --configure -a
+ </example>
+ 
+ <p>
+ 重試著安裝那個套裝軟體，如果不行再次執行上述命令後重試。這兩個命令對於那些
+ 使用unstable的玩家非常有用。
+ 
+ <p>
+ 如果你在執行<tt>apt-get update</tt>時看到“E: Dynamic MMap ran out of room”，
+ 那麼在<file>/etc/apt/apt.conf</file>加入如下內容：
+ 
+ <example>
+ APT::Cache-Limit 10000000;
+ </example>
+ 
+ </sect>
+ 
+ <sect id="help">在哪兒獲得幫助？
+ <p>
+ 如果你發現自己有太多疑問，沒關係，有大量的Debian套裝軟體管理系統文件供你參
+ 考。<tt>--help</tt>和幫助文件能為你提供巨大的幫助，這些文件位元於<tt>
+ /usr/share/doc</tt>目錄中，如<tt>/usr/share/doc/apt</tt>。
+ <p>
+ 如果本文件沒法幫你排憂解難，可以去Debian信件列表找找答案，在相關欄目內你
+ 會獲得更多資訊。Debian的網址是：<url id="http://www.debian.org"
+ name="http://www.debian.org">。
+ <p>
+ 記住只有Debian使用者才能這些信件列表和資源，其它作業系統的使用者請到相關係統
+ 發佈者建立的社區中獲取更多資源。
+ </sect>
+ </chapt>
+ 
+ <chapt id="distros">哪些發行版支援APT？
+ <p>
+ 
+ 下面是部分使用APT系統的發行版的名稱：
+ <p>
+ Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+ - APT正是為這個發行版開發的
+ <p>
+ Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+ - 這是第一個將APT移植到rpm上的發行版
+ <p>
+ Libranet (<url id="http://www.libranet.com" name="http://www.libranet.com">)
+ <p>
+ Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+ <p>
+ PLD (<url id="http://www.pld.org.pl" name="http://www.pld.org.pl">)
+ <p>
+ Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+ <p>
+ APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+ <p>
+ Alt Linux (<url id="http://www.altlinux.ru/" name="http://www.altlinux.ru/">)
+ <p>
+ Red Hat (<url id="http://www.redhat.com/" name="http://www.redhat.com/">)
+ <p>
+ Sun Solaris (<url id="http://www.sun.com/" name="http://www.sun.com/">)
+ <p>
+ SuSE (<url id="http://www.suse.de/" name="http://www.suse.de/">)
+ <p>
+ Yellow Dog Linux (<url id="http://www.yellowdoglinux.com/"
+ name="http://www.yellowdoglinux.com/">)
+ </chapt>
+ 
+ <chapt id="agradecimentos">致謝
+ <p>
+ 非常感謝你們，我Debian-BR項目組的好朋友們！還有你Debian，始終在我身邊幫助
+ 我，給我動力不停工作為全人類做出貢獻，幫助我樹立拯救世界的理想。:)
+ <p>
+ 我還要感謝CIPSGA，他們給予我們項目組乃至整個自由軟體項目巨大的幫助，是我
+ 們靈感的來源泉。
+ <p>
+ 
+ 特別感謝：
+ <p>
+ Yooseong Yang &lt;yooseong@debian.org&gt;
+ <p>
+ Michael Bramer &lt;grisu@debian.org&gt;
+ <p>
+ Bryan Stillwell &lt;bryan@bokeoa.com&gt;
+ <p>
+ Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt;
+ <p>
+ Hugo Mora &lt;h.mora@melix.com.mx&gt;
+ <p>
+ Luca Monducci &lt;luca.mo@tiscali.it&gt;
+ <p>
+ Tomohiro KUBOTA &lt;kubota@debian.org&gt;
+ <p>
+ Pablo Lorenzzoni &lt;spectra@debian.org&gt;
+ <p>
+ Steve Langasek &lt;vorlon@netexpress.net&gt;
+ <p>
+ Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt;
+ <p>
+ Erik Rossen &lt;rossen@freesurf.ch&gt;
+ <p>
+ Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt;
+ <p>
+ Matt Kraai &lt;kraai@debian.org&gt;
+ <p>
+ Aaron M. Ucko &lt;ucko@debian.org&gt;
+ <p>
+ Jon &Aring;slund &lt;d98-jas@nada.kth.se&gt;
+ </chapt>
+ 
+ <chapt id="novas">本使用指南的新版本 
+ <p>
+ 本操作手冊由<url id="http://www.debian-br.org" name="Debian-BR項目組">撰
+ 寫，我們希望它能為Debian使用者提供有效的幫助。
+ <p>
+ 你可以從Debian文件項目頁面獲得本文件的新版本：<url
+ id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">。
+ <p>
+ 對本文件有任何意見或建議可直接發email給我：<email>kov@debian.org</email>。
+ (華文使用者請發給譯者)
+ </chapt>
+ 
+ </book>
+ 
+ </debiandoc>
