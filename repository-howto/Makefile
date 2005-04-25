@@ -17,7 +17,8 @@ all: html pdf # dvi ps # god damn dvi and ps don't work
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manualdir) || install -d -m 755 $(PUBLISHDIR)/$(manualdir)
-	rm -f $(PUBLISHDIR)/$(manualdir)/*.{html,pdf,dvi,ps}
+	dir="$(PUBLISHDIR)/$(manualdir)" && \
+	rm -f "$$dir"/*.html "$$dir"/*.pdf "$$dir"/*.ps "$$dir"/*.dvi
 	for built in $(manual); do \
 	install -p -m 644 $$built.html $(PUBLISHDIR)/$(manualdir) ; \
 	install -p -m 644 $$built.pdf $(PUBLISHDIR)/$(manualdir) ; \
@@ -31,13 +32,14 @@ validate: $(sources)
 	xmllint --noout --loaddtd --catalogs $$checking ;\
 	done
 
-html:  $(addsuffix .html,$(manual))
+html fo dvi ps pdf: %: $(addsuffix .%,$(manual))
+
+
 %.html: %.xml
 	xsltproc --catalogs -o $@ \
 	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/html/docbook.xsl \
 	$<
 
-fo: $(addsuffix .fo,$(manual))
 %.fo:  %.xml
 	xsltproc --catalogs -o $@ \
 	/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/docbook.xsl \
@@ -47,18 +49,19 @@ fo: $(addsuffix .fo,$(manual))
 	# /usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/pagesetup.xsl
 	sed 's/margin-left="1in - -4pc"/margin-left="1in"/g' $@ > $@.tmp && mv $@.tmp $@
 
-dvi: $(addsuffix .dvi,$(manual))
 %.dvi:  %.fo
 	# needs being run twice to generate toc
 	xmltex --interaction=batchmode $<
 	xmltex --interaction=batchmode $<
 
-ps: $(addsuffix .ps,$(manual))
 %.ps:  %.dvi
 	dvips $<
 
-pdf: $(addsuffix .pdf,$(manual))
-%.pdf: %.fo
+pdfxmltex.fmt:
+	#pdfxmltex -ini pdfxmltex.ini
+	fmtutil --byfmt pdfxmltex --fmtdir .
+
+%.pdf: %.fo pdfxmltex.fmt
 	# needs being run twice to generate toc
 	# yes, this is suboptimal but it's the easiest way
 	pdfxmltex --interaction=batchmode $<
@@ -66,7 +69,9 @@ pdf: $(addsuffix .pdf,$(manual))
 
 clean distclean:
 	for removal in $(manual); do \
-	 rm -f $$removal.{aux,html,dvi,fo,log,pdf,ps,out,toc} ; \
+	  for suf in aux html dvi fo log pdf ps out toc; do \
+	    rm -f $$removal.$$suf; \
+	  done \
 	done
 	rm -f *~ .*~ core tsa* ;
 	
