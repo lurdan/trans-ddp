@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.17" -->
+<!-- CVS revision of original english document "1.21" -->
 
 <chapt>Nach der Installation
 
@@ -599,7 +599,7 @@ auf denen sich Root unmittelbar anmelden darf. Alternativ dazu können Sie auch
 das <tt>pam_access</tt>-Modul aktivieren und
 <file>/etc/security/access.conf</file> bearbeiten. Dieses Vorgehen erlaubt eine
 allgemeinere und feiner abgestimmte Zugangskontrolle, leider fehlen aber
-vernünftige Protokollmeldungen (Diese sind in PAM nicht standardisiert und sind
+vernünftige Protokollmeldungen (diese sind in PAM nicht standardisiert und sind
 ein besonders unbefriedigendes Problem). Wir werden zu <file>access.conf</file>
 in Kürze zurückkehren.
 
@@ -688,26 +688,119 @@ standardmäßig verweigert).
 
 <p>
 Sie sollten sich wirklich ernsthaft mit dieser Datei beschäftigen.
-Hier können Sie Ihren Benutzern Ressourcen-Limits definieren. Wenn
-Sie PAM benutzen, wird die Datei <file>/etc/limits.conf</file> ignoriert,
-und Sie sollten <file>/etc/security/limits.conf</file> stattdessen
-benutzen.
+Hier können Sie Ihren Benutzern Ressourcen-Limits definieren. In alten
+Veröffentlichungen war die Konfigurationsdatei
+<file>/etc/limits.conf</file>. Aber in neueren Versionen (mit PAM) sollte
+stattdessen die Konfigurationsdatei <file>/etc/security/limits.conf</file>
+benutzt werden.
 
-<p>Wenn Sie die Ressourcen-Nutzung nicht einschränken, kann
+<p>Wenn Sie die Ressourcennutzung nicht einschränken, kann
 <em>jeder</em> Nutzer mit einer gültigen Shell auf Ihrem
-System (oder sogar ein Einbrecher, der das System durch einen Dienst
-kompromittierte) so viel CPU, Speicher, Stack etc. benutzen, wie das System
+System (oder sogar ein Einbrecher, der das System durch einen Dienst oder
+kompromittierte, oder ein außer Kontrolle geratener Daemon) so viel CPU,
+Speicher, Stack etc. benutzen, wie das System
 zur Verfügung stellen kann. Dieses Problem der <em>Überbeanspruchung von
-Ressourcen</em> kann nur mit der Nutzung von PAM gelöst
-werden. Beachten Sie, dass es einen Weg gibt, Ressourcen-Limits zu manchen
+Ressourcen</em> kann mit der Nutzung von PAM gelöst werden.
+
+<p>Es gibt einen Weg, Ressourcen-Limits zu manchen
 Shells hinzuzufügen (zum Beispiel hat <prgn>bash</prgn> <prgn>ulimit</prgn>,
-siehe <manref section="1" name="bash">), aber da nicht alle die gleichen
+siehe <manref section="1" name="bash">). Aber da nicht alle die gleichen
 Limits zur Verfügung stellen, und da der Nutzer seine Shell
 ändern kann (siehe <manref section="1" name="chsh">), ist es besser,
-die Limits in den PAM-Modulen zu platzieren.
+die Limits in den PAM-Modulen zu platzieren, da diese unabhängig von der
+verwendeten Shell Anwendung finden und auch PAM-Module betreffen, die nicht
+shellorientiert sind.
+
+<p>Ressourcen-Limits werden vom Kernel verhängt, aber sie müssen durch
+<file>limits.conf</file> konfiguriert werden, und die PAM-Konfiguration der
+verschiedenen Dienste muss das passende PAM laden. Sie können herausfinden,
+welche Dienste Limits durchsetzen, indem Sie folgendes ausführen:
+
+<example>
+$ find /etc/pam.d/ \! -name "*.dpkg*" | xargs -- grep limits |grep -v ":#"
+</example>
+
+<p>Für gewöhnlich nehmen <file>login</file>, <file>ssh</file> und die
+grafischen Sitzungsmanager (<file>gdm</file>, <file>kdm</file> und
+<file>xdm</file>) Nutzerlimits in Anspruch, aber Sie sollte dies auch in
+anderen Konfigurationsdateien für PAM wie für <file>cron</file> tun, um zu
+verhindern, dass Systemdaemonen alle Systemressourcen aufbrauchen.
+
+<p>Die konkreten Begrenzungen, die Sie festlegen wollen, hängt von den
+Ressourcen Ihres Systems ab. Das ist einer der Hauptgründe, warum keine Limits
+in der Standardinstallation enthalten sind.
+
+<p>Zum Beispiel nimmt die Konfiguration im Beispiel unten eine Begrenzung von
+100 Prozessen für alle Nutzer vor (um <em>Fork-Bomben</em> 
+<footnote>
+Programme, die immer mehr Prozesse erzeugen, um so das System zum Absturz zu
+bringen, d.Ü.
+</footnote>
+zu vermeiden) und eine Begrenzung auf 10MB Speicher pro Prozess und ein Limit
+von 10 gleichzeitigen Logins. Benutzer in der Gruppe <tt>adm</tt> haben höhere
+Begrenzungen und können Dateien mit einem Speicherabbild schreiben, wenn sie das
+<!-- SB (20050421): "can produce core files if they want to" -->
+wollen (es gibt also nur eine <em>weiche</em> Begrenzung.
+
+<p>
+<example>
+*   soft    core            0
+*		hard	  core		        0
+*   hard    rss             1000
+*		hard	  memlock         1000
+*   ard     nproc           100
+*		-       maxlogins       1
+*		hard	  data            102400
+*		hard	  fsize           2048
+@adm		hard	core            100000
+@adm    hard    rss             100000
+@adm    soft    nproc           2000
+@adm    hard    nproc           3000
+@adm		hard	fsize           100000
+@adm    -       maxlogins       10
+</example>
+
+<p>Dies könnten die Limits eines Standardnutzers (einschließlich der
+Systemdaemonen) sein:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 2048
+max locked memory     (kbytes, -l) 10000
+max memory size       (kbytes, -m) 10000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 100
+virtual memory        (kbytes, -v) unlimited
+</example>
+
+<p>Und dies die Limits für einen Administrator:
+
+<example>
+$ ulimit -a
+core file size        (blocks, -c) 0
+data seg size         (kbytes, -d) 102400
+file size             (blocks, -f) 100000
+max locked memory     (kbytes, -l) 100000
+max memory size       (kbytes, -m) 100000
+open files                    (-n) 1024
+pipe size          (512 bytes, -p) 8
+stack size            (kbytes, -s) 8192
+cpu time             (seconds, -t) unlimited
+max user processes            (-u) 2000
+virtual memory        (kbytes, -v) unlimited
+</example>
 
 <p>Für mehr Informationen hierzu lesen Sie:
 <list>
+
+<item><url>
+<id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam-6.html"
+name="PAM reference guide for available modules">
 
 <item><url
 id="http://www.samag.com/documents/s=1161/sam0009a/0009a.htm"
@@ -723,7 +816,6 @@ users overview</em> Abschnitt.
 
 </list>
 
-<p>FIXME: Get a good <file>limits.conf</file> up here
 
 <sect1>Aktionen bei der Benutzeranmeldung: Editieren von
 <file>/etc/login.defs</file>
@@ -748,10 +840,8 @@ ein falsches Passwort eingegeben wird, muss der potenzielle Angreifer
 (aber auch der normale Benutzer!) 10 Sekunden warten, um einen neuen
 login Prompt zu bekommen, was auf die Dauer viel Zeit kostet, wenn sie
 Passwörter durch testen. Beachten Sie jedoch die Tatsache, dass diese
-Einstellung nutzlos ist, wenn Sie ein anderes Programm als getty
-benutzen, wie zum Beispiel mingetty.
-<!-- SB (20050303): Die letzten drei Zeilen fehlen in der aktuellen englischen
-Version. Ist wohl ein Fehler. Patch an jfs geschickt. -->
+Einstellung nutzlos ist, wenn Sie ein anderes Programm als <prgn>getty</prgn>
+benutzen, wie zum Beispiel <prgn>mingetty</prgn>.
 
 <example>
   FAILLOG_ENAB        yes
@@ -768,8 +858,8 @@ jemanden zu fassen, der eine Brute Force Attacke versucht.
 <p>Wenn Sie die Variable <var>FAILLOG_ENAB</var> auf yes gesetzt haben, dann
 sollten Sie auch diese Variable auf yes setzen. Dies wird auch unbekannte
 Nutzernamen protokollieren. Wenn Sie dies tun, gehen Sie auch sicher, dass
-die Protokolle sinnvolle Zugriffsrechte haben (Zum Beispiel 640, mit
-einer angemessenen Gruppen-Zugehörigkeit, wie adm), weil Nutzer oft
+die Protokolle sinnvolle Zugriffsrechte haben (zum Beispiel 640, mit
+einer angemessenen Gruppen-Zugehörigkeit wie adm), weil Nutzer oft
 versehentlich ihr Passwort als Usernamen eingeben und dies anderen nicht
 zugänglich machen wollen.
 
@@ -883,19 +973,20 @@ bewerkstelligt.
 Ferne zugegriffen werden kann, beachten Sie, dass es Nutzern
 möglich sein wird, sich einzuloggen. Sie können dies beheben,
 indem Sie diesen Nutzer eine Null (<file>/dev/null</file>) als Shell (sie
-müsste in <file>/etc/shells</file> gelistet sein) zuweisen. Wenn Sie
+müsste in <file>/etc/shells</file> auflistet sein) zuweisen. Wenn Sie
 den Nutzern erlauben wollen, auf das System zuzugreifen, aber ihre
 Bewegungen einschränken wollen, können Sie
 <file>/bin/rbash</file> benutzen. Dies hat das gleiche Ergebnis, wie wenn Sie
 die <tt>-r</tt> Option der
 <prgn>Bash</prgn> (<em>RESTRICTED SHELL</em>, siehe <manref name="bash"
 section="1">) verwendet hätten. Beachten Sie bitte, dass sogar mit
-einer restricted Shell ein Nutzer,  der auf ein interaktives
-Programm zugreifen kann (das es ihm erlauben würde, eine subshell
+einer beschränkten Shell ein Nutzer, der auf ein interaktives
+Programm zugreifen kann (das ihm erlaubt, eine Subshell
 auszuführen), diese Limitierung der Shell umgehen kann.
 
-<p>Debian bietet zurzeit in seinem unstable Release (und wird es vielleicht
-der nächste stable Release hinzufügen) das <file>pam_chroot</file>-Modul (in
+<p>Debian bietet zurzeit in seiner Unstable-Veröffentlichung (und wird es
+vielleicht der nächsten Stable-Veröffentlichung hinzufügen) das
+<file>pam_chroot</file>-Modul (in
 <package> libpam-chroot</package>) an. Eine Alternative hierzu ist es, die
 Dienste, die eine Fernanmeldung ermöglichen (<prgn>ssh</prgn> und
 <prgn>telnet</prgn>), in einer <prgn>chroot</prgn>-Umgebung laufen zu lassen.
@@ -1097,7 +1188,7 @@ Bibliotheken versucht zu raten.
 <item>einige Protokolle unter <file>/var/log</file>. Beachten Sie, dass
 auf einige Protokolle nur Root und die <tt>adm</tt>-Gruppe zugreifen kann
 (versuchen Sie <tt>find /var/log -type f -a -perm 640</tt>). Manche
-sind sogar ausschließlich für Root verfügbar (Sehen Sie sich 
+sind sogar ausschließlich für Root verfügbar (sehen Sie sich 
 <tt>find /var/log -type f -a -perm 600 -a -uid 0</tt> an).
 
 </list>
@@ -1120,7 +1211,7 @@ Nutzer
 wollen, sollten Sie vielleicht die Informationen begrenzen, die man über
 anderen Nutzern einholen kann. Nutzer mit einer Shell haben die Neigung, eine
 ziemlich große Anzahl von Dateien in ihrem $HOME zu erstellen: Mailboxen,
-persönliche Daten, Konfigurationen für X/GNOME/KDE-Anwendungen...
+persönliche Daten, Konfigurationen für X/GNOME/KDE-Anwendungen ...
 
 <p>In Debian wird jeder Nutzer mit einer zugehörigen Gruppe
 erstellt. Verschiedene Nutzer gehören dabei nie zur selben Gruppe. Folgendes
@@ -1243,7 +1334,7 @@ Kompromittierung führen:
 ein Eindringling darauf zugreifen kann.
 
 <item>weil ein Angreifer an eine schon beendete Netzwerkverbindung anknüpfen
-und Befehle an die entfernte Shell schicken kann (Das ist ziemlich einfach,
+und Befehle an die entfernte Shell schicken kann (das ist ziemlich einfach,
 wenn die entfernte Shell, wie bei <prgn>telnet</prgn>, nicht verschlüsselt
 ist).
 </list>
@@ -1644,56 +1735,48 @@ easily remove the logfiles.
 
 
 <sect id="kernel-patches">Den Kernel patchen
-<!-- last edited by Frédéric Schütz <schutz@mathgen.ch> -->
 
 <p>Debian GNU/Linux stellt verschiedene Patches für den Linux-Kernel zur
 Verfügung, die die Sicherheit erhöhen:
 
 <list>
-<item>Erkennung von Eindringlingen für Linux (Linux Intrusion Detection, im
-Paket <package>lids-2.2.19</package>) von  Huagang Xie und Philippe
-Biondi. Dieser Kernelpatch erleichtert Ihnen, Ihr Linuxsystem
-abzuhärten, indem er Ihnen ermöglicht, Prozesse einzuschränken, zu verstecken
-und zu schützten, sogar vor Root. Mit ihm ist es auch möglich, bestimmte
-Dateien zu schützten oder zu verstecken, so dass selbst Root diese nicht
-verändern kann. Darüber hinaus können Sie auch bestimmten Prozesses
-Systemressourcen zuweisen. Eine Notwendigkeit für jeden paranoiden
-Systemadministrator. Homepage: <url id="http://www.lids.org"
-name="http://www.lids.org">.
+<item>Erkennung von Eindringlingen für Linux (<url id="http://www.lids.org"
+name="Linux Intrusion Detection">, enthalten im Paket
+<package>lids-2.2.19</package>). Dieser Kernelpatch erleichtert Ihnen, Ihr
+Linuxsystem abzuhärten, indem er Ihnen ermöglicht, Prozesse einzuschränken, zu
+verstecken und zu schützten, sogar vor Root. Er führt Fähigkeiten für eine
+zwingende Zugangskontrolle ein.
 
-<item><em>POSIX Access Control Lists (ACLs, Listen zur Zugangskontrolle) für
-Linux</em> (im Paket <package>kernel-patch-acl</package>). Dieser Kernelpatch
+<item><url id="http://acl.bestbits.at/" name="POSIX Access Control Lists">
+(ACLs, Listen zur Zugangskontrolle) für Linux</em> im Paket
+<package>kernel-patch-acl</package>. Dieser Kernelpatch
 stellt Listen zur Zugangskontrolle zur Verfügung. Das ist eine fortgeschrittene
 Methode, um den Zugang zu Dateien einzuschränken. Es ermöglicht Ihnen, den
-Zugang zu Dateien und Verzeichnisses fein abzustimmen. Dieser Patch wurde in
-den Entwicklungskernel 2.5 eingefügt und wird standardmäßig im zukünftigen
-Kernel 2.6 enthalten sein. Homepage: <url name="http://acl.bestbits.at/"
-id="http://acl.bestbits.at/">.
+Zugang zu Dateien und Verzeichnisses fein abzustimmen.
 
-<item>Linux Trustees (im Paket <package>trustees</package>). Dieser Patch fügt
+<item><url id="http://trustees.sourceforge.net/" name="Linux Trustees"> (im
+Paket <package>trustees</package>). Dieser Patch fügt
 ein ordentliches, fortgeschrittenes Rechtemanagement Ihrem Linuxkernel
 hinzu. Besondere Objekte, die "trustees" (Treuhänder) genannt werden, sind mit
 jeder Datei oder Verzeichnis verbunden. Sie werden im Speicher des Kernels
-abgelegt und erlauben so eine schnelle Abfrage aller Rechte. Homepage: <url
-name="http://trustees.sourceforge.net/" id="http://trustees.sourceforge.net/">.
+abgelegt und erlauben so eine schnelle Abfrage aller Rechte.
 
 <item>NSA Enhanced Linux (im Paket <package>selinux</package>. Auch verfügbar
 auf <url id="http://www.coker.com.au/selinux/" name="der Webseite des
 Entwicklers">).
 
-<item><package>kernel-patch-2.2.18-openwall</package> von Solar Designer. Das
-ist eine nützliche Ansammlung von Einschränkungen für den Kernel. Er umfasst
-eingeschränkte Links, FIFOs in <file>/tmp</file>, ein eingeschränktes
-<file>/proc</file>-Dateisystem, besondere Handhabung von Dateideskriptoren,
-einen nichtausführbaren Bereich des Stapelspeichers des Nutzers. Homepage: <url
-name="http://www.openwall.com/linux/" id="http://www.openwall.com/linux/">.
+<item>Der <url id="http://people.redhat.com/mingo/exec-shield/"
+name="Exec-Shield-Patch"> aus dem Paket
+<package>kernel-patch-exec-shield</package>. Dieser Patch schützt vor einigen
+Pufferüberläufen (stack smashing attacks).
 
-<item><package>kernel-patch-2.4-grsecurity</package>: Der Grsecurity-Patch
+<item>Der <url id="http://www.grsecurity.net/" name="Grsecurity-Patch"> aus den
+Pakten <package>kernel-patch-2.4-grsecurity</package> und
+<package>kernel-patch-grsecurity2</package>
 <footnote>
-Beachten Sie, dass Sie abhängig vom Paket der Quellen des Kernels 2.4 auf
-Probleme stoßen können, wenn Sie die Kernelquellen patchen. Falls dies
-eintritt, müssen Sie vielleicht den Vanilla-Kernel verwenden. Dazu führen Sie
-folgende Schritte durch:
+Beachten Sie, dass ein Konflikt zwischen diesem Patch und den Patches besteht,
+die schon im Quellpaket des Kernels 2.4 von Debian enthalten sind. Sie werden
+den Vanilla-Kernel verwenden müssen. Dazu führen Sie folgende Schritte durch:
 <example>
 # apt-get install kernel-source-2.4.22 kernel-patch-debian-2.4.22
 # tar xjf /usr/src/kernel-source-2.4.22.tar.bz2
@@ -1710,13 +1793,25 @@ id="http://bugs.debian.org/211213" name="#211213"> und die <url
 id="http://lists.debian.org/debian-devel/2003/debian-devel-200309/msg01133.html"
 name="Diskussion auf debian-devel">.
 </footnote>
-verwirklicht Mandatory Access Control und stellt Schutz vor Pufferüberläufen
-(buffer overflows), ACLs, Zufälligkeit im Netzwerk (um die Erkennung von Spuren
-des OS zu erschweren) und <url id="http://www.grsecurity.net/features.php"
-name="noch viele Features mehr"> zur Verfügung.
+verwirklicht Mandatory Access Control durch RBAC und stellt Schutz vor
+Pufferüberläufen durch PaX, ACLs, Zufälligkeit im Netzwerk (um die Erkennung
+von Spuren des OS zu erschweren) und <url
+id="http://www.grsecurity.net/features.php" name="noch viele Features mehr">
+zur Verfügung.
 
-<item><package>kernel-patch-2.2.19-harden</package>. <em>FIXME</em>: Mehr
-Inhalt.
+<item><package>kernel-patch-adamantix</package> bietet die Patches an, die für
+die Debian Distribution <url id="http://www.adamantix.org/" name="Adamantix">
+entwickelt wurden. Dieser Patch für den Kernel 2.4.x führt einige
+Sicherheitsfähigkeiten wie nichtausführbaren Speicher durch den Einsatz von
+<url id="http://pageexec.virtualave.net/" name="PaX"> und Mandatory Access
+Controll auf Grundlage von <url id="http://www.rsbac.org/" name="RSBAC" >
+ein. Andere Features sind <url name="der Random-PID-Patch"
+id="http://www.vanheusden.com/Linux/sp/">, ein mit AES verschlüsseltes
+Loop-Gerät, Unterstützung von MPPE und eine Zurückportierung von IPSEC v2.6.
+
+<item><package>cryptoloop-source</package>. Dieser Patch erlaubt Ihnen, die
+Fähigkeiten der Crypto-API des Kernels zu verwenden, um verschlüsselte
+Dateisysteme mit dem Loopback-Gerät zu erstellen.
 
 <item>Kernel-Unterstützung von IPSEC (im Paket
 <package>kernel-patch-freeswan</package>). Wenn Sie das IPsec-Protokoll mit
@@ -1725,32 +1820,33 @@ leicht VPNs erstellen, sogar mit Windows-Rechnern, da IPsec ein verbreiteter
 Standard ist. IPsec-Fähigkeiten wurden in den Entwicklungskernel 2.5 eingefügt,
 so dass diese Feature standardmäßig im zukünftigen Kernel 2.6 enthalten sein
 wird. Homepage: <url id="http://www.freeswan.org">.
+Hinweis: Die Verwendung von FreeSwan wurde zugunsten von OpenSwan aufgegeben.
 
 <em>FIXME</em>: Der neuste Kernel 2.4 in Debian enthält eine Rückeinbindung des
 IPSEC-Codes aus 2.5. Kommentar dazu.
 
-<item><package>cryptoapi-core-source</package>. Durch diesen Patch erhält der
-Linux-Kernel kryptographische Fähigkeiten wie Chiffre- und Digestfunktionen.
-<!-- SB (20050305): "like ciphers and digests functions"? -->
-Übliche Anwendung dieser Funktionen ist die Verschlüsselung von Dateisystem
-oder von Swap. Beachten Sie, dass ab Version 2.5.45 in den Quellcode des
-offiziellen Linuxkernel eingefügt wurden. Das bedeutet, dass Sie mit dem
-zukünftigen Kernel 2.6 diesen Patch nicht brauchen. <em>Anmerkung:</em>: Dieses
-Paket ist in keinem Debian-Release vor <url
-id="http://www.de.debian.org/releases/sarge/" name="Sarge">
-enthalten. Homepage:
-<url name="http://www.kerneli.org/" id="http://www.kerneli.org/">.
+</list>
 
-<item><package>cryptoloop-source</package>. Dieser Patch ermöglicht es Ihnen,
-die Funktionen des Pakets <package>cryptoapi-core-source</package> zu nutzen
-und ein verschlüsseltes Dateisystem mittels des Loopback-Devices zu
-erstellen.
+<p>Die folgenden Sicherheitspatches für den Kernel sind nur noch für alte
+Kernelversionen in Woody verfügbar und wurden aufgegeben:
+
+<list>
+
+<item>Der Patch für den Linuxkernel <url name="Openwall"
+id="http://www.openwall.com/linux/"> von Solar Designer, der im Paket
+<package>kernel-patch-2.2.18-openwall</package> enthalten ist. Er enthält eine
+nützliche Anzahl von Beschränkungen des Kernels wie eingeschränkte Verweise,
+FIFOs in <file>/tmp</file>, ein begrenztes <file>/proc</file>-Dateisystem,
+besondere Handhabung von Dateideskriptoren, einen nichtausführbaren Bereich des
+Stapelspeichers des Nutzers und andere Fähigkeiten. Hinweis: Dieser Patch ist
+nur auf die Kernelversion 2.2 anwendbar, für 2.4 werden von Solar keine Pakete
+angeboten.
 
 <item><package>kernel-patch-int</package>. Auch dieser Patch fügt
 kryptographische Fähigkeiten zum Linux-Kernel hinzu. Er war bis zu den
 Debian-Releases bis Potato nützlich. Er funktioniert nicht mehr mit
-Woody. Falls Sie Sarge oder eine neuere Version verwenden, sollten Sie das
-aktuellere <package>cryptoapi-core-source</package> einsetzen.
+Woody. Falls Sie Sarge oder eine neuere Version verwenden, sollten Sie einen
+aktuelleren Kernel einsetzen, in dem diese Features bereits enthalten sind.
 
 </list>
 
@@ -1771,35 +1867,9 @@ id="http://www.de.debian.org/devel/wnpp/">. Ein paar von ihnen sind:
 
 <list>
 
-<item><url id="http://pageexec.virtualave.net/" name="PaX patch">
-
 <item><url name="HAP patch" id="http://www.theaimsgroup.com/~hlein/hap-linux/">
-
-<item><url name="Stealth patch" id="http://www.energymech.net/madcamel/fm/">
-
-<item><em>SubDomain</em>. Eine Erweiterung des Kernels, die darauf ausgelegt
-ist, die Rechte von unter Umständen unsicheren Programmen so weit wie möglich
-einzuschränken. SubDomain ergänzt die eingebauten Zugangskontrollen und
-erweitert diese. Zwar ist sie mit einer <prgn>chroot</prgn>-Umgebung
-vergleichbar. Es wird aber behauptet, dass sie einfacher aufzusetzen und
-vielfältiger als eine <prgn>chroot</prgn>-Umgebung ist.
-<!-- FIXME URL is not found, and I wasn't able to find the new location
-Homepage:
-<url name="http://www.immunix.org/subdomain.html"
-id="http://www.immunix.org/subdomain.html">
--->
-
-<item><em>Contexts (ctx) Patch</em>. Eine Kernelerweiterung, die die
-Verwirklichung von virtuellen privaten Servern ermöglichen soll. Sie ist mit
-<prgn>jail</prgn> in BSD vergleichbar. Homepage: <url
-name="http://www.immunix.org/subdomain.html"
-id="http://www.immunix.org/subdomain.html">.
-
-<item><em>UserIPAcct</em>. Dieser Patch steht nicht wirklich mit Sicherheit im
-Zusammenhang. Aber er erlaubt es Ihnen, Quotas (Kontingente) für jeden Nutzer
-einzeln für den Verkehr auf Ihrem System zu erstellen. Sie können auch
-Statistiken über den Verkehr der Nutzer abrufen. Homepage: <url
-id="http://ramses.smeyers.be/useripacct">.
+(HAP steht für <em>Hank Approved Paranoid Linux</em>). Eine Sammlung für
+Sicherheitspatches für den Kernel 2.2.x.
 
 </list>
 
@@ -1826,8 +1896,9 @@ Pufferüberläufe zu schützen:
 
 <list>
 
-<item>Patchen Sie den Kernel, um Ausführen des Stapel-Speichers zu
-verhindern (Sie können den OpenWall- oder Grsecurity-Patch verwenden).
+<item>Patchen Sie den Kernel, um Ausführen des Stapelspeichers zu
+verhindern. Sie können entweder Exec-Shiel, OpenWall oder PaX (ist in den
+Grsecurity- und Adamantixpatches enthalten) verwenden.
 
 <!-- FIXME: add a link to libsafe to the main place -->
 
@@ -1851,7 +1922,7 @@ id="http://www.adamantix.org" name="Adamantix"> verwendet wird).
 </list>
 
 <p>Debian GNU/Linux liefert bis einschließlich der Release 3.0 Software, um
-alle dieser Methoden bis auf den Schutz bei der Übersetzung des Quellcodes (Das
+alle dieser Methoden bis auf den Schutz bei der Übersetzung des Quellcodes (das
 wurde aber schon in <url id="http://bugs.debian.org/213994" name="Fehler
 #213994"> nachgefragt) zu implementieren.
 
@@ -1872,18 +1943,19 @@ phrack-Magazins oder in COREs Advisory
 name="Multiple vulnerabilities in stack smashing protection technologies">
 beschrieben.
 
+<p>Wenn Sie Ihren Schutz gegen Pufferüberläufe (unabhängig von der gewählten
+Methode) testen wollen, können Sie <package>paxtest</package> installieren und
+die angebotenen Tests laufen lassen.
+
 <sect1>Kernelpatch zum Schutz vor Pufferüberläufen
 
 <p>Ein Kernelpatch, der Schutz vor Pufferüberläufen bietet, der der
 Openwall-Patch, der diese im Linux-Kernel 2.2 verhindern soll. Für 2.4 oder
-neuere Kernel müssen Sie den Grsecurity-Patch (aus <package>
-kernel-patch-2.4-grsecurity</package>) verwenden, der den Openwall-Patch und
-viele <url id="http://www.grsecurity.net/features.php" name="Sachen mehr">
-(ACLs, Zufälligkeiten im Netzwerk, um es zu erschweren, das Betriebssystem zu
-erraten). Als Alternative dazu können Sie auch die Linux-Sicherheits-Module (in
-den Paketen <package>kernel-patch-2.4-lsm</package> und
-<package>kernel-patch-2.5-lsm</package>) einsetzen. Für weitere Informationen
-zum Einsatz dieser Patches lesen Sie den Abschnitt <ref id="kernel-patches">.
+neuere Kernel müssen Sie die Umsetzung von Exec-Shield oder die von PaX (ist im
+Grsecurity-Patch <package>kernel-patch-2.4-grsecurity</package> und im
+Adamantix-Patch <package>kernel-patch-adamantix</package> enthalten) benutzen.
+Für weitere Informationen zum Einsatz dieser Patches lesen Sie den Abschnitt
+<ref id="kernel-patches">.
 
 <sect1>Schutz durch <package>libsafe</package>
 
@@ -2124,7 +2196,7 @@ als Klartext im ganzen Internet herummailt?
 <p>Die einzige Methode einen gewissen Schutz dafür zu haben ist es,
 die Dateien jede(n) Stunde/Tag/Monat (ich ziehe täglich vor) zu
 prüfen, indem man deren aktuelle und alte MD5-Summe vergleicht. Zwei
-unterschiedliche Dateien können keine gleichen MD5-Summen haben (Die
+unterschiedliche Dateien können keine gleichen MD5-Summen haben (die
 MD5-Summe umfasst 128 Bits, so ist die Wahrscheinlichkeit, dass zwei
 unterschiedliche Dateien eine gleiche MD5-Summe haben etwa 1 zu 3,4e3803).
 So sind Sie sicher, solange niemand den Algorithmus gehackt hat, der die
@@ -2294,7 +2366,7 @@ configuration for <file>sysctl.conf</file> (see: <manref section="5"
 name="sysctl.conf">). Also send this as a wishlist bug to the procps package.
 
 <p>Erstellen Sie dieses Skript in <file>/etc/network/interface-secure</file>
-(Der Name ist nur ein Beispiel) und rufen Sie wie folgt aus
+(der Name ist nur ein Beispiel) und rufen Sie wie folgt aus
 <file>/etc/network/interfaces</file> auf:
 
 <example>
@@ -2483,12 +2555,8 @@ Angreifer, auf Netzwerken den Verkehr abzuhören (selbst bei Netzwerken, die
 über einen Switch laufen). Er kann sich leicht in eine Verbindung einschleusen
 oder einen Host vom Netzwerk nehmen oder ... ARP-Angriffe sind leistungsfähig
 und einfach durchzuführen. Es gibt dafür auch einige Werkzeuge wie
-<prgn>arpspoof</prgn> aus dem Paket <package>dsniff</package>.
-
-<!-- removed <url name="arpmim"
-id="http://www.team-teso.net/releases/arpmim-0.2.tar.gz">, <url
-name="arpoison" id="http://web.syr.edu/~sabuer/arpoison/">...
- ~sabuer broken and unavailable in the new web site provided -->
+<prgn>arpspoof</prgn> aus dem Paket <package>dsniff</package> oder <url
+name="arpoison" id="http://arpoison.sourceforge.net/">.
 
 <p>Allerdings gibt es immer eine Lösung:
 
