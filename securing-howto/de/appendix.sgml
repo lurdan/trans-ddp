@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.9" -->
+<!-- CVS revision of original english document "1.14" -->
 
 <appendix id="harden-step">Der Abhärtungs-Prozess Schritt für
 Schritt
@@ -40,7 +40,7 @@ Maßnahmen zu User Quotas, Ausgestaltung des Logins und <prgn>Lilo</prgn>.
 <item>Machen Sie sich eine Liste von allen Diensten, die derzeit auf Ihrem
 System laufen. Versuchen Sie dazu Folgendes:
 <example>
-  $ ps -aux
+  $ ps aux
   $ netstat -pn -l -A inet 
   # /usr/sbin/lsof -i | grep LISTEN
 </example>
@@ -1151,6 +1151,60 @@ können Sie den <prgn>ssh</prgn>-Server mit folgendem Befehl in einer
 </example>
 
 
+<sect>Einsatz von <package>pam_chroot</package>
+
+<p>Der wahrscheinlich leichteste Weg ist, das Paket
+<package>pam_chroot</package>, das in Debian vorhanden ist, zu verwenden. Wenn
+Sie es installiert haben, müssen Sie
+
+<list>
+
+<item><file>/etc/pam.d/ssh</file> verändern, um dieses PAM-Module zu
+verwenden. Fügen Sie dazu als letzte Zeile Folgendes ein:
+<example>
+  session    required   pam_chroot.so
+</example>
+
+<item>eine passende Chroot-Umgebung einrichten. Sie können entweder
+<file>/usr/share/doc/libpam-chroot/examples/</file> durcharbeiten,
+<package>makejail</package> benutzen oder einen minimale Debian-Umgebung mit
+<package>debootstrap</package> aufsetzen. Stellen Sie sicher, dass die Umgebung
+die notwendigen Geräte <file>/dev/ptmx</file> und <file>/dev/pty*</file> und
+das Unterverzeichnis <file>/dev/pts/</file> enthält (es sollte ausreichen,
+MAKEDEV im <file>/dev</file>-Verzeichnis der Chroot-Umgebung auszuführen).
+
+<item><file>/etc/security/chroot.conf</file> bearbeiten, damit die ausgewählten
+Nutzer in das Verzeichnis eingesperrt werden, das Sie zuvor eingerichtet
+haben. Sie sollten unabhängige Verzeichnisse für verschiedene Nutzer haben,
+damit sie weder das ganze System noch sich gegenseitig sehen können.
+
+<item>SSH konfigurieren: Wenn Sie eine neuere Version (post-3.4) von OpenSSH
+betreiben, die die Trennung von Rechten (Privilege Separation) verwendet,
+müssen Sie das abschalten:
+<example>
+  UsePrivilegeSeparation no
+</example>
+<p>Beachten Sie, dass das die Sicherheit Ihres Systems verringern wird, da dann
+der OpenSSH-Server als <em>Root</em> laufen wird. Das bedeutet, dass wenn eine
+Angriffsmöglichkeit aus der Ferne gegen OpenSSH entdeckt wird, ein Angreifer
+<em>Root</em>-Rechte anstatt nur <em>Sshd</em>-Rechte erlangen wird und somit
+das gesamte System kompromittiert.
+<footnote>
+Wenn Sie einen Kernel verwenden, der Mandatory Access Control (RSBAC/SElinux)
+unterstützt, können Sie das Ändern der Konfiguration verhindern, indem Sie dem
+<em>Sshd</em>-Nutzer die notwendigen Rechte einräumen, um den Systemaufruf
+chroot() ausführen zu können.
+</footnote>
+
+</list>
+
+<p>Hinweis: Diese Informationen sind auch in
+<file>/usr/share/doc/libpam-chroot/README.Debian.gz</file> enthalten (und
+vielleicht aktueller). Bitte überprüfen Sie, ob dort aktualisierte
+Informationen vorhanden sind, bevor Sie die oben aufgezeigten Schritte
+ausführen.
+
+
 <sect>Automatisches Erstellen der Umgebung (der leichte Weg)
 
 <p>Mit dem Paket <package>makejail</package> können Sie leicht eine
@@ -1384,12 +1438,15 @@ Nutzer durch den Server zu beschränken, da er keine
 Bestandteil des kommerziellen Programms <prgn>sshd2</prgn> (es verwendet
 'ChrootGroups' oder 'ChrootUsers', siehe <manref name="sshd2_config"
 section="5">). Allerdings gibt es einen Patch, der <prgn>sshd</prgn> um diese
-Funktion erweitert. Den Patch erhalten Sie von <url
-id="http://bugs.debian.org/139047" name="Fehlerbericht 139047">. Der Patch
+Funktion erweitert. Den Patch erhalten Sie unter <url
+id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> (wurde in <url
+id="http://bugs.debian.org/139047" name="Fehlerbericht #139047"> nachgefragt).
+Der Patch
 könnte Bestandteil von zukünftigen Veröffentlichungen des OpenSSH-Pakets
 werden. Emmanuel Lacour bietet <prgn>ssh</prgn>-Pakete als debs mit diesen
 Fähigkeiten unter <url id="http://debian.home-dn.net/woody/ssh/">
-an. Allerdings wird empfohlen, den Weg der Kompilierung zu gehen.
+an, sie könnten aber nicht aktuell sein. Daher wird empfohlen, den Weg der
+Kompilierung zu gehen.
 
 <p>Eine Beschreibung von den notwendigen Schritten finden Sie unter <url
 id="http://mail.incredimail.com/howto/openssh/"> (so ziemlich alles trifft dort
