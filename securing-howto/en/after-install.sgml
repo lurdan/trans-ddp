@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.22 $"  -->
+<!-- CVS revision of this document "$Revision: 1.23 $"  -->
 
 <chapt>After Installation
 
@@ -101,6 +101,77 @@ then [I]nstall and finally, [C]onfigure the installed/upgraded packages.
 </example>
 <p>this is because security.debian.org is hosted in a non-US location and 
 doesn't have a separate non-US archive.
+
+<sect1 id="lib-security-update">Security update of libraries
+
+<p>Once you have executed a security update you might need to restart some
+of the system services. If you do not do this, some services might still be vulnerable
+after a security upgrade. The reason for this is that daemons that are running
+before an upgrade might still be using the old libraries before the upgrade
+<footnote>Even though the libraries have been removed from the filesystem the inodes
+will not be cleared up until no program has an open file descriptor pointing
+to them</footnote>. In order to detect which daemons might need to be restarted
+you can use the <prgn>checkrestart</prgn> program (available in the 
+<package>debian-goodies</package> package) or use this one liner (as root):
+
+<example>
+# lsof | grep dpkg- | awk '{print $1, $8}' | sort +0
+</example>
+
+<P>Some packages (like <package>libc6</package>) will do this check in the postinst
+phase for a limited set of services specially since an upgrade of essential libraries
+might break some applications (until restarted)<footnote>This happened, for example,
+in the upgrade from libc6 2.2.x to 2.3.x due to NSS authentication isues, see
+<url id="http://lists.debian.org/debian-glibc/2003/debian-glibc-200303/msg00276.html">.</footnote>.
+
+<P>Bringing the system to run level 1 (single user) and then back to
+run level 3 (multi user) should take care of the restart of most (if not all)
+system services. But this is not an option if you are executing the security
+upgrade from a remote connection (like ssh) since it will be severed.
+
+<p>Excercise caution when dealing with security upgrades if you are doing them
+over a remote connection like ssh. A suggested procedure for a security
+upgrade that involves a service restart is to restart the SSH daemon and then, inmediately,
+attempt a new ssh connection without breaking the previous one. If the connection
+fails, revert the upgrade and investigate the issue. 
+
+</sect1>
+<sect1 id="kernel-security-update">Security update of the kernel
+
+<P>If you are doing a security update which includes the kernel image
+you <em>need</em> to reboot the system in order for the security update to be useful.
+Otherwise, you will still be running the old (and vulnerable) kernel image.
+
+<!-- FIXME: Do a script to check for the above, maybe using ps -p 1 -o etime | tail -1
+and obtain the creation time of `readlink -f /vmlinuz` -->
+
+<p>If you need to do a system reboot (because of a kernel upgrade) you should
+make sure that the kernel will boot up correctly and network connectivity will be 
+restored, specially if the security upgrade is doneover a remote connection like ssh.
+For the former you can configure your boot loader to reboot to the original kernel in
+the event of a failure (for more detailed information  read
+<url id="http://www.debian-administration.org/?article=70" name="Remotely rebooting Debian GNU/Linux machines">). For the later you have to introduce a network
+connectivity test script that will check if the kernel has started up the network
+subsystem properly and reboot the system if it did not<footnote>A sample
+script called
+<url id="http://www.debian-administration.org/articles/70/testnet" name="testnet">
+is available in the <url id="http://www.debian-administration.org/?article=70" 
+name="Remotely rebooting Debian GNU/Linux machines"> article. A more elaborate 
+network connectivity testing script is available in the 
+<url id="http://www.debian-administration.org/?article=128" 
+name="Testing network connectivity"> article.</footnote>. This  should prevent
+nasty surprises like updating the kernel and then realizing, after a reboot, that
+it did not detect or configure the network hardware properly and you need
+to travel a long distance to bring the system up again. Of course, having the
+system serial console <footnote>Setting up a serial console
+is beyond the scope of this document, for more information read the 
+<url id="http://www.tldp.org/HOWTO/Serial-HOWTO.html" name="Serial HOWTO">
+and the <url id="http://www.tldp.org/HOWTO/Remote-Serial-Console-HOWTO/index.html"
+name="Remote Serial Console HOWTO">.</footnote> in the system connected to a 
+console or terminal server should also help debug reboot issues remotely.
+</p>
+
+</sect1>
 
 <sect id="bios-boot">Change the BIOS (again)
 
