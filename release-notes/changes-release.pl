@@ -6,17 +6,34 @@
 # Javier Fernandez-Sanguino Peña <jfs_at_debian.org>
 # Distributed under the GNU GPL
 
-# Debug (hardcoded)
-#$debug=1;
-# Hardcode releases and path location (yes, it ugly so sue me)
-$prevrelease="potato";
-$currelease="woody";
-$release{$prevrelease}{"main"}="Packages-potatobini386";
-$release{$prevrelease}{"contrib"}="Packages-potatocontribbini386";
-$release{$prevrelease}{"non-free"}="Packages-potatononfbini386";
-$release{$currelease}{"main"}="Packages-woodybini386";
-$release{$currelease}{"contrib"}="Packages-woodycontribbini386";
-$release{$currelease}{"non-free"}="Packages-woodynonfbini386";
+use Getopt::Std;
+# Options:
+# -d = debug
+# -p release = previous release 'release'
+# -r release = current release 'release'
+# -m dir     = use mirror directory 'dir'
+# -a arch    = use architecture 'arch'
+getopts('dp:r:m:a:');
+
+# Debug
+my $debug       = $opt_d || 0;
+# Releases and path location 
+my $prevrelease = $opt_p || "woody";
+my $currelease  = $opt_r || "sarge";
+my $mirrordir   = $opt_m || "/home/mirrors/debian/debian.org";
+my $arch        = $opt_a || "i386";
+my @releases = ( $currelease, $prevrelease ) ;
+my @components =  ("main", "contrib", "non-free") ;
+
+foreach $releasei (0 .. $#releases ) {
+	my $release = $releases[$releasei];
+	foreach $componenti (0 .. $#components ) {
+		my $component = $components[$componenti];
+		$release{$release}{$component}=$mirrordir."/dists/".$release."/".$component."/binary-".$arch."/Packages";
+		die "Cannot read  $release{$release}{$component}" if  ! -r  $release{$release}{$component};
+		print "Found component '$component' for release '$release' at $release{$release}{$component}\n" if $debug;
+	}
+}
 
 
 # Global (ugly)
