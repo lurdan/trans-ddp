@@ -25,6 +25,11 @@ my $arch        = $opt_a || "i386";
 my @releases = ( $currelease, $prevrelease ) ;
 my @components =  ("main", "contrib", "non-free") ;
 
+# Initialise
+my @added, @removed, unchanged;
+$packchanged=0;
+my %changed ;
+
 foreach $releasei (0 .. $#releases ) {
 	my $release = $releases[$releasei];
 	foreach $componenti (0 .. $#components ) {
@@ -37,7 +42,6 @@ foreach $releasei (0 .. $#releases ) {
 
 
 # Global (ugly)
-#global %packages;
 $totalnumbers{$currelease}=0;
 $totalnumbers{$prevrelease}=0;
 
@@ -57,9 +61,15 @@ foreach $file ( keys(%{$release{$currelease}}) ) {
 foreach $package ( keys(%{$packages{$prevrelease}}) ) {
 
 	if ( defined $packages{$currelease}{$package} ) {
-		check_packages($packages{$currelease}{$package},$packages{$prevrelease}{$package}) if  $packages{$currelease}{$package} ne $packages{$prevrelease}{$package};
+		my $status=check_packages($packages{$currelease}{$package},$packages{$prevrelease}{$package}) if  $packages{$currelease}{$package} ne $packages{$prevrelease}{$package};
+		if ( $status eq "" ) {
+			push @unchanged, $package;
+		} else {
+			$packchanged++;
+			$changed{$package}=$status;
+		}
 	} else {
-		print "$package -> REMOVED\n";
+		push @removed, $package;
 	}
 } # of the foreach
 
@@ -68,7 +78,7 @@ foreach $package ( keys(%{$packages{$prevrelease}}) ) {
 foreach $package ( keys(%{$packages{$currelease}}) ) {
 
 	if ( ! defined $packages{$prevrelease}{$package} ) {
-		print "$package -> ADDED\n";
+		push @added, $package;
 	}
 } # of the foreach
 
@@ -76,6 +86,35 @@ foreach $package ( keys(%{$packages{$currelease}}) ) {
 foreach $release ( keys(%totalnumbers) ) {
 	print "Total packages for ".$release.": ".$totalnumbers{$release}."\n";
 } # of the foreach
+print "Added packages: $#added\n";
+print "Removed packages: $#removed\n";
+print "Changed packages: $packchanged\n";
+print "Unchanged packages (no version update): $#unchanged\n";
+print "\nDetailed information\n\n";
+print "\n------------------\n";
+print "ADDED packages";
+print "\n------------------\n";
+foreach my $packi  ( 0 .. $#added ) {
+	print $added[$packi]."\n";
+}
+print "\n------------------\n";
+print "REMOVED packages";
+print "\n------------------\n";
+foreach my $packi  ( 0 .. $#removed ) {
+	print $removed[$packi]."\n";
+}
+print "\n------------------\n";
+print "CHANGED packages";
+print "\n------------------\n";
+foreach my $pack  ( keys %changed ) {
+	print "$pack -> $changed{$pack}";
+}
+print "\n------------------\n";
+print "UNCHANGED packages";
+print "\n------------------\n";
+foreach my $packi  ( 0 .. $#unchanged ) {
+	print $unchanged[$packi]."\n";
+}
 
 
 exit 0;
@@ -87,8 +126,9 @@ sub check_packages {
 # the other way around. Since description changes refer
 # to more important changes.
 	my($curpackage,$prevpackage)=@_;
-	$origversion=retrieve_version($prevpackage);
-	$newversion=retrieve_version($curpackage);
+	my $origversion=retrieve_version($prevpackage);
+	my $newversion=retrieve_version($curpackage);
+	my $return = "";
 	print "Comparing $origversion and $newversion\n" if $debug;
 # TODO: could use dpkg --compare-versions to determine
 # if it's an upgrade or a downgrade here....
@@ -97,14 +137,15 @@ sub check_packages {
 		$newtext=retrieve_text($curpackage);
 		print "Comparing $origtext and $newtext\n" if $debug;
 		if ( $origtext ne $newtext ) {
-			print "$package -> DESCRIPTION CHANGED ($origversion -> $newversion)\n"; 
+			$return ="DESCRIPTION CHANGED ($origversion -> $newversion)\n"; 
 		} else {
-			print "$package -> CHANGED ($origversion -> $newversion)\n"; 
+# TODO: Could check if the minor version changed only (no upstream release)
+			$return ="CHANGED ($origversion -> $newversion)\n"; 
 		}  # of if origtext newtext
 	} else  {
-		print "$package -> CHANGED (NO VERSION UPDATE)\n";
+		$return = "";
 	} # of if origversion newversion
-	return 0;
+	return $return;
 }
 
 sub retrieve_version {
