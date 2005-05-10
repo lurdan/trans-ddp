@@ -82,6 +82,11 @@ foreach $package ( keys(%{$packages{$currelease}}) ) {
 	}
 } # of the foreach
 
+# Summary
+$header="Comparison details from '$prevrelease' to '$currelease'";
+print $header."\n";
+print "-" x length($header);
+print "\n";
 # Final numbers:
 foreach $release ( keys(%totalnumbers) ) {
 	print "Total packages for ".$release.": ".$totalnumbers{$release}."\n";
