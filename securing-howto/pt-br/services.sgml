@@ -1,0 +1,1694 @@
+<!-- CVS revision of original english document "1.7" -->
+<!-- original version: 1.7 -->
+<!-- last translator: gleydson@debian.org -->
+
+<chapt id="sec-services">Tornando os serviços em execução do seu sistema mais seguros
+
+<p>Os serviços podem ser deixados mais seguros de duas formas:
+
+<list>
+
+<item>Tornando-os somente acessíveis em pontos de acessos (interfaces) 
+que são utilizados.
+
+<item>Configurando-os adequadamente, desta forma eles poderão somente ser usados
+por usuários legítimos de forma autorizada.
+
+</list>
+
+<p>A restrição de serviços de forma que possam somente ser acessados de um determinado
+lugar pode ser feito restringindo o acesso a eles no nível de kernel (i.e. firewall), 
+configure-os para operar somente em interfaces definidas (alguns serviços podem não ter
+esta característica) ou usando algum outro método, por exemplo o patch vserver do 
+Linux (para 2.4.16) pode ser usado para forçar o kernel a utilizar somente uma 
+interface de rede.
+
+<p>Com relação a serviços sendo executados a partir do <prgn>inetd</prgn> (<prgn>telnet</prgn>,
+<prgn>ftp</prgn>, <prgn>finger</prgn>, <prgn>pop3</prgn>...) é importante notar que
+o <prgn>inetd</prgn> pode ser configurado para que os serviços somente executem em 
+uma interface definida (usando a sintaxe <tt>serviço@ip</tt>) mas esta é uma 
+característica não documentada.
+Um de seus substitutos, o meta-daemon <prgn>xinetd</prgn> inclui uma opção chamada 
+<tt>bind</tt> apenas para controlar este comportamento. Veja <manref name="xinetd.conf"
+section="5">.
+
+
+<example>
+service nntp
+{
+        socket_type     = stream
+        protocol        = tcp
+        wait            = no
+        user            = news
+        group           = news
+        server          = /usr/bin/env
+        server_args     = POSTING_OK=1 PATH=/usr/sbin/:/usr/bin:/sbin/:/bin
++/usr/sbin/snntpd logger -p news.info
+        bind            = 127.0.0.1
+} 
+</example>
+
+<p>As seguintes seções detalham como alguns serviços individuais podem ser configurados
+adequadamente conforme sua utilização.
+
+
+<sect>Tornando o ssh mais seguro
+<p>
+Caso ainda estiver usando o telnet ao invés do ssh, você deverá dar 
+uma parada na leitura deste manual e alterar isto. O ssh deve ser 
+usado para qualquer login remoto ao invés do telnet. Em uma era onde
+é fácil capturar o tráfego que circula na internet e obter senhas em 
+texto plano, você deverá usar somente protocolos que utilizam 
+criptografia. Assim, execute um <tt>apt-get install ssh</tt> agora 
+em seu sistema.
+
+<p>Encoraje todos os usuários em seu sistema para utilizarem o 
+ssh ao invés do telnet, ou até mesmo melhor, remova o 
+telnet/telnetd. Em adição, você deverá evitar entrar no sistema usando 
+o ssh como usuário root e ao invés disto, usar métodos alternativos para se 
+tornar o root, como o <prgn>su</prgn> ou <prgn>sudo</prgn>. 
+Finalmente, o arquivo <file>sshd_config</file> no diretório
+<file>/etc/ssh</file>, também deverá ser modificado para aumentar 
+a segurança:
+
+<list>
+<item><tt>ListenAddress 192.168.0.1</tt> <p>Especifica que o ssh somente
+funcionará na interface especificada, caso tenha mais de uma interface (e 
+não deseja que o ssh funcione através delas) ou em caso de adição de 
+uma futura interface de rede (onde não deseja receber conexões ssh através
+dela).
+
+<item><tt>PermitRootLogin no</tt>
+
+<p>Tenta não permitir o login do usuário Root sempre que possível. Se alguém quiser 
+se tornar o usuário root usando ssh, agora dois logins são necessários e o ataque
+brute force não terá efeito no root via SSH.
+
+<item><tt>Listen 666</tt>
+
+<p>Altera a porta do programa, assim o intruso não terá completa certeza de onde 
+o daemon sshd é executado (esteja avisado, isto é segurança por obscuridade).
+
+<item><tt>PermitEmptyPasswords no</tt>
+<p>Senhas em branco tornam a segurança do seu sistema um fiasco.
+
+<item><tt>AllowUsers alex ref me@algumlugar</tt>
+<p>Permite somente certos usuários terão acesso via ssh a esta maquina. <tt>usuario@maquina</tt> 
+pode também ser usado para restringir um determinado usuario de acessar somente através de uma
+maquina especificada.
+
+<item><tt>AllowGroups wheel admin</tt>
+<p>Permite somente membros de certos grupos de terem acesso ao ssh 
+nesta maquina. AllowGroups e AllowUsers possuem diretivas equivalentes
+para bloquear o acesso a maquina. Não se surpreenda por eles serem chamados
+de "DenyUsers" e "DenyGroups".
+
+<item><tt>PasswordAuthentication yes</tt>
+
+<p>Esta escolha fica completamente por sua conta. É mais seguro 
+somente permitir o acesso a maquina de usuários com chaves ssh colocadas
+em <file>~/.ssh/authorized_keys</file>. Se deseja isto, ajuste esta 
+opção para "no".
+<!-- FIXME: what does this mean? Is it "more secure" to set this to
+"no"? (era) --> <!-- jfs, IMHO yes since you place the key of the
+incoming host in your server and the authentication is done against
+the key -->
+
+<item>Desative quaisquer outras formas de autenticação que realmente não precisa, se 
+não usar, por exemplo <tt>RhostsRSAAuthentication</tt>,
+<tt>HostbasedAuthentication</tt>, <tt>KerberosAuthentication</tt> ou
+<tt>RhostsAuthentication</tt>, você deverá desativa-las, até mesmo 
+se forem usadas por padrão (veja a página de manual <manref
+name="sshd_config" section="5">).
+
+<item><tt>Protocol 2</tt>
+<p>Desative o protocolo da versão 1, pois ele tem alguns problemas de 
+design que torna fácil a descoberta de senhas. Para mais informações
+leia <url id="http://earthops.net/ssh-timing.pdf"
+name="documento relacionando problemas do protocolo ssh"> ou o
+<url id="http://xforce.iss.net/static/6449.php" name="aviso Xforce">.
+
+<item><tt>Banner /etc/some_file</tt>
+<p>Adiciona um banner (ele será lido de um arquivo) para usuários se 
+conectando ao servidor ssh, em alguns países o envio de avisos antes de 
+acessar um determinado sistema alertando sobre acesso não autorizado ou 
+monitoramento de usuários deverá ser emitido para ter proteção legal.
+
+</list>
+
+<p>Você também poderá restringir o acesso ao servidor ssh usando o 
+<tt>pam_listfile</tt> ou <tt>pam_wheel</tt> no arquivo de controle PAM
+para o ssh restringir os logins ssh. Por exemplo, se quiser manter 
+qualquer pessoa não listada em <file>/etc/loginusers</file> adicionando esta
+linha no <file>/etc/pam.d/ssh</file>:
+
+<example>
+auth       required     pam_listfile.so sense=allow onerr=fail item=user file=/etc/loginusers
+</example>
+
+<p>Como nota final, tenha atenção que estas diretivas são válidas para
+um arquivo de configuração do OpenSSH. Atualmente, não freqüentemente
+usados três tipos de implementações conhecidas do daemon: ssh1, ssh2 e OpenSSH
+feito pelo time do OpenBSD. O ssh1 foi o primeiro daemon disponível
+e é ainda o mais usado (existem rumores que até existe um porte para 
+Windows). O ssh2 possui mais vantagens sobre o ssh2, exceto que ele é lançado
+sob uma licença fonte fechado. O OpenSSH é um daemon ssh completamente livre,
+que suporta ambos os protocolos ssh1 e ssh2. O OpenSSH é a versão instalada
+junto a Debian quando o pacote <package>ssh</package> é escolhido.
+
+<p>Você pode ler mais informações sobre como configurar um SSH com suporte a PAM em <url
+id="http://lists.debian.org/debian-security/2001/debian-security-200111/msg00395.html"
+name="arquivos da lista de segurança">.
+
+<sect1 id="ssh-chroot">Executando o ssh em uma jaula chroot
+<p>
+
+<p>O OpenSSH atualmente não suporta um método de 
+chroot automático durante a conexão do usuário (a versão 
+comercial oferece esta funcionalidade). No entanto existe um
+projeto para fornecer esta funcionalidade também para o ssh, veja <url
+id="http://chrootssh.sourceforge.net">, atualmente ele não esta 
+empacotado para a Debian. Você poderá usar, no entanto, o módulo
+<file>pam_chroot</file> como descrito em <ref
+id="user-restrict">.
+
+<p>Em <ref id="chroot-ssh-env"> você terá diversas opções para criar um 
+ambiente chroot para o SSH.
+
+<sect1>Clientes do ssh
+
+<p>Se estiver usando um cliente SSH com um servidor SSH, você deverá ter certeza
+que ele suporta os mesmos protocolos que são especificados no servidor. Por 
+exemplo, se utilizar o pacote <package>mindterm</package>, ele somente 
+utiliza a versão 1 . No entanto, o servidor ssh utiliza, por padrão, 
+a configuração para aceitar somente conexões para o protocolo da versão 2 
+(por razões de segurança).
+
+<sect1>Desativando transferências de arquivos
+
+<p>Se <em>não</em> quiser que seus usuários transfiram arquivos do servidor 
+ssh, você precisará restringir acesso ao <prgn>sftp-server</prgn>
+<em>e</em> ao <prgn>scp</prgn>. Você poderá restringir o 
+<prgn>sftp-server</prgn> configurando o sub-sistema 
+<tt>Subsystem</tt> no arquivo <file>/etc/ssh/sshd_config</file>. No entanto
+para restringir o acesso ao <prgn>scp</prgn> você deverá:
+
+<list>
+
+<item>bloquear o login de usuários ao servidor ssh (como descrito acima
+no arquivo de configuração ou configuração do PAM).
+
+<item>não fornecer shells validas para usuários que não tem permissão de realizar transferências
+de arquivos seguras. O shell fornecido, no entanto, programas que podem
+tornar a conexão ao ssh útil, como o menu (estilo BBS). Caso contrário, 
+a opção anterior é a preferida.
+<!-- FIXME: What do you mean with "was useful at all" ? -->
+
+</list>
+
+<sect>Tornando o Squid mais seguro
+
+<p>
+O Squid é um dos servidores proxy/cache mais populares e 
+existem algumas considerações de segurança que devem ser levadas em 
+conta. O arquivo de configuração padrão do squid nega todas as 
+requisições de usuários. No entanto, o pacote da Debian 
+permite o acesso através de "localhost", você apenas precisa 
+configurar seu navegador adequadamente. Configure o Squid para 
+permitir acesso aos usuários confiáveis, máquinas ou redes definindo uma 
+lista de controle de acesso no arquivo <file>/etc/squid.conf</file>, 
+veja o endereço <url name="Guia do Usuário Squid" id="http://squid-docs.sourceforge.net/latest/html/book1.html"> para mais informações sobre a definição de regras de ACLs. Note que a 
+Debian oferece uma configuração mínima para o Squid que prevenirá 
+tudo, exceto a conexão de <em>localhost</em> em seu servidor proxy 
+(que é executado na porta padrão 3128)
+É necessária a personalização do arquivo de configuração <file>/etc/squid.conf</file> 
+como necessário.
+A configuração mínima recomendada (fornecida com o pacote) é mostrada abaixo:
+
+<example>
+acl all src 0.0.0.0/0.0.0.0
+acl manager proto cache_object
+acl localhost src 127.0.0.1/255.255.255.255
+acl SSL_ports port 443 563
+acl Safe_ports port 80          # http
+acl Safe_ports port 21          # ftp
+acl Safe_ports port 443 563     # https, snews
+acl Safe_ports port 70          # gopher
+acl Safe_ports port 210         # wais
+acl Safe_ports port 1025-65535  # portas não registradas
+acl Safe_ports port 280         # http-mgmt
+acl Safe_ports port 488         # gss-http
+acl Safe_ports port 591         # filemaker
+acl Safe_ports port 777         # multiling http
+acl Safe_ports port 901         # SWAT
+acl purge method PURGE
+acl CONNECT method CONNECT
+(...)
+# Somente permite acesso do cachemgr vindos de localhost
+http_access allow manager localhost
+http_access deny manager
+# Somente permite requisições de purge vindas de localhost
+http_access allow purge localhost
+http_access deny purge
+# Bloqueia requisições para portas desconhecidas
+http_access deny !Safe_ports
+# Bloqueia CONNECT a portas que não sejam SSL
+http_access deny CONNECT !SSL_ports
+#
+# INSIRA SUAS PRÓPRIAS REGRAS AQUI PARA PERMITIR O ACESSO DE SEUS CLIENTE
+#
+http_access allow localhost
+# E finalmente bloqueia qualquer outro acesso a este proxy
+http_access deny all
+#Padrão:
+# icp_access deny all
+#
+#Permite requisições ICQ vindas de qualquer pessoa
+icp_access allow all
+</example>
+
+<p>Você também deverá configurar o Squid baseado nos recursos do seu 
+sistema, incluindo a memória cache (opção <tt>cache_mem</tt>), localização
+dos arquivos de cache e quantidade de espaço que utilizarão no disco (opção 
+<tt>cache_dir</tt>).
+
+<p>Note que, se não for corretamente configurado, alguém poderá enviar mensagens 
+de e-mail através do squid, pois os protocolos HTTP e SMTP tem design similar. O 
+arquivo de configuração padrão do Squid bloqueia o acesso a porta 25. Se desejar 
+permitir conexões a porta 25, apenas adicione-a a lista Safe_ports. No entanto, 
+isto <em>NÃO</em> é recomendado.
+
+<p>Ajustar e configurar um servidor proxy/cache é apenas parte da tarefa 
+de manter um site seguro. Outra tarefa necessária é a análise dos logs do Squid 
+para ter certeza que todas as coisas estão funcionando como deveriam estar. 
+Existem alguns pacotes na Debian GNU/Linux que podem ajudar o administrador
+a fazer isto. Os seguintes pacotes estão disponíveis na woody 
+(Debian 3.0):
+
+<list>
+<item><package>calamaris</package> - Analisador de arquivos de log para o Squid ou 
+log do proxy Oops
+<item><package>modlogan</package>  - Um analisador de arquivos e log modular.
+<!-- This one is no longer available?
+<item><package>sarg</package> - Squid Analysis Report Generator.
+-->
+<item><package>squidtaild</package> - Programa de monitoramento de logs do Squid.
+</list>
+
+<p>Quando estiver usando o squid em modo acelerador, ele atuará como servidor 
+web também. Ativando esta opção, a complexidade do código aumenta,
+tornando-a menos confiável. Por padrão, o squid não é configurado para 
+atuar como um servidor web, assim não precisará se preocupar com isto. 
+Note que se quiser usar esta característica, tenha certeza que é 
+realmente necessária. Para encontrar mais informações sobre o modo 
+acelerador do Squid, veja <url name="Squid User's Guide #Chapter9"
+id="http://squid-docs.sourceforge.net/latest/html/c2416.html">.
+
+
+<sect id="ftp-secure">Tornando o FTP mais seguro
+
+<p>
+Se realmente precisar usar o FTP (sem transporta-lo com sslwrap ou 
+dentro de um tunel SSL ou SSH), você deverá fazer um chroot dentro
+do diretório de usuários do ftp, assim o usuário será incapaz de 
+ver qualquer coisa que não seja seu próprio diretório. Caso contrário, 
+ele poderá atravessar seu sistema de arquivos raíz como se tivesse 
+uma conta shell. Você poderá adicionar a seguinte linha no seu 
+arquivo <file>proftpd.conf</file> na sua seção global para ativar
+esta característica chroot:
+
+<example>
+DefaultRoot ~
+</example>
+
+<p>Reinicie o proftpd executando <tt>/etc/init.d/proftpd restart</tt> e 
+verifique se agora pode escapar do seu diretório de usuário.
+
+<P>Para prevenir ataques DoS usando ../../.., adicione a seguinte linha no 
+seu arquivo <file>/etc/proftpd.conf</file>:
+
+<tt>DenyFilter \*.*/</tt>
+
+<p>Lembre-se sempre que o FTP envia o login e senhas de autenticação 
+em texto plano (isto não é um problema se estiver oferecendo acesso
+a serviços públicos) e até mesmo existem alternativas melhores na 
+Debian para isto. Por exemplo, o <prgn>sftp</prgn> (fornecido pelo pacote
+<package>ssh</package>). Também existem implementações livres do ssh para
+outros sistemas operacionais, por exemplo: <url
+id="http://www.chiark.greenend.org.uk/~sgtatham/putty/" name="putty">
+e o <url id="http://www.cygwin.com" name="cygwin">.
+
+<!-- contributed by Jesus Climent --> 
+<p>No entanto, se você ainda mantém um servidor FTP enquanto ainda 
+disponibiliza o acesso através do SSH você deve encontrar um problema típico.
+Usuários acessando servidores FTP anônimos dentro de sistemas 
+protegidos com o SSH devem tentar se logar se logar no 
+<em>FTP server</em>. Enquanto o acesso será recusado, as senhas 
+nunca serão enviadas na rede de forma desprotegida. Para 
+evitar isto, o desenvolvedor  TJ Sauders do ProFTPd , criou um 
+patch que evita que os usuários utilizem um servidor FTP anônimo
+com uma conta válida do ssh. Mais informações e o patch estão
+disponíveis em: <url
+id="http://www.castaglia.org/proftpd/#Patches" name="ProFTPD
+Patches">. Este patch também foi reportado para a Debian, veja
+<url id="http://bugs.debian.org/145669" name="Bug #145669">.
+
+<sect>Tornando o acesso ao sistema X Window mais seguro
+<p>
+Hoje em dia, terminais do X são usados por mais e mais empresas 
+onde é necessário para várias estações de trabalho. Isto pode 
+ser perigoso, porque você precisa permitir o servidor de arquivos
+a se conectar aos clientes (a partir do ponto de vista do 
+servidor X, o X altera a definição de cliente e servidor). Se você 
+seguir a (péssima) sugestão de muitas documentações você digitará
+<tt>xhost +</tt> em sua máquina. Isto permitirá qualquer cliente do 
+X a se conectar em seu sistema. Para ter um pouco mais de segurança, 
+você deverá usar comando <tt>xhost +hostname</tt> ao invés de 
+somente permitir acessos através de máquinas específicas.
+
+<p>
+Uma solução muito mais segura, no entanto, é usar o ssh para 
+fazer o túnel do X e criptografia  <!-- FIXME: e "compactação" --> 
+para toda a seção. Isto é feito automaticamente quando você faz 
+um ssh para a outra máquina.
+
+<!-- Isto deve ser ativado no <file>/etc/ssh/ssh_config</file> ajustando -->
+<!-- a opção <tt>X11Forwarding</tt> para <tt>yes</tt>. -->
+
+Para isto funcionar, você terá que configurar ambos o cliente ssh e 
+o servidor ssh. No cliente ssh, a opção <tt>ForwardX11</tt> deverá estar 
+ajustada para <tt>yes</tt> no arquivo <file>/etc/ssh/ssh_config</file>. 
+No servidor ssh, a opção <tt>X11Forwarding</tt> deverá estar ajustada para 
+<tt>yes</tt> no arquivo <file>/etc/ssh/sshd_config</file> e o pacote 
+<package>xbase-clients</package> deverá estar instalado, pois o 
+servidor ssh utiliza o <file>/usr/X11R6/bin/xauth</file> quando está 
+configurando uma tela de pseudo terminal do X.
+<!-- descobri isto quando configurei duas máquinas com instalação mínima -->
+
+Nos tempos do SSH, agora você deverá deixar de usar o controle de 
+acesso baseado em xhost completamente.
+<!-- FIXME: verifique. O texto diz "precisa desativar" [sic] -->
+
+<p>
+Para melhor segurança, você não precisará permitir o acesso ao X 
+a partir de outras máquinas, isto é feito desativando o servidor
+na porta 6000 simplesmente digitando:
+
+<example>$ startx -- -nolisten tcp</example>
+
+
+<p>Este é o comportamento padrão do Xfree 4.1.0 (o Xserver fornecido na
+Debian 3.0). Se estiver executando o Xfree 3.3.6 (i.e. você tem a 
+Debian 2.2 instalada) você poderá editar o arquivo <file>/etc/X11/xinit/xserverrcc</file> e fazer a alteração nestas seguintes linhas:
+
+<example>
+#!/bin/sh
+exec /usr/bin/X11/X -dpi 100 -nolisten tcp
+</example>
+
+<p>Se estiver usando o conjunto do XDM altere no arquivo <file>/etc/X11/xdm/Xservers</file> para:
+<tt>:0 local /usr/bin/X11/X vt7 -dpi 100 -nolisten tcp</tt>. Se estiver 
+usando o Gdm tenha certeza que a opção <tt>-nolisten tcp</tt> está 
+definida no arquivo <file>/etc/gdm/gdm.conf</file> (que é o padrão na Debian)
+tal como esta:
+
+<example>
+[server-Standard]
+name=Standard Server
+command=/usr/bin/X11/X -nolisten tcp
+</example>
+
+<p>Você também poderá configurar o timeout padrão para o travamento do 
+<prgn>xscreensaver</prgn>. Até mesmo se o usuário substituir este 
+valor, você poderá editar o arquivo <file>/etc/X11/app-defaults/XScreenSaver</file>
+e alterar a linha:
+<example>
+*lock:                  False
+</example>
+<p>(que é padrão na Debian) para:
+<example>
+*lock:                  True
+</example>
+
+<p>FIXME: adicionar informações sobre como desativar as proteções de 
+tela que mostra o desktop do usuário (que pode conter informações 
+sensíveis).
+
+<p>Leia mais sobre a segurança em servidores X Window em
+<url
+name="XWindow-User-HOWTO"
+id="http://www.tldp.org/HOWTO/XWindow-User-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/XWindow-User-HOWTO.txt.gz</file>).
+
+
+<p>FIXME: Adicionar informações sobre a thread na debian-security sobre 
+como alterar os arquivos de configuração no servidor XFree 3.3.6 para fazer isto. 
+
+<sect1>Verifique seu gerenciador de tela
+<p>
+Se somente quiser ter um gerenciador de tela instalado para uso local
+(tendo um lindo login gráfico) tenha certeza que tudo que estiver 
+relacionado com o XDMCP (X Display Manager Control Protocol) está desativado. 
+No XDM você poderá fazer isto através da linha em <tt>/etc/X11/xdm/xdm-config</tt>:
+
+<example>
+DisplayManager.requestPort:     0
+</example>
+
+<p>Normalmente, todos os gerenciadores de tela estão configurados para não
+iniciar serviços do XDMCP por padrão na Debian.
+
+
+<sect>Tornando o servidor de impressão mais seguro (sobre o lpd e lprng)
+
+<p>Imagine, você chegando ao trabalho e a impressora jogando fora uma 
+quantidade impressionante de papel porque alguém esta fazendo um DoS em 
+seu daemon de impressão. Desagradável, não é?
+
+<!-- Info based on Dale Southard's post to debian-security april 11th 2002-->
+<p>Em qualquer arquitetura de impressão do unix, deverá existir uma forma
+de enviar os dados do cliente para o servidor de impressão. No tradicional
+<prgn>lpr</prgn> e <prgn>lp</prgn>, os comandos do cliente copiam ou fazem
+um link simbólico de dados no diretório de spool (este é o motivo porque 
+estes programas normalmente são SUID ou SGID).
+
+<p>Para evitar quaisquer anormalidade, você deverá manter o seu servidor
+de impressão especialmente seguro. Isto significa que precisa configurar
+seu serviço de impressão de forma que só permita conexões de um conjunto
+de máquinas confiáveis. Para fazer isto, adicione os servidores que deseja
+permitir a impressão em seu arquivo
+<file>/etc/hosts.lpd</file>.
+
+<p>No entanto, até mesmo se fizer isto, o <prgn>lpr</prgn> aceitará
+conexões de entrada na porta 515 de qualquer interface. Você deverá
+considerar fazer um firewall das conexões de redes/hosts que não
+tem permissão de impressão (o daemon <prgn>lpr</prgn> não tem a possibilidade
+de aceitar conexões em somente um determinado endereço IP). 
+
+<!-- FIXME
+<p>É claro, você deverá pegar os fontes do lpr/lprng e 
+altera-los para que a função de conexão seja feita somente para "127.0.0.1".
+apt-get source lpr
+e aplique um patch na chamada bind (finet)
+-->
+
+<p>O <prgn>Lprng</prgn> deverá ser o preferido em cima do <prgn>lpr</prgn>
+pois ele pode ser configurado para fazer controle de acesso por IP. E
+você poderá especificar qual interface escutará por conexões 
+(although somewhat weirdly).
+
+<!-- FIXME: pergunte a Craig Small sobre sua postagem na debian-private em 19 de Outubro de 2001 
+-->
+
+<p>Se utilizar uma impressora em seu sistema, mas somente localmente, você não desejará 
+compartilhar este serviço através de uma rede. Você poderá considerar 
+o uso de outros sistemas de impressão, tal como o fornecido pelo pacote 
+<package>cups</package> ou pelo <url name="PDQ"
+id="http://pdq.sourceforge.net/"> que é baseado em permissões do usuário no 
+dispositivo <file>/dev/lp0</file>.
+
+<p>No <package>cups</package>, os dados de impressão são transferidos ao servidores
+via protocolo http. Isto significa que o programa cliente não precisa de 
+qualquer privilégio especial, mas requer que o servidor escute em uma porta, 
+em algum lugar.
+
+<p>No entanto, se quiser usar o <prgn>cups</prgn>, mas somente localmente,
+você poderá configura-lo para escutar na interface loopback alterando o 
+arquivo de configuração <file>/etc/cups/cupsd.conf</file>:
+
+<example>
+Listen 127.0.0.1:631
+</example>
+
+<P>Existem muitas outras opções de segurança como permitir ou bloquear
+redes e máquinas neste arquivo de configuração. No entanto, se você não
+precisar delas, será melhor que limite simplesmente a porta onde o 
+programa espera por conexões. O <prgn>Cups</prgn> também serve 
+documentações através da porta HTTP, Se não quiser revelar que informações 
+úteis a invasores externos (e a porta está aberta) também adicione:
+
+<example>
+&lt;Location /&gt;
+  Order Deny,Allow
+   Deny From All
+    Allow From 127.0.0.1
+&lt;/Locationi&gt;
+</example>
+
+<p>Este arquivo de configuração pode ser modificado para adicionar algumas outras 
+características incluindo certificados SSL/TLS e criptografia. Os manuais estão
+disponíveis em http://localhost:631/ ou em <url id="cups.org">.  
+
+<P>FIXME: Adicionar mais conteúdo (o artigo em <url name="Amateur Fortress
+Building" id="http://www.rootprompt.org"> fornecendo visões mais 
+interessantes).  
+
+<p>FIXME: Verificar se o PDG está disponível na Debian, e se estiver, 
+sugerir como sistema de impressão preferido.
+
+<p>FIXME: Verificar se o Farmer/Wietse possui um substituto para daemon
+de impressão e se está disponível na Debian.
+
+<sect>Tornando o serviço de e-mails seguro
+
+<p>Se seu servidor não for um servidor de mensagens, e realmente não precisa 
+ter um programa esperando por conexões de entradas, mas deseja que as mensagens
+locais sejam entregues, por exemplo, para recebimento de mensagens do usuário root
+de qualquer alerta de segurança que tenha no local.
+
+<p>Se tiver o <prgn>exim</prgn> você não precisará do daemon funcionando
+para fazer isto, pois o pacote padrão do <prgn>cron</prgn> esvazia a 
+fila de mensagens. Veja <ref id="disableserv"> para saber como fazer isto.
+
+<sect1>Configurando um programa de e-mails nulo
+
+<p>Você pode querer ter um daemon de mensagens locais assim ele poderá 
+repassar os e-mails enviados localmente para outro sistema. Isto é comum 
+quando você tem que administrar um número de máquinas e não quer conectar 
+a cada uma delas para ler as mensagens enviadas localmente. Assim como todos 
+os logs de cada sistema individual pode se centralizado usando um servidor de logs
+central, as mensagens podem ser enviadas para um servidor de mensagens 
+central.
+
+<p>Tal sistema <em>somente-repasse</em> deverá ser configurado adequadamente para 
+fazer isto. O daemon poderá, também, ser configurado para somente esperar por
+conexões no endereço de loopback.
+
+<P>FIXME: Isto deverá ser atualizado para o exim4, que é o MTA padrão da
+sarge e distribuições mais atuais (e espera por conexões somente em 
+localhost na configuração padrão mínima)
+
+<p>Para fazer isto em um sistema Debian 3.0 usando o pacote <package>exim</package>, 
+você terá que remover o daemon smtp do <prgn>inetd</prgn>:
+<example>
+$ update-inetd --disable smtp
+</example>
+
+<p>e configurar o daemon de mensagens para somente esperar por conexões na 
+interface loopback. No <prgn>exim</prgn> (o MTA padrão) você poderá fazer
+isto editando o arquivo de configuração <file>/etc/exim.conf</file> e 
+adicionando a seguinte linha:
+
+<example>
+local_interfaces = "127.0.0.1"
+</example>
+
+<p>Reinicie ambos os daemons (inetd e exim) e você terá o exim
+esperando por conexões somente no soquete 127.0.0.1:25. Seja cauteloso e
+desative primeiro o inetd, caso contrário, o exim não iniciará pois o daemon 
+do inetd já está esperando por conexões de entrada.
+
+<p>Para o <prgn>postfix</prgn>, edite o arquivo <file>/etc/postfix/main.conf</file>:
+
+<example>
+inet_interfaces = localhost
+</example>
+
+<p>Se quiser somente mensagens locais, este método é melhor que 
+utilizar o método tcp wrappers no daemon de mensagens ou adicionar 
+regras de firewall para que ninguém acesse-o. No entanto, se 
+precisar que el escute em outras interfaces, você deverá considerar 
+carrega-lo a partir do inetd e adicionar um tcp wrapper, assim 
+as conexões de entradas são verificadas nos arquivos
+<file>/etc/hosts.allow</file> e <file>/etc/hosts.deny</file>. Também, 
+você deverá estar atento sobre acessos não autorizados sendo tentados 
+sobre o seu daemon de mensagens, se configurar adequadamente o 
+log de mensagens do seu sistema para qualquer um dos métodos acima.
+
+<p>Em qualquer caso, para rejeitar tentativas de repasse de mensagens a nível
+SMTP, você deverá alterar o arquivo <file>/etc/exim/exim.conf</file> para
+incluir:
+
+<example>
+receiver_verify = true
+</example>
+
+<p>Até mesmo se seu servidor de e-mails não repasse a mensagem, este tipo de 
+configuração é necessário para o teste de relay em <url
+id="http://www.abuse.net/relay.html"> para determinar que seu servidor
+<em>não</em> é capaz de repassar mensagens.
+
+<p>No entanto, se desejar uma configuração somente leitura, você poderá 
+considerar a alteração do daemon de mensagens para programas que 
+podem <em>somente</em> serem configurados para redirecionar as mensagens para 
+servidores de mensagens remotas. A Debian atualmente oferece o pacote
+<package>ssmtp</package> e o <package>nullmailer</pacakge> para 
+este propósito. Em qualquer caso, você deverá avaliar por si mesmo quaisquer 
+dos agentes de transporte de mensagens
+<footnote>
+para obter uma lista de todos os daemons de mensagens disponíveis na Debian, 
+execute o comando:
+<example>
+$ apt-cache search mail-transport-agent
+</example>
+<p>A lista não incluirá o <prgn>qmail</prgn>, que é distribuído somente
+como código fonte no pacote <package>qmail-src</package>.
+</footnote>
+fornecido com a Debian e veja que programa atende melhor aos propósitos 
+do sistema.
+
+<sect1>Fornecendo acesso seguro as caixas de mensagens
+
+<p>Se quiser oferecer acesso remoto as caixas de mensagens, existe um 
+número de daemons POP3 e IMAP disponíveis
+<footnote>Uma lista de servidores/daemons que suportam estes
+protocolos podem ser obtidos com:
+<example>
+$ apt-cache search pop3-server
+$ apt-cache search imap-server
+</example>
+</footnote>
+. No entanto, se você oferecer acesso a IMAP, note que ele é um protocolo de acesso
+a arquivos, ele pode se tornar equivalente a um acesso shell porque os usuários podem ser capazes de obter qualquer arquivo através dele.
+
+<p>Tente, por exemplo, configurar como seu 
+caminho para a inbox<tt>{servidor.com}/etc/passwd</tt> se ele 
+abrir o arquivo com sucesso, seu daemon IMAP não está corretamente
+configurado para prevenir este tipo de acesso.
+
+<p>Dos servidores de IMAP existentes na Debian, o servidor <prgn>cyrus</prgn> 
+(do pacote <package>cyrus-imapd</package>) contorna isto tendo 
+todos os acessos sendo em um banco de dados mantido em uma parte 
+restrita do sistema de arquivos. Também o 
+<prgn>uw-imapd</prgn> (ou instale o <package>uw-imapd</package>
+ou melhor, se seus clientes IMAP o suportam,
+<package>uw-imapd-ssl</package>) poderá ser configurado para fazer o chroot do
+diretório dos usuários de mensagens mas isto não é ativado por padrão. 
+A documentação fornecida oferece mais informações sober como configura-lo.
+
+<p>Também, você pode tentar executar um servidor IMAP que não 
+precisa de usuários válidos sendo criados no sistema local 
+(que também oferece acesso a shell) ambos os pacotes 
+<package>courier-imap</package> (para IMAP) e
+<package>courier-pop</package> <package>teapop</package> (para o POP3)
+e o <package>cyrus-imapd</package> (para ambos POP3 e IMAP) fornecem
+servidores com métodos de autenticação que não dependem de contas 
+locais de usuários O <prgn>cyrus</prgn> pode usar qualquer método de 
+autenticação que pode ser configurado através do PAM <prgn>teapop</prgn> 
+pode usar bancos de dados (tal como o <package>postgresql</package> e o
+<package>mysql</package>) para autenticação do usuário.
+
+
+<p>FIXME: Verifique: <package>uw-imapd</package> também precisa ser configurado com 
+autenticação do usuário através de PAM...
+
+<sect1>Recebendo mensagens de forma segura
+<p>
+A leitura/recebimento de mensagens é o protocolo de texto puro mais comum.
+Se usar ou POP3 ou IMAP para obter suas mensagens, você enviará sua 
+senha em texto plano através da rede, assim praticamente qualquer um
+poderá ler suas mensagens de agora em diante. Ao invés disto, utiliza
+SSL (Secure Sockets Layer) para receber seus e-mails. A outra alternativa
+é o ssh, se tiver uma conta shell na máquina que atua como seu servidor POP ou
+IMAP. Aqui está um arquivo de configuração <file>fetchmailrc</file> básico
+para demonstrar isto:
+
+<example>
+poll my-imap-mailserver.org via "localhost"
+  with proto IMAP port 1236
+      user "ref" there with password "hackme" is alex here warnings 3600
+    folders
+      .Mail/debian
+    preconnect 'ssh -f -P -C -L 1236:my-imap-mailserver.org:143 -l ref
+     my-imap-mailserver.org sleep 15 &lt;/dev/null &gt; /dev/null'
+</example>
+
+<p>A linha preconnect é importante. Ela executa uma seção ssh e cria o túnel
+necessário, que automaticamente redireciona conexões para localhost da porta
+1236 para o servidor de mensagens IMAP, mas de forma criptografada. 
+Outra possibilidade será usar o fetchmail com características ssl.
+
+<p>Se deseja fornecer serviços de mensagens criptografadas como 
+POP e IMAP,<tt>apt-get install stunnel</tt> e inicie seus daemons 
+da seguinte forma:
+
+<example>
+stunnel -p /etc/ssl/certs/stunnel.pem -d pop3s -l /usr/sbin/popd
+</example>
+
+
+<p>Este comando direciona as conexões do daemon fornecido (-l) para a porta (-d) e 
+utiliza o certificado ssl especificado (-p).
+
+
+
+<sect id="sec-bind">Tornando o BIND mais seguro
+
+<p>Existem diferentes métodos que podem ser usados para deixar o daemon de 
+serviços de Domínio mais seguro, que são parecidos com os mostrados considerados
+quando tornamos qualquer determinado serviço mais seguro:
+
+<list>
+
+<item>configurando o próprio daemon adequadamente assim ele
+não poderá ser abusado de fora (veja <ref id="configure-bind">) 
+Isto inclui limitar requisições de clientes: transferências de 
+zonas e pesquisas recursivas.
+
+<item>limitar o acesso do daemon ao próprio servidor assim se ele for 
+usado para um corrompimento, a falha no sistema será limitada. Isto 
+inclui executar o daemon como um usuário não-privilegiado (veja 
+<ref id="user-bind">) e fazendo ele rodar dentro um chroot 
+(see <ref id="chroot-bind">)
+
+</list>
+
+<sect1 id="configure-bind">Configuração do Bind para evitar má utilização
+
+<p>Você deverá restringir algumas das informações que são servidas pelo BIND para 
+clientes externos, assim não poderão ser usadas para obter informações sobre
+sua empresa que não deseja dar. Isto inclui adicionar as seguintes opções:
+<em>allow-transfer</em>, <em>allow-query</em>,
+<em>allow-recursion</em> e <em>version</em>. Você pode ou limitar 
+esta seção global (assim aplicando a todas as zonas que são servidas) ou 
+por zona. Esta informação está incluída no pacote
+<package>bind-doc</package>, leia mais sobre isto em
+<file>/usr/share/doc/bind/html/index.html</file> assim que o pacote for
+instalado.
+
+<p>Imagine que seu servidor (um servidor básico contendo múltiplos endereços)
+está conectado a Internet e a sua rede interna (seu endereço IP é 192.168.1.2), 
+você não quer oferecer qualquer serviço para os computadores. Você poderá restringir
+o bind incluindo o seguinte no
+<file>/etc/bind/named.conf</file>:
+
+<example>
+options {
+	    allow-query { 192.168.1/24; } ;
+	    allow-transfer { none; } ; 
+	    allow-recursion { 192.168.1/24; } ;
+	    listen-on { 192.168.1.2; } ;
+	    forward { only; } ;
+	    forwarders { A.B.C.D; } ;
+};
+</example>
+
+<p>A opção <em>listen-on</em> faz o BIND ser executado somente
+na interface que tem o endereço interno, mas, até mesmo se esta 
+interface for a mesma que te conecta a internet (caso estiver usando
+NAT, por exemplo), as requisições somente serão aceitas se 
+estiverem vindo de suas máquinas internas. Se o sistema tiver 
+múltiplas interfaces e a opção <em>listen-on</em> não estiver presente,
+somente usuários internos poderão fazer requisições, mas, como a porta 
+está acessível para possíveis invasores externos, eles podem
+tentar travar (ou tentar realizar ataques de estouro de buffer) no
+servidor DNS. Você poderia até faze-lo escutar somente em 127.0.0.1, 
+se não estiver oferecendo serviço de DNS em qualquer outro sistema além
+do seu.
+</p>
+
+<p>
+O registro version.bind na classe chaos contém a versão do 
+processo do bind atualmente em execução. Esta informação é 
+freqüentemente usada por scaneadores automáticos e individualmente
+por pessoas maliciosas que desejam determinar se o bind é vulnerável 
+a um ataque específico. Oferecendo informações falsas ou 
+não fornecendo informações ao registro version.bind, diminui a 
+probabilidade que o servidor seja atacado baseado na versão publicada.
+Para fornecer sua própria versão, use a diretiva <em>version</em> da 
+seguinte forma: <example> options { ... várias opções aqui ...
+version "Não disponível."; }; </example>
+
+<p>A alteração do registro version.bind não oferece proteção atualmente contra
+ataques, mas pode ser considerado um útil segurança.
+
+</p>
+
+<p>Um arquivo simples de configuração <file>named.conf</file> pode ser o 
+seguinte:
+
+<example>
+acl internal {
+        127.0.0.1/32;           // localhost
+        10.0.0.0/8;             // interna
+        aa.bb.cc.dd;            // IP da eth0
+};
+
+acl friendly {
+        ee.ff.gg.hh;            // DNS escravo
+        aa.bb.cc.dd;            // IP da eth0
+        127.0.0.1/32;           // localhost
+        10.0.0.0/8;             // interna
+};
+
+options {
+        directory "/var/cache/bind";
+        allow-query { internal; };
+        allow-recursion { internal; };
+        allow-transfer { none; };
+};
+// A partir daqui, a zona mysite.bogus é 
+// basicamente uma versão não modificada do padrão da Debian
+logging {
+        category lame-servers { null; };
+        category cname { null; };   
+};
+
+zone "." {
+        type hint;
+        file "/etc/bind/db.root";
+};
+
+zone "localhost" {
+        type master;
+        file "/etc/bind/db.local";
+};
+
+zone "127.in-addr.arpa" {
+        type master;
+        file "/etc/bind/db.127";
+};
+
+zone "0.in-addr.arpa" {
+        type master;
+        file "/etc/bind/db.0";
+};
+
+zone "255.in-addr.arpa" {
+        type master;
+        file "/etc/bind/db.255";
+};
+
+// zones I added myself
+zone "mysite.bogus" {
+        type master;
+        file "/etc/bind/named.mysite";
+        allow-query { any; };
+        allow-transfer { friendly; };
+};
+</example>
+
+<P>Por favor (novamente) verifique o Sistema de Tratamento de Falhas 
+a respeito do bind, especificamente <url name="Bug #94760 
+(relacionado com ACLs em transferência de zonas)"
+id="http://bugs.debian.org/94760">. Sinta-se livre para contribuir para
+relatar falhas se pensar que podem adicionar informações úteis.
+
+<sect1 id="user-bind">Alterando o usuário do BIND
+
+<p>Com relação a limitação de privilégios do BIND, você deverá estar ciente que se um 
+usuário não root executa o BIND, então o BIND não detectará novas interfaces
+automaticamente, por exemplo, se colocar uma placa PCMCIA no notebook. Verifique
+o arquivo README.Debian na documentação do named veja o diretório
+(<file>/usr/share/doc/bind/README.Debian</file>) para mais informações sobre
+este assunto. Ocorreram muitos problemas de segurança recentes relacionados com o 
+BIND, assim a alteração do usuário é mais útil quando possível. Nós detalharemos
+os passos para fazer isto, no entanto, se quiser fazer isto de uma forma
+automática, tente o script fornecido em <ref id="bind-chuser">.
+
+<p>Para executar o BIND sob um usuário diferente, primeiro crie um usuário 
+separado e um grupo (<em>não</em> é uma boa idéia usar o nobody ou nogroup
+para cada serviço que não estiver sendo executado como root). Neste exemplo, 
+o usuário e grupo <tt>named</tt> serão usados. Você poderá fazer isto
+da seguinte forma: 
+<example>
+addgroup named
+adduser --system --home /home/named --no-create-home --ingroup named \
+      --disabled-password --disabled-login named
+</example>
+
+<p>Note que o usuário <tt>named</tt> será bastante restringido. Se você 
+quiser, por alguma razão, ter uma configuração menos restrita, utilize:
+<example>
+adduser --system --ingroup named named
+</example>
+
+
+<p>Agora, edite o arquivo <tt>/etc/init.d/bind</tt> com seu editor favorito e 
+altere a linha que começa com
+<example>
+start-stop-daemon --start
+</example>
+
+para<footnote>Note que dependendo de sua versão do BIND você pode não ter 
+a opção <tt>-g</tt>, mais notavelmente se estiver usando a woody e 
+instalando o bind9 (9.2.1-2.woody).</footnote>
+
+<example>
+start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g named -u named
+</example>
+
+<P>Altere as permissões dos arquivo que são usados pelo Bind, incluindo <file>
+/etc/bind/rndc.key</file>:
+
+<example>
+-rw-r-----    1 root     named          77 Jan  4 01:02 rndc.key
+</example>
+
+e onde o bind cria seu arquivo de pid, usando, por exemplo, 
+<file>/var/run/named</file> ao invés de <file>/var/run</file>:
+
+<example>
+$ mkdir /var/run/named
+$ chown named.named /var/run/named
+$ vi /etc/named.conf
+[ ... atualize o arquivo de configuração para sua nova localização ...]
+options { ...
+        pid-file "/var/run/named/named.pid";
+};
+[ ... ]
+</example>
+
+<p>Também, para evitar a execução de tudo como usuário root, altere a linha
+<tt>reload</tt> comentando-a:
+
+<example>
+reload)
+       /usr/sbin/ndc reload
+</example>
+
+<p>E altere para:
+<example>
+reload)
+        $0 stop
+        sleep 1
+        $0 start
+</example>
+
+<p>Nota: Dependendo de sua versão da Debian, você deverá também alterar a linha
+<tt>restart</tt>. Isto foi corrigido na versão do Bind da Debian
+<tt>1:8.3.1-2</tt>.
+
+<p>
+Tudo que precisa fazer agora é reiniciar o bind via '/etc/init.d/bind
+restart', e então procurar em seu syslog pelas seguintes duas linhas,
+como estas:
+<p>
+<example>
+Sep  4 15:11:08 nexus named[13439]: group = named
+Sep  4 15:11:08 nexus named[13439]: user = named
+</example>
+
+
+<p>Voilá! Seu named agora <em>não é executado</em> como root. Se desejar
+ler mais informações sobre porque o BIND não pode ser executado por um 
+usuário não-root em sistemas Debian, verifique o sistema de 
+tratamento de falhas, especificamente <url name="Bug #50013: bind should not run as root"
+id="http://bugs.debian.org/50013"> e
+<url name="Bug #132582: Default install is potentially insecure"
+id="http://bugs.debian.org/132582">, 
+<url name="Bug #53550" id="http://bugs.debian.org/53550">, 
+<url name="Bug #128120" id="http://bugs.debian.org/52745">, e
+<url name="Bug #128120" id="http://bugs.debian.org/128129">. 
+Sinta-se livre para contribuir para os relatórios de falhas se 
+achar que pode adicionar informações úteis.
+
+
+<sect1 id="chroot-bind">Executando o servidor de nomes em uma jaula chroot
+
+<p>Para obter o máximo de segurança no BIND, agora construa uma jaula chroot (veja <ref id="chroot">) em torno do seu daemon. Existe um método fácil de se fazer isto:
+a opção <tt>-t</tt> (veja a <manref name="named" section="8"> 
+página de manual ou a página 100 do 
+<url id="http://www.nominum.com/content/documents/bind9arm.pdf"
+name="Documentação do Bind's 9 (PDF)">). Isto instruirá o Bind a fazer uma 
+jaula de si mesmo em um diretório especificado sem a necessidade 
+de configurar uma jaula chroot e se preocupar com as bibliotecas 
+dinâmicas. Os únicos arquivos que precisam estar na jaula são:
+
+<example>
+dev/null
+etc/bind/       - deverá ter o named.conf e todas as zonas do servidor
+sbin/named-xfer - se fizer transferências de nomes
+var/run/named/  - deverá ter a pid e o nome do servidor de cache (se tiver)
+                  este diretório precisa ter permissões de gravação para o
+                  usuário named.
+var/log/named   - se configurar o log para um arquivo, este precisa ter permissões
+                  de gravação para o usuário named
+dev/log         - o syslogd deverá estar escutando aqui caso o named estiver
+                  configurado para realizar logs através dele.
+</example>
+
+
+<p>Para seu daemon do Bind funcionar adequadamente, ele precisará 
+de permissões nos arquivos do named. Esta é uma tarefa simples, pois
+os arquivos de configuração estão sempre localizados em <tt>/etc/named/</tt>. 
+Tenha em mente que sele somente precisa de acesso de leitura aos 
+arquivos de zonas, a não ser que seja um DNS secundário ou servidor de 
+cache de nomes. Se este é seu caso, você terá que dar permissões 
+completas para as zonas necessárias (assim as zonas transferidas
+do servidor principal funcionarão).
+
+<p>Adicionalmente, mais detalhes sobre o Bind e chroot pode ser encontrados no
+<url name="Chroot-BIND-HOWTO"
+id="http://www.tldp.org/HOWTO/Chroot-BIND-HOWTO.html"> (relacionado com o
+Bind 9) e <url name="Chroot-BIND8-HOWTO"
+id="http://www.tldp.org/HOWTO/Chroot-BIND8-HOWTO.html"> (relacionado com o
+Bind 8). Este mesmo documento deverá estar disponível através da instalação
+do <package>doc-linux-text</package> (versão texto)
+ou <package>doc-linux-html</package> (versão html). Outro documento útil é
+<url id="http://web.archive.org/web/20011024064030/http://www.psionic.com/papers/dns/dns-linux">.
+
+<p>Se estiver configurando uma jaula completa do chroot (i.e. não somente 
+<tt>-t</tt>) para o Bind 8.2.3 na Debian (potato), tenha certeza de possuir
+os seguintes arquivos nela:
+
+<example>
+dev/log - o syslogd deverá estar escutando aqui
+dev/null
+etc/bind/named.conf 
+etc/localtime
+etc/group - com somente uma linha simples: "named:x:GID:"
+etc/ld.so.cache - gerado com o ldconfig   
+lib/ld-2.1.3.so
+lib/libc-2.1.3.so
+lib/ld-linux.so.2 - link simbólico para ld-2.1.3.so  
+lib/libc.so.6 - link simbólico para libc-2.1.3.so
+sbin/ldconfig - pode ser apagado após configurar a jaula chroot
+sbin/named-xfer - se fizer transferências de nomes
+var/run/
+</example>
+
+<p>Também modifique o <prgn>syslogd</prgn> para escutar no $CHROOT/dev/log assim
+o servidor de nomes poderá gravar entradas do syslog no log local do sistema.
+
+<p>Se deseja evitar problemas com bibliotecas dinâmicas, você poderá 
+compilar o binário estaticamente. Você poderá usar o <prgn>apt-get</prgn> 
+para fazer isto, com a opção <tt>source</tt>. Ele pode até mesmo baixar os 
+pacotes que precisa para compila-los adequadamente. Você deverá fazer algo 
+similar a isto:
+
+<!-- FIXME: Does bind use autoconf? -->
+<example>
+$ apt-get --download-only source bind build-dep bind
+$ cd bind-8.2.5-2
+(edite o Makefile.in assim CFLAGS incluirá a opção '-static'
+antes da definição @CFLAGS@ substituída pelo autoconf)
+$ dpkg-buildpackage -rfakeroot
+$ cd ..
+$ dpkg  -i bind-8.2.5-2*deb
+</example>
+
+<p>Após a instalação, você precisará mover os arquivos para a jaula chroot
+<footnote>a não ser que utilize a opção <tt>instdir</tt> quando executar o 
+dpkg <prgn>dpkg</prgn> mas então a jaula chroot será um pouco mais 
+complexa</footnote>
+você poderá manter os scripts do <tt>init.d</tt> em <file>/etc/init.d</file>
+assim o sistema irá iniciar automaticamente o servidor de nomes, mas 
+edita-los e adicionar <tt>--chroot /location_of_chroot</tt> nas chamadas
+para <prgn>start-stop-daemon</prgn> nestes scripts.
+
+<p>Para mais informações sobre como configurar jaulas chroot veja <ref id="chroot">.
+
+<p>FIXME, merge info from
+<url id="http://people.debian.org/~pzn/howto/chroot-bind.sh.txt">,
+<!-- <url id="http://people.pdxlinux.org/~karlheg/"> (Bind9 on Debian),
+not there any more -->
+<url id="http://www.cryptio.net/~ferlatte/config/"> (Debian-specific),
+<url id="http://web.archive.org/web/20021216104548/http://www.psionic.com/papers/whitep01.html"> and
+<url id="http://csrc.nist.gov/fasp/FASPDocs/NISTSecuringDNS.htm">.
+<!-- not available any more 
+and
+<url id="http://www.acmebw.com/papers/securing.pdf">. -->
+
+<sect>Tornando o Apache mais seguro
+
+<p>FIXME: Adicionar conteúdo: os módulos fornecidos com a instalação
+padrão do Apache
+(sob /usr/lib/apache/X.X/mod_*) e módulos que podem ser instalados 
+separadamente pelos pacotes libapache-mod-XXX.
+
+<p>Você poderá limitar o acesso ao servidor Apache se você somente
+deseja usar ele internamente (para propósitos de testes, para acessar os 
+arquivos do <package>doc-central</package>, etc..) e não deseja que pessoas
+de fora o acessem. Para fazer isto, use as diretivas
+<tt>Listen</tt> ou <tt>BindAddress</tt> no
+<file>/etc/apache/http.conf</file>.
+
+<p>Using Listen:
+<example>
+Listen 127.0.0.1:80
+</example>
+<p>Using BindAddress:
+<example>
+BindAddress 127.0.0.1
+</example>
+
+<p>Então reinicie o apache com <tt>/etc/init.d/apache restart</tt> e você
+verá que ele somente esperará por requisições na interface loopback. 
+
+<p>Em qualquer caso, se não estiver usando todas as funcionalidades fornecidas
+pelo Apache, você poderá querer dar uma olhada em outros servidores web fornecidos
+na Debian, como o <package>dhttpd</package>.
+
+<p>A <url name="Documentação do Apache"
+id="http://httpd.apache.org/docs/misc/security_tips.html"> fornece informações
+relacionadas com medidas de segurança a serem tomadas no servidor web Apache
+(estes mesmos passos são oferecidos na Debian através do pacote 
+<package>apache-doc</package>).
+<!-- Removido
+Pode também ser útil a leitura do 
+<url name="Documento de Configuração Segura do Apache" 
+id="http://www.intersectalliance.com/projects/ApacheConfig/index.html"> 
+provided by <url name="InterSect Alliance" 
+id="http://www.intersectalliance.com/">. -->
+
+<p>Mais informações sobre restrições do Apache configurando uma jaula chroot são
+mostradas em <ref id="chroot-apache-env">.
+
+<sect1>Proibindo a publicação de conteúdo dos usuários
+
+<p>A instalação padrão do Apache na Debian permite que usuários publiquem
+conteúdo sob o diretório <file>$HOME/public_html</file>. Este conteúdo
+pode ser pego remotamente usando uma URL tal como:
+http://your_apache_server/~user.
+
+<p>Se não quiser permitir isto, você deverá alterar o arquivo de 
+configuração <file>/etc/apache/http.conf</file> comentando a linha:
+
+<example>
+LoadModule userdir_module /usr/lib/apache/1.3/mod_userdir.so
+</example>
+
+Mas se um módulo foi incluído estaticamente (você poderá checar isto 
+executando <tt>apache -l</tt>) você deverá utilizar a seguinte técnica:
+
+<example>
+Userdir disabled
+</example>
+
+<p>Nota: A palavra chave <tt>disabled</tt> está somente disponíveis nas 
+versões do Apache 1.3 e acima. Se estiver usando versões antigas do 
+apache, você deverá alterar o arquivo de configuração e adicionar:
+
+<!-- Isto pode ser removido, pois a woody vem com o Apache 1.3 -->
+
+<example>
+&lt;Directory /home/*/public_html&gt;
+    AllowOverride None
+    Order deny,allow
+    Deny from all
+&lt;/Directory&gt;
+</example> 
+
+<p>Um invasor ainda pode usar enumeração de usuário, pois a 
+resposta do servidor será um <em>403 Permissão negada</em> e não
+um <em>404 Não disponível</em>.
+
+<sect1>Permissões de arquivos de log
+
+<p>Os arquivos de log do Apache, desde a 1.3.22-1, tem como dono o usuário 'root' 
+e grupo 'adm' com permissões 640, estas permissões são alteradas após o 
+rotacionamento de logs. Um intruso que acessou o sistema através
+do servidor web não será capaz (sem escalação de privilégios) de remover
+entradas antigas do log.
+
+<!-- FIXME: what do you mean with "this permissions are changed after -->
+<!-- rotation -->
+
+<sect1>Arquivos da Web Publicados
+
+<p>Os arquivos do Apache estão localizados sob <file>/var/www</file>. 
+Apenas após a instalação o arquivo de configuração padrão
+fornecerá algumas informações sobre o sistema (principalmente que 
+é um sistema Debian executando o Apache). As páginas web padrões
+tem como dono o usuário root e grupo root por padrão, enquanto o
+processo do Apache é executado como o usuário e grupo www-data. 
+Isto torna difícil para invasores que comprometem o sistema
+através do servidor web, desfigurarem o site. Você deverá, 
+é claro, substituir as páginas padrões por suas próprias (que fornecem
+informações que não deseja mostrar para pessoas de fora).
+
+</p>
+
+
+<sect>Tornando o finger mais seguro
+<p>Se desejar executar o serviço finger, primeiro pergunte a você mesmo porque
+o deseja. Se precisar dele, você verá que a Debian fornece vários daemons 
+de finger
+(saída do comando <prgn>apt-cache search fingerd</prgn>): 
+<list>
+<item>cfingerd - Daemon de finger configurável
+<item>efingerd - Outro daemon de finger para unix, capaz de ajustes finos em 
+sua saída.
+<item>ffingerd - um daemon seguro do finger
+<item>fingerd - Servidor remoto de informações do usuário.
+<item>xfingerd - BSD-like daemon de finger com suporte a qmail.
+</list>
+<p>O <package>ffingerd</package> é o daemon de finger recomendado se estiver
+usando-o em serviços públicos. Em qualquer caso, você é encorajado a, 
+quando estiver configurando através do inetd, xinetd ou tcpserver a:
+limitar o número de processos que podem ser executados ao mesmo tempo,
+limitando o acesso ao daemon de finger de um número determinado de 
+máquinas (usando o tcp wrappers) e escutando somente nas interfaces onde
+deve operar.
+
+<!--
+# This is quite personal, IMHO, since this is due to the fact that 
+# root privileges are dropped on startup. I prefer an attacker to erase
+# a service's log files than to erase all of my system's logs. Anyhow, this
+# can be improved by changing user permissions after rotation.
+-->
+
+
+
+<sect id="chroot">Paranóia geral do chroot e suid
+
+<p>O <prgn>chroot</prgn> é uma das mais poderosas possibilidades
+para restringir um daemon, ou um usuário ou outro serviço. Apenas
+imagine uma jaula em torno de seu alvo, onde o alvo não pode 
+escapar dela (normalmente, mas 
+existem várias condições que permitam que um escape de tal jaula). 
+Se não confia em um usuário ou em um serviço, você poderá criar um 
+ambiente root modificado para ele. Isto poderá usar algum espaço 
+do disco para copiar todos os executáveis requeridos, assim como 
+bibliotecas, na jaula. Mas então, até mesmo se o usuário fizer algo
+malicioso, o escopo do ano é limitado a jaula.
+
+<!-- Considere removendo isto:
+<p>Um bom exemplo neste caso, se não estiver autenticado através do 
+<file>/etc/passwd</file> mas através do LDAP ou MySQL. Assim seu 
+daemon do ftp somente precisa de um binário e talvez algumas poucas 
+bibliotecas. Um ambiente de jaula (<prgn>chroot</prgn>) traria uma 
+excelente melhoria na segurança.
+Se um novo exploit é encontrado para este daemon do ftp, então os 
+invasores poderão somente explorar a UID do usuário do daemon do 
+ftp e nada mais.
+-->
+
+<p>Muitos serviços executados como daemons poderão 
+se beneficiar deste tipo de técnica. Os daemons que você instala
+na Debian não virão, no entanto, dentro de chroot <footnote> Eles
+não tentarão serem executados sob <em>mínimo privilégio</em> que
+inclui a execução de daemons com seus próprios usuários ao invés
+de te-los executando como root</footnote> por padrão.</p>
+
+<p>Isto inclui: servidores de nomes (tal como o <prgn>bind</prgn>), 
+servidores web (tal como o <prgn>apache</prgn>), servidores de mensagens 
+(tal como o <prgn>sendmail</prgn> e servidores ftp (tal como o 
+<prgn>wu-ftpd</prgn>). Provavelmente basta dizer que
+a complexibilidade do BIND é a razão de que ele foi exposto a 
+vários ataques nos últimos anos (see <ref id="sec-bind">).
+
+<p>No entanto, a Debian não oferece muitos programas que podem ajuda-lo a 
+configurar um ambiente <prgn>chroot</prgn>. Veja <ref id="auto-chroot">.
+
+
+<p>De qualquer maneira, se executar qualquer serviço em seu sistema, 
+considere torna-lo mais seguro o possível. Isto inclui: revogar 
+os privilégios de root, executa-lo em um ambiente seguro (tal como uma 
+jaula chroot) ou substitui-lo por um equivalente mais seguro.</p>
+
+<p>No entanto, já esteja avisado que uma jaula <prgn>chroot</prgn> pode
+ser quebrada se o usuário dentro dela for o superusuário. Assim
+você deverá estar certo que o serviço está sendo executado por um
+usuário não privilegiado. Limitando seu ambiente, estará limitando
+os arquivos lidos/executáveis que o serviço poderá acessar, assim, 
+limitando as possibilidade de uma escalação privilegiada usar as 
+vulnerabilidade de segurança locais do sistema. Até mesmo nesta
+situação, você não poderá ter certeza completa de que lá não
+existe métodos para um invasor inteligente em algo quebrar a 
+jaula. usando somente programas de servidor que tem a reputação
+de serem seguidos é uma boa medida adicional. Até mesmo minúsculos 
+furos como arquivos abertos podem serem usados por um invasor 
+com conhecimentos para quebrar o sistema. Após tudo isto, o 
+<prgn>chroot</prgn> não foi designado como uma ferramenta de 
+segurança, mas como uma ferramenta de testes.</p>
+
+<sect1 id="auto-chroot">Criando automaticamente ambientes chroots
+
+<p>Existem diversos programas que fazem automaticamente o chroot de servidores e 
+serviços. A Debian atualmente (aceita em maio de 2002) fornece o 
+Wietse Venema's <prgn>chrootuid</prgn> no pacote 
+<package>chrootuid</package>, assim como o pacote <package>compartment</package> 
+e <package>makejail</package>. Estes programas podem criar um ambiente
+restritivo para a execução de qualquer programa 
+(<prgn>chrootuid</prgn> lhe permite até executa-lo como um usuário restrito). 
+
+<p>Algumas destas ferramentas podem ser usadas para criar facilmente um 
+ambiente chroot. O programa <prgn>makejail</prgn> por exemplo, pode criar e 
+atualizar uma jaula chroot com arquivos de configuração pequenos (ele fornece
+modelos de configuração para o <prgn>bind</prgn>, <prgn>apache</prgn>, 
+<prgn>postgresql</prgn> e <prgn>mysql</prgn>). Ele tenta adivinhar
+e instalar na jaula todos os arquivos requeridos pelo daemon usando o 
+<prgn>strace</prgn>, <prgn>stat</prgn> e dependências de pacotes
+da Debian. Mais informações podem ser obtidas em <url
+id="http://www.floc.net/makejail/">. O <prgn>Jailer</prgn> é uma ferramenta
+similar que pode ser obtida de <url
+id="http://www.balabit.hu/downloads/jailer/"> e também está disponível 
+como um pacote da Debian GNU.
+
+<!-- FIXME Site is down?
+<p>Outro também útil para criar chroots (ou jaulas) é o
+<package>deb.pl</package>, um script que analisa dependências de 
+um conjunto de arquivos.
+-->
+
+<sect>Paranóia geral sobre senhas em texto puro
+<p>
+Você deverá tentar evitar qualquer serviço de rede que envia e 
+receba senhas em texto limpo através da rede, como o FTP/Telnet/NIS/RPC.
+O autor recomenda usar o ssh ao invés de telnet e ftp para qualquer um.
+
+<p>Tenha em mente que migrando do telnet para o ssh, mas continuando a usar outros
+protocolos de texto limpo não aumenta sua segurança de qualquer modo! O
+melhor é remover o ftp, telnet, pop, imap, http e substitui-los por 
+seus respectivos serviços criptografados. Você deverá considerar mover
+estes para suas versões SSL, ftp-ssl, telnet-ssl, pop-ssl, https ...
+
+<p>A maioria dos listados acima se aplicam para cada sistema Unix (você os 
+encontrará se ler qualquer documento relacionado a tornar um sistema 
+Linux (e outros tipos e Unix) mais seguro.
+
+<sect>Desativando o NIS
+
+<p>Você não deverá usar o NIS, o Serviço de Informações de Rede, se possível,
+pois ele permite o compartilhamento de senha. Isto pode ser altamente 
+inseguro se sua configuração for corrompida.
+
+<p>Se precisar de compartilhamento de senhas entre máquinas, você deverá considerar
+a adoção de outras alternativas. Por exemplo, a configuração de um servidor
+LDAP e o PAM para contactar o servidor LDAP para autenticação dos usuários.
+Você poderá encontrar uma configuração detalhada na
+<url
+name="LDAP-HOWTO" id="http://www.tldp.org/HOWTO/LDAP-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/LDAP-HOWTO.txt.gz</file>).
+
+<p>Mais detalhes sobre a segurança em NIS podem ser encontradas em
+<url
+name="NIS-HOWTO" id="http://www.tldp.org/HOWTO/NIS-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/NIS-HOWTO.txt.gz</file>).
+
+
+<p>FIXME (jfs): Adicionar detalhes de como configurar isto na Debian
+
+<sect id="rpc">Tornando serviços RPC mais seguros
+
+<p>Você deverá desativar RPC se não precisar dele.
+
+<p>Chamadas de Procedimentos Remotos (RPC) é um protocolo que os programas
+podem usar para solicitar serviços de outros programas localizados em 
+diferentes computadores. O serviço <prgn>portmap</prgn> controla os 
+serviços RPC mapeando números de programas RPC em números de portas DARPA; 
+ele deverá estar sendo executado para executar chamadas RPC.
+
+<p>Serviços baseados em RPC tem tido um mal histórico de falhas de segurança, 
+no entanto, o portmapper por si não (mas ainda fornece informações úteis
+ao atacante remoto). Note que alguns dos ataques DDoS (negação de serviço
+distribuídos) usam exploits rpc para entrar no sistema e atuar como o 
+assim chamado agente/manipulador. 
+
+<p>Você somente precisará do RPC se estiver usando um serviço baseado em RPC. 
+Os serviços mais comuns baseados em RPC são o NFS (Network File System) e 
+NIS (Network Information System). Veja a seção anterior para mais
+informações sobre o NIS. O Monitor de alterações de Arquivos (FAM) fornecido
+pelo pacote <package>fam</package> é também um serviço RPC, e assim 
+depende do pacote <package>portmap</package>.
+
+<p>Os serviços NFS são muito importante em algumas redes. Se este for o caso para
+você, então terá que encontrar um balanceamento de segurança e usabilidade para
+sua rede. (Você poderá ler mais sobre a segurança em NFS no
+<url name="NFS-HOWTO"
+id="http://www.tldp.org/HOWTO/NFS-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/NFS-HOWTO.txt.gz</file>).)
+
+<sect1>Desativando completamente os serviços RPC
+
+<p>A desativação do portmap é bem simples. Existem diversos diferentes métodos. 
+O mais simples no sistema Debian 3.0 e mais novos é desistalar o
+pacote <package>portmap</package>. Se estiver executando uma versão antiga
+da Debian, terá que desativar o serviço como visto em <ref
+id="disableserv">, porque o programa é parte do pacote
+<package>net-base</package> (que não pode ser removido sem 
+quebrar o sistema).
+
+<p>Isto de fato remove cada link relacionado ao portmap em
+<tt>/etc/rc${runlevel}.d/</tt>, que é algo que pode fazer 
+manualmente. Outra possibilidade é executar um <tt>chmod 644
+/etc/init.d/portmap</tt>, mas isto mostrará uma mensagem de 
+erro durante a inicialização. Você também poderá comentar a parte 
+<tt>start-stop-daemon</tt> no script <file>/etc/init.d/portmap</file>.
+
+<sect1>Limitando o acesso a serviços RPC
+
+<p>Infelizmente em alguns casos a remoção dos serviços RPC não é uma
+opção. Alguns serviços de desktop locais (notavelmente o <package>fam</package>
+da SGI) são baseados em RPC e assim precisam de um portmapper local. Isto 
+significa que sob algumas situações, os usuários que estiverem instalando
+um ambiente de desktop (como o GNOME) instalarão também o portmapper.
+
+<P>Existem diversas formas de limitar o acesso ao portmapper e aos serviços
+de RPC:
+
+<list>
+<item>Bloqueando o acesso as portas usadas por estes serviços com 
+um firewall local (veja <ref id="firewall-setup">).
+<item>Bloquear o acesso a estes serviços usando tcp wrappers, pois o 
+portmapper (e alguns serviços RPC) são compilados com a <file>libwrap</file> 
+(veja <ref id="tcpwrappers">. Isto significa que você poderá 
+bloquear o acesso a eles através do <file>hosts.allow</file> e
+<file>hosts.deny</file> na configuração do tcp wrappers.
+<item>Desde a versão 5-5, o pacote <package>portmap</package> pode ser
+configurado para somente realizar conexões na interface loopback. Para
+fazer isto, modifique o arquivo <file>/etc/default/portmap</file>, 
+e descomente a seguinte linha:
+<tt>#OPTIONS="-i 127.0.0.1"</tt> e reinicie o portmapper. Isto é 
+suficiente para permitir que serviços RPC locais funcionem enquanto 
+ao mesmo tempo evite que sistemas remotos os acessem (no entanto, veja 
+<ref id="limit-bindaddr">.
+</list>
+
+<sect id="firewall-setup">Adicionando capacidades de firewall
+
+<p>O sistema Debian GNU/Linux tem as capacidades embutidas fornecidas pelo kernel
+do GNU/Linux. Isto significa que se você instalar o sistema potato 
+(Debian 2.2), que vem com o kernel padrão 2.2, você terá as 
+capacidades do firewall <prgn>ipchains</prgn> no kernel, você precisará
+ter o pacote <package>ipchains</package>, que deverá, devido
+a sua prioridade, já estar instalado. Se estiver instalando o sistema woody 
+(Debian 3.0), que vem com o kernel padrão 2.4, você terá o firewall 
+<prgn>iptables</prgn> (netfilter) disponível. A principal diferença 
+entre o <prgn>ipchains</prgn> e <prgn>iptables</prgn> é que o últimos
+é baseado em <em>inspeção de estado de pacotes</em> que lhe oferece 
+configurações mais seguras (e fáceis de construir) de filtragem.
+
+<sect1>Fazendo um firewall no sistema local
+
+<p>Você poderá usar regras de firewall como uma forma de restringir o acesso
+a seu sistema local e, até mesmo, limitar comunicações feitas através dele. 
+As regras de firewall também podem ser usadas para proteger processos
+que podem não estar corretamente configurados <em>não</em> fornecendo
+serviços para algumas redes, endereços IP, etc...
+
+<p>No entanto, este passo é mostrado por último neste manual basicamente porque
+é <em>muito</em> melhor não depender solenemente das capacidades de firewall para
+proteger um dado sistema. A segurança em um sistema é feita através de camadas,
+o firewall deve ser a última a ser adicionada, uma vez que todos os serviços 
+foram ajustados para serem mais seguros. Você pode facilmente imaginar uma
+configuração em que o administrador descuidadamente remove as regras de
+firewall por alguma razão (problemas com a configuração, descuido, 
+erro humano ...), este sistema pode estar aberto para um ataque se não
+existir outro reforço no sistema para protege-lo.
+
+<p>Por outro lado, tendo regras de firewall no sistema local também 
+evita que coisas ruins aconteçam. Até mesmo se os serviços fornecidos
+estão configurados de forma segura, um firewall pode proteger de 
+má configurações ou de serviços instalados recentemente que ainda
+não foram configurados adequadamente. Também, uma configuração 
+forte evitará que cavalos de tróia <em>chamem a origem</em> de funcionarem
+a não ser que o código do firewall seja removido. Note que um intruso
+<em>não</em> precisa de acesso de superusuário para instalar um cavalo 
+de tróia localmente que pode ser controlado remotamente (pois a escuta 
+a porta é permitido caso não sejam portas privilegiadas e 
+as capacidades não foram removidas).
+
+<p>Assim, uma configuração apropriada de firewall é aquela com a política padrão
+deny, que é:
+
+<list>
+
+<item>conexões de entrada são permitidas somente para serviços locais por máquinas
+permitidas.
+
+<item>conexões de saída somente são permitidas para serviços usados pelo
+seu sistema (DNS, web browsing, pop, email....)  
+<footnote>De forma diferente de firewalls pessoais em outros sistemas
+operacionais, a Debian GNU/Linux (ainda) não fornece uma interface de geração
+de firewall que possa fazer regras de limitação por processo ou usuário. No 
+entanto, o código do iptables pode fazer isto (veja o módulo owner na
+página de manual <manref name="iptables" section="8">)</footnote>
+
+<item>a regra forward bloqueia tudo (a não ser que esteja protegendo outros
+sistemas, veja abaixo).
+
+<item>todas as outras conexões de entrada ou saída são negadas.
+
+</list>
+
+<sect1>Usando um firewall para proteger outros sistemas
+
+<p>um firewall também pode ser instalado na Debian para proteger, com regras de 
+filtragem, o acesso a sistemas <em>através</em> dela, limitando sua 
+exposição na Internet. O firewall pode ser configurado para 
+evitar que sistemas de fora da rede local acesse serviços (portas) 
+que não são públicas. Por exemplo, em um servidor de mensagens, somente
+a porta 25 (onde o serviço de e-mail foi definido) precisa ser 
+acessada de fora. Um firewall pode ser configurado para, até mesmo se existem
+outros serviços disponibilizados publicamente, descarte qualquer pacote
+(isto é conhecido como <em>filtragem</em>) direcionado a máquina.
+
+<p>Você pode até mesmo configurar a máquina Debian GNU/Linux como uma
+firewall bridge, i.e. um firewall de filtragem completamente transparente
+para a rede que deixa de lado um endereço IP e assim não pode ser 
+atacada diretamente. Dependendo do kernel que tiver instalado, você poderá
+precisar fazer a instalação do patch de bridge no firewall e então
+ir para a seção <em>802.1d Ethernet Bridging</em> quando
+estiver configurando o kernel e uma nova opção <em>netfilter ( firewalling )
+support</em>. Veja <ref id="bridge-fw"> para mais detalhes sobre como 
+fazer isto em um sistema Debian GNU/Linux).
+
+<sect1>Configurando o firewall
+
+<p>É claro que a configuração do firewall é sempre dependente de sistema
+e rede. Um administrador deverá conhecer de antemão qual é a estrutura
+da rede e os sistemas que deseja proteger, os serviços que precisam ser
+acessados e se ou não outras considerações de rede 
+(como NAT ou roteamento) devem ser levadas em conta. Seja cuidadoso
+quando configurar seu firewall, como Laurence J. Lane diz no pacote
+<package>iptables</package>:
+
+<p><em>As ferramentas podem ser facilmente mal utilizadas, causando uma 
+enorme quantidade de peso na consciência e cortando o acesso a um sistema. 
+Não é terrivelmente incomum para um administrador de sistemas remotos 
+travar si próprio fora de um sistema centenas de milhares de milhas
+de distância. É também possível que alguém deixe ele próprio
+fora de um computador em que o teclado está sob seus dedos. Por favor,
+use com a devida precaução.</em>
+
+<p>Lembre-se disto: apenas a instalação do <package>iptables</package> (ou
+do antigo código de firewall) não oferece qualquer proteção, apenas fornece
+o programa. Para ter um firewall, você precisa <em>configura-lo!</em>
+
+<p>Se não souber muito sobre firewall, leia o 
+Firewalling-HOWTO que pode ser encontrado no pacote
+<package>doc-linux-text</package> (outros formatos de documentos 
+também estão disponíveis). Veja <ref id="references"> para mais referências
+(gerais).
+
+<sect2>Fazendo pelo método Debian
+
+<p>Se estiver usando a Debian 3.0, você notará que tem o pacote
+<package>iptables</package> instalado. Este é para suporte da implementação
+netfilter de kernels 2.4.4 e superiores. Pois apenas após a 
+instalação o sistema pode não <em>conhecer</em> quaisquer regras
+de firewall (regras de firewall são bastante dependentes de sistema) 
+você terá que ativar o iptables.
+No entanto, os scripts foram configurados de uma forma que o administrador
+possa configurar as regras de firewall e então ter os scripts de 
+inicialização <em>aprendendo-os</em> e usando sempre como configuração do 
+firewall.
+
+<p>Para fazer isto você deverá:
+
+<list>
+
+<item>Configurar o pacote, assim ele será iniciado com o sistema. Nas
+versões novas (desde a 1.2.6a-1) isto é feito quando o pacote é
+instalado. Você poderá configura-lo após isto com <tt>dpkg-reconfigure
+-plow iptables</tt>. <em>Nota</em>: em versões antigas, isto pode ser
+feito editando-se o arquivo <file>/etc/default/iptables</file> e verificando
+se a variável <tt>enable_iptables_initd</tt> foi definida para <em>true</em> 
+(ativo).
+
+<item>crie uma configuração de firewall usando o <prgn>iptables</prgn>, você poderá
+usar o comando line (veja <manref name="iptables" section="8">) ou algumas outras
+ferramentas fornecidas pelos pacotes de Firewall da Debian (veja <ref
+id="firewall-pack">). Você precisará criar um conjunto de regras de firewall para
+serem usados quando o firewall estiver em estado <em>ativo</em> e outras para 
+serem usadas no estado <em>inativo</em> do firewall (podem ser simplesmente
+regras vazias).
+
+<item>salve as regras que crio usando o  <tt>/etc/init.d/iptables
+save_active</tt> e <tt>/etc/init.d/iptables save_inactive</tt> 
+executando estes scripts com as regras de firewall que deseja
+iniciar.
+
+</list>
+
+<p>Assim que tiver terminado, sua configuração de firewall estará 
+salva no diretório <file>/var/lib/iptables/</file> e será 
+executando quando o sistema inicializar (ou quando executar o 
+script initd com os argumentos <em>start</em> e <em>stop</em>). 
+Por favor note que a configuração padrão da Debian inicia o código 
+de firewall em níveis de execução multiusuário (2 a 5) em breve (10). 
+Também, ele é interrompido em modo monousuário (1), altere isto caso
+não confira com suas políticas locais.
+
+<p>Se não tiver uma dica de como configurar regras de firewall manualmente, consulte 
+o documento <em>Packet Filtering HOWTO</em> e <em>NAT
+HOWTO</em> fornecidas pelo <package>iptables</package> para leitura
+offline em <file>/usr/share/doc/iptables/html/</file>. O arquivo de 
+configuração <file>/etc/default/iptables</file> também fornece 
+várias informações a respeito deste pacote.
+
+<sect2 id="firewall-pack">Usando pacotes de Firewall
+
+<p>A configuração manual de um firewall pode ser complicada para o administrador
+novato (e muitas vezes para até mesmo o expert). No entanto, a comunidade
+de software livre tem criado um número de ferramentas que podem ser usadas
+para configurar facilmente um firewall local. Esteja avisado desde já que 
+algumas destas ferramentas são orientadas somente para a proteção local
+(também chamadas de <em>firewall pessoal</em>) e algumas são mais versáteis
+e podem ser usadas para configurar regras complexas para proteger todas 
+as redes.
+
+<p>Alguns softwares que podem ser usados para configurar regras de firewall
+em um sistema Debian são:
+
+<list>
+<item><package>firestarter</package> orientado a usuários finais, inclui
+um assistente para definir regras de firewall rapidamente.
+<item><package>knetfilter</package>
+<item><package>fwbuilder</package> uma GUI orientada a objetos
+que inclui compiladores de políticas para varias plataformas de firewalls
+incluindo o iptables assim como listas de acesso do roteador. A 
+funcionalidade completa do fwbuilder também está disponível através da 
+linha de comando
+<item><package>shorewall</package> que oferece suporte a IPsec com
+um suporte bem limitado para controle de tráfego também como uma 
+definição de regras de firewall.
+<item><package>mason</package>, que propõe regras de firewall baseados 
+no tráfego de rede que seu sistema "enxerga".
+<item><package>bastille</package> (entre os passos de fortalecimento que 
+podem fazer as novas versões do bastille, é a possibilidade de se 
+adicionar regras de firewall ao sistema que serão executadas na
+inicialização)
+<item><package>guarddog</package>, um pacote de configuração de firewall
+baseada no KDE (alternativa/competidor ao pacote knetfilter)
+<item><package>ferm</package>
+<item><package>fwctl</package>
+<item><package>easyfw</package>
+<item><package>firewall-easy</package>
+<item><package>ipac-ng</package>
+<item><package>gfcc</package>
+<item><package>lokkit</package> ou <package>gnome-lokkit</package>
+</list>
+
+<p>Os últimos pacotes: gfcc,firestarter e knetfilter são
+interfaces de administração GUI usando ou o GNOME (primeiros
+dois) ou o KDE (o último) que são muito mais orientados a usuários
+(para usuários domésticos) que outros
+pacotes da lista que são mais orientadas a administradores.
+
+<p>Esteja já avisado que alguns pacotes destacados anteriormente irão provavelmente
+introduzir a scripts de firewall que serão executados quando o sistema for
+inicializado, isto sem dúvida alguma conflitará com a configuração
+padrão (se estiver configurada) e terá efeitos indesejados. Normalmente os 
+scripts de firewall que são executados por último serão os que configurarão
+o firewall do sistema (que pode não ser o que você deseja). Consulte a 
+documentação do pacote e use ou uma desta configurações. Geralmente, 
+outros programas que te ajudam a configurar regras de firewall podem 
+pesquisar outros arquivos de configuração.
+
+<p>FIXME: Adicionar mais informações a respeito destes pacotes
+
+<p>FIXME: Procure por informações sobre firewall na Debian e o que/como fazer
+sua alteração para outras distribuições.
+
+<p>FIXME: Onde o código de firewall personalizado poderá ser ativado (FAQ 
+padrão na debian-firewall?)
+
+<p>FIXME: Adicionar informações sobre <url
+id="http://www.balabit.hu/downloads/zorp/stable/deb/" name="Zorp"> na
+Debian (veja <url id="http://bugs.debian.org/88347" name="Bug
+#88347">. Os pacotes da Debian são fornecidos, mas eles dependem da libglib1.3
+que não está disponível na distribuição Debian.
