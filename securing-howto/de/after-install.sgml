@@ -111,8 +111,160 @@ hinzufügen. Weitere Details finden Sie unter <manref name="apt" section="8">.
  deb http://security.debian.org/debian-non-US stable/non-US main contrib
  non-free 
 </example>
+
 <p>Das liegt daran, dass sich der Server, der security.debian.org hostet,
-außerhalb der USA befindet und somit kein getrenntes non-US-Archiv hat.
+außerhalb der USA befindet und somit kein getrenntes Archiv für Non-US hat.
+
+
+<sect1 id="lib-security-update">Sicherheitsaktualisierungen von Bibliotheken
+
+<p>Wenn Sie eine Sicherheitsaktualisierung durchgeführt haben, müssen Sie
+gegebenfalls einige Dienste des Systems neu starten. Wenn Sie das nicht tun,
+könnten Dienste auch nach der Sicherheitsaktualisierung immer noch verwundbar
+sein. Das liegt daran, dass Daemonen, die schon vor einem Upgrade laufen, immer
+noch die alten Bibliotheken vor dem Upgrade verwenden könnten
+<footnote>
+Selbst wenn die Bibliotheken aus dem Dateisystem entfernt wurden, werden die
+Inodes nicht beseitigt, bis kein Programm mehr einen offenen Dateideskriptor
+mit Verweis auf sie hat.
+</footnote>.
+Um herauszufinden, welche Daemonen neu gestartet werden müssen, können Sie das
+Programm <prgn>checkrestart</prgn> (ist im Paket
+<package>debian-goodies</package> enthalten) oder diesen Einzeiler (als Root)
+verwenden:
+
+<example>
+  # lsof | grep dpkg- | awk '{print $1, $8}' | sort +0
+</example>
+
+<p>Einige Pakete (wie <package>libc6</package>) werden diesen Test in der
+Postinst-Phase für eine begrenzte Anzahl von Diensten durchführen, da ein
+Upgrade von notwendigen Bibliothken einige Anwendungen unbrauchbar machen kann,
+wenn sie nicht neu gestartet werden
+<footnote>
+Das passierte z.B. beim Upgrade von libc6 2.2.x zu 2.3.x wengen Problemen mit
+der NSS-Authentifikation, siehe <url
+id="http://lists.debian.org/debian-glibc/2003/debian-glibc-200303/msg00276.html">.
+</footnote>.
+
+<p>Indem das System auf Runlevel 1 (Single User) und dann zurück auf Runlevel 3
+(Multi User) gebracht wird, sollten die meisten (wenn nicht alle) Systemdienste
+neu gestartet werden. Dies ist aber keine Möglichkeit, wenn Sie die
+Sicherheitsaktualisierung über eine entfernte Verbindung (z.B. mit ssh)
+vornehmen, da sie getrennt werden würde.
+
+<p>Lassen Sie Vorsicht walten, wenn Sie es mit Sicherheitsaktualisierungen über
+eine entfernte Verbindung wie mit ssh zu tun haben. Die empfohlene
+Vorgehensweise für Sicherheitsaktualisierungen, die Dienste betreffen, ist, den
+SSH-Daemon neu zu starten und sofort zu versuchen, eine neue SSH-Verbindung
+herzustellen, ohne die alten zu beenden. Falls der Verbindungsversuch scheitern
+sollte, machen Sie die Aktualisierung rückgängig und untersuchen Sie das
+Problem.
+
+</sect1>
+
+
+<sect1 id="kernel-security-update">Sicherheitsaktualisierung des Kernels
+
+<p>Stellen Sie zunächst sicher, dass Ihr Kernel durch das Paketsystem verwaltet
+wird. Wenn Sie die Installation mit dem Installationssystem von Debian 3.0 oder
+früher durchgeführt haben, ist Ihr Kernel <em>nicht</em> in das Paketsystem
+integriert und könnte veraltet sein. Sie können das leicht überprüfen, indem
+Sie Folgendes ausführen:
+
+<example>
+  $ dpkg -S `readlink -f /vmlinuz`
+  kernel-image-2.4.27-2-686: /boot/vmlinuz-2.4.27-2-686
+</example>
+
+<p>Wenn Ihr Kernel nicht vom Paketsystem verwaltet wird, werden Sie die
+Rückmeldung bekommen, dass der Paketmanager kein Paket finden konnte, das mit
+der Datei verbunden ist, anstatt der obigen Nachricht, die besagt, dass die
+Datei, die mit dem laufenden Kernel verbunden ist, vom Paket
+<package>kernel-image-2.4.27-2-686</package> zur Verfügung gestellt wird. Sie
+müssen also zuerst ein Paket mit einem Kernel-Image von Hand installieren. Das
+genaue Kernel-Image, das Sie installieren sollten, hängt von Ihrer Architektur
+und Ihrer bevorzugen Kernelversion ab. Wenn Sie das einmal erledigt haben,
+können Sie die Sicherheitsaktualisierungen des Kernels wie die jedes anderen
+Pakets durchführen. Beachten Sie allerdings, dass Kernelaktualisierungen
+<em>nur</em> für Aktualisierungen der gleichen Kernelversion wie der Ihrigen
+durchgeführt werden. D.h. <prgn>apt</prgn> wird nicht automatisch Ihren Kernel
+von 2.4 auf 2.6 aktualisieren (oder von 2.4.26 auf 2.4.27
+<footnote>
+Es sei denn, Sie haben ein Kernel-Metapaket wie
+<package>kernel-image-2.4-686</package> installiert, welches immer die neueste
+Minor-Version des Kernels einer Architektur installieren wird.
+</footnote>).
+
+<p>Das Installationssystem von Debian 3.1 wird den gewählten Kernel (2.4 oder
+2.6) als Teil des Paketsystems behandeln. Sie können überprüfen, welche Kernels
+Sie installiert haben:
+
+<example>
+  $ COLUMNS=150 dpkg -l 'kernel-image*' | awk '$1 ~ /ii/ { print $0 }'
+</example>
+
+<p>Um festzustellen, ob Ihr Kernel aktualisiert werden muss, führen Sie
+Folgendes aus:
+
+<example>
+$ kernfile=`readlink -f /vmlinuz`
+$ kernel=`dpkg -S $kernfile | awk -F : '{print $1}'`
+$ apt-cache policy $kernel
+kernel-image-2.4.27-2-686:
+  Installed: 2.4.27-9
+  Candidate: 2.4.27-9
+  Version Table:
+ *** 2.4.27-9 0
+(...)
+</example>
+
+<p>Wenn Sie eine Sicherheitsaktualisierung durchführen, die auch das
+Kernel-Image umfasst, <em>müssen</em> Sie das System neu starten, damit die
+Sicherheitsaktualisierung Wirkung zeigen kann. Anderenfalls lassen Sie immer
+noch das alte (und verwundbare) Kernel-Image laufen.
+
+<!-- FIXME: Do a script to check for the above, maybe using ps -p 1 -o etime |
+tail -1 and obtain the creation time of `readlink -f /vmlinuz` -->
+
+<p>Wenn Sie das System neu starten müssen (wegen eines Kernel-Upgrades),
+sollten Sie sicherstellen, dass der Kernel fehlerfrei booten wird und die
+Netzwerkverbindungen hergestellt werden, besonders wenn die
+Sicherheitsaktualisierung über eine entfernte Verbindung wie mit ssh
+durchgeführt wird. Für den ersten Fall können Sie Ihren Boot-Loader so
+konfigurieren, dass er den Originalkernel lädt, wenn ein Fehler auftritt (für
+weiterführende Informationen sollten Sie <url
+id="http://www.debian-administration.org/?article=70" name="Remotely rebooting
+Debian GNU/Linux machines"> lesen). Im zweiten Fall müssen Sie ein Skript
+verwenden, das die Netzwerkverbindungen testen kann und überprüft, ob der
+Kernel das Netzwerksystem korrekt gestartet hat, und, wenn das nicht geschehen
+ist, das System neu startet
+<footnote>
+Ein Beispielskript mit dem Namen <url
+id="http://www.debian-administration.org/articles/70/testnet" name="testnet">
+ist im Artikel <url id="http://www.debian-administration.org/?article=70"
+name="Remotely rebooting Debian GNU/Linux machines"> enthalten. Ein
+ausgereifteres Testskript befindet sich im Artikel <url
+id="http://www.debian-administration.org/?article=128" name="Testing network
+connectivity">
+</footnote>.
+Dies sollte böse Überraschungen verhindern, wie wenn man den Kernel
+aktualisiert und dann nach einem Reboot merkt, dass die Netzwerkhardware nicht
+richtig erkannt oder konfiguriert wurde, und man daher eine weite Strecke
+zurücklegen muss, um das System wieder hoch zu bringen. Natürlich hilft es beim
+Debuggen von Reboot-Problemen aus der Ferne, wenn die serielle Konsole des
+Systems
+<footnote>
+Das Einrichten einer seriellen Konsole würde den Rahmen dieses Dokuments
+sprengen. Informationen dazu finden Sie im <url
+id="http://www.tldp.org/HOWTO/Serial-HOWTO.html" name="Serial HOWTO"> und im
+<url id="http://www.tldp.org/HOWTO/Remote-Serial-Console-HOWTO/index.html"
+name="Remote Serial Console HOWTO">.
+</footnote>
+mit einem Konsolen- oder Terminalserver verbunden ist.
+</p>
+
+</sect1>
 
 
 <sect id="bios-boot">Änderungen im BIOS (noch einmal)
@@ -200,7 +352,9 @@ Klartext-Passwörter vorzuziehen. Weitere Informationen über
 finden.
 
 
-<sect id="kernel-root-prompt">Entfernen des root-Promptes aus dem Kernel
+<sect id="kernel-root-prompt">Entfernen des Root-Promptes aus dem Kernel
+
+<p>Hinweis: Dies trifft nicht auf Kernel zu, die in Debian 3.1 enthalten sind.
 
 <p>Linux 2.4 Kernel bieten kurz nach dem Laden des cramfs einen Weg Zugriff
 auf eine Root-Shell zu bekommen, also während das System bootet. Es
@@ -234,7 +388,8 @@ zum Beispiel so tun:
 <example>
   # dpkg-reconfigure kernel-image-2.4.x-yz
 </example>
-<p>Beachten Sie, dass Debian 3.0 Woody den Benutzern erlaubt, 2.4er Kernel
+
+<p>Beachten Sie, dass Debian 3.0 <em>Woody</em> den Benutzern erlaubt, 2.4er Kernel
 zu installieren (indem Sie <em>flavors</em> wählen), <em>aber</em> der
 Standard-Kernel ist 2.2 (von einigen Architekturen abgesehen, auf die der
 Kernel 2.2 nicht portiert wurde). Wenn Sie dies als Bug ansehen, beachten
@@ -285,15 +440,15 @@ sich erst als Benutzer mit ihrem Passwort auf dem System einzuloggen, und
 dann Superuser zu werden (mit <prgn>su</prgn> oder <prgn>sudo</prgn>).
 Solche eine Policy ist in Debian in der Datei
 <file>/etc/login.defs</file> oder <file>/etc/securetty</file> (falls Sie
-PAM verwenden) implementiert. In:
+PAM verwenden) implementiert.
 
 <list>
 
-<item><file>login.defs</file> ändern Sie die CONSOLE-Variable,
+<item>In <file>login.defs</file> ändern Sie die CONSOLE-Variable,
 die eine Datei oder eine Liste von Terminals definiert, an denen sich
-root einloggen darf
+Root einloggen darf.
 
-<item><file>securetty</file>
+<item>In <file>securetty</file>
 <footnote>
 Die Datei <file>/etc/securetty</file> ist eine Konfigurationsdatei, die zum
 Paket <package>login</package> gehört.
@@ -320,9 +475,11 @@ Konsolen für tty- und vc-Konsolen zu Verfügung. Sie können das ohne Probleme
 entfernen, wenn Sie nicht derartige viele Konsolen benutzen.
 </footnote>
 haben, abhängig von der Anzahl der virtuellen Konsolen, die Sie in
-<file>/etc/inittab</file> aktiviert haben<footnote>Achten Sie auf die
-<em>getty</em> Einträge.</footnote>). Weiterführende Informationen zu
-Terminal-Schnittstellen finden Sie im <url
+<file>/etc/inittab</file> aktiviert haben
+<footnote>
+Achten Sie auf die <em>getty</em> Einträge.
+</footnote>).
+Weiterführende Informationen zu Terminal-Schnittstellen finden Sie im <url
 id="http://tldp.org/HOWTO/Text-Terminal-HOWTO-6.html"
 name="Text-Terminal-HOWTO">.
 
@@ -612,7 +769,7 @@ aktiviert werden, um den Benutzern Grenzen ihrer Systemressourcen zu setzen.
 </example>
 
 <p>Dies schränkt die Systemressourcen ein, die ein Benutzer nutzen darf (siehe
-in <ref id="user-limits">). Sie können zum Beispiel die Anzahl
+<ref id="user-limits">). Sie können zum Beispiel die Anzahl
 der Logins, die man haben kann, einschränken (für eine Gruppe
 von Nutzern oder systemweit), die Anzahl der Prozesse, den belegten
 Speicher etc.
@@ -740,7 +897,7 @@ zu vermeiden) und eine Begrenzung auf 10MB Speicher pro Prozess und ein Limit
 von 10 gleichzeitigen Logins. Benutzer in der Gruppe <tt>adm</tt> haben höhere
 Begrenzungen und können Dateien mit einem Speicherabbild schreiben, wenn sie das
 <!-- SB (20050421): "can produce core files if they want to" -->
-wollen (es gibt also nur eine <em>weiche</em> Begrenzung.
+wollen (es gibt also nur eine <em>weiche</em> Begrenzung).
 
 <p>
 <example>
@@ -1019,7 +1176,7 @@ welche den Startvorgang der Shell steuert, folgendes eintragen:
 
 <example>
 umask 077
-exec script -q -a "/var/log/sessions/$USER
+exec script -q -a "/var/log/sessions/$USER"
 </example>
 
 <sect2>Die History-Datei der Shell benutzen
@@ -1496,7 +1653,7 @@ befindet, könnte es nützlich sein, das System-Log auf einer
 virtuellen Konsole auszugeben. Die ist nützlich, da Sie so (auch von
 weiter weg oder im Vorbeigehen) sehen können, ob sich das System
 richtig verhält. Debians <file>/etc/syslog.conf</file> wird mit
-einer auskommentierten Standard-Konfiguration ausgeliefert. Um diese Ausgabe
+einer auskommentierten Standardkonfiguration ausgeliefert. Um diese Ausgabe
 einzuschalten, entfernen Sie die Kommentarzeichen vor den entsprechenden Zeilen
 und starten <prgn>syslog</prgn> neu (<tt>/etc/init.d/syslogd restart</tt>):
 
@@ -1800,7 +1957,7 @@ id="http://www.grsecurity.net/features.php" name="noch viele Features mehr">
 zur Verfügung.
 
 <item><package>kernel-patch-adamantix</package> bietet die Patches an, die für
-die Debian Distribution <url id="http://www.adamantix.org/" name="Adamantix">
+die Debian-Distribution <url id="http://www.adamantix.org/" name="Adamantix">
 entwickelt wurden. Dieser Patch für den Kernel 2.4.x führt einige
 Sicherheitsfähigkeiten wie nichtausführbaren Speicher durch den Einsatz von
 <url id="http://pageexec.virtualave.net/" name="PaX"> und Mandatory Access
@@ -1929,7 +2086,7 @@ wurde aber schon in <url id="http://bugs.debian.org/213994" name="Fehler
 <p>Beachten Sie, dass selbst wenn Debian einen Compiler zur Verfügung stellen
 würde, der Schutz vor Stapel- und Pufferüberläufen bieten würde, so doch alle
 Pakete neu übersetzt werden müssten, um diese Eigenschaft
-einzuführen. Tatsächlich ist das die Aufgabe von Adamantix (unter anderen
+einzuführen. Tatsächlich ist das die Aufgabe der Distribution Adamantix (unter anderen
 Fähigkeiten). Die Auswirkungen dieses neuen Features auf die Stabilität der
 Software muss aber noch ermittelt werden (einige Programme und einige
 Prozessoren werden vielleicht deswegen nicht mehr funktionieren).
