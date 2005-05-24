@@ -17,7 +17,7 @@ endif
 # Out-of-date languages disabled to avoid people using old versions
 # of the release notes for upgrade tests.
 # LANGUAGES := en fr nl pt_BR cs it da de ja fi sk es
-LANGUAGES := en fr nl pt_BR cs es
+LANGUAGES := en fr nl pt_BR cs es ja
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
