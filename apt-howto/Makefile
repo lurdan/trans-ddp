@@ -10,7 +10,7 @@ export TEXMFCNF=../quick-reference/texmf:
 export PATH:=../quick-reference/bin/:${PATH}
 
 # Basename for SGML
-MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
+MANUAL := apt-howto
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
@@ -49,7 +49,7 @@ ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
 $(MANUAL).el.ps: $(MANUAL).el.sgml
 	@echo Locale 'el' not yet supported
-	
+
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $(locale) $<
 
@@ -58,7 +58,7 @@ pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
 
 $(MANUAL).el.pdf: $(MANUAL).el.sgml
 	@echo Locale 'el' not yet supported
-	
+
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $(locale) $<
 
