@@ -1,7 +1,7 @@
 <!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN" [
   <!entity % dynamicdata  SYSTEM "../dynamic.ent"       > %dynamicdata;
   <!entity % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
-  <!entity docid "$Id: release-notes.en.sgml,v 1.44 2005-05-26 12:15:07 fjp Exp $">
+  <!entity docid "$Id: release-notes.en.sgml,v 1.45 2005-05-27 00:04:26 fjp Exp $">
 ]>
 
 <!-- Be careful with automatic reformatting. Please note that the indentation
@@ -13,7 +13,7 @@
     <title>Release Notes for &debian; &release; (`&releasename'), &arch-title;</title>
       <author>
         <name>Josip Rodin, Bob Hilliard, Adam Di Carlo, Anne Bezemer, Rob
-        Bradford (current)</name><email></email>
+        Bradford (current), Frans Pop (current)</name><email></email>
       </author>
       <author>
         <name></name><email>debian-doc@lists.debian.org</email>
@@ -325,7 +325,7 @@ release: architectures:
 
           <p>The main things you'll want to back up are the contents of
           <file>/etc</file>, <file>/var/lib/dpkg</file> and the output of
-          <tt>dpkg --get-selections \*</tt>.</p>
+          <tt>dpkg --get-selections "*"</tt> (the quotes are important).</p>
 
           <p>It's wise to inform all users in advance of any upgrades you're
           planning, although users accessing your system via SSH (at least)
@@ -339,36 +339,144 @@ release: architectures:
           textmode virtual console (or a directly connected serial
           terminal), or remotely via an <prgn/ssh/ link.</p>
 
-          <p><em/Important/: You should <em/not/ upgrade using <prgn/telnet/,
+          <p><strong/Important!/ You should <em/not/ upgrade using <prgn/telnet/,
           <prgn/rlogin/, <prgn/rsh/, or from an X session managed by <prgn/xdm/,
           <prgn/gdm/ or <prgn/kdm/ etc on the machine you are upgrading. That is
           because each of those services may well be terminated during the
           upgrade, which can result in an <em/inaccessible/ system that is only
           half-upgraded.</p>
-	  
-          <p>The recommended method of upgrading is to use <prgn/aptitude/, as
-	  described here. The built-in dependency analysis enables smooth
-	  upgrades and easy installations.</p>
-	  
-	  <p>Any package installation operation must be run with superuser
+
+          <p>Any package installation operation must be run with superuser
           privileges, so either login as root or use <prgn/su/ or
           <prgn/sudo/ to gain the necessary access rights.</p>
-          
-          <p>First the <package>aptitude</package> package needs to be installed.
-	  This is done with:</p> 
 
-	  <p><example>
-apt-get install aptitude
-	  </example></p>
+        </sect>
 
-          <p>Provided that you have a working APT configuration this will
-          install the &oldreleasename; version of
-          
-	  <prgn>aptitude</prgn>.</p>
+        <sect id="system-status">
+        <heading>Checking system status</heading>
+
+        <p>The upgrade process described in this chapter has been designed for
+        upgrades from "pure" &oldreleasename; systems. It assumes your system
+        has been updated to the latest point release of &oldreleasename;.
+        If you have not or are unsure, follow the instructions in
+        <ref id="old-upgrade"></p>
+
+<![ %has-woody-aptitude [
+        <p>It also assumes you have the &oldreleasename; version of
+        <prgn/aptitude/ installed. You can check if it is installed using
+        
+        <example>
+$ dpkg -l aptitude
+        </example>
+        
+        If the line of output does <em/not/ begin with "i", you should install
+        it before you start the upgrade using the instructions in
+        <ref id="old-aptitude">.</p>
+]]>
+
+	<sect1><heading>Disabling APT pinning</heading>
+
+	  <p>If you have configured APT to install certain packages from a
+	  distribution other than stable (e.g. from testing), you may have to
+	  change your APT pinning configuration (stored in
+	  <file>/etc/apt/preferences</file>) to allow the upgrade of packages to
+	  the versions in the new stable release. Further information on APT
+	  pinning can be found in <manref name="apt_preferences" section="5">.</p>
+
+	</sect1>
+	
+        <sect1><heading>Checking packages status</heading>
+
+          <p>Regardless of the method used for upgrading, it is recommended
+          that you check the status of all packages first, and verify that
+          all packages are in an upgradable state. The following command
+          will show any packages which have a status of Half-Installed or
+          Failed-Config, and those with any error status.
+
+          <example>
+# dpkg --audit
+          </example></p>
+ 
+          <p>You could also inspect the state of all packages on your system
+          using <prgn/dselect/, <prgn/aptitude/, or with commands such as
+
+          <example>
+# dpkg -l | pager 
+          </example>
+
+          or
+
+          <example>
+# dpkg --get-selections &gt; ~/curr-pkgs.txt
+          </example></p>
+
+          <p>It is desirable to remove any holds before upgrading. If any
+          package that is essential for the upgrade is on hold, the upgrade
+          will fail. You can identify packages on hold with
+ 
+          <example>
+# dpkg --audit
+          </example></p>
+
+          <p>If you changed and recompiled a package locally, and didn't rename
+          it or put an epoch in the version, you must put it on hold to prevent
+          it from being upgraded.
+
+<![ %has-woody-aptitude [
+          The `hold' package state can be changed by using <prgn/aptitude/:
+
+          <example>
+# aptitude hold | unhold &lt;package name&gt;
+          </example>
+]]>
+<![ %no-woody-aptitude [
+          The `hold' package state can be changed either by using <prgn/dselect/
+          (in the Select menu, use the `H' and `G' keys to hold and unhold,
+          respectively), or by editing the file produced by
+
+          <example>
+# dpkg --get-selections &gt; ~/curr-sels.txt
+          </example>
+
+          to change "hold" to "install" (or vice versa), and then doing
+
+          <example>
+# dpkg --set-selections &lt; ~/curr-sels.txt
+          </example>
+]]>
+          </p>
+
+          <p>If there is anything you need to fix, it is best to make sure your
+          <file/sources.list/ still refers to &oldreleasename; as explained in
+          <ref id="old-sources">.</p>
+        </sect1>
+
+        <sect1 id="backports"><heading>Unofficial sources and backports</heading>
+
+          <p>If you have any non-Debian packages on your system, you should be
+          aware that these may be removed during the upgrade because of
+          conflicting dependencies. If these packages were installed by adding
+          an extra package archive in your <file>/etc/apt/sources.list</file>,
+          you should check if that archive also offers packages compiled for
+          &releasename; and change the source line accordingly at the same time
+          as your source lines for Debian packages.</p>
+
+          <p>Some users may have unofficial backported "newer" versions of
+          packages that <em/are/ in Debian installed on their &oldreleasename;
+          system. Such packages are most likely to cause problems during an
+          upgrade as they may result in file conflicts<footnote>Debian's
+          package management system normally does not allow a package to remove
+          or replace a file owned by another package; not unless it has been
+          defined to replace that package.</footnote>. Section <ref id="trouble">
+          has some information on how to deal with file conflicts if they should
+          occur.</p>
+
+        </sect1>
+        </sect>
 
 <![ %glibcneedsnewkernel [
 
-        <sect1 id="new-kernel">
+        <sect id="new-kernel">
         <heading>Checking kernel support</heading>
 
 <![ %sparc [
@@ -422,7 +530,7 @@ apt-get install aptitude
 ]]>
 
 <![ %upgradekernel [
-          <sect2 id="kernel-upgrade"><heading>Upgrading the kernel</heading>
+        <sect1 id="kernel-upgrade"><heading>Upgrading the kernel</heading>
 
           <p>If (and only if) the previous section indicates that you should
           upgrade your kernel <em/before/ the upgrade of the system, you
@@ -436,68 +544,10 @@ apt-get install aptitude
           Detailed instructions on how to install the new kernel can be
           found in <ref id="kernel-upgrade-howto">.</p>
           
-          </sect2>
-]]>
-          </sect1>
-]]>
-
-	<sect1><heading>Disabling APT pinning</heading>
-
-	  <p>If you have configured APT to install certain packages from a
-	  distribution other than stable (e.g. from testing), you may have to
-	  change your APT pinning configuration (stored in
-	  <file>/etc/apt/preferences</file>) to allow the upgrade of packages to
-	  the versions in the new stable release. Further information on APT
-	  pinning can be found in <manref name="apt_preferences" section="5">.</p>
-<!-- FJP: Couldn't the advise to hold such packages prevent the upgrade of e.g.
-          libc6 if the package depends on the old version! -->
-
-	</sect1>
-	
-        <sect1><heading>Checking packages status</heading>
-
-          <p>Regardless of the method used for upgrading, it is recommended
-          that you check the status of all packages first, and verify that
-          all packages are in an upgradable state. The following command
-          will show any packages which have a status of Half-Installed or
-          Failed-Config, and those with any error status.
-
-          <example>
-# dpkg --audit
-          </example></p>
- 
-          <p>You could also inspect the state of all packages on your system
-          using <prgn/dselect/, <prgn/aptitude/, or with commands such as
-
-          <example>
-# dpkg -l | pager 
-          </example>
-
-          or
-
-          <example>
-# dpkg --get-selections &gt; ~/curr-pkgs.txt
-          </example></p>
-
-          <p>It is desirable to remove any holds before upgrading. If any
-          package that is essential for the upgrade is on hold, the upgrade
-          will fail. You can identify packages on hold with
- 
-          <example>
-# dpkg --audit
-          </example></p>
-
-          <p>If you changed and recompiled a package locally, and didn't rename
-          it or put an epoch in the version, you must put it on hold to prevent
-          it from being upgraded. The `hold' package state can be changed by
-          using <prgn/aptitude/. With 
-	  
-      	  <example>
-aptitude hold | unhold &lt;package&gt;
-      	  </example>
-    	    </p>
         </sect1>
+]]>
         </sect>
+]]>
 
         <sect id="upgrade-process"><heading>Preparing sources for APT</heading>
 
@@ -511,6 +561,16 @@ aptitude hold | unhold &lt;package&gt;
           way, in case of multiple mirror locations, you'd typically first
           name a local harddisk, then CD-ROMs, and then HTTP/FTP
           mirrors).</p>
+
+          <p>A release can often be referred to by both its codename (e.g.
+          &oldreleasename;, &releasename;) and by its status name (i.e.
+          oldstable, stable, testing, unstable). Referring to a release by its
+          codename has the advantage that you will never be surprised by a
+          new release and for this reason is the approach taken here. It
+          does of course mean that you will have to watch out for release
+          announcements yourself. If you use the status name instead, you
+          will just see loads of updates for packages available as soon as a
+          release has happened.</p>
 
          <sect1 id="network"><heading>Adding APT Internet sources</heading>
 
@@ -529,9 +589,6 @@ aptitude hold | unhold &lt;package&gt;
            <url id="&url-debian-mirrors;"> (look at the "Full list of
            mirrors" section). HTTP mirrors are generally speedier than FTP
            mirrors.</p>
-<!-- FJP: 'Otherwise' does not refer back to anything here, so I deleted it
-          (unless the intention was to refer to local intr_a_net HTTP
-          servers in the previous para). -->
 
            <p>For example, suppose your closest Debian mirror is
            <tt>&url-debian-mirror-eg;/</tt>. When inspecting that mirror
@@ -539,8 +596,8 @@ aptitude hold | unhold &lt;package&gt;
            directories are organized like this:
 
            <example>
-&url-debian-mirror-eg;/dists/stable/main/binary-&architecture;/...
-&url-debian-mirror-eg;/dists/stable/contrib/binary-&architecture;/...
+&url-debian-mirror-eg;/dists/&releasename;/main/binary-&architecture;/...
+&url-debian-mirror-eg;/dists/&releasename;/contrib/binary-&architecture;/...
            </example></p>
 
            <p>To use this mirror with <prgn/apt/, you add this line to your
@@ -579,15 +636,15 @@ deb &url-debian-mirror-eg; &releasename; main contrib
            this:
 
            <example>
-/var/ftp/debian/dists/stable/main/binary-&architecture;/...
-/var/ftp/debian/dists/stable/contrib/binary-&architecture;/...
+/var/ftp/debian/dists/&releasename;/main/binary-&architecture;/...
+/var/ftp/debian/dists/&releasename;/contrib/binary-&architecture;/...
            </example></p>
 
            <p>To use this with <prgn/apt/, add this line to your
            <file/sources.list/ file:
 
            <example>
-deb file:/var/ftp/debian stable main contrib
+deb file:/var/ftp/debian &releasename; main contrib
            </example></p>
 
            <p>Note that the `<tt>dists</tt>' is added implicitly, and the
@@ -598,9 +655,7 @@ deb file:/var/ftp/debian stable main contrib
           existing "<tt/deb/" lines in <file/sources.list/, by placing a
           hash sign (<tt/#/) in front of them.</p></sect1>
 
-        <sect1 id="cdroms"><heading>Adding APT source from CD-ROM</heading>
-
-<!-- FJP: Are these instructions also valid for adding DVD's? -->
+        <sect1 id="cdroms"><heading>Adding APT source from CD-ROM or DVD</heading>
 
           <p>If you want to use CDs <em/only/, comment out the existing
           "<tt/deb/" lines in <file>/etc/apt/sources.list</file> by placing
@@ -625,15 +680,15 @@ deb file:/var/ftp/debian stable main contrib
           <p>To verify it works, insert a CD and try running
 
           <example>
-mount /cdrom   # this will mount the CD to the mount point
-ls -alF /cdrom # this should show the CD's root directory
-umount /cdrom  # this will unmount the CD
+# mount /cdrom    # this will mount the CD to the mount point
+# ls -alF /cdrom  # this should show the CD's root directory
+# umount /cdrom   # this will unmount the CD
           </example></p>
 
           <p>Next, run:
 
           <example>
-apt-cdrom add
+# apt-cdrom add
           </example>
 
           for each Debian Binary CD-ROM you have, to add the data about
@@ -642,25 +697,26 @@ apt-cdrom add
         </sect>
 
 	<sect id="upgradingpackages"><heading>Upgrading packages</heading>
-	  
+
 	  <p>The recommended tool for upgrading between &debian; releases is
 	  to use the package management tool <prgn>aptitude</prgn>. This tool
 	  makes safer decisions about package installations than running
 	  <prgn>apt-get</prgn> directly.</p>
-	  
+
 	  <p>Don't forget to mount all needed partitions (notably the root
           and <file>/usr</file> partitions) read-write, with a command
           like:
 
           <example>
-mount -o remount,rw /<var>mountpoint</var>
+# mount -o remount,rw /<var>mountpoint</var>
           </example></p>
 
-	  <p>Next ensure that the APT source entries (in
-	  <file>/etc/apt/sources.list</file>) refer to the <tt>'stable'</tt>
-	  distribution and do not refer to it by its codename (e.g.
-	  <tt>&oldreleasename;</tt>).
-	  
+	  <p>Next you should double check that the APT source entries (in
+	  <file>/etc/apt/sources.list</file>) refer either to
+	  "<tt/&releasename;/" or to "<tt>stable</tt>". Note: source
+	  lines for a CD-ROM will often refer to "<tt/unstable/";
+	  although this may be confusing, you should <em/not/ change it.</p>
+
 	  <p>It is strongly recommended that you use the
 	  <prgn>/usr/bin/script</prgn> program to record a transcript of the
 	  upgrade session. Then if a problem occurs, you will have a log of
@@ -668,44 +724,92 @@ mount -o remount,rw /<var>mountpoint</var>
 	  report. To start the recording, type:
 
           <example>
-script -a ~/upgrade-to-&releasename;.typescript
+# script -a ~/upgrade-to-&releasename;.typescript
           </example>
 
 	  or similar. Do not put the typescript file in a temporary
 	  directory such as <file>/tmp</file> or <file>/var/tmp</file> (files
 	  in those directories may be deleted during the upgrade or during any
 	  restart).</p>
- 
-	  <p>First <prgn>aptitude</prgn> needs to fetch a list of new and
-	  updated packages for the new release. This is done by executing:</p>
-	  
+
+          <p>The typescript will also allow you to review information that has
+          scrolled off-screen. Just switch to VT2 (using <tt/alt-F2/) and, after
+          logging in, use <tt>less ~root/upgrade-to-&releasename;.typescript</tt>
+          to view the file.</p>
+
+          <p>After you have completed the upgrade, you can stop the typescript
+          by typing <tt/exit/ at the prompt.</p>
+
+        <sect1 id="updating_lists"><heading>Updating the package list</heading>
+
+          <p>First the list of available packages for the new release needs to
+          be fetched. This is done by executing<footnote>We use <prgn/apt-get/
+          for this because the &oldreleasename; version <prgn/aptitude/ may fail
+          when new sources have been added to <file/sources.list/.</footnote>:</p>
+
 	  <p><example>
-aptitude update
+# apt-get update
 	  </example></p>
 
-	  <p>Once <prgn>aptitude</prgn> has information on all the available
-	  packages, the system is almost ready to be fully upgraded. First
-          however the <package>doc-base</package> package must be upgraded
-          <em>if it is installed</em>. You can find out if it is installed
-          using:</p>
+        </sect1>
+
+<!-- FJP: This next section can probably be dropped for etch -->
+        <sect1 id="upgrading_aptitude"><heading>Upgrading aptitude</heading>
+
+          <p>Upgrade tests have shown that &releasename;'s version of
+          <prgn/aptitude/ is better at solving the complex dependencies during
+          an upgrade than either <prgn/apt-get/ or &oldreleasename;'s
+          <prgn/aptitude/.
+
+<![ %has-woody-aptitude [
+          It should therefore be upgraded first using:
+          <example>
+# aptitude install aptitude
+          </example></p>
+]]>
+<![ %no-woody-aptitude [
+          It should therefore be installed first using:
+          <example>
+# apt-get install aptitude
+          </example></p>
+]]>
+
+          <p><prgn/aptitude/ will show you a list of the changes that will be
+          made and ask you to confirm them. You should take a careful look at
+          the proposed changes, especially packages that will be removed by the
+          upgrade, before you confirm.</p>
+
+        </sect1>
+
+        <sect1 id="upgrading_doc-base"><heading>Upgrading doc-base</heading>
+
+          <p><em>If you have <package/doc-base/ installed</em>, it must be
+          upgraded before the rest of the system too. Reason is that it may fail
+          if perl is upgraded at the same time. You can find out if it is
+          installed using:</p>
           
           <p><example>
-dpkg -l doc-base
+# dpkg -l doc-base
           </example></p>
 
           <p>If the line of output begins with "i" then it is installed and
           must be upgraded before continuing.</p>
 
           <p><example>
-aptitude install doc-base
+# aptitude install doc-base
           </example></p>
+
+        </sect1>
+
+        <sect1 id="upgrading_other"><heading>Upgrading the rest of the system</heading>
+
           <p>You are now ready to continue with the main part of the
           upgrade. Execute:</p>
 	  <p><example>
-aptitude -f --with-recommends dist-upgrade
+# aptitude -f --with-recommends dist-upgrade
 	  </example></p>
 
-	  <p>This will perform a complete upgrade of the system, i.e.  install
+	  <p>This will perform a complete upgrade of the system, i.e. install
 	  the newest available versions of all packages, and resolve all
 	  possible dependency changes between packages in different releases.
 	  If necessary, it will install some new packages (usually new library
@@ -729,6 +833,8 @@ aptitude -f --with-recommends dist-upgrade
           dependencies in place. <package/apt/ does not allow broken package
           dependencies to exist on a system.</p>
 
+        </sect1>
+
         <sect1 id="trouble"><heading>Possible issues during upgrade</heading>
 
           <p>If an operation using <prgn/aptitude/, <prgn/apt-get/ or
@@ -743,7 +849,7 @@ E: Dynamic MMap ran out of room
           <file>/etc/apt/apt.conf</file>. The following command will set it
           to a value that should be sufficient for the upgrade:
 <example>
-echo 'APT::Cache-Limit "12500000";' >> /etc/apt/apt.conf
+# echo 'APT::Cache-Limit "12500000";' >> /etc/apt/apt.conf
 </example>
           This assumes that you do not yet have this variable set in that file.</p>
 
@@ -760,22 +866,26 @@ echo 'APT::Cache-Limit "12500000";' >> /etc/apt/apt.conf
           using <prgn/aptitude/ or
 
           <example>
-dpkg --remove <var>packagename</var>
+# dpkg --remove <var>packagename</var>
           </example>
 
           to eliminate some of the offending packages, or
  
           <example>
-aptitude --fix-broken install
-dpkg --configure --pending
+# aptitude --fix-broken install
+# dpkg --configure --pending
           </example></p>
 
           <p>In extreme cases you might have to force re-installation with a
           command like
 
           <example>
-dpkg --install <var>/path/to/packagename.deb</var>
+# dpkg --install <var>/path/to/packagename.deb</var>
           </example></p>
+
+<!-- FJP Add instructions what to do in case of file conflicts
+     dpkg -r \-\-force-depends <package name>
+-->
 
           <p>After fixing things up, you should be able to resume the
           upgrade by repeating the previously described <tt/aptitude/
@@ -794,9 +904,12 @@ dpkg --install <var>/path/to/packagename.deb</var>
           <p>If you're not sure what to do, write down the name of the
           package or file, and sort things out at a later time. You can
           search in the typescript file to review the information that
-          was on the screen during the upgrade.</p></sect1>
+          was on the screen during the upgrade.</p>
 
-        <sect1 id="nownownow"><heading>Things to do before rebooting</heading>
+        </sect1>
+        </sect>
+
+        <sect id="nownownow"><heading>Things to do before rebooting</heading>
 
           <p>When <tt>aptitude dist-upgrade</tt> has finished, the
           "formal" upgrade is complete, but there are some other things
@@ -808,7 +921,7 @@ dpkg --install <var>/path/to/packagename.deb</var>
 	  relevant for users of all previous Debian releases. In short, you
 	  need to read it.</p>
 
-        <sect2 id="newkernel"><heading>Upgrading your kernel</heading>
+        <sect1 id="newkernel"><heading>Upgrading your kernel</heading>
           
 	  <p>Note that the Linux kernel was <em/not/ upgraded by these
 	  procedures. You may wish to do so yourself, either by installing one
@@ -833,10 +946,9 @@ dpkg --install <var>/path/to/packagename.deb</var>
          <p>To upgrade your kernel you must first choose the kernel most
          appropriate for your subarchitecture. A list of kernels available for
          you to install can be found with:
-<!-- FJP: s/subarchitecture/subarchitecture and processor/ ??? -->
 
          <example>
-apt-cache search ^kernel-image
+# apt-cache search ^kernel-image
          </example></p>
          
          <p>You should then use <tt/aptitude install/ to install it. Once
@@ -859,7 +971,6 @@ apt-cache search ^kernel-image
          <package>kernel-package</package> tool and read the documentation
          in <file>/usr/share/doc/kernel-package</file>.</p>
          
-         </sect2>
          </sect1>
          </sect>
 
@@ -1471,6 +1582,82 @@ deb &url-kernel-upgrade;
 
     </appendix>
 ]]>
+
+    <appendix id="old-stuff">
+    <heading>Managing your &oldreleasename; system</heading>
+
+       <p>This appendix contains information on how to make sure you can install
+       or upgrade &oldreleasename; packages before you upgrade to &releasename;.
+       This should only be necessary in specific situations.</p>
+
+       <sect id="old-upgrade">
+       <heading>Upgrading your &oldreleasename; system</heading>
+
+          <p>Basically this is no different than any other upgrade of
+          &oldreleasename; you've been doing. The only difference is that you
+          first need to make sure your package list still contains
+          &oldreleasename; packages as explained in <ref id="old-sources">.</p>
+
+       </sect>
+
+<![ %has-woody-aptitude [
+       <sect id="old-aptitude">
+       <heading>Installing &oldreleasename; version of aptitude</heading>
+
+          <p>First you need to make sure you will install &oldreleasename;'s
+          version of <package/aptitude/ and not &releasename;'s by following
+          the instructions in <ref id="old-sources">.</p>
+
+          <p>After that, just execute
+
+          <example>
+# apt-get install aptitude
+          </example>
+
+          to install <package/aptitude/.</p>
+
+       </sect>
+]]>
+
+       <sect id="old-sources">
+       <heading>Checking your sources list</heading>
+
+          <p>If any of the lines in your <file>/etc/apt/sources.list</file>
+          refer to 'stable', you are effectively already "using" &releasename;.
+          If you have already run <tt>apt-get update</tt>, you can still get
+          back without problems following the procedure below.</p>
+           
+          <p>If you have also already installed packages from &releasename;,
+          there probably is not much point in installing packages from
+          &oldreleasename; anymore. In that case you will have to decide for
+          yourself whether you want to continue or not. It is possible to
+          downgrade packages, but that is not covered here.</p>
+          
+          <p>Open the file <file>/etc/apt/sources.list</file> with your favorite
+          editor (as root) and check all lines beginning with <tt>deb http:</tt>
+          or <tt>deb ftp:</tt> for a reference to "<tt/stable/". If you find any,
+          change <tt/stable/ to <tt/&oldreleasename;/.</p>
+          
+          <p>If you have any lines starting with <tt>deb file:</tt>, you will
+          have to check for yourself if the location they refer to contains
+          a &oldreleasename; or a &releasename; archive.</p>
+
+          <p><strong/Important!/ Do not change any lines that begin with
+          <tt>deb cdrom:</tt>. Doing so would invalidate the line and you would
+          have to run apt-cdrom again. Do not be alarmed if a 'cdrom' source
+          line refers to "<tt/unstable/". Although confusing, this is normal.</p>
+          
+          <p>If you've made any changes, safe the file and execute
+
+          <example>
+# apt-get update
+          </example>
+
+          to refresh the package list.</p>
+
+       </sect>
+
+    </appendix>
 
   </book>
 </debiandoc>
