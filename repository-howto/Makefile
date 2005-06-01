@@ -57,12 +57,7 @@ html fo dvi ps pdf: %: $(addsuffix .%,$(manual))
 %.ps:  %.dvi
 	dvips $<
 
-pdfxmltex.fmt:
-	pdfxmltex -ini pdfxmltex.ini
-	# Comment this so that Debian admin could fix the issue
-	#fmtutil --byfmt pdfxmltex --fmtdir .
-
-%.pdf: %.fo pdfxmltex.fmt
+%.pdf: %.fo
 	# needs being run twice to generate toc
 	# yes, this is suboptimal but it's the easiest way
 	pdfxmltex --interaction=batchmode $<
