@@ -48,6 +48,7 @@ html fo dvi ps pdf: %: $(addsuffix .%,$(manual))
 	# only partially catched by
 	# /usr/share/sgml/docbook/stylesheet/xsl/nwalsh/fo/pagesetup.xsl
 	sed 's/margin-left="1in - -4pc"/margin-left="1in"/g' $@ > $@.tmp && mv $@.tmp $@
+	rm -f *.fmt
 
 %.dvi:  %.fo
 	# needs being run twice to generate toc
