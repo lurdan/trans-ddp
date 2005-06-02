@@ -28,7 +28,7 @@ LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
 all: $(LANGUAGES)
 
 $(LANGUAGES):
-	$(MAKE) -C $@
+	-$(MAKE) -C $@
 
 publish: clean
 ifneq "$(PUBLISHDIR)" ""
