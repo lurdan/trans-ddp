@@ -36,15 +36,22 @@ ifneq "$(PUBLISHDIR)" ""
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
 	  $(makedir) $(PUBLISHDIR)/$$arch/release-notes; \
+	  $(makedir) release-notes-$$arch; \
 	  for lang in $(LANGUAGES); do \
+	    $(makedir) release-notes-$$arch/$$lang; \
             $(install_file) $$lang/release-notes.$$lang.html/* $(PUBLISHDIR)/$$arch/release-notes/; \
             $(install_file) $$lang/release-notes.$$lang.txt $(PUBLISHDIR)/$$arch/; \
             $(install_file) $$lang/release-notes.$$lang.pdf $(PUBLISHDIR)/$$arch/; \
             $(install_file) $$lang/release-notes.$$lang.ps $(PUBLISHDIR)/$$arch/; \
+            $(install_file) $$lang/release-notes.$$lang.html/* release-notes-$$arch/$$lang; \
+            $(install_file) $$lang/release-notes.$$lang.txt release-notes-$$arch/$$lang; \
+            $(install_file) $$lang/release-notes.$$lang.pdf release-notes-$$arch/$$lang; \
+            $(install_file) $$lang/release-notes.$$lang.ps release-notes-$$arch/$$lang; \
 	  done; \
           for i in $(PUBLISHDIR)/$$arch/release-notes/*.en.html; do \
             ln -sf $$i $${i%.en.html}.html; \
           done; \
+	  (cd release-notes-$$arch && tar czf $(PUBLISHDIR)/release-notes-$$arch.tar.gz *); \
 	done
 else
 	set -e; \
@@ -71,6 +78,7 @@ endif
 
 clean::
 	rm -f dynamic*.ent relnotes.tar.bz2
+	find -name 'release-notes-*' -type d -maxdepth 1 -exec rm -fr {} \;
 clean:: $(LANGUAGES-clean)
 
 $(LANGUAGES-clean):
