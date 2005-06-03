@@ -14,10 +14,13 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# Out-of-date languages disabled to avoid people using old versions
-# of the release notes for upgrade tests.
-# LANGUAGES := en fr nl pt_BR cs it da de ja fi sk es
-LANGUAGES := en fr nl pt_BR cs it da de ja es zh_CN zh_TW ko ru ro
+# The following languages are currently disabled
+# ca: not updated for Sarge
+# fi, sk: old Sarge translations missing essential information
+# ko: missing a few essential updates; probably needs review too
+# ro: late addition; misses locale to build correctly
+# da: not fully translated; temporarily disabled during CD building
+LANGUAGES := en cs de es fr it ja nl pt_BR ru zh_CN zh_TW
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
