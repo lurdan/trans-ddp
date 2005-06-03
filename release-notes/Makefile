@@ -46,7 +46,6 @@ ifneq "$(PUBLISHDIR)" ""
             $(install_file) $$lang/release-notes.$$lang.html/* release-notes-$$arch/$$lang; \
             $(install_file) $$lang/release-notes.$$lang.txt release-notes-$$arch/$$lang; \
             $(install_file) $$lang/release-notes.$$lang.pdf release-notes-$$arch/$$lang; \
-            $(install_file) $$lang/release-notes.$$lang.ps release-notes-$$arch/$$lang; \
 	  done; \
           for i in $(PUBLISHDIR)/$$arch/release-notes/*.en.html; do \
             ln -sf $$i $${i%.en.html}.html; \
