@@ -18,9 +18,7 @@ endif
 # ca: not updated for Sarge
 # fi, sk: old Sarge translations missing essential information
 # ko: missing a few essential updates; probably needs review too
-# ro: late addition; misses locale to build correctly
-# da: not fully translated; temporarily disabled during CD building
-LANGUAGES := en cs de es fr it ja nl pt_BR ru zh_CN zh_TW
+LANGUAGES := en cs da de es fr it ja nl pt_BR ro ru zh_CN zh_TW
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
