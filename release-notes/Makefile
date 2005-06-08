@@ -17,8 +17,7 @@ endif
 # The following languages are currently disabled
 # ca: not updated for Sarge
 # fi, sk: old Sarge translations missing essential information
-# ko: missing a few essential updates; probably needs review too
-LANGUAGES := en cs da de es fr it ja nl pt_BR ro ru zh_CN zh_TW
+LANGUAGES := en cs da de es fr it ja ko nl pt_BR ro ru zh_CN zh_TW
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
