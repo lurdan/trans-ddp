@@ -48,7 +48,7 @@ ifneq "$(PUBLISHDIR)" ""
             $(install_file) $$lang/release-notes.$$lang.pdf release-notes-$$arch/$$lang; \
 	  done; \
           for i in $(PUBLISHDIR)/$$arch/release-notes/*.en.html; do \
-            ln -sf $$i $${i%.en.html}.html; \
+            ln -sf `basename $$i` $${i%.en.html}.html; \
           done; \
 	  if [ -n "$(PUBLISHTARBALL)" ]; then (cd release-notes-$$arch && tar czf $(PUBLISHDIR)/release-notes-$$arch.tar.gz *); fi \
 	done
