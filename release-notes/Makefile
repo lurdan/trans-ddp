@@ -5,7 +5,7 @@
 # AMD64 port is included in the source, but should not be built by default
 # as the port is not yet officially supported
 # It can still be built by explicitly specifying 'architecture=amd64'
-arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%//) | grep -v 'amd64'
+arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%// | grep -v 'amd64')
 
 export PATH:=../quick-reference/bin/:${PATH}
 
