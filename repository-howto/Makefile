@@ -13,7 +13,7 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(foreach manual, $(manual), $(wildcard $(manual).xml))
 
-all: html pdf # dvi ps # god damn dvi and ps don't work
+all: html # pdf dvi ps # god damn dvi pdf and ps don't work
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manualdir) || install -d -m 755 $(PUBLISHDIR)/$(manualdir)
