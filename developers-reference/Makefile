@@ -42,6 +42,7 @@ publish:	all
 	$(make_directory) $(PUBLISHDIR)/$(MANUAL)
 	$(install_file) developers-reference*.html/*.html developers-reference*pdf	\
 	   $(PUBLISHDIR)/$(MANUAL)
+	ln -sf index.en.html $(PUBLISHDIR)/$(MANUAL)/index.html
 
 developers-reference.html:	developers-reference.sgml
 	$(htmllink)
