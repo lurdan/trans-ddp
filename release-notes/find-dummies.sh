@@ -3,35 +3,66 @@
 # Script to find dummy packages relevant to a new release 
 # (i.e. there was previously a real package but in this release
 # there is a dummy package that can be removed after upgrade)
+# 
+# The script looks for 'dummy' in package descriptions and counts
+# dependancies to determine if a package is actually dummy
+# (usually dummy packages depend on 1 package, but that is not
+# always the case)
+#
+# The script also searches for 'ease|smooth upgrades',
+# 'transitional'.
+# 
+# It does not currently look for 'obsolete' or 
+# 'remove after upgrade', but might be easily added in there.
+#
+# Requirement: You need a local Debian mirror for it to work
+# (you should adjust the mirror location there) although only
+# the Packages list of the releases are used.
 #
 # Useful to fill in the 'Appendix' section of the Release Notes
 # (but needs REVIEW)
 #
-# (c) Javier Fernandez-Sanguino, 2004.
+# See also: http://adn.diwi.org/wiki/index.php/Dummy
+# and http://adn.diwi.org/wiki/index.php/DummyPackagesStatus
+#
+# (c) Javier Fernandez-Sanguino, 2005.
 #
 # Note:
 # - The fact that there is no standard on how to setup the name and 
 #   description of transitional-packages make this script give a number
 #   of false positives and false negatives (that need to be found out
-#   by hand). The script could also try searching for 
-#   'ease|smooth upgrades' or 'transitional' or 'obsolete' or 
-#   'remove after upgrade' too
+#   by hand). 
+#
 # - (Known false positive)
-#   Does not work for python packages since many say that they are dummy
-#   but are not, in fact, transitional
+#   Does not work for Python or Ruby packages since many say that they 
+#   are dummy but are not, in fact, transitional. They are used to depend
+#   on Debian's Python/Ruby version but are not used for upgrades.
+#
+# - (Known false negatives)
+#   It will only search i386 packages, if there are dummy packages in
+#   other architectures which are not present in i386 they will not 
+#   be shown. To test, change 'ARCH' below
 
 # Location of the Packages file of the previous release
 # Please CONFIGURE this:
 MIRROR_DIR=/home/mirrors/debian/
-PREV_RELEASE=woody
-CUR_RELEASE=sarge
+#PREV_RELEASE=woody
+PREV_RELEASE=sarge
+CUR_RELEASE=etch
+ARCH=i386
 
 # This probably needs no changes:
-PREV_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${PREV_RELEASE}/main/binary-i386/Packages"
-CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-i386/Packages"
+PREV_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${PREV_RELEASE}/main/binary-${ARCH}/Packages"
+CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages"
 
+tmpfile=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
+trap " [ -f \"$tmpfile\" ] && /bin/rm -f -- \"$tmpfile\"" 0 1 2 3 13 15
 # Find all packages that are "dummy"
-grep-available -n -s Package -F Description "dummy" $CUR_RELEASE_PACK |
+grep-available -n -s Package -F Description "dummy" $CUR_RELEASE_PACK  >$tmpfile
+grep-available -n -s Package -F Description "transitional" $CUR_RELEASE_PACK  >>$tmpfile
+grep-available -n -s Package -r -F Description "smooth|ease upgrade" $CUR_RELEASE_PACK  >>$tmpfile
+
+cat $tmpfile | sort -u |
 while read package; do
 	declare -i count=0
 	description=`grep-available --exact-match -s Description -P $package`
@@ -73,4 +104,4 @@ while read package; do
 done
 
 exit 0
-
+# EOS
