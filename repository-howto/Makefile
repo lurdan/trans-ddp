@@ -5,7 +5,7 @@
 # in .deb format, etc)
 
 manual := $(notdir $(CURDIR)).fr \
-	  $(notdir $(CURDIR)) 
+	  $(notdir $(CURDIR)).en 
 
 manualdir := $(notdir $(CURDIR))
 # this can and will be overriden by a higher level makefile
@@ -15,15 +15,18 @@ sources := $(foreach manual, $(manual), $(wildcard $(manual).xml))
 
 all: html # pdf dvi ps # god damn dvi pdf and ps don't work
 
+$(notdir $(CURDIR)).en.xml: $(notdir $(CURDIR)).xml
+	ln -sf $< $@
+
 publish: all
 	test -d $(PUBLISHDIR)/$(manualdir) || install -d -m 755 $(PUBLISHDIR)/$(manualdir)
 	dir="$(PUBLISHDIR)/$(manualdir)" && \
 	rm -f "$$dir"/*.html "$$dir"/*.pdf "$$dir"/*.ps "$$dir"/*.dvi
 	for built in $(manual); do \
 	install -p -m 644 $$built.html $(PUBLISHDIR)/$(manualdir) ; \
-	install -p -m 644 $$built.pdf $(PUBLISHDIR)/$(manualdir) ; \
 	done
 	# Since dvi and ps do not work remove the following rules
+	#install -p -m 644 $$built.pdf $(PUBLISHDIR)/$(manualdir) ; \
 	#install -p -m 644 $$built.dvi $(PUBLISHDIR)/$(manualdir) ; 
 	#install -p -m 644 $$built.ps $(PUBLISHDIR)/$(manualdir) ; 
 
