@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.31 $"  -->
+<!-- CVS revision of this document "$Revision: 1.32 $"  -->
 
 <chapt>After Installation
 
@@ -2325,12 +2325,70 @@ need configure it so that it's loaded every time the system is
 restarted. The following example enables many of the previous options
 as well as other useful options.
 
-<p><em>FIXME</em> Instead of providing this script provide a sample
-configuration for <file>sysctl.conf</file> (see: <manref section="5"
-name="sysctl.conf">). Also send this as a wishlist bug to the procps package.
+<p>There are actually two ways to configure your network at boot
+time. You can configure <file>/etc/sysctl.conf</file> (see: <manref
+section="5" name="sysctl.conf">) or introduce a script that is called
+when the interface is enabled. The first option will be applied to all
+interfaces, whileas the second option allows you to configure this on
+a per-interface basis.
 
-<p>Create the script in <file>/etc/network/interface-secure</file>
-(the name is given as an example) and call it from
+<p>An example of a <file>/etc/sysctl.conf</file> configuration
+that will secure some network options at the kernel level is shown below. Notice the comment in it,  <file>/etc/network/options</file> might override some values if they contradict those in this file when the <file>/etc/init.d/networking</file> is run (which is later than <file>procps</file> on the startup sequence)
+
+<example>
+#
+# /etc/sysctl.conf - Configuration file for setting system variables
+# See sysctl.conf (5) for information.
+#
+#
+# Be warned that /etc/init.d/procps is executed to set the following
+# variables.  However, after that, /etc/init.d/networking sets some
+# network options with builtin values.  These values may be overridden
+# using /etc/network/options.
+#
+#kernel.domainname = example.com
+#net/ipv4/icmp_echo_ignore_broadcasts=1
+
+# Additional settings - adapted from the script contributed
+# by Dariusz Puchala (see below)
+# Ignore ICMP broadcasts
+net/ipv4/icmp_echo_ignore_broadcasts = 1
+#
+# Ignore bogus ICMP errors
+net/ipv4/icmp_ignore_bogus_error_responses = 1
+# 
+# Do not accept ICMP redirects (prevent MITM attacks)
+net/ipv4/conf/all/accept_redirects = 0
+#
+# Do not send ICMP redirects (we are not a router)
+net/ipv4/conf/all/send_redirects = 0
+#
+# Do not forward IP packets (we are not a router)
+# Note: Make sure that /etc/network/options has 'ip_forward=no'
+net/ipv4/ip_forward = 0
+#
+# Enable TCP Syn Cookies
+# Note: Make sure that /etc/network/options has 'syncookies=yes'
+net/ipv4/tcp_syncookies = 1
+#
+# Log Martian Packets
+net/ipv4/conf/all/log_martians = 1
+#
+# Always defragment packets
+net/ipv4/ip_always_defrag = 1
+#
+# Turn on Source Address Verification in all interfaces to
+# prevent some spoofing attacks
+# Note: Make sure that /etc/network/options has 'spoofprotect=yes'
+net/ipv4/conf/all/rp_filter = 1
+#
+# Do not accept IP source route packets (we are not a router)
+net/ipv4/conf/all/accept_source_route = 0
+</example>
+
+<p>To use the script you need to first create it the script, for
+example, in <file>/etc/network/interface-secure</file> (the name is
+given as an example) and call it from
 <file>/etc/network/interfaces</file> like this:
 
 <example>
@@ -2343,10 +2401,14 @@ iface eth0 inet static
         pre-up /etc/network/interface-secure
 </example>
 
+<p>In this example, before the interface eth0 is enabled the script
+will be called to secure all network interfaces as shown below.
+
 <example>
+#!/bin/sh -e
 # Script-name: /etc/network/interface-secure
 # Modifies some default behavior in order to secure against 
-# some TCP/IP spoofing & attacks
+# some TCP/IP spoofing & attacks for all interffaces
 #
 # Contributed by Dariusz Puchalak  
 #
@@ -2373,13 +2435,65 @@ echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
 # Disable Source Routed Packets
 echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
 
-
-echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
+exit 0
 </example>
 
-<p>You can also create a <tt>init.d</tt> script and have it run on
-bootup (using <prgn>update-rc.d</prgn> to create the appropriate
-<tt>rc.d</tt> links).
+<p>Notice that you can actually have per-interfaces scripts that will
+enable different network options for different interfaces (if you have
+more than one), just change the pre-up line to:
+
+<example>
+pre-up /etc/network/interface-secure $IFACE
+</example>
+
+<p>And use a script which will only apply changes to an specific
+interface, not to all of the interfaces available. Notice that some
+networking options can only be enabled globally, however. A sample
+script is this one:
+
+<example>
+#!/bin/sh -e
+# Script-name: /etc/network/interface-secure
+# Modifies some default behavior in order to secure against 
+# some TCP/IP spoofing & attacks for a given interface
+#
+# Contributed by Dariusz Puchalak  
+#
+
+IFACE=$1
+if [ -z "$IFACE" ] ; then
+   echo "$0: Must give an interface name as argument!"
+   echo "Usage: $0 &lt;interface&gt;"
+   exit 1
+fi
+
+if [ ! -e /proc/sys/net/ipv4/conf/$IFACE/ ]; then
+   echo "$0: Interface $IFACE does not exit (cannot find /proc/sys/net/ipv4/conf/)"
+   exit 1
+fi
+
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/forwarding     # ip forwarding disabled
+echo 1 >/proc/sys/net/ipv4/conf/$IFACE/log_martians # Log strange packets
+# (this includes spoofed Packets, source routed Packets, redirect Packets)
+                         # but be careful with this on heavy loaded web servers
+# now ip spoofing protection
+echo 1 > /proc/sys/net/ipv4/conf/$IFACE/rp_filter
+
+# and finally some more things:
+# Disable ICMP Redirect Acceptance
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/accept_redirects
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/send_redirects
+
+# Disable Source Routed Packets
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/accept_source_route
+
+exit 0
+</example>
+
+
+<p>An alternative solution is to create a <tt>init.d</tt> script and
+have it run on bootup (using <prgn>update-rc.d</prgn> to create the
+appropriate <tt>rc.d</tt> links).
 
 <sect1 id="kernel-fw">Configuring firewall features 
 
