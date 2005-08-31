@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.31" -->
+<!-- CVS revision of original english document "1.35" -->
 
 <chapt>Nach der Installation
 
@@ -1635,13 +1635,13 @@ von ein paar Paketen erreicht wird.
 <sect id="log-alerts">Die Wichtigkeit von Logs und Alarmen
 
 <p>Es ist leicht einzusehen, dass die Behandlung von Logs (Protokolldateien)
-und Alarme eine wichtige Angelegenheit in einem sicheren System. Stellen Sie
+und Alarmen eine wichtige Angelegenheit in einem sicheren System ist. Stellen Sie
 sich vor, ein System ist perfekt konfiguriert und zu 99% sicher. Wenn ein
 Angriff unter dieses 1% fällt, und es keine Sicherheitsmaßnahmen gibt,
 dies erstens zu erkennen und zweitens einen Alarm auszulösen, so ist das System
 überhaupt nicht sicher.
 
-<p>Debian GNU/Linux stellt Tools zur Verfügung, die die Analyse von
+<p>Debian GNU/Linux stellt Werkzeuge zur Verfügung, die die Analyse von
 Log-Dateien übernehmen. Am beachtenswertesten sind <package>swatch</package>
 <footnote>Es gibt darüber einen ziemlich guten Artikel von <url
 id="http://www.spitzner.net/swatch.html" name="Lance Spitzner">.
@@ -2467,9 +2467,9 @@ falsche Routen) in Ihrem Netzwerk zu protokollieren:
 Optionen werden gründlich in
 <file>/usr/src/linux/Documentation/networking/ip-sysctl.txt</file>
 <footnote>
-In Debian installiert das Paket <package>kernel-image</package> die Quellen
+In Debian installieren die Pakete <package>kernel-source</package> die Quellen
 unter <file>/usr/src/kernel-source-2.X.X</file>. Ersetzen Sie einfach
-<em>linux</em> mit dem installierten Kernel.
+<em>linux</em> mit der installierten Kernelversion.
 </footnote>
 beschrieben.
 
@@ -2518,13 +2518,79 @@ sorgen, dass sie bei jedem Neustart des Systems geladen werden. Das
 nachfolgende Beispiel aktiviert neben vielen der oben vorgestellten Optionen
 auch noch ein paar andere nützliche Optionen.
 
-<p><em>FIXME</em> Instead of providing this script provide a sample
-configuration for <file>sysctl.conf</file> (see: <manref section="5"
-name="sysctl.conf">). Also send this as a wishlist bug to the procps package.
+<p>Tatsächlich gibt es zwei Möglichkeiten, Ihr Netzwerk beim Booten
+einzurichten. Sie können entweder <file>/etc/sysctl.conf</file> konfigurieren
+(siehe <manref section="5" name="sysctl.conf">) oder ein Skript einsetzten, das
+beim Aktivieren der Netzwerkschnittstellen aufgerufen wird. Die erste
+Möglichkeit wird auf alle Schnittstellen angewendet, die zweite erlaubt es
+Ihnen, die Konfiguration für jede Schnittstelle separat zu wählen.
 
-<p>Erstellen Sie dieses Skript in <file>/etc/network/interface-secure</file>
-(der Name ist nur ein Beispiel) und rufen Sie wie folgt aus
-<file>/etc/network/interfaces</file> auf:
+<p>Ein Beispiel einer Konfiguration von <file>/etc/sysctl.conf</file>, die
+einige Netzwerkoptionen auf der Kernelebene absichert, wird unten
+gezeigt. Beachten Sie darin den Kommentar, dass
+<file>/etc/network/options</file> beim Ausführen von
+<file>/etc/init.d/networking</file> (dies ist in der Startsequenz nach
+<file>procps</file>) einige Werte überschreiben könnte, wenn sie Werten in
+dieser Datei widersprechen.
+
+<example>
+#
+# /etc/sysctl.conf - Configuration file for setting system variables
+# See sysctl.conf (5) for information. Also see the files under
+# Documentation/sysctl/, Documentation/filesystems/proc.txt, and
+# Documentation/networking/ip-sysctl.txt in the kernel sources 
+# (/usr/src/kernel-$version if you have a kernel-package installed)
+# for more information of the values that can be defined here.
+
+#
+# Be warned that /etc/init.d/procps is executed to set the following
+# variables.  However, after that, /etc/init.d/networking sets some
+# network options with builtin values.  These values may be overridden
+# using /etc/network/options.
+#
+#kernel.domainname = example.com
+
+# Additional settings - adapted from the script contributed
+# by Dariusz Puchala (see below)
+# Ignore ICMP broadcasts
+net/ipv4/icmp_echo_ignore_broadcasts = 1
+#
+# Ignore bogus ICMP errors
+net/ipv4/icmp_ignore_bogus_error_responses = 1
+# 
+# Do not accept ICMP redirects (prevent MITM attacks)
+net/ipv4/conf/all/accept_redirects = 0
+# _or_
+# Accept ICMP redirects only for gateways listed in our default
+# gateway list (enabled by default)
+# net/ipv4/conf/all/secure_redirects = 1
+#
+# Do not send ICMP redirects (we are not a router)
+net/ipv4/conf/all/send_redirects = 0
+#
+# Do not forward IP packets (we are not a router)
+# Note: Make sure that /etc/network/options has 'ip_forward=no'
+net/ipv4/conf/all/forwarding = 0
+#
+# Enable TCP Syn Cookies
+# Note: Make sure that /etc/network/options has 'syncookies=yes'
+net/ipv4/tcp_syncookies = 1
+#
+# Log Martian Packets
+net/ipv4/conf/all/log_martians = 1
+#
+# Turn on Source Address Verification in all interfaces to
+# prevent some spoofing attacks
+# Note: Make sure that /etc/network/options has 'spoofprotect=yes'
+net/ipv4/conf/all/rp_filter = 1
+#
+# Do not accept IP source route packets (we are not a router)
+net/ipv4/conf/all/accept_source_route = 0
+</example>
+
+<p>Um dieses Skript verwenden zu können, müssen Sie es zuerst unter z.B.
+<file>/etc/network/interface-secure</file> (der Name ist nur ein Beispiel)
+erstellen und es wie folgt aus <file>/etc/network/interfaces</file> aufrufen:
 
 <example>
   auto eth0
@@ -2536,25 +2602,35 @@ name="sysctl.conf">). Also send this as a wishlist bug to the procps package.
         pre-up /etc/network/interface-secure
 </example>
 
+<p>In diesem Beispiel wird das Skript aufgerufen, um alle
+Netzwerkschnittstellen abzusichern, wie unten gezeigt wird, bevor die
+Schnittstelle eth0 aktiviert wird.
+
+
 <example>
+#!/bin/sh -e
 # Skriptname: /etc/network/interface-secure
-# Verändert das Standardverhalten in einigen Bereichen, um vor TCP/IP-Spoofing
-# und Angriffen zu schützen
+# Verändert das Standardverhalten für alle Schnittstellen in einigen Bereichen,
+# um vor TCP/IP-Spoofing und Angriffen zu schützen
 #
 # Wurde von Dariusz Puchalak beigesteuert
 #
-echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
-                                           # broadcast echo protection enabled
-echo 0 > /proc/sys/net/ipv4/ip_forward     # ip forwarding disabled
-echo 1 > /proc/sys/net/ipv4/tcp_syncookies # TCP syn cookie protection enabled
-echo 1 >/proc/sys/net/ipv4/conf/all/log_martians # Log strange packets
-# (this includes spoofed packets, source routed packets, redirect packets)
-                         # but be careful with this on heavy loaded web servers
-echo 1 > /proc/sys/net/ipv4/ip_always_defrag 
-                                           #  defragging protection always enabled
-echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses 
-                                           # bad error message protection enabled
+# broadcast echo protection enabled
+echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 
+# ip forwarding disabled
+echo 0 > /proc/sys/net/ipv4/conf/all/forwarding
+
+# TCP syn cookie protection enabled
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+
+# Log strange packets (this includes spoofed packets, source routed packets,
+# redirect packets) but be careful with this on heavy loaded web servers
+echo 1 >/proc/sys/net/ipv4/conf/all/log_martians
+
+# bad error message protection enabled
+echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+                                           
 # now ip spoofing protection
 echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
@@ -2566,13 +2642,66 @@ echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
 # Disable Source Routed Packets
 echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
 
-
-echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
+exit 0
 </example>
 
-<p>Sie können auch ein <tt>init.d</tt>-Skript erstellen und es beim Booten
-ausführen (verwenden Sie <prgn>update-rc.d</prgn>, um die passenden
-<tt>rc.d</tt>-Links herzustellen).
+<p>Beachten Sie, dass Sie auch verschiedene Netzwerkoptionen für verschiedene
+Schnittstellen (falls Sie mehr als eine haben) haben können, indem Sie die
+pre-up-Zeile verändern:
+
+<example>
+pre-up /etc/network/interface-secure $IFACE
+</example>
+
+<p>Zusätzlich müssen Sie ein Skript verwenden, das Änderungen nur auf eine
+bestimmte Schnittstelle anwendet und nicht auf alle Schnittstellen. Beachten
+Sie aber, dass einige Netzwerkoptionen nur global gesetzt werden können. Dies
+ist ein Beispielsskript:
+
+<example>
+#!/bin/sh -e
+# Skriptname: /etc/network/interface-secure
+# Verändert das Standardverhalten für alle Schnittstellen in einigen Bereichen,
+# um vor TCP/IP-Spoofing und Angriffen zu schützen
+#
+# Wurde von Dariusz Puchalak beigesteuert
+
+IFACE=$1
+if [ -z "$IFACE" ] ; then
+   echo "$0: Must give an interface name as argument!"
+   echo "Usage: $0 &lt;interface&gt;"
+   exit 1
+fi
+
+if [ ! -e /proc/sys/net/ipv4/conf/$IFACE/ ]; then
+   echo "$0: Interface $IFACE does not exit (cannot find /proc/sys/net/ipv4/conf/)"
+   exit 1
+fi
+
+# ip forwarding disabled
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/forwarding
+
+# Log strange packets (this includes spoofed Packets, source routed Packets,
+# redirect Packets) but be careful with this on heavy loaded web servers
+echo 1 >/proc/sys/net/ipv4/conf/$IFACE/log_martians
+
+# now ip spoofing protection
+echo 1 > /proc/sys/net/ipv4/conf/$IFACE/rp_filter
+
+# and finally some more things:
+# Disable ICMP Redirect Acceptance
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/accept_redirects
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/send_redirects
+
+# Disable Source Routed Packets
+echo 0 > /proc/sys/net/ipv4/conf/$IFACE/accept_source_route
+
+exit 0
+</example>
+
+<p>Eine andere Lösungsmöglichkeit ist es, ein <tt>init.d</tt>-Skript zu
+erstellen und es beim Booten auszuführen (verwenden Sie
+<prgn>update-rc.d</prgn>, um die passenden <tt>rc.d</tt>-Links herzustellen).
 
 
 <sect1 id="kernel-fw">Konfiguration der Firewall
