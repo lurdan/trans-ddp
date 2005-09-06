@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.38 $"  -->
+<!-- CVS revision of this document "$Revision: 1.39 $"  -->
 
 <chapt>After Installation
 
@@ -2172,15 +2172,18 @@ safe site here, unless someone has also hacked the algorithm that
 creates md5sums on that machine. This is, well, extremely difficult
 and very unlikely. You really should consider this auditing of your
 binaries as very important, since it is an easy way to recognize
-changes at your binaries. Common tools used for this are 
-<package>sXid</package>, <package>AIDE</package> (Advanced Intrusion Detection 
-Environment), <package>TripWire</package> (non-free; the new version will be 
-GPL), <package>integrit</package> and <package>samhain</package>.
+changes at your binaries.
 
-<p>Installing <prgn>debsums</prgn> will help to check the file system
+<p>Common tools used for this are 
+<package>sXid</package>, <package>AIDE</package> (Advanced Intrusion Detection 
+Environment), <package>Tripwire</package>, 
+<package>integrit</package> and <package>samhain</package>.
+Installing <prgn>debsums</prgn> will also help you to check the file system
 integrity, by comparing the md5sums of every file against the md5sums
-used in the Debian package archive. But beware, those files can easily
-be changed.
+used in the Debian package archive. But beware: those files can easily
+be changed by an attacker and not all packages provide md5sums listings for 
+the binaries they provided. For more information please read
+<ref id="periodic-integrity"> and <ref id="snapshot">.
 
 <p>You might want to use <prgn>locate</prgn> to
 index the whole filesystem, if so, consider the implications of that.
@@ -2200,42 +2203,32 @@ then able to quickly search for every file which they are
 able to see.  <prgn>slocate</prgn> doesn't let them see new files;
 it filters the output based on your UID. 
 
-<p>FIXME: put references to the snapshot taken after installation.
-<p>FIXME: Add a note regarding packages not providing debsums for all
-apps installed (not mandatory).
 <p>FIXME: Mention signed binaries using say, bsign or elfsign
 
 <sect1>Setting up setuid check
 
 <p>
-Debian provides a <prgn>cron</prgn> job that runs daily in
-<file>/etc/cron.daily/standard</file>. This <prgn>cron</prgn> job will run the
+The Debian <package>checksecurity</package> package
+provides a <prgn>cron</prgn> job that runs daily in
+<file>/etc/cron.daily/checksecurity</file>
+<footnote>In previous releases, checksecurity was integrated into
+cron and the file was <file>/etc/cron.daily/standard</file></footnote>.
+This <prgn>cron</prgn> job will run the
 <prgn>/usr/sbin/checksecurity</prgn> script that will store
 information of this changes.
-
-<!-- FIXME: What is the default for this in cron package? jfs -->
-
-<p>In order for this check to be made you must set
-<tt>CHECKSECURITY_DISABLE="FALSE"</tt> in
-<file>/etc/checksecurity.conf</file>. Note, this is the default, so
-unless you have changed something, this option will already be set to
-"FALSE".
 
 <p>The default behavior does not send this information to the superuser
 but, instead keeps daily copies of the changes in
 <file>/var/log/setuid.changes</file>. You should set the
-CHECKSECURITY_EMAIL (in <file>/etc/checksecurity.conf</file>) to 'root' to
-have this information mailed to him.  .  See <manref
+MAILTO variable (in <file>/etc/checksecurity.conf</file>) to 'root' to
+have this information mailed to him. See <manref
 name="checksecurity" section="8"> for more configuration info.
 
 <sect id="network-secure">Securing network access
 
 <p>FIXME. More (Debian-specific) content needed
 
-
 <sect1 id="kernel-conf">Configuring kernel network features
-
-<p>FIXME: Content missing
 
 <p>Many features of the kernel can be modified while running by
 echoing something into the <file>/proc</file> file system or by using
@@ -2607,7 +2600,6 @@ specific method to bind to a given interface.
 <p>FIXME: Submit a bug against netbase so that the routing fix
 is standard behavior in Debian?
 
-
 <sect1>Protecting against ARP attacks
 
 <p>When you don't trust the other boxes on your LAN (which should
@@ -2669,15 +2661,20 @@ this upgrade whenever the system is upgraded, especially if you upgrade
 to a new Debian release.
 
 <p>For this you can use a writable removable-media that can be set up
-read-only, this could be a floppy disk (read protected after use) or a
+read-only, this could be a floppy disk (read protected after use), a
 CD on a CD-ROM unit (you could use a rewritable CD-ROM so you could
-even keep backups of md5sums in different dates).
+even keep backups of md5sums in different dates), or a USB disk or MMC
+card (if your system can access those and they can be write protected).
 
 <p>The following script creates such a snapshot:
 
 <example>
 #!/bin/bash
 /bin/mount /dev/fd0 /mnt/floppy
+if [ ! -f /usr/bin/md5sum ] ; then
+	echo "Cannot find md5sum. Aborting."
+	exit 1
+fi
 /bin/cp /usr/bin/md5sum /mnt/floppy
 echo "Calculating md5 database"
 >/mnt/floppy/md5checksums.txt
@@ -2685,13 +2682,34 @@ for dir in /bin/ /sbin/ /usr/bin/ /usr/sbin/ /lib/ /usr/lib/
 do
    find $dir -type f | xargs /usr/bin/md5sum >>/mnt/floppy/md5checksums-lib.txt
 done
-/bin/umount /dev/fd0
 echo "post installation md5 database calculated"
+if [ ! -f /usr/bin/sha1sum ] ; then
+	echo "Cannot find sha1sum"
+else
+	/bin/cp /usr/bin/md5sum /mnt/floppy
+	echo "Calculating SHA-1 database"
+	>/mnt/floppy/sha1checksums.txt
+	for dir in /bin/ /sbin/ /usr/bin/ /usr/sbin/ /lib/ /usr/lib/
+	do
+	   find $dir -type f | xargs /usr/bin/sha1sum >>/mnt/floppy/sha1checksums-lib.txt
+	done
+	echo "post installation sha1 database calculated"
+fi
+/bin/umount /dev/fd0
+exit 0
 </example>
 
-<p>Note that the md5sum binary is placed on the floppy drive so it can
+<p>Note that the md5sum binary (and sha1sum, if available) is placed on the 
+floppy drive so it can
 be used later on to check the binaries of the system (just in case it
-gets trojaned). 
+gets trojaned). However, if you want to make sure that you are running
+a legitimate binary, you might want to either compile a static copy
+of the md5sum binary and use that one (to prevent a trojaned libc library
+from interfering with the binary) or to use the snapshot of Md5sums only from 
+a clean environment such as a rescue CD-ROM or a Live-CD (to prevent
+a trojaned kernel from interfering). I cannot stress this enough:
+if you are on a compromised system you cannot trust its output, see
+<ref id="after-compromise">.
 
 <p>The snapshot does not include the files under
 <file>/var/lib/dpkg/info</file> which includes the md5 hashes of
@@ -2699,13 +2717,20 @@ installed packages (in files ended with <file>.md5sums</file>). You
 could copy this information along too, however you should notice:
 
 <list>
-<item>the md5sums provided by the Debian packages include all the
-files provided by them, which makes the database bigger (5 Mbs versus
+<item>the md5sums files include the md5sum of all files 
+provided by the Debian packages, not just system binaries.
+As a consequence, that database is bigger (5 Mbs versus
 600kbs in a Debian GNU/Linux system with graphical system and around
-2.5 Gbs of software installed)
+2.5 Gbs of software installed) and will not fit in small removable
+media (like a floppy disk).
 
 <item>not all Debian packages provide md5sums for the files installed
-since it is not (currently) mandated policy.
+since it is not (currently) mandated policy. Notice, however,
+that you can generate the md5sums for all packages using 
+<package>debsums</package> after you've finished the system installation:
+<example>
+# debsums --generate=missing,keep
+</example>
 
 </list>
 
@@ -2714,8 +2739,14 @@ read-only. You can then store it for backup or place it in the drive
 and use it to drive a <prgn>cron</prgn> check nightly comparing the original
 md5sums against those on the snapshot.
 
+<p>If you do not want to setup a manual check you can always use
+any of the integrity systems available that will do this and more,
+for more information please read <ref id="periodic-integrity">.
 
 <sect>Other recommendations
+
+<!-- TODO: Remove this? -->
+
 <sect1>Do not use software depending on svgalib
 
 <p>
@@ -2725,5 +2756,3 @@ against <prgn>zgv</prgn> were released, and it was simple to become
 root. Try to prevent using SVGAlib programs wherever possible.  
 
 <!-- FIXME: move this to policy section if there ever is one? -->
-
-
