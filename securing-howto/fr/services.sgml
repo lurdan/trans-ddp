@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.16" -->
+<!-- CVS revision of original english document "1.18" -->
 
 <chapt id="sec-services">Sécuriser les services de votre système
 
@@ -85,7 +85,7 @@ le mot de passe root ne peut être attaqué par la force brute via SSH.
 a l'action repetitive. jpg  -->
 
 
-<item><tt>Listen 666</tt>
+<item><tt>Port 666</tt> ou <tt>ListenAddress 192.168.0.1:666</tt>
 
 <p>Change le port d'écoute, ainsi l'intrus ne peut être complètement sûr de 
 l'exécution d'un démon sshd (soyez prévenus, c'est de la sécurité par l'obscurité). 
@@ -425,14 +425,14 @@ exec /usr/bin/X11/X -dpi 100 -nolisten tcp
 
 <p>Si vous utilisez XDM, mettez <file>/etc/X11/xdm/Xservers</file> à&nbsp;:
 <tt>:0 local /usr/bin/X11/X vt7 -dpi 100 -nolisten tcp</tt>. Si vous utilisez
-Gdm, assurez-vous que l'option <tt>-nolisten tcp</tt> est positionnée dans
-<file>/etc/gdm/gdm.conf</file> (qui est par défaut dans Debian) ainsi&nbsp;:
-
-<example>
-[server-Standard]
-name=Standard Server
-command=/usr/bin/X11/X -nolisten tcp
-</example>
+Gdm, assurez-vous que l'option <tt>DisallowTCP=true</tt> est positionnée dans
+<file>/etc/gdm/gdm.conf</file> (qui est par défaut dans Debian). Cela va
+basiquement ajouter <tt>-nolisten tcp</tt> à chaque ligne de commande X
+<footnote>
+gdm <em>n'ajoutera pas</em> <tt>-nolisten tcp</tt> s'il trouve
+<tt>-query</tt> ou <tt>-indirect</tt> sur la ligne de commande car cela
+ne pourrait pas fonctionner.
+</footnote>.
 
 <p>Vous pouvez également positionner l'expiration de délai système par défaut pour
 les blocages <prgn>xscreensaver</prgn>. Même si l'utilisateur peut annuler cela,
@@ -469,6 +469,13 @@ pouvez faire cela avec cette ligne dans <tt>/etc/X11/xdm/xdm-config</tt>&nbsp;:
 
 <example>
 DisplayManager.requestPort:     0
+</example>
+
+<p>Pour GDM, il devrait y avoir dans votre fichier gdm.conf&nbsp;:
+
+<example>
+[xdmcp]
+Enable=false
 </example>
 
 <p>Normalement, tous les gestionnaires d'affichages sont configurés par défaut
@@ -1893,12 +1900,16 @@ fw_start () {
   # Trafic d'entrée :
   /sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   # Services
+  if [ -n "$TCP_SERVICES" ] ; then
   for PORT in $TCP_SERVICES; do
     /sbin/iptables -A INPUT -p tcp --dport ${PORT} -j ACCEPT
   done
+  fi
+  if [ -n "$UDP_SERVICES" ] ; then
   for PORT in $UDP_SERVICES; do
     /sbin/iptables -A INPUT -p udp --dport ${PORT} -j ACCEPT
   done
+  fi
   # Gestion à distance
   if [ -n "$NETWORK_MGMT" ] ; then
     /sbin/iptables -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -j ACCEPT
@@ -1918,12 +1929,17 @@ fw_start () {
   /sbin/iptables -A OUTPUT -p icmp -j ACCEPT
   # Ainsi que les mises à jour de sécurité
   /sbin/iptables -A OUTPUT -p tcp -d security.debian.org --dport 80 -j ACCEPT 
+  # Ainsi que pour tous les services que nous avons définis
+  if [ -n "$REMOTE_TCP_SERVICES" ] ; then
   for PORT in $REMOTE_TCP_SERVICES; do
-    /sbin/iptables -A INPUT -p tcp --dport ${PORT} -j ACCEPT
+    /sbin/iptables -A OUTPUT -p tcp --dport ${PORT} -j ACCEPT
   done
+  fi
+  if [ -n "$REMOTE_UDP_SERVICES" ] ; then
   for PORT in $REMOTE_UDP_SERVICES; do
-    /sbin/iptables -A INPUT -p udp --dport ${PORT} -j ACCEPT
+    /sbin/iptables -A OUTPUT -p udp --dport ${PORT} -j ACCEPT
   done
+  fi
   # Toutes les autres connexions sont enregistrées dans syslog
   /sbin/iptables -A OUTPUT -j LOG
   /sbin/iptables -A OUTPUT -j REJECT 
