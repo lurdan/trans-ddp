@@ -1,0 +1,248 @@
+<chapt id="customizing">Personalización de la instalación de &debian;
+
+<sect id="papersize">¿Cómo puedo asegurarme de que todos los programas
+usen el mismo tamaño de papel?
+
+<p>Instale el paquete <package/libpaper1/, y le pedirá un tamaño
+de papel predeterminado para todo el sistema. Este valor se guardará
+en el fichero <tt>/etc/papersize</tt>.
+
+<p>Puede especificarse también mediante la variable de entorno
+<tt>PAPERSIZE</tt>.  Para más detalles consulte la página de manual
+<manref name="papersize" section="5">.
+
+<sect id="hardwareaccess">¿Cómo puedo proporcionar acceso a
+periféricos de hardware sin comprometer la seguridad?
+
+<p>Muchos ficheros de dispositivos del directorio <tt>/dev</tt>
+pertenecen a ciertos grupos predefinidos. Por ejemplo <tt>/dev/fd0</tt>
+pertenece al grupo <tt>floppy</tt>, y <tt>/dev/dsp</tt> pertenece al
+grupo <tt>audio</tt>.
+
+<p>Para que un usuario determinado tenga acceso a uno de dichos
+dispositivos, añada al usuario al grupo al que pertenece el
+dispositivo, es decir:
+<example>adduser usuario grupo</example>
+Esto evita tener que ejecutar chmod sobre el dispositivo.
+
+<sect id="consolefont">¿Cómo cargo una fuente de consola en el
+arranque al estilo Debian?
+
+<p>Los paquetes <package/kbd/ y <package/console-tools/ ahora admiten
+esto, edite el fichero <tt>/etc/kbd/config</tt> o
+<tt>/etc/console-tools/config</tt>.
+
+<sect id="appdefaults">¿Cómo puedo configurar los valores por omisión
+de una aplicación X11?
+
+<p>Los programas X de Debian instalan sus ficheros de recursos en
+el directorio <tt>/etc/X11/app-defaults/</tt>. Si quiere personalizar
+aplicaciones X de forma global, cambie dichos ficheros. Están
+marcados como ficheros de configuración, así que su contenido
+se mantendrá entre actualizaciones.
+
+<sect id="booting">Cada distribución parece tener un método diferente
+para `arrancar'. Cuénteme acerca del usado por Debian.
+
+<p>Como todo UNIX, Debian arranca ejecutando el programa <tt>init</tt>.
+El fichero de configuración para <tt>init</tt> (que es <tt>/etc/inittab</tt>)
+especifica que el primer script que debe ejecutarse será
+<tt>/etc/init.d/rcS</tt>.  Este script verifica y monta los sistemas de
+ficheros, carga módulos del núcleo, comienza los servicios de red
+(llamando al script <tt>/etc/init.d/network</tt>),
+programa el reloj, inicializa alguna otra cosa, y luego ejecuta todos
+los scripts (excepto aquellos con un '.' en el nombre) en <tt>/etc/rc.boot/</tt>.
+Estos scripts especifican el teclado a usarse, recuperan ficheros perdidos
+estando en un editor, y configuran los puertos serie.
+
+Después de completar el arranque, <tt>init</tt> ejecuta todos los scripts
+de inicio de un directorio indicado por el runlevel predeterminado (este
+valor se especifica por la entrada <tt>id</tt> en <tt>/etc/inittab</tt>).
+Como la mayoría de
+<!-- todos? SGK -->
+los UNIX compatibles con System V, Linux tiene 7 runlevels:
+
+0 (detiene el sistema), 1 (modo único-usuario),
+de 2 a 5 (varios modos multi-usuario), y 6 (reinicializar el sistema).
+
+Los sistemas Debian vienen configurados con id=2, lo que indica que el
+runlevel será de `2' al entrar al estado multi-usuario,
+y que se ejecutarán los scripts en <tt>/etc/rc2.d/</tt>.
+<p>
+De hecho, los scripts en cualquiera de los directorios <tt>/etc/rcN.d/</tt>
+son sólo enlaces simbólicos de vuelta a los scripts en
+<tt>/etc/init.d/</tt>. Sin embargo, los <em/nombres/ de los ficheros
+en cada uno de los directorios <tt>/etc/rcN.d/</tt> están elegidos para
+indicar la <em>manera</em> en que los scripts en <tt>/etc/init.d/</tt> serán
+ejecutados.  Específicamente, antes de entrar a cualquier runlevel,
+se ejecutan todos los scripts cuyo nombre comienza con 'K'; estos scripts
+detienen servicios.  Luego se ejecutan todos los scripts cuyo nombre
+comienza con 'S'; estos scripts inician servicios.  El número de dos dígitos
+que sigue a la 'K' o 'S' indica el orden en que los scripts se ejecutarán.
+Los de números más bajos se ejecutarán primero.
+
+<p>Esta estrategia funciona porque los scripts en <tt>/etc/init.d/</tt> llevan
+todos un argumento que puede ser `start' (comenzar), `stop' (terminar), o
+`reload' (reiniciar), y llevarán a cabo la tarea indicada por éste.
+Por ejemplo, con el argumento `reload' la orden
+<tt>/etc/init.d/sendmail reload</tt> envía al daemon sendmail un señal que
+le hace releer su fichero de configuración.
+Estos scripts se pueden usar para controlar varios procesos incluso después
+de que el sistema haya sido iniciado.
+
+<sect id="custombootscripts">Parece ser que Debian no usa
+<tt>rc.local</tt> para personalizar el proceso de inicialización, ¿qué
+facilidades provee Debian para esta tarea?
+
+<p>Suponga que un sistema necesita ejecutar el script <tt>fu</tt> al
+inicializar, o al entrar en un runlevel en particular. Entonces el
+administrador del sistema debería:
+<list>
+<item>Colocar el script <tt>fu</tt> en el directorio <tt>/etc/init.d/</tt>.
+<item>Ejecutar la orden <tt>update-rc.d</tt> con argumentos apropiados
+para preparar enlaces entre los directorios rc?.d (especificados desde
+la línea de órdenes) y <tt>/etc/init.d/fu</tt>. Aquí, '?' es un número de
+0 a 6 y coresponde a un runlevel estilo System V.
+<item>Reinicializar el sistema.
+</list>
+
+<p>La orden <tt>update-rc.d</tt> creará enlaces entre ficheros en los
+directorios rc?.d y el script en <tt>/etc/init.d/</tt>. Cada enlace
+comenzará con una 'S' o una 'K', seguida de un número, seguido por el
+nombre del script.  Los scripts que comiencen con 'S' en
+<tt>/etc/rcN.d/</tt> serán ejecutados al entrar al runlevel
+<tt>N</tt>. Los que lo hagan con con una 'K' serán ejecutados al
+dejar el runlevel <tt>N</tt>.
+
+<p>Uno podría, por ejemplo, obligar al script <tt>fu</tt> a ejecutarse
+en el arranque, poniéndolo en <tt>/etc/init.d/</tt> e instalando los
+enlaces con <tt>update-rc.d fu defaults 19</tt>.  El argumento
+'defaults' se refiere a los runlevels predeterminados, que son los que
+van del 2 al 5.  El argumento '19' se asegura de que <tt>fu</tt> sea
+llamado antes que cualquier otro script que contenga el número 20 o un
+número mayor.
+
+<!-- No recomendado en las normas de Debian más recientes (sec 3.3.7)
+<sect id="interconffiles">How does the package management system deal
+with packages that contain configuration files for other packages?
+
+<p>Some users wish to create, for example, a new server by installing a
+group of Debian packages and a locally generated package consisting of
+configuration files.  This is not generally a good idea, because <tt>dpkg</tt>
+will not know about those configuration files if they are in a different package,
+and may write conflicting configurations when one of the
+initial "group" of packages is upgraded.
+
+<p>Instead, create a local package that modifies the configuration files of the
+"group" of Debian packages of interest.  Then
+<tt>dpkg</tt> and the rest of the package management system will see
+that the files have been modified by the local "sysadmin"
+and will not try to overwrite them when those packages are upgraded.
+-->
+
+<!-- check against dpkg-divert description -->
+<sect id="divert">¿Cómo puedo reemplazar un fichero instalado por un
+paquete con otro?
+
+<p>Suponga que el administrador o un usuario local desea usar el programa
+"login-local" en lugar del "login" provisto por el
+paquete Debian <tt>login</tt>.
+No:
+<list>
+<item>Sobreescriba <tt>/bin/login</tt> con <tt>login-local</tt>.
+</list>
+El sistema administrador de paquetes no tendrá conocimiento acerca de este
+cambio, y simplemente reescribira su <tt>/bin/login</tt> cuando
+<tt>login</tt> (o cualquier paquete que provea <tt>/bin/login</tt>) sea
+instalado o actualizado.
+
+<!-- XXX dpkg-divert: is this correct ? -->
+En lugar de eso,
+<list>
+<item>Ejecute <tt>dpkg-divert --divert /bin/login.debian /bin/login</tt>
+para indicar que todas las futuras instalaciones de paquetes <tt>login</tt>
+escriban el fichero <tt>/bin/login</tt> en <tt>/bin/login.debian</tt>.
+<item>Luego ejecute <tt>cp login-local /bin/login</tt> para mover su versión
+localmente compilada a su lugar.
+</list>
+
+El mensaje acerca del uso de <tt>dpkg-divert</tt> provee más detalles
+(los cuales se pueden ver usando la orden <tt>dpkg-divert --help</tt>).
+
+Hay más información disponible en el
+<url
+id="ftp://ftp.debian.org/debian/doc/package-developer/programmer.ps.gz">.
+
+<!-- name="Manual del Programador Debian">.-->
+
+<sect>
+¿Cómo puedo incluir el paquete Debian que creé localmente en la lista de paquetes disponibles usada por el sistema de administración de paquetes?
+<p>
+Puede hacer esto de cualquiera de las siguientes dos maneras:
+<list>
+<item>Use <tt>dselect</tt>, y vuelva a seleccionar el método de acceso. Se
+le preguntará por un directorio en donde sus paquetes locales residen.
+<item>Ejecute la orden
+<tt>dpkg-scanpackages DIR_BIN FICHERO_DE_REEMPLAZOS [PREFIJO] > Packages.nuevo</tt>
+
+donde:
+<list>
+<item>DIR-BIN es un directorio donde se hayan almacenados archivos Debian
+(que normalmente tendrán la extensión ".deb").
+<item>FICHERO_DE_REEMPLAZOS es un fichero que es editado por los que
+mantienen la distribución y normalmente se almacena en un archivo ftp
+Debian en <tt>indices/override.main.gz</tt> para la distribución principal
+("main").
+<item>PREFIJO es una secuencia de caracteres opcional que puede añadirse
+en el fichero Packages.new que está siendo producido.
+</list>
+Una vez que haya armado el fichero <tt>Packages.nuevo</tt>, avise al
+sistema administrador de paquetes sobre él con la orden
+<tt>dpkg --update-avail Packages.nuevo</tt>.
+</list>
+
+<sect id="diverse">A algunos usuarios les gusta mawk, a otros les
+gusta gawk; algunos prefieren vim mientras que otros prefieren elvis;
+algunos quieren usar trn, a otros les gusta tin; ¿cómo soporta Debian
+la diversidad?
+
+<p>Hay muchos casos en donde dos paquetes proveen dos versiones
+diferentes de un programa, los cuales proveen la misma funcionalidad
+básica. Los usuarios podrían preferir uno sobre el otro por hábito, o
+porque la interfaz de uno es algo más agradable que la de otro.  Otros
+usuarios en el mismo sistema pueden elegir diferente.
+
+<p>Debian usa un sistema de paquetes "virtual" para permitir a los
+administradores elegir (o dejar que los usuarios elijan) sus
+herramientas favoritas cuando hay dos o más que proveen la misma
+funcionalidad básica, y al mismo tiempo permitir que se satisfagan las
+dependencias sin necesidad de especificar un paquete en particular.
+
+<p>Por ejemplo, podrían existir dos versiones diferentes de lectores de news en
+un sistema.  El paquete servidor de news podría `recomendar' que exista
+<em>algún</em> lector en el sistema, pero la elección de <tt>tin</tt>
+o <tt>trn</tt> se puede dejar a cada usuario. Esto se logra haciendo que
+ambos paquetes provean el paquete virtual <tt>news-reader</tt>.
+<em>Cuál</em> de los programas es invocado será determinado por un enlace
+apuntando desde un fichero con el nombre del paquete virtual
+<tt>/etc/alternatives/news-reader</tt> al fichero seleccionado, p. ej.
+<tt>/usr/bin/trn</tt>.
+
+<p>Un simple enlace es insuficiente para soportar el uso completo de
+un programa alternativo, normalmente páginas de manual y posiblemente
+otros ficheros de soporte pueden ser seleccionados también. El script
+Perl <tt>update-alternatives</tt> provee una manera de asegurar que
+todos los ficheros asociados con un paquete específico sean
+seleccionados como valor por omisión en el sistema.
+
+<p>
+<!-- XXX update-alternatives details missing
+Explain how to invoke the update-alternatives command.
+
+Reminder:  this is the usage line for installing update-alternatives:
+update-alternatives \-\-install link name path priority
+link = link pointing to /etc/alternatives/name
+name = name in /etc/alternatives/
+path = the name referred to
+priority = an integer; options with higher numbers are chosen.
+-->
