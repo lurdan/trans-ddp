@@ -1,66 +1,64 @@
-TEX =	latex
+#
+# Makefile for the Debian FAQ
+#
+# Should work both for a manual in the Debian Documentation Project
+# manuals.sgml tree, and for doc-debian package build.
 
-SRCS = debian-faq-es.sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
-SGMLFLAGS = -l es
+manual := debian-faq
 
-all:	html txt ps pdf # info
+currentlang := $(notdir $(CURDIR))
+currentlangcn := $(subst _,-,$(shell echo $(currentlang) | tr A-Z a-z))
 
-clean::	
-	rm -f *.txt *.ps *.pdf *.dvi *.info* *.aux *.log *.man *.tex *.toc
-	rm -f faqdynamic.ent *~ .*~
-	rm -rf debian-faq-es.html
+# this can and will be overriden by a higher level makefile
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
-faqdynamic.ent:
-	LC_ALL=es_ES && echo "<!entity docdate \"$(shell date +'%-d de %B de %Y')\">" > faqdynamic.ent
+sources := $(manual).sgml faqstatic.ent ../faqdynamic.ent $(wildcard *.sgml)
 
-text::	debian-faq-es.txt
-txt::	debian-faq-es.txt
+export LANG=C
+# stupid debiandoc stuff uses strings in another language otherwise
 
-html::	debian-faq-es.html
+all: html text ps pdf
 
-ps::	debian-faq-es.ps
+publish: all
+	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
+	rm -f $(PUBLISHDIR)/$(manual)/*.$(currentlangcn).html
+	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
+	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
 
-dvi::  debian-faq-es.dvi
+faqstatic.ent:
+	ln -sf ../$@ .
 
-pdf::  debian-faq-es.pdf
+../faqdynamic.ent:
+	cd .. && $(MAKE) faqdynamic.ent
 
-info::	debian-faq-es.info
+validate:
+	nsgmls -ges -wall $(manual).sgml
 
-debian-faq-es.tex: $(SRCS)
-	debiandoc2latex $(SGMLFLAGS) debian-faq-es.sgml
+html: $(manual).$(currentlang).html/index.$(currentlangcn).html
+$(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
+	rm -rf $(manual).html $(manual).$(currentlang).html
+	debiandoc2html -c -l $(currentlang) $<
+	mv $(manual).html $(manual).$(currentlang).html
 
-debian-faq-es.dvi:		debian-faq-es.tex
-	- $(TEX) $^
-	- $(TEX) $^
-	$(TEX) $^
+text: $(manual).$(currentlang).txt
+$(manual).$(currentlang).txt: $(sources)
+	debiandoc2text -l $(currentlang) $<
+	mv $(manual).txt $(manual).$(currentlang).txt
 
-debian-faq-es.man: 	$(SRCS)
-	sgml2txt $(SGMLFLAGS) -man debian-faq-es.sgml
+$(manual).$(currentlang).info: $(sources)
+	debiandoc2info -l $(currentlang) $<
+# TODO: rename to .$(currentlang).info?
 
-debian-faq-es.ps: debian-faq-es.dvi
-	dvips -o $@ $^
+$(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
+  $(manual).$(currentlang).%: $(sources)
+	debiandoc2latex$* -l $(currentlang) $<
+	mv $(manual).$* $(manual).$(currentlang).$*
 
-debian-faq-es.pdf: debian-faq-es.ps
-	ps2pdf $< $@
+ps dvi pdf info: %: $(manual).$(currentlang).%
 
-debian-faq-es.info: $(SRCS)
-	sgml2info $(SGMLFLAGS) debian-faq-es.sgml
+clean distclean:
+	rm -rf $(manual)*.$(currentlang).html
+	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
+	rm -f *~ .*~ core tsa*
 
-debian-faq-es.txt: $(SRCS)
-	debiandoc2text $(SGMLFLAGS) debian-faq-es.sgml
-
-debian-faq-es.html: $(SRCS)
-	debiandoc2html $(SGMLFLAGS) debian-faq-es.sgml
-
-
-#debian-faq-es.ps:	$(SRCS)
-#	sdc -Rlinuxdoc -O ps -o debian-faq-es.ps debian-faq-es.sgml
-
-#debian-faq-es.info:	$(SRCS)
-#	sdc -Rlinuxdoc -O info -o debian-faq-es.info debian-faq-es.sgml
-
-#debian-faq-es.txt:	$(SRCS)
-#	sdc -Rlinuxdoc -Rno-margin -O ascii -o debian-faq-es.txt debian-faq-es.sgml
-
-#debian-faq-es.html:	$(SRCS)
-#	sdc -Rlinuxdoc -O html -o debian-faq-es.html debian-faq-es.sgml
+.PHONY: all publish clean distclean validate
