@@ -1,0 +1,244 @@
+<!-- CVS revision of original english document "1.12" -->
+
+<chapt id="customizing">Personnaliser votre installation de &debian;
+
+<sect id="papersize">Comment puis-je m'assurer que tous les programmes utilisent 
+	le même format de papier&nbsp;?
+
+<p>Installez le paquet <package/libpaper1/, il vous sera demandé d'indiquer 
+le format de papier utilisé sur le système. Cette configuration sera sauvegardée 
+dans le fichier <tt>/etc/papersize</tt>.
+
+<p>Les utilisateurs peuvent modifier la configuration du format de papier en
+utilisant la variable d'environnement <tt>PAPERSIZE</tt>. Pour plus d'informations,
+reportez-vous à la page de manuel <manref name="papersize" section="5">.
+
+<sect id="hardwareaccess">Comment autoriser l'accès aux périphériques matériels 
+	   sans compromettre la sécurité&nbsp;?
+	   
+<p>La plupart des fichiers de périphérique dans le répertoire <tt>/dev</tt> 
+appartiennent à des groupes prédéfinis. Par exemple, <tt>/dev/fd0</tt> 
+appartient au groupe <tt>floppy</tt> et <tt>/dev/dsp</tt> au groupe 
+<tt>audio</tt>.
+
+<p>Si vous souhaitez que certains utilisateurs puissent accéder à ces périphériques,
+vous devez juste ajouter les utilisateurs dans le groupe du périphérique.
+Faites
+	<example>adduser utilisateur groupe</example>
+Cette méthode vous permet de ne pas changer les permissions sur le fichier du périphérique.
+
+<sect id="consolefont">Comment charger une police pour la console au démarrage de Debian&nbsp;?
+
+<p>Les paquets <package/kbd/ et <package/console-tools/ permettent cela. Éditez
+les fichiers <tt>/etc/kbd/config</tt> ou <tt>/etc/console-tools/config</tt>.
+
+<sect id="appdefaults">Comment configurer les paramètres par défaut des programmes X11&nbsp;?
+
+<p>Les programmes X de Debian installe leurs données de configuration dans le répertoire 
+<tt>/etc/X11/app-defaults/</tt>. Si vous souhaitez personnaliser globalement les applications
+X, mettez vos personnalisations dans ces fichiers. Ils sont considérés comme fichiers de
+configuration, donc leur contenu sera conservé pendant les mises à jour.
+
+<sect id="booting">Chaque distributions semble avoir une méthode de démarrage différente. 
+		    	Quant est-il de Debian&nbsp;?
+
+<p>Comme tous les Unix, Debian exécute le programme <tt>init</tt> au démarrage. 
+Le fichier de configuration pour le programme <tt>init</tt> (<tt>/etc/inittab</tt>)
+indique que le premier script devant être exécuté devrait être <tt>/etc/init.d/rcS</tt>.
+Ce script exécute tous les scripts présents dans <tt>/etc/rcS.d</tt> en incluant le source
+ou en «&nbsp;forkant&nbsp;» un sous-processus selon leur extension, pour exécuter les 
+initialisations comme vérifier et monter les systèmes de fichiers, charger les modules,
+démarrer les services réseau, configurer l'horloge et pour exécuter d'autres initialisations.
+Puis, pour assurer la compatibilité, il lance aussi les fichiers (excepté ceux avec un '.' 
+dans leur nom) de <tt>/etc/rc.boot/</tt>. Les scripts de ce dernier répertoire sont 
+généralement réservé à l'administrateur système, et leur utilisation dans des paquets est obsolète.
+
+<p>Après avoir fini le processus de démarrage, <tt>init</tt> exécute tous les
+scripts de démarrage du niveau d'exécution («&nbsp;runlevel&nbsp;») par défaut (ce niveau 
+d'exécution est indiqué par le champs <tt>id</tt> du fichier <tt>/etc/inittab</tt> ). Comme
+la plupart des Unix compatibles System V, Linux a sept niveaux d'exécution&nbsp;: 
+<list>
+  <item>0 (arrêt du système),
+  <item>1 (mode mono-utilisateur ou mode maintenance),
+  <item>2 à 5 (différents modes multi-utilisateur) et
+  <item>6 (redémarrage du système).
+</list>
+Les systèmes Debian sont configurés avec id=2, ce qui implique que le 
+niveau d'exécution par défaut est '2' lorsqu'on entre dans l'état 
+multi-utilisateur, et ce sont les scripts de <tt>/etc/rc2.d/</tt> qui seront exécutés.
+
+<p>En fait, les scripts dans tous les répertoires <tt>/etc/rcN.d/</tt> sont
+simplement des liens symboliques vers les scripts du répertoire <tt>/etc/init.d/</tt>.
+Cependant, c'est le nom des liens dans chacun des répertoires <tt>/etc/rcN.d/</tt>
+qui indique la <em>manière</em> dont les scripts de <tt>/etc/init.d/</tt> 
+seront exécutés. Spécifiquement, avant d'entrer dans un niveau d'exécution, tous les scripts
+commençant par un 'K' sont lancés, ces scripts arrêtent les services. Puis les scripts
+commençant avec 'S' sont lancés, ils démarrent les services. Le nombre à deux chiffres
+suivant les lettres 'K' ou 'S' indique l'ordre dans lequel seront exécutés les scripts.
+Les scripts ayant les chiffres les plus petits sont exécutés en premier.
+
+<p>Cette approche fonctionne parce que les scripts de <tt>/etc/init.d/</tt> prennent 
+tous un paramètre qui peut être «&nbsp;start&nbsp;», «&nbsp;stop&nbsp;», «&nbsp;reload&nbsp;»,
+«&nbsp;restart&nbsp;» ou «&nbsp;force-reload&nbsp;» et puis exécuteront la fonction indiquée par 
+le paramètre. Ces scripts peuvent être aussi utilisés après le démarrage du système, pour 
+contrôler divers services.
+
+<p>Par exemple, avec l'argument «&nbsp;reload&nbsp;» la commande 
+  <example>/etc/init.d/sendmail reload</example>
+envoie un signal au démon sendmail pour qu'il relise son fichier de configuration.
+
+<sect id="custombootscripts">Il semble que Debian n'utilise pas <tt>rc.local</tt> pour personnaliser le
+  processus de démarrage&nbsp;; comment faire&nbsp;?
+
+<p>Supposons que vous ayez besoin d'exécuter le script <tt>foo</tt> au 
+démarrage ou lors du passage à un niveau d'exécution (System V) particulier. 
+L'administrateur devrait&nbsp;:
+<list>
+  <item>Mettre le script <tt>foo</tt> dans le répertoire <tt>/etc/init.d/</tt>.
+  <item>Lancer la commande Debian <tt>update-rc.d</tt> avec les paramètres appropriés, 
+  pour configurer les liens entre le répertoire rc?.d et <tt>/etc/init.d/foo</tt>.
+  Ici, le caractère '?' est un nombre entre 0 et 6 correspondant à chaque niveau d'exécution.
+  <item>Redémarrer le système.
+</list>
+
+<p>La commande <tt>update-rc.d</tt> créera les liens dans les répertoires rc?.d vers 
+les scripts de <tt>/etc/init.d/</tt>. Chaque nom de lien doit commencer avec la lettre 
+'S' ou 'K', suivi par un nombre, puis le nom du script. Les scripts commençant par un 'S' 
+dans <tt>/etc/rcN.d/</tt> sont exécutés en entrant dans le niveau d'exécution <tt>N</tt>. Au contraire
+les scripts commençant avec un 'K' sont exécutés à la sortie du niveau d'exécution <tt>N</tt>.
+
+<p>On pourrait par exemple, exécuter le script <tt>foo</tt> au démarrage, en le mettant
+dans <tt>/etc/init.d/</tt> et en créant les liens avec la commande <tt>update-rc.d foo
+defaults 19</tt>. Le paramètre «&nbsp;defaults&nbsp;» se rapporte aux
+niveaux d'exécution 2 à 5. Le paramètre '19'
+permet de s'assurer que le script <tt>foo</tt> sera exécuté avant tous les scripts
+contenant le nombre 20 ou plus.
+
+
+<sect id="interconffiles">Comment le système de gestion de paquet traite-t-il les paquets qui 
+			contiennent des fichiers de configuration pour d'autres paquets&nbsp;?
+
+<p>Certains utilisateurs souhaitent créer, par exemple, un nouveau serveur en installant 
+des paquets provenant de Debian et des paquets, contenant des fichiers de configuration, 
+générés localement. Ce n'est généralement pas une bonne idée, parce que <prgn/dpkg/ ne 
+connaîtra pas ces fichiers de configuration s'ils sont dans un paquet différent, et 
+risque de modifier les fichiers de configuration quand l'un des paquets initiaux sera 
+mis à jour.
+
+<p>Au lieu de cela, créez un paquet local pour modifier les fichiers de configuration des
+paquets de Debian. Puis <prgn/dpkg/ et le reste du système de gestion de paquet verront 
+que les fichiers ont été modifiés par l'administrateur et n'essayeront pas de les écraser
+quand ces paquets sont mis à jour.
+
+<!-- check against dpkg-divert description -->
+<sect id="divert">Comment remplacer un fichier installé par un paquet, de sorte qu'une version 
+  		différente puisse être employée à la place&nbsp;?
+
+<p>Supposez qu'un administrateur ou un utilisateur local souhaite utiliser un programme 
+«&nbsp;login-local&nbsp;» plutôt que le programme «&nbsp;login&nbsp;» fourni par le paquet Debian <package/login/.
+
+<p><strong/Ne pas/ faire&nbsp;:
+<list>
+  <item>remplacer <tt>/bin/login</tt> avec <tt>login-local</tt>.
+</list>
+Le système de gestion des paquets ne saura rien de ce changement et écrasera 
+simplement votre <tt>/bin/login</tt> personnalisé quand <tt>login</tt> (ou tout
+autre paquet fournissant <tt>/bin/login</tt>) sera installé ou mis à jour.
+
+<!-- XXX dpkg-divert: is this correct ? -->
+<p>Faites, plutôt
+<list>
+  <item>Exécuter&nbsp;:
+    <example>dpkg-divert --divert /bin/login.debian /bin/login</example>
+    afin que toutes les installations futures du paquet Debian <package/login/ 
+  	écrivent le fichier <tt>/bin/login</tt> dans <tt>/bin/login.debian</tt>.
+  <item>puis tapez&nbsp;:
+    <example>cp login-local /bin/login</example>
+  pour déplacer votre programme construit localement au bon endroit.
+</list>
+
+<p>Pour plus d'informations, lisez la page de manuel <manref name="dpkg-divert" section="8">.
+
+<sect id="localpackages">Comment puis-je inclure mon paquet construit localement dans la liste 
+			des paquets disponibles connus par le système de gestion des paquets&nbsp;?
+			
+<p>Lancer la commande&nbsp;:
+
+<example>
+dpkg-scanpackages BIN_DIR OVERRIDE_FILE [PATHPREFIX] > mes_Paquets
+</example>
+
+<p>Où&nbsp;:
+  <list>
+    <item>BIN-DIR est le répertoire où les archives Debian (généralement 
+    ils ont «&nbsp;.deb&nbsp;» comme extension) sont conservés.
+    <item>OVERRIDE_FILE est un fichier qui est édité par les responsables de la distribution
+	et est généralement sauvegardé sur l'archive FTP Debian dans le fichier 
+	<tt>indices/override.main.gz</tt> pour les paquets Debian de la section «&nbsp;main&nbsp;» 
+	Vous pouvez ignorer ce fichier pour des paquets locaux.
+    <item>PATHPREFIX est une chaîne <em>optionnelle</em> qui peut être ajoutée au début du fichier
+	<tt>mes_Paquets</tt> créé.
+  </list>
+
+<p>Une fois que vous avez construit le fichier <tt>mes_Paquets</tt>, appelez le
+système de gestion des paquets en utilisant la commande&nbsp;:
+
+<example>
+dpkg --merge-avail mes_Paquets
+</example>
+
+<p>Si vous utilisez APT, vous pouvez aussi ajouter votre référentiel local dans votre
+fichier <manref name="sources.list" section="5">.
+
+<sect id="diverse">Certains utilisateurs apprécient mawk d'autres gawk&nbsp;; certains 
+    utilisent vim, d'autres elvis&nbsp;; certains préfèrent trn d'autre tin&nbsp;; comment 
+	Debian gère-t-elle la diversité&nbsp;?
+
+<p>Il y a plusieurs cas où deux paquets fournissent deux versions différentes d'un programme,
+ou tous les deux fournissent la même fonctionnalité. Les utilisateurs pourraient préférer 
+un plutôt qu'un autre inhabituel, ou parce que l'interface utilisateur d'un paquet 
+est d'une façon ou d'une autre plus agréable que l'interface des autres. 
+D'autres utilisateurs sur le même système pourraient faire des choix différents.
+
+<p>Debian emploie un système de paquets «&nbsp;virtuels&nbsp;» pour permettre aux administrateurs
+de choisir (ou laisser les utilisateurs choisir) leurs outils favoris quand il y en a 
+plusieurs qui fournissent la même fonctionnalité de base, en répondant aux exigences de 
+dépendance du paquet sans indiquer de paquet particulier.
+
+<p>Par exemple, il peut y avoir sur un système deux versions différentes d'un programme
+de lecture de nouvelles. L'installation d'un serveur de nouvelle peut recommander la 
+présence d'un programme de lecture de nouvelles sur le système et laisser le choix de 
+<tt>tin</tt> ou de <tt>trn</tt> aux utilisateurs. Ceci est possible parce que les paquets 
+<package/tin/ et <package/trn/ fournissent le paquet virtuel <package/news-reader/. 
+Le programme qui sera appelé est déterminé par le lien symbolique <tt>/etc/alternatives/news-reader</tt> 
+pointant vers le programme choisi, par exemple <tt>/usr/bin/trn</tt>.
+
+<p>Un lien simple est insuffisant pour gérer l'utilisation complète d'un programme alternatif&nbsp;; 
+normalement, les pages de manuel, et probablement d'autres fichiers de support doivent 
+être aussi accessibles. Le script Perl <tt>update-alternatives</tt> fournit le moyen de s'assurer 
+que le système choisit bien par défaut tous les fichiers associés au paquet indiqué.
+
+<p>Par exemple, pour vérifier quel exécutable fournit le gestionnaire de fenêtres (x-window-manager),
+exécutez&nbsp;:
+  <example>update-alternatives --display x-window-manager</example>
+Si vous souhaitez le modifier, tapez la commande&nbsp;:
+  <example>update-alternatives --config x-window-manager</example>
+et suivez les instructions affichées à l'écran (saisissez le nombre
+correspondant à votre choix)
+
+<p>Si un paquet ne s'enregistre pas lui-même comme gestionnaire de fenêtres pour différentes raisons, 
+(remplissez un rapport de bogue si c'est une erreur) ou si vous utilisez un gestionnaire 
+de fenêtres présent dans le répertoire /usr/local, les choix sur l'écran ne contiendront pas 
+votre entrée préférée. Vous pouvez mettre à jour le lien par des options de ligne de commande, 
+comme ceci&nbsp;: 
+  <example>update-alternatives --install /usr/bin/x-window-manager \
+  x-window-manager /usr/local/bin/wmaker-cvs 50</example>
+
+<p>Le premier paramètre de l'option «&nbsp;--install&nbsp;» est un lien symbolique qui 
+pointe vers /etc/alternatives/NOM, où NOM est le deuxième paramètre. Le troisième
+paramètre est le programme vers lequel /etc/alternatives/NOM pointe et le quatrième 
+paramètre est la priorité (une plus grande valeur signifie que l'alternative sera très 
+probablement sélectionnée automatiquement).
+
+<p>Pour supprimer une alternative que vous avez ajoutée, lancez simplement&nbsp;:
+  <example>update-alternatives --remove x-window-manager /usr/local/bin/wmaker-cvs</example>
