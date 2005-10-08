@@ -54,6 +54,7 @@ html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 	@[ ! -d it ] || $(MAKE) -C it $@
 	@[ ! -d pl ] || $(MAKE) -C pl $@
 	@[ ! -d es ] || $(MAKE) -C es $@
+	@[ ! -d fr ] || $(MAKE) -C es $@
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
@@ -66,6 +67,7 @@ text: $(manual).$(currentlang).txt
 	@[ ! -d it ] || $(MAKE) -C it $@
 	@[ ! -d pl ] || $(MAKE) -C pl $@
 	@[ ! -d es ] || $(MAKE) -C es $@
+	@[ ! -d fr ] || $(MAKE) -C es $@
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
@@ -86,6 +88,7 @@ ps dvi pdf info: %: $(manual).$(currentlang).%
 	@[ ! -d it ] || $(MAKE) -C it $@
 	@[ ! -d pl ] || $(MAKE) -C pl $@
 	@[ ! -d es ] || $(MAKE) -C es $@
+	@[ ! -d fr ] || $(MAKE) -C es $@
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
@@ -96,5 +99,6 @@ clean distclean:
 	@[ ! -d it ] || $(MAKE) -C it $@
 	@[ ! -d pl ] || $(MAKE) -C pl $@
 	@[ ! -d es ] || $(MAKE) -C es $@
+	@[ ! -d fr ] || $(MAKE) -C es $@
 
 .PHONY: all publish clean distclean validate
