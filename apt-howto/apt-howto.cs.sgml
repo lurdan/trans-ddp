@@ -1,0 +1,1699 @@
+<!doctype debiandoc system>
+<debiandoc>
+
+<book>
+
+<title>APT HOWTO</title>
+
+<author>
+<name>Gustavo Noronha Silva</name> <email>kov@debian.org</email>
+</author>
+
+<translator>
+<name>Pøelo¾il Ale¹ Nosek</name> <email>noseka1@centrum.cz</email>
+</translator>
+
+<version>1.8.11 - srpen 2005</version>
+
+<abstract>
+Tento dokument u¾ivatele podrobnì seznamuje s èinností nástroje pro správu
+balíèkù distribuce Debian, APT. Jeho cílem je usnadnit ¾ivot novým u¾ivatelùm
+Debianu a pomoci tìm, kteøí si chtìjí prohloubit znalosti administrace tohoto
+systému. Dokument byl napsán pro projekt Debian pro zlep¹ení podpory dostupné
+u¾ivatelùm této distribuce.
+</abstract>
+
+<copyright>
+<copyrightsummary>
+Copyright &copy; 2001, 2002, 2003, 2004 Gustavo Noronha Silva
+</copyrightsummary>
+<p>
+Tento manuál je svobodným software; mù¾ete jej redistribuovat a/nebo upravovat, 
+pokud dodr¾íte podmínky uvedené v GNU General Public Licence vydané Free 
+Software Foundation; buï ve verzi 2 nebo (dle va¹eho výbìru) jakékoliv pozdìj¹í 
+verzi.
+</p>
+
+<p>
+Manuál je ¹íøen v nadìji, ¾e bude u¾iteèný, ov¹em na jeho pou¾ití se 
+neposkytují ¾ádné záruky; dokonce ani pøedpokládané záruky obchodovatelnosti 
+nebo vhodnosti pro konkrétní úèel. Viz GNU General Public License.
+</p>
+
+<p>
+Kopie GNU General Public License je dostupná jako 
+/usr/share/common-licenses/GPL v distribuci Debian GNU/Linuxu nebo na www na 
+GNU General Public Licence. Mù¾ete si o ni rovnì¾ napsat na adresu Free 
+Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, 
+USA.
+</p>
+</copyright>
+
+<toc>
+
+<chapt>Úvod
+<p>
+Na zaèátku byl .tar.gz. U¾ivatelé museli pøekládat ka¾dý program, který chtìli
+na svém GNU/Linux systému pou¾ívat. Kdy¾ byl vytvoøen Debian, pokládalo se
+za nezbytné, aby systém obsahoval metodu pro správu instalovaných balíèkù.
+Systém pro správu balíèkù byl nazván <prgn>dpkg</prgn>. 
+Takto slavný `package' (balíèek) prvnì vstoupil do GNU/Linuxu, dlouho pøed tím, 
+ne¾ se Red Hat rozhodl vytvoøit svùj vlastní `rpm' systém.
+<p>
+Tvùrci GNU/Linuxu museli brzy øe¹it nové dilema. Potøebovali rychlou, praktickou
+a výkonnou metodu instalace balíèkù, která by automaticky øe¹ila závislosti
+a pøi upgradu se postarala o konfiguraèní soubory. V tomto opìt Debian ukázal
+cestu, kdy¾ vytvoøil APT - Advanced Packaging Tool, který byl potom pro pou¾ití
+s rpm portován na Conectivu a dal¹í distribuce.
+<p>
+Tento manuál neobsahuje popis apt-rpm, tj. portu APT na Conectiva Linux.
+Pøípadné doplnìní je v¹ak vítáno.
+<p>
+Tento manuál je zalo¾en na pøí¹tí verzi Debianu, <tt>Sarge</tt>.
+</chapt>
+
+<chapt id="basico">Základní nastavení
+
+<sect id="sources.list">Soubor /etc/apt/sources.list
+<p>
+Pro svou èinnost pou¾ívá APT soubor, který je seznamem 'zdrojù', ze kterých se
+balíèky získávají. Tímto souborem je <tt>/etc/apt/sources.list</tt>.
+<p>
+Polo¾ky v tomto souboru mají obvykle tento formát:
+
+<p>
+<example>
+deb http://host/debian distribution section1 section2 section3
+deb-src http://host/debian distribution section1 section2 section3
+</example>
+
+<p>
+Tyto polo¾ky jsou samozøejmì pouze ukázkové a v praxi je nelze pou¾ít. První
+slovo na øádku, <tt>deb</tt> nebo <tt>deb-src</tt>, oznaèuje typ archivu: zda
+obsahuje binární balíèky (<tt>deb</tt>), tj. pøedkompilované balíèky které
+normálnì pou¾íváme, nebo zdrojové balíèky (<tt>deb-src</tt>), co¾ jsou pùvodní
+zdrojové kódy programu spolu s debianím øídícím souborem <tt>.dsc</tt>
+a souborem <tt>diff.gz</tt>, který popisuje zmìny, které je potøeba provést
+k `debianizaci` programu.
+<p>
+Implicitní sources.list distribuce Debian vypadá obvykle takto:
+<p>
+<example>
+# See sources.list(5) for more information, especialy
+# Remember that you can only use http, ftp or file URIs
+# CDROMs are managed through the apt-cdrom tool.
+deb http://http.us.debian.org/debian stable main contrib non-free
+deb http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+deb http://security.debian.org stable/updates main contrib non-free
+
+# Uncomment if you want the apt-get source function to work
+#deb-src http://http.us.debian.org/debian stable main contrib non-free
+#deb-src http://non-us.debian.org/debian-non-US stable/non-US main contrib non-free
+</example>
+
+<p>
+Tyto øádky potøebuje základní instalace Debianu. První <tt>deb</tt> øádek ukazuje
+do oficiálního archivu, druhý do non-US archivu a tøetí do archivu 
+bezpeènostních aktualizací Debianu.
+<p>
+Poslední dva øádky jsou zakomentovány (pøidáním `#' na zaèátek) a apt-get je
+tedy bude ignorovat. Jsou to <tt>deb-src</tt> øádky, tj. ukazují na zdrojové
+balíèky Debianu. Odkomentujte je, pokud chcete stahovat zdrojové kódy programù
+pro testování nebo rekompilaci.
+<p>
+Soubor <tt>/etc/apt/sources.list</tt> mù¾e obsahovat nìkolik rùzných typù øádkù.
+APT ví, jak má pracovat s archivy typu <tt>http</tt>, <tt>ftp</tt>,
+<tt>file</tt> (lokální archiv, napø. adresáø s pøipojeným souborovým systémem
+ISO9660) a <tt>ssh</tt>.
+<p>
+Po provedení zmìn v souboru <tt>/etc/apt/sources.list</tt> nezapomeòtì spustit
+<tt>apt-get update</tt>. APT tak z uvedených zdrojù získá seznamy balíèkù.
+</sect>
+
+<sect id="dpkg-scanpackages">Lokální pou¾ití APT
+<p>
+Mù¾ete mít spoustu balíèkù .deb, které byste rádi nainstalovali pomocí APT,
+proto¾e automaticky vyøe¹í závislosti.
+<p>
+Vytvoøte tedy adresáø a do nìj umístìte v¹echny soubory .deb, které chcete
+zapsat do seznamu (indexovat).
+Napøíklad:
+<p>
+<example>
+# mkdir /root/debs
+</example>
+<p>
+Volby nastavené v øídícím souboru balíèku mù¾ete upravit 
+pøímo pro vá¹ repozitáø. Pou¾ijte k tomu soubor <tt>override</tt>. V tomto
+souboru mù¾ete definovat nìkolik voleb, které pak pøekryjí ty, které jsou 
+pøednastavené v balíèku.
+Vypadá to následovnì:
+<p>
+<example>
+package priority section
+</example>
+<p>
+package je název balíèku, priorita je low (nízká), medium (støední) nebo
+high (vysoká) a sekce je ta sekce, do ní¾ balíèek patøí. Název souboru není 
+podstatný, mù¾ete ho pozdìji zmìnit pomocí parametru programu 
+<prgn>dpkg-scanpackages</prgn>. Pokud nechcete soubor <tt>override</tt> 
+vytváøet, pou¾ijte pøi volání programu <prgn>dpkg-scanpackages</prgn> parametru 
+<file>/dev/null</file>.
+<p>
+v adresáøi /root udìlejte je¹tì:
+<p>
+<example>
+# dpkg-scanpackages debs <var>soubor</var> | gzip &gt; debs/Packages.gz
+</example>
+<p>
+Na øádku vý¹e je <var>soubor</var> soubor <tt>override</tt>, 
+pøíkaz vygeneruje soubor <file>Packages.gz</file>, který obsahuje rùzné
+informace o balíècích. Tyto informace pak vyu¾ívá APT. K pou¾ití balíèkù
+pøidejte je¹tì do souboru <tt>/etc/apt/sources.list</tt>:
+<p>
+<example>
+deb file:/root debs/
+</example>
+<p>
+Po tomto mù¾ete pou¾ívat pøíkazy APT jako obvykle. Mù¾ete také vygenerovat 
+repozitáø se zdrojovými balíèky (sources repository). Postup je stejný, 
+av¹ak pamatujte, ¾e musíte mít v adresáøi soubory <tt>.orig.tar.gz</tt>,
+<tt>.dsc</tt> a <tt>.diff.gz</tt> a musíte <tt>Packages.gz</tt> nahradit za 
+<tt>Sources.gz</tt>. Program, který pou¾ijete je také jiný: 
+<prgn>dpkg-scansources</prgn>.
+Pøíkazová øádka bude vypadat takto:
+<p>
+<example>
+# dpkg-scansources debs | gzip &gt; debs/Sources.gz
+</example>
+<p>
+V¹imnìte si, ¾e <prgn>dpkg-scansources</prgn> nepotøebuje soubor
+<tt>override</tt>. Do souboru <tt>/etc/apt/sources.list</tt> pøidejte øádek:
+<p>
+<example>
+deb-src file:/root debs/
+</example>
+</sect>
+
+<sect id="netselect">Výbìr nejlep¹ích zrcadel do souboru sources.list: netselect, netselect-apt
+<p>
+Hlavnì noví u¾ivatelé èasto nevìdí, jak rozhodnout, "které zrcadlo (mirror) Debianu
+zahrnout do <tt>sources.list</tt>?". Existuje mnoho kritérií, podle kterých se rozhodnout.
+Experti pravdìpodobnì pou¾ívají skript, který mìøí dobu pingu na rùzná zrcadla.
+Existuje v¹ak program, který nám s tímto pomù¾e: <strong>netselect</strong>.
+<p>
+Pro nainstalování netselectu napi¹te jako obvykle:
+<p>
+<example>
+# apt-get install netselect
+</example>
+<p>
+Pokud spustíte netselect bez parametrù, vypí¹e nápovìdu. Pokud ho spustíte s 
+mezerami oddìleným seznamem hostitelù (zrcadel), vrátí vám skóre a jednoho 
+z hostitelù. Pøi výpoètu skóre se bere v úvahu odhadovaná doba pingu a poèet 
+skokù - hops (tj. poèet hostitelù pøes který dotaz pro¹el, ne¾ se dostal k cíli).
+Èím ni¾¹í skóre, tím je odhadovaná rychlost stahování (downloadu) vy¹¹í.
+Netselect vrací hostitele s nejni¾¹ím skóre. Pokud chcete vidìt bodování v¹ech 
+zadaných hostitelù, pøidejte volbu -vv.
+Pøíklad: <p>
+<example>
+# netselect ftp.debian.org http.us.debian.org ftp.at.debian.org download.unesp.br ftp.debian.org.br
+  365 ftp.debian.org.br
+#
+</example>
+<p>
+Ze seznamu zrcadel, který jsme programu 'netselect' pøedali jako parametry, byl 
+<tt>ftp.debian.org.br</tt> se skórem 365 vybrán jako nejlep¹í zrcadlo.
+(Pozor!! Mìøení jsem provedl na svém poèítaèi. Topologie sítì se v rùzných 
+místech podstatnì li¹í, proto tato hodnota není nezbytnì správná i na jiných 
+poèítaèích.
+<p>
+Nyní mù¾ete zrcadlo, které netselect vybral jako nejrychlej¹í, ulo¾it do 
+souboru <tt>/etc/apt/sources.list</tt> (viz <ref id="sources.list">) a 
+podívat se na tipy v <ref id="apt-get">.
+<p><strong>Poznámka:</strong> seznam zrcadel mù¾ete v¾dycky najít v souboru 
+<url id="http://www.debian.org/mirror/mirrors_full" 
+name="http://www.debian.org/mirror/mirrors_full">.
+<p>
+Od verze 0.3.ds1 obsahuje balíèek netselect skript <strong>netselect-apt</strong>, 
+který provádí celý proces výbìru zrcadel automaticky.
+Staèí pouze zadat strom distribuce jako parametr (implicitnì stable) a 
+v aktuálním adresáøi se vytvoøí soubor <tt>sources.list</tt> s nejlep¹ími main 
+a non-US zrcadly. Následující pøíklad vytvoøí sources.list stable distribuce:
+<p>
+<example>
+# ls sources.list
+ls: sources.list: File or directory not found
+# netselect-apt stable
+(...)
+# ls -l sources.list
+sources.list
+#
+</example>
+<p>
+<strong>Poznámka:</strong> soubor <tt>sources.list</tt> se vytvoøí v aktuálním 
+adresáøi. Je ho tedy tøeba pøesunout do adresáøe <tt>/etc/apt</tt>.
+<p>
+Potom se podívejte na tipy <ref id="apt-get">.
+</sect>
+
+<sect id="cdrom">Pøidání CD-ROM do souboru sources.list
+<p>
+Pokud chcete, aby APT instaloval a aktualizoval vá¹ systém z CD-ROM, 
+zapi¹te to do va¹eho <tt>sources.list</tt>. Mù¾ete na to pou¾ít program 
+<prgn>apt-cdrom</prgn> takto:
+<p>
+<example>
+# apt-cdrom add
+</example>
+
+<p>
+s CD Debianu v mechanice. CD-ROM se pøipojí a pokud v ní je debianí CD, vyhledají 
+se informace o balíècích, které jsou na nìm ulo¾eny. Pokud máte CD-ROM nastavenu 
+nìjak neobvykle, pou¾ijte následující volby:
+
+<p>
+<example>
+-h           - nápovìda
+-d directory - bod pøipojení CD-ROM
+-r           - pøejmenování pøipojeného CD-ROM
+-m           - nepøipojuj
+-f           - rychlý mód, nekontroluj soubory s balíèky
+-a           - Thorough scan mode
+</example>
+
+<p>
+Napøíklad:
+
+<p>
+<example>
+# apt-cdrom -d /home/kov/mycdrom add
+</example>
+
+<p>
+CD-ROM mù¾ete také urèit bez toho, abyste ji pøidávali do va¹eho seznamu zdrojù:
+
+<p>
+<example>
+# apt-cdrom ident
+</example>
+
+<p>
+Program apt-cdrom pracuje jen v pøípadì, kdy¾ je va¹e CD-ROM øádnì nakonfigurovaná 
+v <tt>/etc/fstab</tt>.
+</sect>
+
+</chapt>
+
+<chapt id="apt-get">Správa balíèkù
+<sect id="update">Aktualizace seznamu dostupných balíèkù
+<p>
+Ke sledování instalovaných, nenainstalovaných balíèkù a balíèkù, které jsou 
+k dispozici pro nainstalování, pou¾ívá balíèkovací systém soukromou databázi.
+Program <prgn>apt-get</prgn> vyu¾ívá tuto databázi, aby zjistil, jak má balíèky, 
+které si u¾ivatel pøeje, nainstalovat a aby zjistil, které dal¹í balíèky jsou 
+potøeba, aby zvolený balíèek správnì pracoval.
+<p>
+K aktualizaci této databáze pou¾ijte pou¾ijte pøíkaz <prgn>apt-get update</prgn>.
+Tento pøíkaz vyhledá seznamy balíèkù v archivech uvedených v souboru 
+<tt>/etc/apt/sources.list</tt>; pro více informací o tomto souboru viz 
+<ref id="sources.list">.
+<p>
+Je dobré spou¹tìt tento pøíkaz pravidelnì. Vy a vá¹ systém tak budete mít stále 
+pøehled o mo¾ných aktualizacích balíèkù, zvlá¹tì pak o bezpeènostních 
+aktualizacích.
+</sect>
+
+<sect id="install">Instalace balíèkù
+<p>
+Koneènì je tu postup, na který jste v¹ichni èekali! Nyní máte pøipraven 
+sources.list a aktualizovanou databázi dostupných balíèkù. K nainstalování 
+po¾adovaného balíèku staèí spustit <tt>apt-get</tt>. Napø.:
+
+<p>
+<example>
+# apt-get install xchat
+</example>
+
+<p>
+APT najde ve svojí databázi nejnovìj¹í verzi tohoto balíèku a získá jej z 
+odpovídajícího archivu, jen¾ je zapsán v <tt>sources.list</tt>. Pokud 
+instalovaný balíèek závisí na jiném, co¾ je ná¹ pøípad, apt zkontroluje 
+závislosti a nainstaluje potøebné balíèky. Zde je pøíklad:
+
+<p>
+<example>
+# apt-get install nautilus
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 0 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 17.2MB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+Balíèek <package>nautilus</package> závisí na uvedených sdílených knihovnách, 
+proèe¾ je APT z archivu stáhne také. Pokud byste na pøíkazové øádce <tt>apt-get</tt> 
+specifikovali názvy tìchto knihoven, APT by se neptal, jestli chcete pokraèovat;
+automaticky by pøedpokládal, ¾e chcete nainstalovat v¹echny vybrané balíèky.
+<p>
+Tedy APT se ptá pouze tehdy, kdy¾ potøebuje potvrdit, ¾e mù¾e nainstalovat i balíèky, 
+které jste na pøíkazovém øádku nespecifikovali.
+<p>
+Následující volby programu apt-get mohou být u¾iteèné:
+
+<p>
+<example>
+-h  Tato nápovìda.
+-d  Pouze stáhne - neinstaluje ani nerozbaluje archívy
+-f  Zkusí pokraèovat, i kdy¾ sel¾e kontrola integrity
+-s  Pouze simuluje provádìné akce
+-y  Na v¹echny otázky odpovídá Ano
+-u  Zobrazí také seznam aktualizovaných balíkù
+</example>
+
+<p>
+Na jednom øádku lze pro instalaci vybrat více balíèkù.
+Soubory sta¾ené ze sítì k pozdìj¹í instalaci se umis»ují do adresáøe 
+<tt>/var/cache/apt/archives</tt>
+<p>
+Na stejném øádku lze rovnì¾ specifikovat balíèky, které chcete odstranit.
+Staèí jen pøidat znak '-' hned za název balíèku. Napø.:
+
+<p>
+<example>
+# apt-get install nautilus gnome-panel-       
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+Více informací o odstraòování balíèkù najdete v sekci <ref id="remove">.
+<p>
+Pokud by se vám stalo, ¾e jste balíèek nìjak po¹kodili, nebo pokud jen chcete 
+balíèek pøeinstalovat novìj¹í verzí, která je dostupná, mù¾ete pou¾ít volbu 
+<tt>--reinstall</tt>. Napø.:
+
+<p>
+<example>
+# apt-get --reinstall install gdm
+Reading Package Lists... Done
+Building Dependency Tree... Done
+0 packages upgraded, 0 newly installed, 1 reinstalled, 0 to remove and 1  not upgraded.
+Need to get 0B/182kB of archives. After unpacking 0B will be used.
+Do you want to continue? [Y/n]
+</example>
+</sect>
+
+<sect id="remove">Odstraòování balíèkù
+<p>
+Pokud u¾ balíèek nechcete pou¾ívat, mù¾ete jej pomocí APT odebrat ze systému.
+Staèí jen napsat: <tt>apt-get remove package</tt>.
+Napø.:
+
+<p>
+<example>
+# apt-get remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets gnome-panel gnome-panel-data gnome-session 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+Jak je vidìt, APT se také postará o odebrání balíèkù, je¾ závisí na balíèku, 
+který chcete odstranit. Neexistuje zpùsob jak odebrat balíèek bez toho, 
+aby byly odstranìny i v¹echny balíèky, které na nìm závisí.
+<p>
+Spu¹tìním <prgn>apt-get</prgn> uvedeným zpùsobem odstraní balíèky, ale jejich 
+konfiguraèní soubory, pokud nìjaké mají, zùstanou nedotèeny.
+Pro úplné odstranìní balíèku spus»te:
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+0 packages upgraded, 0 newly installed, 4 to remove and 1  not upgraded.
+Need to get 0B of archives. After unpacking 14.6MB will be freed.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+V¹imnìte si '*' za názvy balíèkù. Znaèí, ¾e spolu s balíèkem budou odstranìny i 
+jeho konfiguraèní soubory.
+<p>
+Stejnì jako pøi instalaci pøíkazem <tt>install</tt>, mù¾ete s pøíkazem <tt>remove</tt> 
+pou¾ít znaèky k obrácení významu pro konkrétní balíèek. Pokud v pøípadì 
+odstraòování pøipojíte hned za název balíèku <tt>'+'</tt>, balíèek se bude 
+místo odstranìní instalovat.
+
+<p>
+<example>
+# apt-get --purge remove gnome-panel nautilus+
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+The following packages will be REMOVED:
+  gnome-applets* gnome-panel* gnome-panel-data* gnome-session* 
+The following NEW packages will be installed:
+  bonobo libmedusa0 libnautilus0 nautilus 
+0 packages upgraded, 4 newly installed, 4 to remove and 1  not upgraded.
+Need to get 8329kB of archives. After unpacking 2594kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+V¹imnìte si, ¾e <prgn>apt-get</prgn> vypí¹e balíèky, které budou instalovány 
+navíc (tj. balíèky, které je potøeba nainstalovat, aby po¾adovaný balíèek správnì 
+fungoval), balíèky které budou odstranìny a celkovì v¹echny balíèky, které se 
+budou instalovat (znovu vèetnì balíèkù navíc).
+</sect>
+
+<sect id="upgrade">Upgrade balíèkù
+<p>
+Mo¾nost upgradu balíèkù je velkým úspìchem APT. Staèí napsat jediný pøíkaz: 
+<tt>apt-get upgrade</tt>. Tento pøíkaz mù¾ete pou¾ít nejen k upgradu balíèkù v 
+rámci stejné distribuce, nýbr¾ také k upgradu na novou distribuci, aèkoliv v 
+druhém pøípadì se dává pøednost pøíkazu <tt>apt-get dist-upgrade</tt>; více 
+informací najdete v sekci <ref id="dist-upgrade">
+<p>
+Je u¾iteèné spou¹tìt tento pøíkaz s volbou <tt>-u</tt>. S touto volbou uká¾e APT 
+kompletní seznam balíèkù, které se budou upgradovat. Jinak byste upgradovali 
+na slepo. APT stáhne poslední verze jednotlivých balíèkù a nainstaluje je ve 
+správném poøadí. Pøed upgradovaním je dùle¾ité v¾dy spustit <tt>apt-get update</tt>. 
+Viz sekce <ref id="update">. Zde je pøíklad:
+
+<p>
+<example>
+# apt-get -u upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages have been kept back
+  cpp gcc lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf debhelper dpkg-dev esound esound-common ftp indent
+  ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0 libesd0-dev
+  libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev liborbit0
+  libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit procps psmisc 
+29 packages upgraded, 0 newly installed, 0 to remove and 3 not upgraded.
+Need to get 5055B/5055kB of archives. After unpacking 1161kB will be used.
+Do you want to continue? [Y/n] 
+</example>
+
+<p>
+Postup je velmi jednoduchý. V¹imnìte si, ¾e na nìkolika prvních øádcích 
+<tt>apt-get</tt> oznamuje, ¾e nìkteré balíèky byly podr¾eny v aktuálním stavu - 
+<tt>kept back</tt>. To znamená, ¾e jsou k dispozici nové verze balíèkù, které se 
+ale z nìjakého dùvodu nebudou instalovat. Mo¾né dùvody jsou nesplnìné závislosti 
+(verze balíèku, na kterém ná¹ závisí, není dostupná ke sta¾ení) nebo nové 
+závislosti (ná¹ balíèek se od poslední verze stal závislým na dal¹ích balíècích).
+<p>
+Pro první pøípad neexistuje "èisté" øe¹ení. V druhém pøípadì staèí pro daný 
+balíèek spustit <tt>apt-get install</tt>, co¾ stáhne i balíèky, na kterých ten 
+ná¹ závisí. Je¹tì èistìj¹ím øe¹ením je pou¾ít <tt>dist-upgrade</tt>. Viz sekce 
+<ref id="dist-upgrade">.</sect>
+
+<sect id="dist-upgrade">Upgrade na nové vydání Debianu
+<p>
+APT umo¾òuje upgrade celého systému Debian najednou, buï pøes Internet nebo z 
+nového CD (koupeného nebo sta¾eného jako ISO image).
+<p>
+Stejný postup se rovnì¾ pou¾ívá, kdy¾ se mezi instalovanými balíèky zmìnily 
+závislosti. S <tt>apt-get upgrade</tt> by tyto balíèky zùstali nedotèeny 
+(<tt>kept back</tt>).
+<p>
+Dejme tomu, ¾e pou¾íváte revizi 0 stabilní verze Debianu a koupili jste si CD 
+s revizí 3. K upgradu systému z nového CD mù¾ete pou¾ít APT takto: zavolat 
+<prgn>apt-cdrom</prgn> (viz sekce <ref id="cdrom">), abyste pøidali CD do va¹eho 
+<tt>/etc/apt/sources.list</tt> a spustit <tt>apt-get dist-upgrade</tt>.
+<p>
+Je dùle¾ité poznamenat, ¾e APT v¾dy hledá nejnovìj¹í verze balíèkù. Pokud tedy 
+vá¹ <tt>/etc/apt/sources.list</tt> obsahoval archiv, ve kterém jsou novìj¹í 
+verze balíèkù ne¾ na va¹em CD, APT stáhne balíèky odtamtud.
+<p>
+V pøíkladu, který jsme uvedli v sekci <ref id="upgrade">, jsme vidìli, ¾e byly 
+nìkteré balíèky podr¾eny v aktuálním stavu - <tt>kept back</tt>. Tento problém 
+nyní vyøe¹íme s <tt>dist-upgrade</tt>:
+
+<p>
+<example>
+# apt-get -u dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following NEW packages will be installed:
+  cpp-2.95 cron exim gcc-2.95 libident libopenldap-runtime libopenldap1
+  libpcre2 logrotate mailx 
+The following packages have been kept back
+  lilo 
+The following packages will be upgraded
+  adduser ae apt autoconf cpp debhelper dpkg-dev esound esound-common ftp gcc
+  indent ipchains isapnptools libaudiofile-dev libaudiofile0 libesd0
+  libesd0-dev libgtk1.2 libgtk1.2-dev liblockfile1 libnewt0 liborbit-dev
+  liborbit0 libstdc++2.10-glibc2.2 libtiff3g libtiff3g-dev modconf orbit
+  procps psmisc 
+31 packages upgraded, 10 newly installed, 0 to remove and 1 not upgraded.
+Need to get 0B/7098kB of archives. After unpacking 3118kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+V¹imnìte si, ¾e nyní se budou balíèky upgradovat a také se budou instalovat 
+nové (kvùli novým závislostem). Balíèek lilo je v¹ak stále dr¾en v aktuálním 
+stavu - <tt>kept back</tt>. Problém bude asi vá¾nìj¹í, ne¾ jen nová závislost. 
+Mù¾eme to zjistit spu¹tìním:
+
+<p>
+<example>
+# apt-get -u install lilo
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following extra packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be REMOVED:
+  debconf-tiny 
+The following NEW packages will be installed:
+  cron debconf exim libident libopenldap-runtime libopenldap1 libpcre2
+  logrotate mailx 
+The following packages will be upgraded
+  lilo 
+1 packages upgraded, 9 newly installed, 1 to remove and 31 not upgraded.
+Need to get 225kB/1179kB of archives. After unpacking 2659kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Jak je vidìt, lilo je v konfliktu s balíèkem <package>debconf-tiny</package>, 
+co¾ znamená, ¾e se nemù¾e nainstalovat (nebo upgradovat) ani¾ by byl 
+debconf-tiny odebrán.
+<p>
+Abychom se dozvìdìli, co dr¾í nebo odstraòuje balíèek napí¹eme:
+
+<p>
+<example>
+# apt-get -o Debug::pkgProblemResolver=yes dist-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Starting
+Starting 2
+Investigating python1.5
+Package python1.5 has broken dep on python1.5-base
+  Considering python1.5-base 0 as a solution to python1.5 0
+  Holding Back python1.5 rather than change python1.5-base
+Investigating python1.5-dev
+Package python1.5-dev has broken dep on python1.5
+  Considering python1.5 0 as a solution to python1.5-dev 0
+  Holding Back python1.5-dev rather than change python1.5
+ Try to Re-Instate python1.5-dev
+Done
+Done
+The following packages have been kept back
+  gs python1.5-dev 
+0 packages upgraded, 0 newly installed, 0 to remove and 2  not upgraded.
+</example>
+
+<p>
+Tímto zpùsobem se dá jednodu¹e zjistit, ¾e balíèek python1.5-dev se nemù¾e 
+nainstalovat kvùli nesplnìné závislosti na python1.5.
+
+</sect>
+
+<sect id="clean">Odstøanìní nepou¾ívaných souborù balíèkù: apt-get clean and autoclean
+<p>
+Kdy¾ instalujete balíèek, APT získá potøebné soubory od hostitelù uvedených v 
+/etc/apt/sources.list, ulo¾í je v lokálním repozitáøi 
+(<file>/var/cache/apt/archives/</file>) a potom pokraèuje s instalací, viz 
+<ref id="install">.
+<p>
+Èasem se mù¾e lokální skladi¹tì zvìt¹ovat a zabírat na disku hodnì místa. 
+APT na¹tìstí poskytuje nástroje pro správu lokálního repozitáøe.
+Medoty <prgn>apt-get</prgn>: <tt>clean</tt> and <tt>autoclean</tt>.
+<p>
+<prgn>apt-get clean</prgn> odstraní v¹e kromì souborù zámkù z 
+<file>/var/cache/apt/archives/</file> a
+<file>/var/cache/apt/archives/partial/</file>. Tak¾e pokud budete chtít balíèek 
+pøeinstalovat, APT ho bude muset znovu stáhnout.
+<p>
+<prgn>apt-get autoclean</prgn> odstraní pouze soubory balíèkù, které u¾ se 
+nedají stáhnout.
+<p>
+Následující pøíklad ukazuje, jak apt-get autoclean pracuje:
+
+<p>
+<example>
+# ls /var/cache/apt/archives/logrotate* /var/cache/apt/archives/gpm*
+logrotate_3.5.9-7_i386.deb
+logrotate_3.5.9-8_i386.deb
+gpm_1.19.6-11_i386.deb
+</example>
+
+<p>
+V /var/cache/apt/archives jsou dva soubory balíèku 
+<package>logrotate</package> a jeden balíèku <package>gpm</package>.
+
+<p>
+<example>
+# apt-show-versions -p logrotate
+logrotate/stable uptodate 3.5.9-8
+# apt-show-versions -p gpm
+gpm/stable upgradeable from 1.19.6-11 to 1.19.6-12
+</example>
+
+<p>
+<prgn>apt-show-versions</prgn> ukazuje, ¾e aktuální verzí balíèku 
+<package>logrotate</package> je <file>logrotate_3.5.9-8_i386.deb</file>, proèe¾ 
+je soubor <file>logrotate_3.5.9-7_i386.deb</file> zbyteèný. Soubor 
+<file>gpm_1.19.6-11_i386.deb</file> je také zbyteèný, nebo» lze získat novìj¹í 
+verzi tohoto balíèku.
+
+<p>
+<example>
+# apt-get autoclean
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Del gpm 1.19.6-11 [145kB]
+Del logrotate 3.5.9-7 [26.5kB]
+</example>
+
+<p>Posléze <tt>apt-get autoclean</tt> odstranil pouze staré soubory.
+Více informací o apt-show-versions naleznete v <ref id="apt-show-versions">.
+</sect>
+
+<sect id="dselect-upgrade">Pou¾ití APT spolu s dselect
+<p>
+<prgn>dselect</prgn> je program, který u¾ivatelùm pomáhá s výbìrem debianích 
+balíèkù k instalaci. Je pova¾ován za ponìkud slo¾itý a ponìkud nudný, ale s trochou cviku 
+si na jeho konsolové ncurses rozhraní zvyknete.
+<p>
+Dselect umí vyu¾ít schopnosti debianích balíèkù "doporuèovat" a 
+"navrhovat" jiné balíèky k instalaci. Program spus»te jako root pøíkazem 
+<tt>`dselect'</tt>. Jako pøístupovou metodu zvolte 'apt'. Není to nezbytnì 
+nutné, pokud v¹ak nepou¾íváte CD-ROM a chcete balíèky stahovat z Internetu, 
+je 'apt' nejlep¹í mo¾nost.
+<p>
+Pokud se chcete s dselectem nauèit dobøe pracovat, pøeètìte si dokumentaci uvedenou 
+na stránkách Debianu
+<url id="http://www.debian.org/doc/ddp" name="http://www.debian.org/doc/ddp">.
+<p>
+Potom, co jste si pomocí dselectu vybrali, napi¹te:
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+</example>
+
+<p>
+jako v ní¾e uvedeném pøíkladì:
+
+<p>
+<example>
+# apt-get -u dselect-upgrade
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following packages will be REMOVED:
+  lbxproxy 
+The following NEW packages will be installed:
+  bonobo console-tools-libs cpp-3.0 enscript expat fingerd gcc-3.0
+  gcc-3.0-base icepref klogd libdigest-md5-perl libfnlib0 libft-perl
+  libgc5-dev libgcc300 libhtml-clean-perl libltdl0-dev libsasl-modules
+  libstdc++3.0 metamail nethack proftpd-doc psfontmgr python-newt talk tidy
+  util-linux-locales vacation xbill xplanet-images 
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 30 newly installed, 1 to remove and 0  not upgraded.
+Need to get 7140kB of archives. After unpacking 16.3MB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Porovnejme výpis s tím, který se zobrazí spustìním apt-get dist-upgrade na 
+stejném systému:
+
+<p>
+<example>
+# apt-get -u dist-upgrade   
+Reading Package Lists... Done
+Building Dependency Tree... Done
+Calculating Upgrade... Done
+The following packages will be upgraded
+  debian-policy 
+1 packages upgraded, 0 newly installed, 0 to remove and 0  not upgraded.
+Need to get 421kB of archives. After unpacking 25.6kB will be freed.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+V¹imnìte si, ¾e se spousta vý¹e uvedených balíèkù instaluje, proto¾e je jiné 
+balíèky "doporuèily" nebo "navrhly". Ostatní se instalují nebo odstraòují 
+(viz napø. lbxproxy) podle výbìru, který jsme procházením seznamu balíèkù 
+pomocí dselectu vytvoøili. Dselect je pøi pou¾ití v kombinaci s APT velice 
+silným nástrojem.
+</sect>
+
+<sect id="default-version">Jak udr¾ovat smí¹ený systém
+<p>
+U¾ivatelé obèas pou¾ívají jednu verzi Debianu jako hlavní distribuci 
+systému a jeden èi více balíèkù z jiné vìtve.
+<p>
+Nastavení va¹í hlavní verze Debianu proveïte v souboru 
+<file>/etc/apt/apt.conf</file> (pokud tento neexistuje, vytvoøte jej), 
+kam napi¹te následující øádku:
+<p>
+<example>
+APT::Default-Release "<var>version</var>";
+</example>
+<p>
+<var>version</var> je verze Debianu, kterou chcete pou¾ívat jako hlavní 
+distribuci. Vybrat si mù¾ete z mo¾ností <tt>stable</tt>, <tt>testing</tt> a 
+<tt>unstable</tt>. 
+K instalovaní balíèkù z jiné verze pou¾ijte APT takto:
+
+<p>
+<example>
+# apt-get -t <var>distribution</var> install <var>package</var>
+</example>
+<p>
+
+Aby to ale fungovalo, musíte mít pro distribuci, ze které balíèek chcete, záznam 
+v souboru <file>/etc/apt/sources.list</file>. Balíèek se pak musí v daném zdroji 
+vyskytovat.
+<p>
+Mù¾ete také po¾adovat urèitou konkrétní verzi balíèku, pomocí tohoto zápisu:
+
+<example>
+# apt-get install <var>package</var>=<var>version</var>
+</example>
+
+Napø. následující øádek nainstaluje verzi <tt>2.2.4-1</tt> balíèku 
+<package>nautilus</package>:
+
+<example>
+# apt-get install nautilus=2.2.4-1
+</example>
+
+<p>
+<em>DÙLE®ITÉ</em>: `unstable' verze Debianu je verze, do které se nejnovìj¹í 
+verze balíèkù vkládají nejdøív. Distribuce tak za¾ívá v¹echny zmìny, jimi¾ balíèky 
+procházejí. Zmìny jsou jak malé tak i velké, které ovlivòují spousty balíèkù nebo 
+dokonce celý systém. Z toho dùvodu by tuto verzi distribuce <em>nemìli</em> 
+pou¾ívat nezku¹ení u¾ivatelé nebo ti, kteøí chtìjí mít zaji¹tìnu stabilitu.
+<p>
+`testing' distribuce není nutnì lep¹í ne¾ `unstable', proto¾e se v ní 
+bezpeènostní aktualizace neprovádìjí rychle. Pro servery a jiné produkèní 
+systémy by se mìla v¾dy pou¾ívat verze stabilní - `stable'.
+</sect>
+
+<sect id="apt-show-versions">Jak upgradovat balíèky z konkrétních verzí Debianu
+<p>
+<prgn>apt-show-versions</prgn> poskytuje u¾ivatelùm smí¹ených distribucí 
+bezpeènou cestu, jak upgradovat systém bez toho, aby dostali z ménì stabilní 
+distribuce více, ne¾ chtìli. Po nainstalování balíèku 
+<package>apt-show-versions</package> lze napøíklad upgradovat pouze nestabilní 
+balíèky spu¹tìním:
+<p>
+<example>
+# apt-get install `apt-show-versions -u -b | grep unstable | cut -d ' ' -f 1`
+</example>
+</sect>
+
+<sect id="pin">Jak udr¾et nainstalované urèité verze balíèkù
+<p>
+Mo¾ná, ¾e jste potøebovali zmìnit nìco v balíèku a nemáte èas, nebo nechcete, 
+pøená¹et tyto zmìny do nové verze programu. Nebo jste napøíklad upgradovali 
+svoji distribuci Debianu na verzi 3.0, ale chcete i nadále pou¾ívat urèité 
+balíèky ve verzi z Debianu 2.2. Mù¾ete oznaèit (pøiøadit "pin" - pøi¹pendlit) verzi,
+kterou jste nainstalovali, tak¾e se nebude upgradovat.
+<p>
+Pou¾ití tohoto prostøedku je jednoduché, staèí jen editovat soubor 
+<tt>/etc/apt/preferences</tt>.
+<p>
+Formát souboru je prostý:
+<p>
+<example>
+Package: &lt;package&gt;
+Pin: &lt;pin definition&gt;
+Pin-Priority: &lt;pin's priority&gt;
+</example>
+<p>
+Ka¾dá polo¾ka musí být od ostatních oddìlena odøádkováním.
+Napøíklad pro podr¾ení balíèku <package>sylpheed</package>, který jsem upravil 
+aby pou¾íval "reply-to-list", ve verzi 0.4.99, jsem pøidal záznam:
+<p>
+<example>
+Package: sylpheed
+Pin: version 0.4.99*
+</example>
+<p>
+V¹imnìte si, ¾e jsem pou¾il <tt>*</tt> (hvìzdièka). Vznikla tak maska, která 
+øíká, ¾e pøiøazený "pin" platí pro v¹echny verze zaèínající na 0.4.99.
+Uèinil jsem tak proto, ¾e Debian v oznaèení verzí svých balíèkù u¾ívá tzv. èíslo 
+revize a já se nechtìl vyhnout instalaci mo¾ných revizí.
+Tak¾e napøíklad verze 0.4.99-1 a 0.4.99-10 se nainstalují hned, jak budou k 
+dispozici. Uvìdomte si, ¾e pokud jste balíèek upravili, není tento zpùsob vhodný.
+<p>
+'Pin-Priority' pomáhá urèit, jestli bude balíèek vyhovující øádkùm "Package:" 
+a "Pin:" instalován. Èím vy¹¹í priorita, tím vy¹¹í pravdìpodobnost, ¾e se vyhovující 
+balíèek nainstaluje. Zevrubný rozbor priorit najdete v 
+<manref name="apt_preferences" section="7">. Uvedu pár pøíkladù, které 
+ilustrují základní my¹lenku. V následujícím popí¹u, jaký efekt by mìla zmìna hodnoty 
+priority v pøedcházejícím pøíkladì se sylpheed.
+</p>
+<p>
+<taglist>
+<tag>1001</tag>
+<item>
+APT verzi 0.4.99 balíèku sylpheed nikdy nenahradí. Pokud je dostupná, 
+APT nainstaluje verzi 0.4.99 dokonce i kdy¾ tím nahradí ji¾ nainstalovaný balíèek s vy¹¹í verzí. 
+Pouze balíèky s prioritou vy¹¹í ne¾ 1000, mù¾ou downgradeovat tento balíèek.
+</item>
+<tag>1000</tag>
+<item>
+Stejný efekt jako priorita 1001, s výjimkou toho, ¾e APT zamítne downgrade nainstalované 
+verze na verzi 0.4.99
+</item>
+<tag>990</tag>
+<item>
+Verze 0.4.99 bude nahrazena pouze vy¹¹í verzí z vydání oznaèeného pomocí 
+promìnné "APT::Default-Release" jako preferované. (viz 
+<ref id="default-version">, nahoøe).
+</item>
+<tag>500</tag>
+<item>
+Upøednostní jakoukoliv vy¹¹í verzi sylpheed ne¾ je 0.4.99, dostupnou v jakémkoliv 
+vydání. Verze 0.4.99 v¹ak bude mít stále pøednost pøed ni¾¹ími verzemi.
+</item>
+<tag>100</tag>
+<item>
+Jakákoliv vy¹¹í verze balíèku sylpheed z jakéhokoliv vydání, jako¾ i jakákoliv 
+nainstalovaná vy¹¹í verze budou mít pøednost pøed verzí 0.4.99. Tj. verze 0.4.99 
+se bude instalovat, pouze pokud je¹tì ¾ádná verze nebyla instalována. Tuto 
+prioritu mají nastavenu nainstalované balíèky.
+</item>
+<tag>-1</tag>
+<item>
+Dovoleny jsou i záporné priority. Tyto zcela zamezují instalaci verze 0.4.99.
+</item>
+</taglist>
+<p>
+Pin mù¾e být specifikován u <tt>verze</tt> balíèku, <tt>release</tt> balíèku, 
+nebo <tt>pùvodce</tt>.
+<p>
+Pøi pou¾ití pinu na <tt>verzi</tt> balíèku, viz vý¹e, lze zadat pøesné èíslo verze 
+nebo pou¾ít masku k oznaèení nìkolika verzí najednou.
+<!-- what's available?  standard shell globs?  ?*[]   or more? -->
+<p>
+Volba <tt>release</tt> závisí na souboru Release v repozitáøi APT nebo na CD. 
+Pokud repozitáø tento soubor neobsahuje, nedá se tato volba pou¾ít. Mù¾ete si 
+prohlédnout Release soubory, které máte v adresáøi <tt>/var/lib/apt/lists/</tt>. 
+Parametry releasu jsou:
+<tt>a</tt> (archiv), <tt>c</tt> (komponenta), <tt>v</tt> (verze),
+<tt>o</tt> (zdroj) a <tt>l</tt> (label - jmenovka).
+<p>
+Pøíklad:
+<p>
+<example>
+Package: *
+Pin: release v=2.2*,a=stable,c=main,o=Debian,l=Debian
+Pin-Priority: 1001
+</example>
+<p>
+V tomto pøíkladu jsme zvolili verzi Debianu 2.2* (co¾ mù¾e být 2.2r2,
+2.2r3 -- spolu s teèkovanými vydáními, které typicky obsahují bezpeènostní 
+záplaty a dal¹í velmi dùle¾ité aktualizace), repozitáø <tt>stable</tt>, 
+sekci <tt>main</tt> (oproti <tt>contrib</tt> nebo <tt>non-free</tt>) a pùvodce i 
+jmenovku Debian. Zdroj (o=) udává tvùrce Release souboru, jmenovka (l=) udává 
+název distribuce: Debian pro vlastní Debian a Progeny pro Progeny napøíklad. Zde 
+je ukázka Release souboru:
+<p>
+<example>
+$ cat /var/lib/apt/lists/ftp.debian.org.br_debian_dists_potato_main_binary-i386_Release
+Archive: stable
+Version: 2.2r3
+Component: main
+Origin: Debian
+Label: Debian
+Architecture: i386
+</example>
+</sect>
+</chapt>
+
+<chapt id="helpers">Velmi u¾iteèní pomocníci
+<sect id="equivs">Jak instalovat lokálnì kompilované balíèky: equivs
+<p>
+Nìkdy chce èlovìk pou¾ívat urèitou verzi programu, která je v¹ak dostupná pouze 
+v podobì zdrojového kódu. Debianí balíèek není k dispozici. S balíèkovacím 
+systémem pak mù¾ou být problémy. Pøedstavte si, ¾e chcete kompilovat novou verzi 
+Va¹eho emailového serveru. V¹echno je vpoøádku a¾ na to, ¾e spousta balíèkù v 
+Debianu závisí na MTA (Mail Transport Agent). Proto¾e jste nainstaloval nìco, 
+co jste si zkompiloval sám, balíèkovací systém o tom neví.
+<p>
+To je místo, kde <package>equivs</package> pøichází na scénu. Abyste ho mohl 
+pou¾ít, nainstalujte stejnojmenný balíèek. Equivs dìlá to, ¾e vytvo¾í prázdný 
+balíèek, který slou¾í ke splnìní závislostí. Balíèkovací systém se pak domnívá, 
+¾e jsou závislosti splnìny.
+<p>
+Ne¾ zaèneme, je dobré pøipomenout, ¾e jsou bezpeènìj¹í cesty jak nainstalovat 
+program, který u¾ má v Debianu balíèek zkompilovaný s jinými nastaveními, a ¾e by 
+èlovìk nemìl pou¾ívat equivs k nahrazování závislostí, pokud neví, co pøesnì dìlá. 
+Více informací je v sekci <ref id="sourcehandling">.
+<p>
+Pokraèujme s MTA pøíkladem. Právì jste nainstaloval svùj novì zkompilovaný 
+<prgn>postfix</prgn> a pokraèujete s instalací <package>mutt</package>. Náhle 
+zjistíte, ¾e balíèek <package>mutt</package> chce nainstalovat jiný MTA. Ale vy 
+u¾ máte svùj.
+<p>
+Pøesuòte se do nìjakého adresáøe (<file>/tmp</file> napøíklad) a spus»te:
+
+<p>
+<example>
+# equivs-control <var>název</var>
+</example>
+
+<p>
+<var>název</var> nahraïte jménem øídícího souboru, který chcete 
+vytvoøit. Vytvoøený soubor bude vypadat následovnì:
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: &lt;vlo¾e jméno balíèku; implicitnì je equivs-dummy&gt;
+Version: &lt;vlo¾te èíslo verze; implicitnì je 1.0&gt;
+Maintainer: &lt;va¹e jméno a emailová adresa; implicitnì je u¾ivatelské jméno&gt;
+Pre-Depends: &lt;balíèky&gt;
+Depends: &lt;balíèky&gt;
+Recommends: &lt;balíèky&gt;
+Suggests: &lt;balíèek&gt;
+Provides: &lt;(virtuální)balíèek&gt;
+Architecture: all
+Copyright: &lt;soubor s copyrightem; implicitnì je GPL2&gt;
+Changelog: &lt;soubor changelog; implicitnì je v¹eobecný changelog&gt;
+Readme: &lt;README.Debian soubor; implicitní je v¹eobecný&gt;
+Extra-Files: &lt;dodateèné soubory pro doc adresáø, oddìlené èáøkou&gt;
+Description: &lt;krátký popis; implicitnì jsou to nìjaká moudrá slova&gt;
+ dlouhý popis a informace
+ .
+ druhý odstavec
+</example>
+
+<p>
+Toto potøebujeme jenom upravit, aby to dìlalo, co chceme. Podívejte se na formát 
+polí a jejich popis, není tu nutné nic vysvìtlovat, udìlejme, co je potøeba:
+
+<p>
+<example>
+Section: misc
+Priority: optional
+Standards-Version: 3.0.1
+
+Package: mta-local
+Provides: mail-transport-agent
+</example>
+
+<p>
+Ano, to je v¹e. <package>mutt</package> závisí na 
+<package>mail-transport-agent</package>, co¾ je virtuální balíèek poskytovaný 
+v¹emi MTA. Mohl jsem ten balíèek jednodu¹e nazvat 
+<package>mail-transport-agent</package>, ale upøednostnil jsem schéma 
+s virtuálními balíèky pou¾itím Provides.
+<p>
+Nyní pouze potøebujeme balíèek vytvoøit:
+
+<p>
+<example>
+# equivs-build <var>name</var>
+dh_testdir
+touch build-stamp
+dh_testdir
+dh_testroot
+dh_clean -k
+# Add here commands to install the package into debian/tmp.
+touch install-stamp
+dh_testdir
+dh_testroot
+dh_installdocs
+dh_installchangelogs
+dh_compress
+dh_fixperms
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+dpkg-deb: building package `<var>name</var>' in `../<var>name</var>_1.0_all.deb'.
+
+The package has been created.
+Attention, the package has been created in the current directory,
+</example>
+
+<p>
+A nainstalovat výsledný <tt>.deb</tt>.
+<p>
+Jak je vidìt, je spousta mo¾ností, jak vyu¾ít <prgn>equivs</prgn>. Napøíklad 
+byste si mohl vytvoøit balíèek <tt>my-favorites</tt>, 
+který by závisel na programech, které obvykle instalujete. Jen popus»te uzdu 
+fantazie, ale buïte opatrní.
+<p>
+Nutno poznamenat, ¾e pøíklady øídících souborù jsou v 
+<file>/usr/share/doc/equivs/examples</file>. Vyzkou¹ejte je!
+</sect>
+
+<sect id="localepurge">Odstranìní nepou¾ívaných lokalizaèních souborù: localepurge
+<p>
+Spousta u¾ivatelù Debianu pou¾ívá jen jednu locale. Brazilský u¾ivatel Debianu 
+napøíklad obvykle celou dobu pou¾ívá <tt>pt_BR</tt> locale a o <tt>es</tt> locale 
+se nestará.
+<p>
+<package>localepurge</package> je pro tyto u¾ivatele velmi u¾iteèný nástroj.
+Mù¾ete uvolnit spoustu místa tím, ¾e budete mít pouze locales, které opravdu 
+pou¾íváte. Udìlejte jen <tt>apt-get install localepurge</tt>.
+<p>
+Konfigurace je velmi jednoduchá, debconf provede u¾ivatele konfigurací krok za 
+krokem. Pøece jenom buïte opatrní pøi odpovìdi na první otázku. ©patná odpovìï 
+mù¾e zpùsobit odstranìní v¹ech souborù locale, dokonce i tìch které pou¾íváte. 
+Jediná mo¾nost, jak tyto soubory dostat zpátky, je pøeinstalování v¹ech balíèkù, 
+které je poskytují.
+</sect>
+
+<sect id="helper-show-versions">Jak poznat, které balíèky lze upgradovat
+<p>
+<prgn>apt-show-versions</prgn> je program, který uká¾e, které balíèky v systému 
+lze aktualizovat (updatovat) a nìkteré dal¹í u¾iteèné informace.
+Volba <tt>-u</tt> zobrazí seznam balíèkù, které je mo¾no upgradovat:
+
+<p>
+<example>
+$ apt-show-versions -u    
+libeel0/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+libeel-data/unstable upgradeable from 1.0.2-5 to 1.0.2-7
+</example>
+</sect>
+
+</chapt>
+
+<chapt id="search">Získávání informací o balíècích
+<p>
+Pro systém APT existují nìkteré front-endové programy, které znaènì zjednodu¹ují 
+zji¹»ování seznamu balíèkù dostupných pro instalaci nebo u¾ nainstalovaných, stejnì 
+jako zji¹tìní sekce, do které balíèek patøí, jakou má prioritu, jaký je jeho 
+popis apod.
+<p>
+Ale... na¹ím cílem je nauèit se pou¾ívat èisté APT. Tak tedy, jak mù¾ete zjistit 
+jméno balíèku, který chcete instalovat?
+<p>
+Pro øe¹ení této úlohy máme spoustu prostøedkù. Zaèneme s <tt>apt-cache</tt>. Tento 
+program vyu¾ívá systém APT pro údr¾bu svojí databáze. Letmo se podíváme na 
+nìkteré mo¾nosti jeho praktického vyu¾ití.
+
+<sect id="cache">Zji¹»ování názvù balíèkù
+<p>
+Pøedpokládejme napøíklad, ¾e si chcete pøipomenout staré dobré èasy Atari 2600. 
+Chcete pou¾ít APT k nainstalování emulátoru Atari a potom ke sta¾ení nìjakých 
+her. Mù¾ete udìlat:
+
+<p>
+<example>
+# apt-cache search atari
+atari-fdisk-cross - Partition editor for Atari (running on non-Atari)
+circuslinux - The clowns are trying to pop balloons to score points!
+madbomber - A Kaboom! clone
+tcs - Character set translator.
+atari800 - Atari emulator for svgalib/X/curses
+stella - Atari 2600 Emulator for X windows
+xmess-x - X binaries for Multi-Emulator Super System
+</example>
+
+<p>
+Na¹li jsme nìkolik balíèkù, je¾ se vztahují k tomu, co jsme hledali, spolu s 
+krátkým popisem. K získání více informací o konkrétním balíèku, mohu pou¾ít:
+
+<p>
+<example>
+# apt-cache show stella  
+Package: stella
+Priority: extra
+Section: non-free/otherosfs
+Installed-Size: 830
+Maintainer: Tom Lear &lt;tom@trap.mtview.ca.us&gt;
+Architecture: i386
+Version: 1.1-2
+Depends: libc6 (&gt;= 2.1), libstdc++2.10, xlib6g (&gt;= 3.3.5-1)
+Filename: dists/potato/non-free/binary-i386/otherosfs/stella_1.1-2.deb
+Size: 483430
+MD5sum: 11b3e86a41a60fa1c4b334dd96c1d4b5
+Description: Atari 2600 Emulator for X windows
+ Stella is a portable emulator of the old Atari 2600 video-game console
+ written in C++.  You can play most Atari 2600 games with it.  The latest
+ news, code and binaries for Stella can be found at:
+ http://www4.ncsu.edu/~bwmott/2600
+</example>
+
+<p>
+Výstupem je spousta detailních informací o balíèku, který chcete (nebo nechcete) 
+instalovat, spolu s plným popisem balíèku. Pokud je u¾ balíèek v systému 
+nainstalován a existuje novìj¹í verze, uvidíte informace o obou verzích. 
+Napøíklad:
+
+<p>
+<example>
+# apt-cache show lilo
+Package: lilo
+Priority: important
+Section: base
+Installed-Size: 271
+Maintainer: Russell Coker &lt;russell@coker.com.au&gt;
+Architecture: i386
+Version: 1:21.7-3
+Depends: libc6 (&gt;= 2.2.1-2), debconf (&gt;=0.2.26), logrotate
+Suggests: lilo-doc
+Conflicts: manpages (&lt;&lt;1.29-3)
+Filename: pool/main/l/lilo/lilo_21.7-3_i386.deb
+Size: 143052
+MD5sum: 63fe29b5317fe34ed8ec3ae955f8270e
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+
+Package: lilo
+Status: install ok installed
+Priority: important
+Section: base
+Installed-Size: 190
+Maintainer: Vincent Renardias &lt;vincent@debian.org&gt;
+Version: 1:21.4.3-2
+Depends: libc6 (&gt;= 2.1.2)
+Recommends: mbr
+Suggests: lilo-doc
+Description: LInux LOader - The Classic OS loader can load Linux and others
+ This Package contains lilo (the installer) and boot-record-images to
+ install Linux, OS/2, DOS and generic Boot Sectors of other OSes.
+ .
+ You can use Lilo to manage your Master Boot Record (with a simple text screen)
+ or call Lilo from other Boot-Loaders to jump-start the Linux kernel.
+</example>
+
+<p>
+V¹imnìte si, ¾e první ve výpisu je dostupný balíèek a druhý je balíèek, který 
+je ji¾ instalován. Pro více obecných informací o balíèku mù¾ete pou¾ít:
+
+<p>
+<example>
+# apt-cache showpkg penguin-command
+Package: penguin-command
+Versions: 
+1.4.5-1(/var/lib/apt/lists/download.sourceforge.net_debian_dists_unstable_main_binary-i386_Packages)(/var/lib/dpkg/status)
+
+Reverse Depends: 
+Dependencies: 
+1.4.5-1 - libc6 (2 2.2.1-2) libpng2 (0 (null)) libsdl-mixer1.1 (2 1.1.0) libsdl1.1 (0 (null)) zlib1g (2 1:1.1.3) 
+Provides: 
+1.4.5-1 - 
+Reverse Provides: 
+</example>
+
+<p>
+A ke zji¹tìní na kterých balíècích závisí:
+
+<p>
+<example>
+# apt-cache depends penguin-command
+penguin-command
+  Depends: libc6
+  Depends: libpng2
+  Depends: libsdl-mixer1.1
+  Depends: libsdl1.1
+  Depends: zlib1g
+</example>
+
+<p>
+Celkem tedy máme ¹iroký rozsah zbraní, které mù¾eme pou¾ít ke zji¹tìní názvu 
+balíèku, který chceme.
+</sect>
+
+<sect id="dpkg-search">Pou¾ití dpkg k nalezení názvù balíèkù
+<p>
+Jedna z mo¾ností, jak najít název balíèku, je znát název nìkterého dùle¾itého 
+souboru nacházejícího se uvnitø balíèku. Napøíklad abychom nalezli název balíèku, 
+který obsahuje konkrétní <tt>".h"</tt> soubor, který potøebujeme pro kompilaci, 
+mù¾eme spustit:
+
+<p>
+<example>
+# dpkg -S stdio.h
+libc6-dev: /usr/include/stdio.h
+libc6-dev: /usr/include/bits/stdio.h
+perl: /usr/lib/perl/5.6.0/CORE/nostdio.h
+</example>
+
+<p>
+nebo:
+
+<p>
+<example>
+# dpkg -S /usr/include/stdio.h
+libc6-dev: /usr/include/stdio.h
+</example>
+
+<p>
+Pro zji¹tìní názvù balíèkù nainstalovaných ve va¹em systému, co¾ je u¾iteèné 
+napøíklad pokud plánujete proèistit vá¹ disk, mù¾ete spustit:
+
+<p>
+<example>
+# dpkg -l | grep mozilla
+ii  mozilla-browse 0.9.6-7        Mozilla Web Browser
+</example>
+<p>
+Problém tohoto pøíkazu je, ¾e mù¾e "uøíznout" konec názvu balíèku. V pøíkladu vý¹e 
+je plný název balíèku <tt>mozilla-browser</tt>. K opravení tohoto mù¾ete pou¾ít 
+promìnnou prostøedí <tt>COLUMNS</tt> takto:
+
+<p>
+<example>
+[kov]@[couve] $ COLUMNS=132 dpkg -l | grep mozilla
+ii  mozilla-browser             0.9.6-7                     Mozilla Web Browser - core and browser
+</example>
+
+<p>
+nebo popis nebo jeho èást takto:
+
+<p>
+<example>
+# apt-cache search "Mozilla Web Browser"
+mozilla-browser - Mozilla Web Browser
+</example>
+</sect>
+
+<sect id="auto-apt">Jak instalovat balíèky "na vy¾ádání"
+<p>
+Kompilujete program a znenadání bum! Je tu chyba, proto¾e je potøeba <tt>.h</tt> 
+soubor, který nemáte. Program <prgn>auto-apt</prgn> vás mù¾e takovýchto situací 
+u¹etøit. Zastaví kompilaèní proces a zeptá se vás na instalaci potøebných 
+balíèkù. Jakmile je balíèek nainstalován, nechá proces pokraèovat. 
+<p>
+V podstatì musítì udìlat následující:
+
+<p>
+<example>
+# auto-apt run pøíkaz
+</example>
+
+<p>
+Kde `pøíkaz' je vykonávaný pøíkaz, který mù¾e potøebovat nìjaké nedostupné 
+soubory. Napøíklad:
+
+<p>
+<example>
+# auto-apt run ./configure
+</example>
+
+<p>
+auto-apt se pak zeptá, jestli chcete nainstalovat potøebné balíèky a automaticky zavolá 
+apt-get. Pokud pou¾íváte X, program místo implicitního textového rozhraní 
+nabídne grafické.
+<p>
+Auto-apt pou¾ívá databáze, které, aby byl efektivní, je potøeba udr¾ovat aktuální.
+Toho lze dosáhnout voláním pøíkazù <tt>auto-apt update</tt>, 
+<tt>auto-apt updatedb</tt> a <tt>auto-apt update-local</tt>.
+</sect>
+
+<sect id="apt-file">Jak zjistit, ke kterému balíèku soubor patøí
+<p>
+Kdy¾ chcete instalovat balíèek a nemù¾ete zjistit jeho název pomocí 
+<prgn>apt-cache</prgn> a pøitom znáte název souboru vlastního programu nebo 
+název nìkterého jiného souboru, který k balíèku patøí, pak mù¾ete k nalezení 
+názvu balíèku pou¾ít <prgn>apt-file</prgn>. Pracuje se s ním takhle:
+
+<p>
+<example>
+$ apt-file search <var>filename</var>
+</example>
+
+<p>
+Program funguje podobnì jako <tt>dpkg -S</tt>, ale zobrazí i odinstalované 
+balíèky, které hledaný soubor obsahují. Lze ho také pou¾ít ke zji¹tìní, 
+které balíèky obsahují potøebné hlavièkové soubory, které chybí pøi kompilaci 
+programu. Av¹ak <prgn>auto-apt</prgn> je mnohem lep¹í zpùsob, jak øe¹it takovéto 
+problémy, viz <ref id="auto-apt">.
+<p>
+Obsah balíèku si také mù¾ete nechat zobrazit spu¹tìním:
+
+<p>
+<example>
+$ apt-file list <var>packagename</var>
+</example>
+
+<p>
+<prgn>apt-file</prgn> pou¾ívá stejnì jako auto-apt databázi, ve které je ulo¾eno, 
+které soubory jednotlivé balíèky obsahují. Databázi je tøeba udr¾ovat aktuální. 
+Aktualizace se provádí spu¹tìním:
+
+<p>
+<example>
+# apt-file update
+</example>
+
+<p>
+Implicitnì pou¾ívá <prgn>apt-file</prgn> stejnou databázi jako 
+<prgn>auto-apt</prgn>, viz <ref id="auto-apt">.
+
+</sect>
+
+<sect id="apt-listchanges">Jak zjistit zmìny v balíècích
+<p>
+Ka¾dý balíèek instaluje do svého adresáøe s dokumentací 
+(<tt>/usr/share/doc/packagename</tt>) soubor s názvem 
+<tt>changelog.Debian.gz</tt>, který obsahuje seznam zmìn provedených v balíèku 
+od jeho poslední verze. Tyto soubory si mù¾ete prohlédnout napø. pomocí 
+<tt>zless</tt>. Po kompletním upgradu systému v¹ak u¾ není hledání v¹ech 
+nových souborù se seznamy zmìn tak snadné.
+<p>
+Je tu zpùsob, jak tuto úlohu zautomatizovat - nástrojem nazvaným 
+<prgn>apt-listchanges</prgn>. Nejprve nainstalujte balíèek 
+<package>apt-listchanges</package>. Bìhem instalace balíèku ho Debconf 
+nakonfiguruje. Nìkteré z otázek neuvidíte, zále¾í na prioritì, kterou jste pro 
+Debconf nastavil. Na otázky odpovìzte podle uvá¾ení.
+<p>
+První otázka se ptá, jakým zpùsobem vás má apt-listchanges o zmìnách 
+informovat. Mù¾ete si je nechat posílat na mail, co¾ je výhodné pøi 
+automatických upgradech, nebo si je mù¾ete nechat ukázat pomocí filtru, jakým 
+je napø. <prgn>less</prgn>, tak¾e si mù¾ete zmìny prohlédnout je¹tì pøed tím, 
+ne¾ necháte upgrade pokraèovat. Pokud nechcete, aby se 
+<prgn>apt-listchanges</prgn> pøi upgradech spou¹tìl automaticky, odpovìzte 
+<tt>none</tt>.
+<p>
+Po nainstalování apt-listchanges, jakmile apt stáhne balíèky (resp. získá 
+z CD nebo pøipojeného disku), pøed tím, ne¾ se budou instalovat, vypí¹e 
+apt-listchanges seznam zmìn v tìchto balíècích.
+</sect>
+</chapt>
+
+<chapt id="sourcehandling">Práce se zdrojovými balíèky
+<sect id="source">Sta¾ení zdrojových balíèkù
+<p>
+Ve svìtì svobodného software je bì¾né studovat zdrojový kód nebo dokonce 
+opravovat chyby v tomto kódu. K tomuto budete potøebovat zdrojový 
+kód programu stáhnout. APT systém poskytuje jednoduchý zpùsob, jak získat 
+zdrojové kódy k mnoha programùm obsa¾eným v distribuci, vèetnì v¹ech souborù 
+potøebných k vytvoøení balíèku .deb.
+<p>
+Jiný obvyklý zpùsob u¾ití zdrojových balíèkù Debianu je upravení novìj¹í 
+verze programu napø. z unstable distribuce pro pou¾ití v stable distribuci. 
+Kompilováním balíèku oproti stable distribuci, vygenerujete .debs se 
+závislostmi upravenými tak, ¾e pasují k ostatním balíèkùm této distribuce.
+<p>
+Abyste toho dosáhli, mìla by polo¾ka <tt>deb-src</tt> ve va¹em 
+<tt>/etc/apt/sources.list</tt> ukazovat na unstable distribuci. Musí být 
+rovnì¾ povolena (odkomentována). Viz sekci <ref id="sources.list">.
+<p>
+Ke sta¾ení zdrojového balíèku pou¾ijte pøíkaz:
+
+<p>
+<example>
+$ apt-get source packagename
+</example>
+<p>
+Tím se stáhnou tøi soubory: <tt>.orig.tar.gz</tt>, <tt>.dsc</tt> a 
+<tt>.diff.gz</tt>. Pokud byl balíèek vytvoøen pøímo pro Debian, nebudou 
+dva poslednì jmenované soubory sta¾eny a první soubor nebude mít v názvu 
+<tt>"orig"</tt>.
+<p>
+Soubor <tt>.dsc</tt> pou¾ívá dpkg-source pro rozbalení zdrojového balíèku 
+do adresáøe <var>packagename-version</var>. Uvnitø ka¾dého sta¾eného 
+zdrojového balíèku je adresáø <tt>debian/</tt>, který obsahuje soubory 
+nutné k vytvoøení .deb balíèku.
+<p>
+Pro automatický vytvoøení balíèku, který jste si stáhli, pøidejte <tt>-b</tt> 
+na pøíkazový øádek takto:
+
+<p>
+<example>
+$ apt-get -b source packagename
+</example>
+
+<p>
+Pokud jste se rozhodli nevytváøet .deb balíèek hned pøi stahování, mù¾ete ho 
+vytvoøit pozdìji spu¹tìním:
+
+<p>
+<example>
+$ dpkg-buildpackage -rfakeroot -uc -b
+</example>
+
+<p>
+z adresáøe, který byl pro balíèek vytvoøen po sta¾ení. Pro nainstalování balíèku 
+vytvoøeného vý¹e uvedenými pøíkazy musíte správce balíèkù pou¾ít pøímo. Takto:
+
+<p>
+<example>
+# dpkg -i <var>file.deb</var>
+</example>
+
+<p>
+Je rozdíl mezi <prgn>apt-get</prgn> metodou <tt>source</tt> a ostatními apt-get 
+metodami. Metodu <tt>source</tt> mù¾e pou¾ít i bì¾ný u¾ivatel bez speciálních 
+rootovských práv. Soubory se stáhnou do adresáøe, ze kterého byl pøíkaz 
+<tt>apt-get source package</tt> volán.
+</sect>
+
+<sect id="build-dep">Balíèky nutné pro kompilaci zdrojového balíèku
+<p>
+Pro kompilaci zdrojového balíèku jsou obvykle nutné urèité hlavièkové soubory 
+a sdílené knihovny. Ka¾dý zdrojový balíèek má ve svém øídícím souboru (control 
+file) uvedeno políèko 'Build-Depends:', která udává, které dodateèné balíèky 
+jsou pro kompilaci tohoto zdrojového balíèku potøeba.
+<p>
+APT nabízí jednoduchý zpùsob sta¾ený tìchto balíèkù. Spus»te 
+<tt>apt-get build-dep balíèek</tt>, kde `balíèek' je název balíèku, který 
+budete kompilovat. Napøíklad:
+
+<p>
+<example>
+# apt-get build-dep gmc
+Reading Package Lists... Done
+Building Dependency Tree... Done
+The following NEW packages will be installed:
+  comerr-dev e2fslibs-dev gdk-imlib-dev imlib-progs libgnome-dev libgnorba-dev
+  libgpmg1-dev 
+0 packages upgraded, 7 newly installed, 0 to remove and 1  not upgraded.
+Need to get 1069kB of archives. After unpacking 3514kB will be used.
+Do you want to continue? [Y/n]
+</example>
+
+<p>
+Balíèky, které se budou instalovat, jsou nutné, aby se <package>gmc</package> 
+øádnì zkompiloval. Nutno poznamenat, ¾e pøíkaz nehledá zdrojový balíèek 
+programu, který chcete kompilovat. Musíte jej tedy stáhnout zvlá¹» spu¹tìním 
+<tt>apt-get source</tt>.
+
+<p>
+Pokud byste se chtìl pouze podívat, které balíèky jsou pro kompilaci 
+daného balíèku nutné, je tu varianta pøíkazu <tt>apt-cache show</tt> (viz 
+<ref id="search">), která mezi jinými informacemi zobrazí øádek 
+<tt>Build-Depends</tt>, na kterém jsou tyto balíèky uvedeny.
+
+<p>
+<example>
+# apt-cache showsrc <var>package</var>
+</example>
+
+</sect>
+</chapt>
+
+<chapt id="erros">Jak se vypoøádat s chybami
+<sect id="erros-comuns">Bì¾né chyby
+<p>
+Chyby budou v¾dycky vznikat, spousta z nich nepozorností u¾ivatele. Následuje 
+seznam nìkterých velmi èastých chyb s popisem, jak se s nimi vypoøádat.
+<p>
+Pokud se sna¾íte spustit <tt>apt-get install package</tt> a obdr¾íte chybu, 
+která vypadá podobnì jako tahle ...
+
+<p>
+<example>
+Reading Package Lists... Done
+Building Dependency Tree... Done
+W: Couldn't stat source package list 'http://people.debian.org unstable/ Packages' (/var/state/apt/lists/people.debian.org_%7ekov_debian_unstable_Packages) - stat (2 No such file or directory)
+W: You may want to run apt-get update to correct these missing files
+E: Couldn't find package penguineyes
+</example>
+
+<p>
+zapomnìl jste po editaci souboru <tt>/etc/apt/sources.list</tt> spustit 
+<tt>apt-get update</tt>.
+<p>
+Pokud chyba vypadá jako tahle
+
+<p>
+<example>
+E: Could not open lock file /var/lib/dpkg/lock - open (13 Permission denied)
+E: Unable to lock the administration directory (/var/lib/dpkg/), are you root?
+</example>
+
+<p>
+pøi pokusu o spu¹tìní kterékoliv metody <prgn>apt-get</prgn> vyjma 
+<tt>source</tt>, nemáte rootovská práva, tj. jste pøihlá¹en jako bì¾ný u¾ivatel.
+<p>
+Podobná chyba nastane, pokud spou¹títe dvì verze programu <prgn>apt-get</prgn> 
+najednou, nebo pokud se dokonce sna¾íte spustit <prgn>apt-get</prgn> zatímco 
+je <prgn>dpkg</prgn> proces aktivní. Jedinou metodou, kterou lze pou¾ít zaroveò 
+s jinými, je metoda <tt>source</tt>.
+<p>
+Pokud se instalace uprostøed zastaví a vy zjistíte, ¾e u¾ není mo¾no instalovat 
+nebo odstraòovat balíèky, zkuste pou¾ít tyto pøíkazy:
+
+<p>
+<example>
+# apt-get -f install
+# dpkg --configure -a
+</example>
+
+<p>
+A potom to zkuste znovu. Mù¾e být nezbytné spustit druhý vý¹e jmenovaný pøíkaz 
+více ne¾ jednou. Je to dùle¾itá lekce pro dobrodruhy, kteøí pou¾ívají `unstable'.
+
+<p>
+Pokud za bìhu <tt>apt-get update</tt> obdr¾íte chybou hlá¹ku 
+"E: Dynamic MMap ran out of room", pøidejte následující øádek do 
+<file>/etc/apt/apt.conf</file>:
+
+<example>
+APT::Cache-Limit 10000000;
+</example>
+
+</sect>
+
+<sect id="help">Kde najdu pomoc?
+<p>
+Pokud máte pocit, ¾e nièemu nerozumíte, podívejte se do obsáhlé dokumentace, 
+která je pro balíèkovací systém Debianu k dispozici. Velmi pomoci vám mù¾e 
+<tt>--help</tt> a manuálové stránky, stejnì jako dokumentace obsa¾ená v 
+adresáøích <tt>/usr/share/doc</tt> nebo <tt>/usr/share/doc/apt</tt>.
+<p>
+Pokud vám ani tato dokumentace nepomù¾e, zkuste odpovìï najít v mailových 
+konferencích Debianu. Více informací o konkrétních u¾ivatelských konferencích 
+mù¾ete najít na stránkách Debianu: <url id="http://www.debian.org"
+name="http://www.debian.org">.
+<p>
+Uvìdomte si, ¾e tyto konference a zdroje by mìli vyu¾ívat pouze u¾ivatelé 
+Debianu; u¾ivatelé ostatních systémù najdou lep¹í podporu v komunitních 
+zdrojích své vlastní distribuce.
+</sect>
+</chapt>
+
+<chapt id="distros">Které distribuce podporují APT?
+<p>
+Zde je seznam nìkolika distribucí, které pou¾ívají APT:
+<p>
+Debian GNU/Linux (<url id="http://www.debian.org" name="http://www.debian.org">) 
+- právì pro tuto distribuci byl APT vyvinut
+<p>
+Conectiva (<url id="http://www.conectiva.com.br" name="http://www.conectiva.com.br">) 
+- toto byla první distribuce, která portovala APT pro pou¾ívání s 'rpm'
+<p>
+Libranet (<url id="http://www.libranet.com" name="http://www.libranet.com">)
+<p>
+Mandrake (<url id="http://www.mandrake.com" name="http://www.mandrake.com">)
+<p>
+PLD (<url id="http://www.pld.org.pl" name="http://www.pld.org.pl">)
+<p>
+Vine (<url id="http://www.vinelinux.org" name="http://www.vinelinux.org">)
+<p>
+APT4RPM (<url id="http://apt4rpm.sf.net" name="http://apt4rpm.sf.net">)
+<p>
+Alt Linux (<url id="http://www.altlinux.ru/" name="http://www.altlinux.ru/">)
+<p>
+Red Hat (<url id="http://www.redhat.com/" name="http://www.redhat.com/">)
+<p>
+Sun Solaris (<url id="http://www.sun.com/" name="http://www.sun.com/">)
+<p>
+SuSE (<url id="http://www.suse.de/" name="http://www.suse.de/">)
+<p>
+Yellow Dog Linux (<url id="http://www.yellowdoglinux.com/"
+name="http://www.yellowdoglinux.com/">)
+</chapt>
+
+<chapt id="agradecimentos">Credits
+<p>
+Velký dík patøí mým pøátelùm z projektu Debian-BR a Debianu samotného, kteøí 
+mi jsou stálou oporou a dodávají mi sílu pokraèovat v dobroèinné práci, stejnì 
+jako mi pomáhají v mém cíli zahránit svìt. :)
+<p>
+Chtìl bych rovnì¾ podìkovat CIPSGA za obrovskou pomoc na¹emu projektu a v¹em 
+svobodným projektùm, které vycházejí ze skvìlých my¹lenek.
+<p>
+
+Zvlá¹tní podìkování patøí:
+<p>
+Yooseong Yang &lt;yooseong@debian.org&gt;
+<p>
+Michael Bramer &lt;grisu@debian.org&gt;
+<p>
+Bryan Stillwell &lt;bryan@bokeoa.com&gt;
+<p>
+Pawel Tecza  &lt;pawel.tecza@poczta.fm&gt;
+<p>
+Hugo Mora &lt;h.mora@melix.com.mx&gt;
+<p>
+Luca Monducci &lt;luca.mo@tiscali.it&gt;
+<p>
+Tomohiro KUBOTA &lt;kubota@debian.org&gt;
+<p>
+Pablo Lorenzzoni &lt;spectra@debian.org&gt;
+<p>
+Steve Langasek &lt;vorlon@netexpress.net&gt;
+<p>
+Arnaldo Carvalho de Melo &lt;acme@conectiva.com.br&gt;
+<p>
+Erik Rossen &lt;rossen@freesurf.ch&gt;
+<p>
+Ross Boylan &lt;RossBoylan@stanfordalumni.org&gt;
+<p>
+Matt Kraai &lt;kraai@debian.org&gt;
+<p>
+Aaron M. Ucko &lt;ucko@debian.org&gt;
+<p>
+Jon &Aring;slund &lt;d98-jas@nada.kth.se&gt;
+</chapt>
+
+<chapt id="novas">Nové verze tohoto návodu
+<p>
+Tento návod byl vytvoøen v rámci projektu <url id="http://www.debian-br.org"
+name="Debian-BR">, jeho¾ cílem je pomoci pøi ka¾dodenním pou¾ívání Debianu.
+<p>
+Nové verze tohoto dokumentu budou dostupné na stránce Debian Documentation 
+Project na adrese <url id="http://www.debian.org/doc/ddp" 
+name="http://www.debian.org/doc/ddp">. 
+<p>
+Komentáøe a kritiku posílejte pøímo mnì na 
+<email>kov@debian.org</email>.
+</chapt>
+
+</book>
+
+</debiandoc>
