@@ -7,7 +7,7 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.270 $">
+  <!ENTITY cvs-rev "$Revision: 1.271 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -4060,6 +4060,286 @@ before the <file>/usr</file> partition is mounted. Most scripts won't have
 this problem, though.
       </sect>
 
+      <sect id="bpp-debian-security-audit">
+        <heading>Best practices for security review and design</heading>
+
+<p>When you are packaging software for other users you should make a
+best effort to ensure that the installation of the software, or its
+use, does not introduce security risks to either the system it is
+installed on or its users.</p>
+
+<p>You should make your best to review the source code of the package and
+detect issues that might introduce security bugs. The programming bugs
+which lead to security bugs typically include: <url
+id="http://en.wikipedia.org/wiki/Buffer_overflow" name="buffer
+overflows">, <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="format
+string overflows">, <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="heap
+overflows"> and <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="integer
+overflows"> (in C/C++ programs), temporary <url
+id="http://en.wikipedia.org/wiki/Symlink_race" name="symlink race
+conditions"> (in scripts), <url
+id="http://en.wikipedia.org/wiki/Directory_traversal" name="directory
+traversal"> and command injection (in servers) and <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting"
+name="cross-site scripting">, and <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="SQL
+injection bugs"> (in the case of web-oriented applications).</p>
+
+<p>Some of these issues might not be easy to spot unless you are an
+expert in the programming language the program uses, but some security
+problems are easy to detect and fix. For example, finding temporary
+race conditions in the source code can easily be done by running
+<tt>grep -r "/tmp/" .</tt> in the source code replace
+hardcoded filenames using temporary directories to calls to either
+<prgn>mktemp</prgn> or <prgn>tempfile</prgn> in shell
+scripts, <manref name="File::Temp" section="3perl"> in Perl scripts,
+and <manref name="tmpfile" section="3"> in C/C++.  You can also use
+<url id="http://www.debian.org/security/audit/tools" name="specific
+tools"> to assist to the security code review phase.</p>
+
+<p>When packaging software make sure that:
+
+<list>
+
+<item>The software runs with the minimum privileges it needs:
+
+<list>
+<item>The package does install binaries setuid or setgid.
+<prgn>Lintian</prgn> will warn of <url id="
+http://lintian.debian.org/reports/Tsetuid-binary.html" name="setuid">,
+<url id="http://lintian.debian.org/reports/Tsetgid-binary.html"
+name="setgid"> and <url
+id="http://lintian.debian.org/reports/Tsetuid-gid-binary.html"
+name="setuid and setgid"> binaries.
+
+<item>The daemons the package provide run with a 
+low privilege user (see <ref id="bpp-lower-privs">)
+
+</list>
+
+<item>Programmed (i.e., <prgn>cron</prgn>) tasks running in the
+system do NOT run as root or, if they do, do not implement complex
+tasks.
+
+</list>
+
+<p>If you have to do any of the above make sure the programs that
+might run with higher privileges have been audited for security
+bugs. If you are unsure, or need help, contact the <url
+id="http://www.debian.org/security/audit/" name="Debian Security Audit
+team">. In the case of setuid/setgid binaries, follow the Debian
+policy section regarding 
+<url id="http://www.debian.org/doc/debian-policy/ch-files.html#s10.9"
+name="permissions and owners">
+</p>
+
+<p>For more information, specific to secure programming, make sure you
+read (or point your upstream to) <url
+id="http://www.dwheeler.com/secure-programs/" name="Secure Programming
+for Linux and Unix HOWTO"> and the <url
+id="https://buildsecurityin.us-cert.gov/portal/" name="Build Security
+In"> portal. For more information specific to Debian security you can
+read the <url
+id="http://www.debian.org/doc/manuals/securing-debian-howto/"
+name="Debian Security Manual">
+</p>
+
+<!-- This should be explained here until #291177 gets fixed and this is
+	added to poliy -->
+
+	<sect1 id="bpp-lower-privs">
+	  <heading>Creating users and groups for software daemons
+
+<p>If your software runs a daemon that does not need root privileges,
+you need to create a user for it. There are two kind of Debian users
+that can be used by packages: static uids (assigned by
+<package>base-passwd</package>) and dynamic uids in the range assigned
+to system users.
+
+<p>In the first case, you need to ask for a user or group id to the
+<package>base-passwd</package>, and a proper versioned depends to the
+<package>base-passwd</package> package that provides the user.
+
+<p>In the second case, you need to create the system user either in
+the <em>preinst</em> or in the <em>postinst</em> and make the package
+depend on <tt>adduser (>= 3.11)</tt>.
+
+<p>The following example code creates the user and group the daemon
+will run as when the package is installed or upgraded:
+
+<example>
+[...]
+case "$1" in
+    install|upgrade)
+
+       # If the package has default file it could be sourced, so that
+       # the local admin can overwrite the defaults
+
+       [ -f "/etc/default/<var>packagename</var>" ] && . /etc/default/<var>packagename</var>
+
+
+       # Sane defaults:
+
+       [ -z "$SERVER_HOME" ] && SERVER_HOME=<var>server_dir</var>
+       [ -z "$SERVER_USER" ] && SERVER_USER=<var>server_user</var>
+       [ -z "$SERVER_NAME" ] && SERVER_NAME="<var>Server description</var>"
+       [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
+ 
+       # Groups that the user will be added to, if undefined, then none.
+       ADDGROUP=""
+
+
+       # create user to avoid running server as root
+       # 1. create group if not existing
+       if ! getent group | grep -q "^$SERVER_GROUP:" ; then
+             echo -n "Adding group $SERVER_GROUP.."
+             addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
+            echo "..done"
+       fi
+       # 2. create homedir if not existing
+       test -d $SERVER_HOME || mkdir $SERVER_HOME
+       # 3. create user if not existing
+       if ! getent passwd | grep -q "^$SERVER_USER:"; then
+           echo -n "Adding system user $SERVER_USER.."
+           adduser --quiet \
+               --system \
+               --ingroup $SERVER_GROUP \
+               --no-create-home \
+               --disabled-password \
+               $SERVER_USER 2>/dev/null || true
+           echo "..done"
+       fi
+       # 4. adjust passwd entry
+       usermod -c "$SERVER_NAME" \
+               -d $SERVER_HOME \
+               -g $SERVER_GROUP \
+               $SERVER_USER
+       # 5. adjust file and directory permissions
+       if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
+       then
+               chown -R $SERVER_USER:adm $SERVER_HOME
+               chmod u=rwx,g=rxs,o= $SERVER_HOME
+       fi
+       # 6. Add the user to the ADDGROUP group
+       if test -n $ADDGROUP
+       then
+               if ! groups $SERVER_USER | grep -q $ADDGROUP; then
+                       adduser $SERVER_USER $ADDGROUP
+               fi
+       fi
+    ;;
+    configure)
+
+[...]
+</example>
+
+<p>You have to make sure that the init.d script file:
+
+<list>
+<item>Starts the daemon dropping privileges, if the software does not
+do the <manref name="setuid" section="2"> or <manref name="seteuid"
+section="2"> call itself, you can use the <tt>--chuid</tt>
+call of <prgn>start-stop-daemon</prgn>.
+
+<item>Stops the daemon only if the user id matches, you can use the 
+<prgn>start-stop-daemon</prgn> <tt>--user</tt> option
+for this.
+
+<item>Does not run if either the user or the group do not exist:
+<example>
+  if getent passwd | grep -q "^<var>server_user</var>:"; then
+     echo "Server user does not exist. Aborting" >&2
+     exit 1
+  fi
+  if getent group | grep -q "^<var>server_group</var>:" ; then
+     echo "Server group does not exist. Aborting" >&2
+     exit 1
+  fi
+</example>
+
+</list>
+
+<p>If the package creates the system user it can remove it when it is
+purged in its <em>postrm</em>, this has some drawbacks
+<footnote>For example, files created by it will be orphaned
+and might be taken over by a new system user in the future if it is
+assigned the same uid. Some relevant threads discussing these
+drawbacks include 
+<url
+id="http://lists.debian.org/debian-mentors/2004/10/msg00338.html">
+and 
+<url id="http://lists.debian.org/debian-devel/2004/05/msg01156.html">
+</footnote>
+so this is not mandatory and depends on the
+package needs. If unsure, it could be handled by asking the
+administrator for the prefered action when the package is installed
+(see <ref id="debconf">). The following example code removes the user
+and groups created before only, and only if, the uid is in the range of
+dynamic assigned system uids and the gid is belongs to a system group:
+
+<example>
+case "$1" in
+    purge)
+[...]
+        # find first and last SYSTEM_UID numbers
+         for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+            case $LINE in
+               FIRST_SYSTEM_UID*)
+                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               LAST_SYSTEM_UID*)
+                  LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               *)
+               ;;
+            esac
+         done
+         # Remove system account if necessary
+         CREATEDUSER="<var>server_user</var>"
+         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+            if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
+               if [ -n "$USERID" ]; then
+                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+                     [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
+		        echo -n "Removing $CREATEDUSER system user.."
+                        deluser --quiet $CREATEDUSER || true
+			echo "..done"
+                  fi
+               fi
+            fi
+         fi
+         # Remove system group if necessary
+	 CREATEDGROUP=<var>server_group</var>
+         FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+         if [ -n "$FIST_USER_GID" ] then
+            if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
+               if [ -n "$GROUPGID" ]; then
+                  if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
+		        echo -n "Removing $CREATEDGROUP group.."
+		        delgroup --only-if-empty $CREATEDGROUP || true
+			echo "..done"
+                  fi
+               fi
+            fi
+         fi
+[...]
+</example>
+
+<p>Running programs with a user with limited privileges makes sure
+that any security issue with the program makes limited damaged to the
+system and follows the principle of <em>least privilege</em> you can
+limit privileges in programs through other mechanisms besides running
+as non-root. Fore more information, read the <url
+id="http://www.dwheeler.com/secure-programs/Secure-Programs-HOWTO/minimize-privileges.html"
+name="Minimize Privileges"> chapter of the <em>Secure Programming for
+Linux and Unix HOWTO</em> book.
+
+</sect1>
+
+</sect>
 
       <sect id="bpp-config-mgmt">
 	<heading>Configuration management with <package>debconf</package></heading>
