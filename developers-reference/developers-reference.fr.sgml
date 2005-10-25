@@ -7,10 +7,10 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.52 $">
+  <!ENTITY cvs-rev "$Revision: 1.53 $">
   <!-- if you are translating this document, please notate the CVS
        revision of the developers reference here -->
-  <!-- <!ENTITY cvs-en-rev "1.270"> -->
+  <!-- <!ENTITY cvs-en-rev "1.271"> -->
 
   <!-- how to mark a section that needs more work -->
   <!ENTITY FIXME "<em>FIXME:</em>&nbsp;">
@@ -4458,6 +4458,300 @@ de l'utiliser dans les scripts qui sont exécutés avant que la partition
 problème.
       </sect>
 
+      <sect id="bpp-debian-security-audit">
+        <heading>Les meilleures pratiques pour les revues et conception de sécurité</heading>
+
+<p>Si vous empaquetez un logiciel pour d'autres utilisateurs, vous devez
+vous efforcer de garantir que l'installation du logiciel, ou son
+utilisation, n'introduit pas de risques de sécurité soit pour le
+système sur lequel il est installé, soit pour ses utilisateurs.</p>
+
+<p>Vous devez vous efforcer de faire une revue du code source du paquet
+et détecter les problèmes qui pourraient introduire des bogues de
+sécurité. Les bogues de programmation entraînant des bogues de sécurité
+incluent généralement&nbsp;: <url
+id="http://en.wikipedia.org/wiki/Buffer_overflow" name="dépassements de
+tampon">, <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="dépassement
+de chaînes de formatage">, <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="dépassement
+de tas"> et <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="dépassement
+d'entiers"> (dans les programmes C/C++), <url
+id="http://en.wikipedia.org/wiki/Symlink_race" name="conditions de
+concurrence de lien symbolique"> temporaires (dans les scripts), <url
+id="http://en.wikipedia.org/wiki/Directory_traversal" name="traversée de
+répertoire"> et injection de commandes (dans les serveurs) et <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting"
+name="scripts intersites">, et <url
+id="http://en.wikipedia.org/wiki/Cross_site_scripting" name="bogues
+d'injection SQL"> (dans le cas d'applications orientées web).</p>
+
+<p>Certains de ces problèmes peuvent ne pas être évidents à détecter à
+moins d'être un expert dans le langage de programmation utilisé par le
+programme, mais certains problèmes de sécurité sont faciles à détecter et
+à corriger. Par exemple, trouver des conditions de concurrence
+temporaires dans un code source peut facilement être fait en exécutant
+<tt>grep -r "/tmp/" .</tt> dans le code source et en remplaçant les noms
+de fichier codés en dur utilisant des répertoires temporaires par des
+appels soit à <prgn>mktemp</prgn> ou à <prgn>tempfile</prgn> dans les
+scripts shell, à <manref name="File::Temp" section="3perl"> dans les
+scripts Perl, et à <manref name="tmpfile" section="3"> pour du C/C++.
+Vous pouvez également utiliser des <url
+id="http://www.debian.org/security/audit/tools" name="outils
+spécifiques"> pour assister la phase de revue du code de sécurité.</p>
+
+<p>Quand vous empaquetez un logiciel, assurez-vous que&nbsp;:
+
+<list>
+
+<item>le logiciel fonctionne avec le minimum de privilèges dont il a besoin&nbsp;:
+
+<list>
+<item>le paquet installe des binaires setuid ou setgid.
+<prgn>Lintian</prgn> émettra un avertissement pour les binaires <url
+id="http://lintian.debian.org/reports/Tsetuid-binary.html"
+name="setuid">, <url id="http://lintian.debian.org/reports/Tsetgid-binary.html"
+name="setgid"> et <url
+id="http://lintian.debian.org/reports/Tsetuid-gid-binary.html"
+name="setuid et setgid">.
+
+<item>les démons fournis par le paquet s'exécutent avec un utilisateur à
+privilège réduit (voir <ref id="bpp-lower-privs">)
+
+</list>
+
+<item>Les tãches programmées (par exemple, <prgn>cron</prgn>)
+fonctionnant dans le système ne s'exécutent PAS en tant que root ou si
+elles le font, elles n'implémentent pas de tâches complexes.
+
+</list>
+
+<p>Si vous avez l'un des cas ci-dessus, assurez-vous que les programmes
+qui s'exécutent avec des privilèges plus élevés ont été audités pour les
+bogues de sécurité. Si vous n'en êtes pas certain ou si vous avez besoin
+d'aide, contactez l'<url
+id="http://www.debian.org/security/audit/" name="équipe d'audit de
+sécurité Debian">. Dans le cas de binaires setuid/setgid, suivez la
+charte Debian en ce qui concerne les 
+<url id="http://www.debian.org/doc/debian-policy/ch-files.html#s10.9"
+name="permissions et propriétaires">.
+</p>
+
+<p>Pour plus d'informations spécifiques à la programmation sécurisée,
+assurez-vous de lire (ou de signaler au développeur amont) <url
+id="http://www.dwheeler.com/secure-programs/" name="Secure Programming
+for Linux and Unix HOWTO"> et le portail <url
+id="https://buildsecurityin.us-cert.gov/portal/" name="Build Security
+In">. Pour plus d'informations spécifiques à la sécurité Debian, vous
+pouvez lire le <url
+id="http://www.debian.org/doc/manuals/securing-debian-howto/"
+name="guide de sécurisation de Debian">
+</p>
+
+<!-- This should be explained here until #291177 gets fixed and this is
+        added to poliy -->
+
+        <sect1 id="bpp-lower-privs">
+          <heading>Créer des groupes et des utilisateurs pour des démons
+          logiciels
+
+<p>Si votre logiciel exécute un démon qui n'a pas besoin des privilèges
+du superadministrateur, vous devez lui créer un utilisateur. Il existe
+deux types d'utilisateurs Debian pouvant être utilisés par des
+paquets&nbsp;: les identifiants statiques (assignés par
+<package>base-passwd</package>) et les identifiants dynamiques dans
+l'intervalle assigné aux utilisateurs système.
+
+<p>Dans le premier cas, vous devez demander un identifiant d'utilisateur
+ou de groupe à <package>base-passwd</package> et ajouter une dépendance
+versionnée correctement sur le paquet <package>base-passwd</package>
+fournissant cet utilisateur.
+
+<p>Dans le second cas, vous devez créer l'utilisateur système dans
+le script <em>preinst</em> ou <em>postinst</em> et rendre le paquet
+dépendant de <tt>adduser (>= 3.11)</tt>.
+
+<p>Le code exemple suivant crée l'utilisateur et le groupe du démon avec
+lequel le démon fonctionnera au moment de l'installation ou de la mise à
+jour du paquet&nbsp;:
+
+<example>
+[...]
+case "$1" in
+    install|upgrade)
+
+       # Si le paquet a un fichier par défaut, il peut être sourcé afin
+       # que l'administrateur local puisse écraser les valeurs par défaut
+
+       [ -f "/etc/default/<var>packagename</var>" ] && .
+       /etc/default/<var>packagename</var>
+
+
+       # Valeurs par défaut saines :
+
+       [ -z "$SERVER_HOME" ] && SERVER_HOME=<var>server_dir</var>
+       [ -z "$SERVER_USER" ] && SERVER_USER=<var>server_user</var>
+       [ -z "$SERVER_NAME" ] && SERVER_NAME="<var>Server description</var>"
+       [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
+
+       # Groupes auxquels l'utilisateur sera ajouté, si non défini, alors rien.
+       ADDGROUP=""
+
+
+       # Crée l'utilisateur pour éviter d'exécuter le serveur en tant que root
+       # 1. Création du groupe s'il n'existe pas
+       if ! getent group | grep -q "^$SERVER_GROUP:" ; then
+             echo -n "Adding group $SERVER_GROUP.."
+             addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
+            echo "..done"
+       fi
+       # 2. Création du répertoire personnel s'il n'existe pas
+       test -d $SERVER_HOME || mkdir $SERVER_HOME
+       # 3. Création de l'utilisateur s'il n'existe pas
+       if ! getent passwd | grep -q "^$SERVER_USER:"; then
+           echo -n "Adding system user $SERVER_USER.."
+           adduser --quiet \
+               --system \
+               --ingroup $SERVER_GROUP \
+               --no-create-home \
+               --disabled-password \
+               $SERVER_USER 2>/dev/null || true
+           echo "..done"
+       fi
+       # 4. Ajuste l'entrée du mot de passe
+       usermod -c "$SERVER_NAME" \
+               -d $SERVER_HOME \
+               -g $SERVER_GROUP \
+               $SERVER_USER
+       # 5. Ajuste les permissions de fichiers et répertoires
+       if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
+       then
+               chown -R $SERVER_USER:adm $SERVER_HOME
+               chmod u=rwx,g=rxs,o= $SERVER_HOME
+       fi
+       # 6. Ajoute l'utilisateurs au groupe ADDGROUP
+       if test -n $ADDGROUP
+       then
+               if ! groups $SERVER_USER | grep -q $ADDGROUP; then
+                       adduser $SERVER_USER $ADDGROUP
+               fi
+       fi
+    ;;
+    configure)
+
+[...]
+</example>
+
+<p>Vous devez vous assurer que le fichier script d'init.d&nbsp;:
+
+<list>
+<item>lance le démon en abandonnant les privilèges, si le logiciel ne
+fait pas les appels <manref name="setuid" section="2"> ou <manref
+name="seteuid" section="2"> lui-même, vous pouvez utiliser l'option
+<tt>--chuid</tt> de <prgn>start-stop-daemon</prgn>.
+
+<item>arrête le démon seulement si l'identifiant utilisateur correspond,
+vous pouvez utiliser l'option <tt>--user</tt> de
+<prgn>start-stop-daemon</prgn> pour cela.
+
+<item>ne s'exécute pas si l'utilisateur ou le groupe n'existe pas&nbsp;:
+<example>
+  if getent passwd | grep -q "^<var>server_user</var>:"; then
+     echo "Server user does not exist. Aborting" >&2
+     exit 1
+  fi
+  if getent group | grep -q "^<var>server_group</var>:" ; then
+     echo "Server group does not exist. Aborting" >&2
+     exit 1
+  fi
+</example>
+
+</list>
+
+<p>Si le paquet crée l'utilisateur système, il peut l'enlever quand il
+est purgé dans son script <em>postrm</em>, cela a certains inconvénients
+<footnote>Par exemple, les fichiers créés par celui-ci seront sans
+propriétaire et peuvent être récupérés par un nouvel utilisateur système
+dans le futur si celui-ci reçoit le même identifiant utilisateur.
+Voir les fils de discussion suivants qui traitant de ces
+inconvénients&nbsp;: <url
+id="http://lists.debian.org/debian-mentors/2004/10/msg00338.html">
+et 
+<url id="http://lists.debian.org/debian-devel/2004/05/msg01156.html">
+</footnote>, 
+ce n'est donc pas obligatoire et cela dépend des besoins du paquet. En
+cas de doute, cela peut être géré en demandant à l'administrateur son
+choix lors de l'installation du paquet (voir <ref
+id="debconf">). Le code exemple suivant supprime l'utilisateur et le
+groupe créés auparavant si et seulement si l'identifiant utilisateur est
+dans l'intervalle des identifiants d'utilisateur système assignés
+dynamiquement et si l'identifiant de groupe appartient à un groupe
+système&nbsp;:
+
+<example>
+case "$1" in
+    purge)
+[...]
+        # Trouve les premier et dernier numéros SYSTEM_UID
+         for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+            case $LINE in
+               FIRST_SYSTEM_UID*)
+                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               LAST_SYSTEM_UID*)
+                  LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               *)
+               ;;
+            esac
+         done
+         # Supprime le compte système si nécessaire
+         CREATEDUSER="<var>server_user</var>"
+         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+            if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
+               if [ -n "$USERID" ]; then
+                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+                     [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
+                        echo -n "Removing $CREATEDUSER system user.."
+                        deluser --quiet $CREATEDUSER || true
+                        echo "..done"
+                  fi
+               fi
+            fi
+         fi
+         # Supprime le groupe système si nécessaire
+         CREATEDGROUP=<var>server_group</var>
+         FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+         if [ -n "$FIST_USER_GID" ] then
+            if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
+               if [ -n "$GROUPGID" ]; then
+                  if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
+                        echo -n "Removing $CREATEDGROUP group.."
+                        delgroup --only-if-empty $CREATEDGROUP || true
+                        echo "..done"
+                  fi
+               fi
+            fi
+         fi
+[...]
+</example>
+
+<p>Exécuter des programmes avec un utilisateur ayant des privilèges
+limités garantit que tout problème de sécurité du programme n'entraînera
+que des dommages limités au système et cela suit le principe du <em>moindre
+privilège</em>, vous pouvez limiter les privilèges dans les programmes
+par d'autres mécanismes en plus de le faire s'exécuter en tant que
+non-superutilisateur. Pour plus d'informations, lisez le chapitre <url
+id="http://www.dwheeler.com/secure-programs/Secure-Programs-HOWTO/minimize-privileges.html"
+name="Minimize Privileges"> du livre <em>Secure Programming for Linux
+and Unix HOWTO</em>.
+
+</sect1>
+
+</sect>
+
+
       <sect id="bpp-config-mgmt">
 	<heading>Gestion de la configuration avec <package>debconf</package></heading>
 	
@@ -5393,7 +5687,7 @@ Quand vous envoyez un grand nombre de rapports sur le même sujet, vous devriez
 	
 	<sect1 id="qa-daily-work">Travail journalier
 <p>
-Bien qu'il y ait un groupe de personnes dédiées à l'assurance qualité, les
+Bien qu'il y ait un groupe de personnes dédié à l'assurance qualité, les
  devoirs de QA ne leur sont pas exclusivement réservés. Vous pouvez participer à
  cet effort en conservant vos paquets aussi exempts de bogues que possible et
  aussi corrects que possible selon <prgn>lintian</prgn> (reportez-vous à <ref
@@ -5518,7 +5812,7 @@ informations utiles sur ce responsable. Ceci inclut&nbsp;:
       <p>
 Un gros problème est représenté par les paquets parrainés &mdash;&nbsp;le responsable
 n'est pas un développeur Debian officiel. Les informations «&nbsp;echelon&nbsp;»
-ne sont pas disponibles pour les personnes parrainés, par exemple, vous devez
+ne sont pas disponibles pour les personnes parrainées, par exemple, vous devez
 donc trouver et contacter le responsable Debian qui a réellement envoyé le
 paquet. Étant donné qu'il a signé le paquet, il est responsable de l'envoi de
 toute façon et il devrait savoir ce qui s'est passé avec la personne qu'il
@@ -5540,7 +5834,7 @@ Vous n'êtes pas non plus au courant des circonstances de la personne impliquée.
 Elle est peut-être sérieusement malade ou pourrait même nous avoir quitté
 &mdash;&nbsp;vous ne savez pas qui recevra vos courriers. Imaginez comme un
 proche se sentira s'il lit un courrier pour la personne décédée et trouve un
-message très impoli, en colère et accusateur&nbsp;!)
+message très impoli, en colère et accusateur&nbsp;!
 <p>
 D'un autre côté, bien que nous soyons tous volontaires, nous avons une
 responsabilité. Vous pouvez donc insister sur l'importance du plus grand intérêt
