@@ -7,7 +7,7 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.271 $">
+  <!ENTITY cvs-rev "$Revision: 1.272 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -4151,7 +4151,7 @@ name="Debian Security Manual">
 	added to poliy -->
 
 	<sect1 id="bpp-lower-privs">
-	  <heading>Creating users and groups for software daemons
+	  <heading>System users and groups for software daemons
 
 <p>If your software runs a daemon that does not need root privileges,
 you need to create a user for it. There are two kind of Debian users
@@ -4167,6 +4167,18 @@ to system users.
 the <em>preinst</em> or in the <em>postinst</em> and make the package
 depend on <tt>adduser (>= 3.11)</tt>.
 
+<p>Running programs with a user with limited privileges makes sure
+that any security issue with the program makes limited damaged to the
+system and follows the principle of <em>least privilege</em> you can
+limit privileges in programs through other mechanisms besides running
+as non-root. Fore more information, read the <url
+id="http://www.dwheeler.com/secure-programs/Secure-Programs-HOWTO/minimize-privileges.html"
+name="Minimize Privileges"> chapter of the <em>Secure Programming for
+Linux and Unix HOWTO</em> book.
+
+	<sect2 id="bpp-create-sysuser">
+	  <heading>Creating system users and groups
+
 <p>The following example code creates the user and group the daemon
 will run as when the package is installed or upgraded:
 
@@ -4177,6 +4189,10 @@ case "$1" in
 
        # If the package has default file it could be sourced, so that
        # the local admin can overwrite the defaults
+       # Notice that the package could handle this defaults through
+       # debconf so that the local admin could select a different 
+       # user name for the system user than the one hardcoded in the
+       # package
 
        [ -f "/etc/default/<var>packagename</var>" ] && . /etc/default/<var>packagename</var>
 
@@ -4189,6 +4205,8 @@ case "$1" in
        [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
  
        # Groups that the user will be added to, if undefined, then none.
+       # Some daemons might need additional privileges and those can be
+       # granted by adding it to additional groups.
        ADDGROUP=""
 
 
@@ -4199,9 +4217,9 @@ case "$1" in
              addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
             echo "..done"
        fi
-       # 2. create homedir if not existing
+       # 2. create homedir if it does not exist
        test -d $SERVER_HOME || mkdir $SERVER_HOME
-       # 3. create user if not existing
+       # 3. create user if it does not exist
        if ! getent passwd | grep -q "^$SERVER_USER:"; then
            echo -n "Adding system user $SERVER_USER.."
            adduser --quiet \
@@ -4211,13 +4229,49 @@ case "$1" in
                --disabled-password \
                $SERVER_USER 2>/dev/null || true
            echo "..done"
-       fi
-       # 4. adjust passwd entry
-       usermod -c "$SERVER_NAME" \
+           # 4. adjust passwd entry, only do this if the package
+	   # creates the user
+           usermod -c "$SERVER_NAME" \
                -d $SERVER_HOME \
                -g $SERVER_GROUP \
                $SERVER_USER
+       else
+       # The package might want to check if the user already exists
+       # and it is *not* a system user, in this case it should abort
+       # the installation (like in this example) or ask the administrator
+       # since otherwrise it might have unexpected consequences.
+       # Some packages try to prevent collision by using a prefix such as 'Debian-'
+         for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+            case $LINE in
+               FIRST_SYSTEM_UID*)
+                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               LAST_SYSTEM_UID*)
+                  LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               *)
+               ;;
+            esac
+         done
+         # Abort package installation if the user has not been created by
+	 # us.
+         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+            if USERID=`getent passwd $SERVER_USER | cut -f 3 -d ':'`; then
+               if [ -n "$USERID" ]; then
+                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+                     [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
+		        echo "The user $SERVER_USER already exists as a non system user!" >&2
+			echo "Aborting package installation" >&2
+			exit 1
+                  fi
+               fi
+            fi
+	  fi
+        fi
+
        # 5. adjust file and directory permissions
+       # The example below sets the server home as 750 as it
+       # contains (hypothetically) sensible information.
        if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
        then
                chown -R $SERVER_USER:adm $SERVER_HOME
@@ -4236,7 +4290,11 @@ case "$1" in
 [...]
 </example>
 
-<p>You have to make sure that the init.d script file:
+	<sect2 id="bpp-using-sysuser">
+	  <heading>Using system users
+
+<p>In order to make use of the system user you have to make sure that the
+init.d script file:
 
 <list>
 <item>Starts the daemon dropping privileges, if the software does not
@@ -4262,23 +4320,40 @@ for this.
 
 </list>
 
+<!-- TODO: write about ownership of files:
+     * configuration files: readable but not owned
+     * logfiles, writable, but not once rotated
+-->
+
+	<sect2 id="bpp-removing-sysuser">
+	  <heading>Removing system users
+
 <p>If the package creates the system user it can remove it when it is
-purged in its <em>postrm</em>, this has some drawbacks
-<footnote>For example, files created by it will be orphaned
-and might be taken over by a new system user in the future if it is
-assigned the same uid. Some relevant threads discussing these
-drawbacks include 
+purged in its <em>postrm</em>, this currently <em>not</em> recommended
+since it has a few known 
+<footnote>
+Some relevant threads discussing these issues include:
 <url
-id="http://lists.debian.org/debian-mentors/2004/10/msg00338.html">
-and 
+id="http://lists.debian.org/debian-mentors/2004/10/msg00338.html">,
 <url id="http://lists.debian.org/debian-devel/2004/05/msg01156.html">
+and
+<url id="http://lists.debian.org/debian-devel/2005/10/msg00988.html">.
 </footnote>
-so this is not mandatory and depends on the
-package needs. If unsure, it could be handled by asking the
-administrator for the prefered action when the package is installed
-(see <ref id="debconf">). The following example code removes the user
-and groups created before only, and only if, the uid is in the range of
-dynamic assigned system uids and the gid is belongs to a system group:
+drawbacks. For example, files created by the daemon (or by an admin
+impersonating it) either on the local filesystem or in backup files will be
+orphaned and might be taken over by a new system user in the future if it is
+assigned the same uid. On the other hand, an unused local system user can be
+used to access even if the account has been locked (as some authentication
+systems might not use PAM or shadow authentication).
+
+<p>If you want to remove a system user and there is a possibility of it
+leaving orphaned files, the administrator should be asked for the preferred
+action either when the package is installed or when it is removed (see <ref
+id="debconf">). 
+
+<p>The following example code removes the user and groups created
+before only, and only if, the uid is in the range of dynamic assigned system
+uids and the gid is belongs to a system group:
 
 <example>
 case "$1" in
@@ -4328,14 +4403,9 @@ case "$1" in
 [...]
 </example>
 
-<p>Running programs with a user with limited privileges makes sure
-that any security issue with the program makes limited damaged to the
-system and follows the principle of <em>least privilege</em> you can
-limit privileges in programs through other mechanisms besides running
-as non-root. Fore more information, read the <url
-id="http://www.dwheeler.com/secure-programs/Secure-Programs-HOWTO/minimize-privileges.html"
-name="Minimize Privileges"> chapter of the <em>Secure Programming for
-Linux and Unix HOWTO</em> book.
+<p>Other possibilities, are to make sure the account is locked (has an invalid
+password and <em>/bin/false</em> as a shell) and modify the GECOS field
+pointing out that the account is no longer used.
 
 </sect1>
 
