@@ -7,7 +7,7 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.272 $">
+  <!ENTITY cvs-rev "$Revision: 1.273 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -4163,9 +4163,8 @@ to system users.
 <package>base-passwd</package>, and a proper versioned depends to the
 <package>base-passwd</package> package that provides the user.
 
-<p>In the second case, you need to create the system user either in
-the <em>preinst</em> or in the <em>postinst</em> and make the package
-depend on <tt>adduser (>= 3.11)</tt>.
+<p>In the second case, you need to create the system user through maintainer
+scripts.
 
 <p>Running programs with a user with limited privileges makes sure
 that any security issue with the program makes limited damaged to the
@@ -4178,6 +4177,10 @@ Linux and Unix HOWTO</em> book.
 
 	<sect2 id="bpp-create-sysuser">
 	  <heading>Creating system users and groups
+
+<p>If you want to create system groups on package installatino you
+need to create it in either the <em>preinst</em> or in the <em>postinst</em>
+and have the package depend on <tt>adduser (>= 3.11)</tt>.
 
 <p>The following example code creates the user and group the daemon
 will run as when the package is installed or upgraded:
@@ -4320,16 +4323,34 @@ for this.
 
 </list>
 
-<!-- TODO: write about ownership of files:
-     * configuration files: readable but not owned
-     * logfiles, writable, but not once rotated
--->
+<p>File ownerships of files shipped by the package will need to be adjusted:
+
+<list>
+<item>Configuration files should be readable by the system user, if they
+contain sensitive information the system user should not own them unless there
+is a need for it to write to its own configuration files. Typically this means
+that the configuration files are owned by group, belong to the group of the
+system user and are mode 0640.
+
+<item>The system user if it generates state files (such as pidfiles) should
+have a directory under <tt>/var/run</tt> owned by it. This directory should be
+recreated by the init.d script since the state directory might be wiped out
+after a system boot.
+
+<item>If the daemon logs directly to <tt>/var/log</tt> logfiles should be
+writable by the system user but, once rotated, they should not be either owned
+or writable by it to prevent it from overwritting old log entries if a security
+vulnerability in the software were to be used. If the daemon logs to a
+directory under <tt>/var/log/</tt> then it should be owned by the system user
+and rotated log files need not be changed ownership.
+
+</list>
 
 	<sect2 id="bpp-removing-sysuser">
 	  <heading>Removing system users
 
 <p>If the package creates the system user it can remove it when it is
-purged in its <em>postrm</em>, this currently <em>not</em> recommended
+purged in its <em>postrm</em> script. This currently <em>not</em> recommended
 since it has a few known 
 <footnote>
 Some relevant threads discussing these issues include:
@@ -4359,8 +4380,9 @@ uids and the gid is belongs to a system group:
 case "$1" in
     purge)
 [...]
-        # find first and last SYSTEM_UID numbers
-         for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+         # find first and last SYSTEM_UID numbers
+	 if [ -r /etc/adduser.conf ] ; then
+          for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
             case $LINE in
                FIRST_SYSTEM_UID*)
                   FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
@@ -4371,8 +4393,13 @@ case "$1" in
                *)
                ;;
             esac
-         done
-         # Remove system account if necessary
+          done
+	 else
+	 # Sane defaults
+	   FIRST_SYSTEM_UID=100
+	   LAST_SYSTEM_UID=499
+	 fi
+         # Remove system account if it is a system user
          CREATEDUSER="<var>server_user</var>"
          if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
             if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
@@ -4386,9 +4413,14 @@ case "$1" in
                fi
             fi
          fi
-         # Remove system group if necessary
+         # Remove system group if is a system group
 	 CREATEDGROUP=<var>server_group</var>
-         FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+	 if [ -r /etc/adduser.conf ] ; then
+           FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+	 else
+	   # Sane defaults
+	   FIRST_USER_GID=1000
+	 fi
          if [ -n "$FIST_USER_GID" ] then
             if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
                if [ -n "$GROUPGID" ]; then
