@@ -7,7 +7,7 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.279 $">
+  <!ENTITY cvs-rev "$Revision: 1.280 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -4260,7 +4260,7 @@ case "$1" in
          for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
             case $LINE in
                FIRST_SYSTEM_UID*)
-                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+                  FIRST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
                ;;
                LAST_SYSTEM_UID*)
                   LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
@@ -4271,10 +4271,10 @@ case "$1" in
          done
          # Abort package installation if the user has not been created by
          # us.
-         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+         if [ -n "$FIRST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
             if USERID=`getent passwd $SERVER_USER | cut -f 3 -d ':'`; then
                if [ -n "$USERID" ]; then
-                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+                  if [ "$FIRST_SYSTEM_UID" -le "$USERID" ] && \
                      [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
 		        echo "The user $SERVER_USER already exists as a non system user!" >&2
 			echo "Aborting package installation" >&2
@@ -4399,26 +4399,34 @@ case "$1" in
           for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
             case $LINE in
                FIRST_SYSTEM_UID*)
-                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+                  FIRST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
                ;;
                LAST_SYSTEM_UID*)
                   LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               FIRST_SYSTEM_GID*)
+                  FIRST_SYSTEM_GID=`echo $LINE | cut -f2 -d '='`
+               ;;
+               LAST_SYSTEM_GID*)
+                  LAST_SYSTEM_GID=`echo $LINE | cut -f2 -d '='`
                ;;
                *)
                ;;
             esac
           done
-         else
-         # Sane defaults
-           FIRST_SYSTEM_UID=100
-           LAST_SYSTEM_UID=499
          fi
+         # Sane defaults
+	 [ -z "$FIRST_SYSTEM_UID" ] && FIRST_SYSTEM_UID=100
+	 [ -z "$LAST_SYSTEM_UID" ] && LAST_SYSTEM_UID=999
+	 [ -z "$FIRST_SYSTEM_GID" ] && FIRST_SYSTEM_GID=100
+	 [ -z "$LAST_SYSTEM_GID" ] && LAST_SYSTEM_GID=999
+
          # Remove system account if it is a system user
          CREATEDUSER="<var>server_user</var>"
-         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+         if [ -n "$FIRST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
             if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
                if [ -n "$USERID" ]; then
-                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+                  if [ "$FIRST_SYSTEM_UID" -le "$USERID" ] && \
                      [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
 		        echo -n "Removing $CREATEDUSER system user.."
                         deluser --quiet $CREATEDUSER || true
@@ -4427,18 +4435,13 @@ case "$1" in
                fi
             fi
          fi
-         # Remove system group if is a system group
+         # Remove system group if it is a system group
          CREATEDGROUP=<var>server_group</var>
-         if [ -r /etc/adduser.conf ] ; then
-           FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
-         else
-         # Sane defaults
-           FIRST_USER_GID=1000
-         fi
-         if [ -n "$FIST_USER_GID" ] then
+         if [ -n "$FIRST_SYSTEM_GID" ] && [ -n "$LAST_SYSTEM_GID" ]; then
             if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
                if [ -n "$GROUPGID" ]; then
-                  if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
+                  if [ "$FIRST_SYSTEM_GID" -le "$GROUPID" ] && \
+                     [ "$GROUPID" -le "$LAST_SYSTEM_GID" ]; then
 		        echo -n "Removing $CREATEDGROUP group.."
 		        delgroup --only-if-empty $CREATEDGROUP || true
 			echo "..done"
