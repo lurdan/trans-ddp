@@ -3,7 +3,7 @@
 #
 # Read local texmf.cnf file
 
-export TEXMFCNF=texmf/
+#export TEXMFCNF=texmf/
 
 
 #====[ customization ]=========================================================
