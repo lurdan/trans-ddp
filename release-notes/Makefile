@@ -7,8 +7,6 @@
 # It can still be built by explicitly specifying 'architecture=amd64'
 arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%// | grep -v 'amd64')
 
-export PATH:=../quick-reference/bin/:${PATH}
-
 ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file 	:= install -m 2664 -p
   makedir	:= mkdir -p -m 2775

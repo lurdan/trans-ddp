@@ -7,8 +7,6 @@
 # increase pool size for Korean documents in Woody
 export TEXMFCNF=../quick-reference/texmf:
 
-export PATH:=../quick-reference/bin/:${PATH}
-
 # Basename for SGML
 MANUAL := apt-howto
 
@@ -82,7 +80,7 @@ validate:
 
 # cleaning up
 clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt} *~
+	for ext in txt ps dvi pdf info\* log tex aux toc out sasp\* tpt; do rm -f $(MANUAL)*.$$ext *~; done
 	rm -rf $(MANUAL)*.html
 
 .PHONY: all publish clean distclean validate
