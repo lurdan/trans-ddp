@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.42 $"  -->
+<!-- CVS revision of this document "$Revision: 1.43 $"  -->
 
 <chapt>After Installation
 
@@ -474,7 +474,7 @@ and <tt>nodev</tt>, ignores devices. This sounds great, but it
 </list>
 
 <p>The <tt>noexec</tt> option prevents binaries from being executed
-directly, but is easily circumvented:
+directly, but was easily circumvented in earlier versions of the kernel:
 
 <example>
   alex@joker:/tmp# mount | grep tmp
@@ -483,6 +483,19 @@ directly, but is easily circumvented:
   bash: ./date: Permission denied
   alex@joker:/tmp# /lib/ld-linux.so.2 ./date
   Sun Dec  3 17:49:23 CET 2000
+</example>
+
+Newer versions of the kernel does however handle the <tt>noexec<tt> flag
+properly:
+
+<example>
+  angrist:/tmp# mount | grep /tmp
+  /dev/hda3 on /tmp type ext3 (rw,noexec,nosuid,nodev)
+  angrist:/tmp# ./date
+  bash: ./tmp: Permission denied 
+  angrist:/tmp# /lib/ld-linux.so.2 ./date 
+  ./date: error while loading shared libraries: ./date: failed to map segment 
+  from shared object: Operation not permitted
 </example>
 
 <p>However, many script kiddies have exploits which try to create and execute 
@@ -506,15 +519,15 @@ keeps its programs under in <file>/var</file>.
 The same applies to the nosuid option.
 
 <example>
-/dev/sda6   /usr          ext2    defaults,ro,nodev       0       2
-/dev/sda12  /usr/share    ext2    defaults,ro,nodev,nosuid        0       2
-/dev/sda7   /var          ext2    defaults,nodev,usrquota,grpquota 0      2
-/dev/sda8   /tmp          ext2    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
-/dev/sda9   /var/tmp      ext2    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
-/dev/sda10  /var/log      ext2    defaults,nodev,nosuid,noexec    0       2
-/dev/sda11  /var/account  ext2    defaults,nodev,nosuid,noexec    0       2
-/dev/sda13  /home         ext2    rw,nosuid,nodev,exec,auto,nouser,async,usrquota,grpquota                0       2
-/dev/fd0    /mnt/fd0      ext2    defaults,users,nodev,nosuid,noexec      0       0
+/dev/sda6   /usr          ext3    defaults,ro,nodev       0       2
+/dev/sda12  /usr/share    ext3    defaults,ro,nodev,nosuid        0       2
+/dev/sda7   /var          ext3    defaults,nodev,usrquota,grpquota 0      2
+/dev/sda8   /tmp          ext3    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
+/dev/sda9   /var/tmp      ext3    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
+/dev/sda10  /var/log      ext3    defaults,nodev,nosuid,noexec    0       2
+/dev/sda11  /var/account  ext3    defaults,nodev,nosuid,noexec    0       2
+/dev/sda13  /home         ext3    rw,nosuid,nodev,exec,auto,nouser,async,usrquota,grpquota                0       2
+/dev/fd0    /mnt/fd0      ext3    defaults,users,nodev,nosuid,noexec      0       0
 /dev/fd0    /mnt/floppy   vfat    defaults,users,nodev,nosuid,noexec      0       0
 /dev/hda    /mnt/cdrom    iso9660 ro,users,nodev,nosuid,noexec            0       0
 </example>
@@ -529,7 +542,8 @@ software, since some programs might use it for installation.
 You can set this variable in <file>/etc/apt/apt.conf</file> to another 
 directory with exec privileges other than <file>/tmp</file>.
 
-<!-- This is a duplicate of the example a few paragraphs up -->
+<!-- This is a duplicate of the example a few paragraphs up. So why repeat it?
+(thomas)
 <p>Regarding noexec, please be aware that it might not offer you that much 
 security. 
 Consider this:
@@ -540,6 +554,7 @@ Consider this:
   $/lib/ld-linux.so.2 /tmp/date
   (works since date is not executed directly)
 </example>
+-->
 
 <sect1>Setting /usr read-only
 <p>If you set <file>/usr</file> read-only you will not be able to install new 
@@ -714,6 +729,21 @@ user 'ref' to log in via <prgn>ssh</prgn>. So you put him into
 <example>
   auth        required    pam_listfile.so item=user sense=allow file=/etc/sshusers-allowed onerr=fail
 </example>
+
+<p>Since there have been a number of so called insecure tempfile 
+vulnerabilities, thttpd is one example (see 
+<url id="http://www.debian.org/security/2005/dsa-883" name="DSA-883-1">),
+the <package>libpam-tmpdir</package> is a good package to install.
+All you have to do is add the following to 
+<file>/etc/pam.d/common-session</file>:
+
+<example>
+ session    optional     pam_tmpdir.so
+</example>
+
+There has also been a discussion about adding this by default in etch. See
+<url id="http://lists.debian.org/debian-devel/2005/11/msg00297.html"> for 
+more information.
 
 <p>Last, but not least, create <file>/etc/pam.d/other</file> and enter
 the following lines:
@@ -944,6 +974,14 @@ also use that to allow and deny users for certain services.
 <p>FIXME (BUG): Is it a bug that the default <file>ftpusers</file> in Debian 
 does <em>not</em> include all the administrative users (in 
 <package>base-passwd</package>).
+
+<p>
+A convinient way to add all system accounts to the <file>/etc/ftpusers</file>
+is to run
+
+<example>
+awk -F : '{if ($3<1000) print $1}' /etc/passwd > /etc/ftpusers
+</example>
 
 <sect1>Using su
 
@@ -1190,6 +1228,17 @@ created with the <prgn>adduser</prgn> command.
 
 <p>Note, however that users can modify their own <tt>umask</tt> setting if they
 want to, making it more permissive or more restricted.
+
+<p>The <package>libpam-umask</package> package adjusts the users' 
+default <tt>umask</tt>
+using PAM.
+Add the following, after installing the package, to 
+<file>/etc/pam.d/common-session</file>:
+
+<example>
+session    optional     pam_umask.so umask=077
+</example>
+
 
 <sect1>Limiting what users can see/access
 
