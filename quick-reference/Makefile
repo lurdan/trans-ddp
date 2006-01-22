@@ -14,8 +14,6 @@
 
 export TEXMFCNF=texmf:
 
-export PATH:=bin/:${PATH}
-
 # do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
 .SUFFIXES:
 
@@ -199,7 +197,7 @@ $(MANUAL2).%.sgml: $(MANUAL0).sgml
 
 $(MANUAL1).%.html.stamp: $(MANUAL1).%.sgml  $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.html.ent fix.ent
-	debiandoc2html $(BUILD_OPT) -t$(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
+	debiandoc2html $(BUILD_OPT) -t $(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL1).$*.html
 # since $(MANUAL1).%.html/index.%.html cannot be a target file
 	touch $(MANUAL1).$*.html.stamp
@@ -223,76 +221,45 @@ $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	debiandoc2text $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
 	bin/fixtxt $* $(MANUAL2).$*.txt
 
-# generate LaTeX format file with all necessary languages preloaded
- 
-# even if language.dat is in . it isn't found without setting TEXINPUTS
-# (. is always in path, so I do not understand this!)
-
-latex.fmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n tex -p tex) \
-	tex -ini latex.ini > /dev/null
-#	fmtutil --byfmt latex --fmtdir .
-
-pdflatex.fmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
-	pdftex -ini pdflatex.ini > /dev/null
-#	fmtutil --byfmt pdflatex --fmtdir .
-
-# required by thumbpdf (called from debiandoc2latexpdf)
-pdftex.fmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n pdftex -p tex) \
-	pdftex -ini pdftex.ini > /dev/null
-#	fmtutil --byfmt pdftex --fmtdir .
-
-latex.efmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/:$$(kpsetool -n tex -p tex) \
-	etex -ini latex.ini > /dev/null
-#	fmtutil --byfmt latex --fmtdir .
-
-pdflatex.efmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/; \
-	pdfetex -ini pdflatex.ini > /dev/null
-#	fmtutil --byfmt pdflatex --fmtdir .
-
-# required by thumbpdf (called from debiandoc2latexpdf)
-pdftex.efmt: texmf/language.dat
-	TEXINPUTS=$$(pwd)/texmf/; \
-	pdfetex -ini pdftex.ini > /dev/null
-#	fmtutil --byfmt pdftex --fmtdir .
-
 # DVI
 
-$(MANUAL1).%.dvi: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt
+$(MANUAL1).%.dvi: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+	debiandoc2latexdvi $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
 
-$(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt
+$(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+	debiandoc2latexdvi $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
 
 # PS
 
-$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) latex.fmt latex.efmt
+$(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+	debiandoc2latexps $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
 
-$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) latex.fmt latex.efmt
+$(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
+	debiandoc2latexps $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
 $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt pdflatex.efmt pdftex.efmt %/hyperref-full.cfg
+                  %/hyperref-full.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-full.cfg hyperref.cfg
-	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
+	debiandoc2latexpdf $(BUILD_OPT) -s bin/fixlatex -l $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) \
-                  pdflatex.fmt pdftex.fmt pdflatex.efmt pdftex.efmt %/hyperref-quick.cfg
+                  %/hyperref-quick.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-quick.cfg hyperref.cfg
-	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
+	debiandoc2latexpdf $(BUILD_OPT) -s bin/fixlatex -l $$(echo $* | bin/getlocale) $<
+
+# XML
+$(MANUAL1).%.xml: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
+	ln -sf fix.txt.ent fix.ent
+	debiandoc2xml $(BUILD_OPT) -l     $$(echo $* | bin/getlocale) $<
+#	bin/fixtxt $* $(MANUAL1).$*.txt
 
 # TAR
 
@@ -463,17 +430,29 @@ sf-clean:
 
 scp-all:
 	$(MAKE) scp-init BUILD_TYPE=sf
+	echo SCP all files
+	$(MAKE) scp0     BUILD_TYPE=sf
+	$(MAKE) scp1     BUILD_TYPE=sf
+	$(MAKE) scp2     BUILD_TYPE=sf
+	$(MAKE) scp3     BUILD_TYPE=sf
+
+# For failed upload, just run this instead.
+
+scp-main:
+	echo SCP all files
 	$(MAKE) scp0     BUILD_TYPE=sf
 	$(MAKE) scp1     BUILD_TYPE=sf
 	$(MAKE) scp2     BUILD_TYPE=sf
 	$(MAKE) scp3     BUILD_TYPE=sf
 
 scp-init:
-	echo SCP all files
-#	-ssh $$SFUSER@shell.sf.net rm -R /home/groups/q/qr/qref/htdocs/Debian
+	echo clear all files
+	-ssh $$SFUSER@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/Debian
+	-ssh $$SFUSER@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/doc
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
 	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/doc/
 
 scp0:
 	echo SCP README
@@ -595,9 +574,8 @@ clean:
 	rm -f $(addprefix $(MANUAL1).*.,$(clean_SUFFIXES))
 	rm -f $(addprefix $(MANUAL2).*.,$(clean_SUFFIXES))
 	rm -f *~ prior.aux pprior.aux *.log typescript README README.html
-	rm -f latex.fmt pdflatex.fmt pdftex.fmt latex.efmt pdflatex.efmt pdftex.efmt
-	rm -f latex.log pdflatex.log pdftex.log
-	rm -f *.tex[01]pdf *.tex[01]ps
+	rm -f latex.log pdflatex.log pdftex.log thb*.png
+	rm -f *.tex[01]pdf *.tex[01]ps texsys.aux
 	rm -f $(MANUAL0).tar.gz fix.ent hyperref.cfg
 	rm -f $(MANUAL1).*.sgml *.error $(MANUAL1).*.ent
 	rm -f $(MANUAL2).*.sgml *.error $(MANUAL2).*.ent
@@ -605,6 +583,7 @@ clean:
 	rm -rf $(MANUAL2)*.html *stamp
 	rm -f manual.txt
 	rm -rf manual.html
+	rm -f head.tmp body.tmp
 	rm -f manual.html.stamp
 
 .PHONY: all html text txt ps pdf files tar sf \

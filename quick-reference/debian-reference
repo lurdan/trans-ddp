@@ -3,7 +3,7 @@
 set -e # stop at first error
 #set -x # debug output
 
-BDOCUMENTSTEM="/usr/share/doc/Debian/reference/reference"
+BDOCUMENTSTEM="/usr/share/doc/Debian/reference"
 CBROWSERLIST="/usr/bin/www-browser /usr/bin/elinks /usr/bin/links /usr/bin/w3m /usr/bin/lynx"
 XBROWSERLIST="/usr/bin/x-www-browser /usr/bin/mozilla /usr/bin/X11/galeon /usr/bin/amaya /usr/bin/X11/netscape /usr/bin/gnome-help-browser /usr/bin/dillo"
 
@@ -33,66 +33,6 @@ if ! [ $BROWSER ]; then
   done
 fi
 
-if [ $LC_ALL ]; then
-  LANGLIST=${LC_ALL}
-elif [ $LC_MESSAGES ]; then
-  LANGLIST=${LC_MESSAGES}
-elif [ $LANG ]; then
-  LANGLIST=${LANG}
-else
-  LANGLIST="en"
+if [ -r $BDOCUMENTSTEM/index.html ]; then
+  $BROWSER $BDOCUMENTSTEM/index.html
 fi
-if [ $LANGLIST != "C" ] && [ ${LANGUAGE} ]; then
-  LANGLIST=${LANGUAGE}:${LANGLIST}
-fi
-# fallback
-LANGLIST=${LANGLIST}:en:fr:it:de:pt:es:pl:zh_TW:zh_CN
-
-unset LANGX || /bin/true
-
-OLDIFS="$IFS"
-IFS=":"
-for LANGEXX in ${LANGLIST}; do
-  if [ "$LANGEXX" = "C" ] || [ "$LANGEXX" = "POSIX" ]; then
-    LANGEXX="en"
-  fi
-  # reduce de_DE@euro to de_DE and de_DE.iso-8859-1 to de_DE
-  LANGEXX=${LANGEXX%%[@.]*}
-  LANGEXX=${LANGEXX:-en} # if empty use en
-  LANGEXX=$(echo $LANGEXX | /usr/bin/tr [A-Z]_ [a-z]-) # change de_DE to de-de
-  # First perfect match (language and dialect)
-  if [ -e "$BDOCUMENTSTEM.$LANGEXX.html" ]; then
-    LANGX=$LANGEXX
-    break
-  # Second, search for language only, $LANGEXX may be both zh and zh-tw !
-  elif /bin/ls -x $BDOCUMENTSTEM.${LANGEXX%%-*}*.html 2> /dev/null >&2; then
-    LANGX=$(/bin/ls -x $BDOCUMENTSTEM.${LANGEXX%%-*}*.html)
-    LANGX=${LANGX##*$BDOCUMENTSTEM.}
-    LANGX=${LANGX%.html}
-    break
-  fi
-done
-IFS="$OLDIFS"
-
-if ! [ "$LANGX" ] ; then
-  echo "$0: Data file with (LANGUAGE=$LANGLIST) does not exist." >&2
-  exit 1
-fi
-
-echo "$BDOCUMENTSTEM.$LANGX.html exist :-)"
-
-# Default document to look.
-BDOCUMENT="file://$BDOCUMENTSTEM.$LANGX.html"
-
-# start browser or search engine (message to stderr)
-echo -n "Starting " >&2
-basename $BROWSER >&2
-
-if [ $1 ]; then
-  echo $BROWSER $1 >&2
-  $BROWSER $1
-else
-  echo $BROWSER $BDOCUMENT >&2
-  $BROWSER $BDOCUMENT
-fi
-
