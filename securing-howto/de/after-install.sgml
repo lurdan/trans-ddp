@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.42" -->
+<!-- CVS revision of original english document "1.46" -->
 
 <chapt>Nach der Installation
 
@@ -545,14 +545,15 @@ Sie sehen den Unterschied in der Spalte mit den Optionen. Die Option
 <tt>nosuid</tt> ignoriert komplett alle setuid- und setgid-Bits,
 während <tt>noexec</tt> das Ausführen irgendwelcher Programme
 unterhalb des Einhängepunkts (mount point) verbietet und <tt>nodev</tt> Geräte ignoriert. Das
-hört sich toll an, aber es
+hört sich toll an, aber:
 <list>
-<item>ist nur auf ext2-Dateisysteme anwendbar und
-<item>kann leicht umgangen werden.
+<item>ist nur auf ext2-Dateisysteme anwendbar
+<item>kann leicht umgangen werden
 </list>
 
 <p>Die <tt>noexec</tt>-Option, die verhindert, dass Binarys
-ausgeführt werden können, lässt sich leicht umgehen:
+ausgeführt werden können, ließe sich in früheren Kernelversionen leicht
+umgehen:
 <example>
   alex@joker:/tmp# mount | grep tmp
   /dev/hda7 on /tmp type ext2 (rw,noexec,nosuid,nodev)
@@ -560,6 +561,19 @@ ausgeführt werden können, lässt sich leicht umgehen:
   bash: ./date: Permission denied
   alex@joker:/tmp# /lib/ld-linux.so.2 ./date
   Sun Dec  3 17:49:23 CET 2000
+</example>
+
+<p>Neuerer Versionen des Kernels verarbeiten aber die Option <tt>noexec</tt>
+richtig:
+
+<example>
+  angrist:/tmp# mount | grep /tmp
+  /dev/hda3 on /tmp type ext3 (rw,noexec,nosuid,nodev)
+  angrist:/tmp# ./date
+  bash: ./tmp: Permission denied 
+  angrist:/tmp# /lib/ld-linux.so.2 ./date 
+  ./date: error while loading shared libraries: ./date: failed to map segment 
+  from shared object: Operation not permitted
 </example>
 
 <p>
@@ -588,15 +602,15 @@ verwahrt ihre Programme unterhalb von <file>/var</file>. Dasselbe gilt für die
 nosuid-Option.
 
 <example>
-/dev/sda6   /usr          ext2    defaults,ro,nodev       0       2
-/dev/sda12  /usr/share    ext2    defaults,ro,nodev,nosuid        0       2
-/dev/sda7   /var          ext2    defaults,nodev,usrquota,grpquota 0      2
-/dev/sda8   /tmp          ext2    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
-/dev/sda9   /var/tmp      ext2    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
-/dev/sda10  /var/log      ext2    defaults,nodev,nosuid,noexec    0       2
-/dev/sda11  /var/account  ext2    defaults,nodev,nosuid,noexec    0       2
-/dev/sda13  /home         ext2    rw,nosuid,nodev,exec,auto,nouser,async,usrquota,grpquota                0       2
-/dev/fd0    /mnt/fd0      ext2    defaults,users,nodev,nosuid,noexec      0       0
+/dev/sda6   /usr          ext3    defaults,ro,nodev       0       2
+/dev/sda12  /usr/share    ext3    defaults,ro,nodev,nosuid        0       2
+/dev/sda7   /var          ext3    defaults,nodev,usrquota,grpquota 0      2
+/dev/sda8   /tmp          ext3    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
+/dev/sda9   /var/tmp      ext3    defaults,nodev,nosuid,noexec,usrquota,grpquota    0       2
+/dev/sda10  /var/log      ext3    defaults,nodev,nosuid,noexec    0       2
+/dev/sda11  /var/account  ext3    defaults,nodev,nosuid,noexec    0       2
+/dev/sda13  /home         ext3    rw,nosuid,nodev,exec,auto,nouser,async,usrquota,grpquota                0       2
+/dev/fd0    /mnt/fd0      ext3    defaults,users,nodev,nosuid,noexec      0       0
 /dev/fd0    /mnt/floppy   vfat    defaults,users,nodev,nosuid,noexec      0       0
 /dev/hda    /mnt/cdrom    iso9660 ro,users,nodev,nosuid,noexec            0       0
 </example>
@@ -612,7 +626,8 @@ name="apt-extracttemplates" section="1">) passend konfiguriert wurde. Sie
 können diese Variable in <file>/etc/apt/apt.conf</file> auf ein
 anderes Verzeichnis als <file>/tmp</file> mit exec-Privilegien setzen.
 
-<!-- This is a duplicate of the example a few paragraphs up -->
+<!-- This is a duplicate of the example a few paragraphs up. So why repeat it?
+(thomas)
 <p>Was noexec betrifft, seien Sie sich bitte bewusst, dass es Ihnen nicht
 sehr viel Sicherheit bietet. Beachten Sie Folgendes:
 <example>
@@ -622,6 +637,7 @@ sehr viel Sicherheit bietet. Beachten Sie Folgendes:
   $/lib/ld-linux.so.2 /tmp/date
   (funktioniert, da date nicht direkt ausgeführt wird)
 </example>
+-->
 
 <sect1>Setzen von /usr auf nur-lesen
 <p>Wenn Sie auf <file>/usr</file> nur lesenden Zugriff erlauben, werden Sie
@@ -816,6 +832,21 @@ einzuloggen. Sie schreiben in also in eine Datei
 <example>
   auth        required    pam_listfile.so item=user sense=allow file=/etc/sshusers-allowed onerr=fail
 </example>
+
+<p>Da es eine Reihe von Sicherheitslücken mit so genannten unsicheren temporären
+Dateien gab, thttpd ist ein Beispiel (vgl. <url
+id="http://www.debian.org/security/2005/dsa-883" name="DSA-883-1">), lohnt es
+sich, das Paket <package>libpam-tmpdir</package> zu installieren. Alles, was
+Sie machen müssen, ist, Folgendes zu <file>/etc/pam.d/common-session</file>
+hinzuzufügen:
+
+<example>
+ session    optional     pam_tmpdir.so
+</example>
+
+<p>Es gab auch eine Diskussion, dies standardmäßig in Etch einzufügen. Sehen
+Sie sich <url id="http://lists.debian.org/debian-devel/2005/11/msg00297.html">
+für weitere Informationen an.
 
 <p>Zuletzt, aber nicht am unwichtigsten, erstellen Sie
 <file>/etc/pam.d/other</file> mit den folgenden Zeilen:
@@ -1071,6 +1102,14 @@ erlauben oder zu verbieten.
 standardmäßig <em>nicht</em> die Benutzer mit Administratorenrecht (in
 <package>base-passwd</package>) beinhaltet?
 
+<p>Folgender Befehl ist ein einfacher Weg, alle Systemkonten zu
+<file>/etc/ftpusers</file> hinzuzufügen:
+
+<example>
+$ awk -F : '{if ($3<1000) print $1}' /etc/passwd > /etc/ftpusers
+</example>
+
+
 <sect1>Verwendung von su
 
 <p>Wenn es wirklich benötigt wird, dass Nutzer der Super-User (also Root, d.Ü.)
@@ -1317,10 +1356,20 @@ mit dem Befehl <prgn>adduser</prgn> erstellt werden.
 abändern kann, wenn er es möchten, um sie großzügiger
 oder einschränkender zu machen.
 
+<p>Das Paket <package>libpam-umask</package> passt die Standard-<tt>umask</tt>
+eines Benutzers mit Hilfe von PAM an. Nachdem Sie das Paket installiert haben,
+tragen Sie Folgendes in <file>/etc/pam.d/common-session</file> ein:
+
+<example>
+session    optional     pam_umask.so umask=077
+</example>
+
+
 <sect1>Nutzer Sicht/Zugriff limitieren
 
 <p>FIXME: Inhalt benötigt. Aufzeigen der Folgen beim Upgraden, wenn die
-Paketrechte verändert werden (außerdem sollte eine derartige paranoider
+Paketrechte verändert werden, falls nicht <prgn>dpkg-statoverride</prgn>
+verwendet wird (übrigens sollte ein derartig paranoider
 Administrator seine Nutzer in eine <prgn>chroot</prgn>-Umgebung einsperren).
 
 <p>Wenn Sie einem Nutzer Zugriff auf das System mit einer Shell gewähren

@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.16" -->
+<!-- CVS revision of original english document "1.20" -->
 
 <chapt>Die Infrastruktur für Sicherheit in Debian
 
@@ -541,7 +541,7 @@ mit den unten aufgeführten Plänen kombiniert werden.
 
 <p>Im Moment ist diese Vorgehensweise vollständig in apt 0.6 <url
 id="http://lists.debian.org/debian-devel/2003/debian-devel-200312/msg01986.html"
-name="enthalten">, das nun im Unstable-Zweig enthalten ist; weitere
+name="enthalten">, das nun im Testing- und Unstable-Zweig verfügbar ist; weitere
 Informationen finden Sie unter <ref
 id="apt-0.6">. Pakete, die ein Frontend für apt anbieten, müssen verändert
 werden, um an diese neue Fähigkeit angepasst zu werden. Das gilt für
@@ -557,9 +557,11 @@ ausführlich diskutiert. Mehr Informationen hierzu finden Sie unter
 <url id="http://www.debian.org/News/weekly/2000/11/">.
 
 
-<sect1 id="apt-0.6">Apt-secure
+<sect1 id="apt-0.6">Secure Apt
 
-<p>Die Veröffentlichung von apt 0.6 enthält <em>apt-secure</em>, das ein
+<p>Die Veröffentlichung von apt 0.6, die in <em>Testing</em> (im Moment
+<em>Etch</em>) und in Unstable verfügbar ist,
+enthält <em>apt-secure</em> (auch als <em>Secure Apt</em> bekannt), das ein
 Werkzeug ist, mit dem ein Systemadministrator die Integrität von
 heruntergeladenen Paketen mit dem oben dargestellten Verfahren überprüfen
 kann. Diese Veröffentlichung enthält das Werkzeug <prgn>apt-key</prgn>, um neue
@@ -570,61 +572,438 @@ aktuellen Signierungsschlüssel des Debian-Archivs enthält.
 in <url id="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=203741"
 name="Fehler #203741">), der diese Erweiterung zur Verfügung stellt.
 
+<p>Secure Apt überprüft die Distribution mit der Release-Datei. Dies wurde
+schon unter <ref id="check-releases"> dargestellt. Typischerweise erfordert
+dieser Vorgang kein Mitwirken des Administrators. Aber jedes Jahr müssen Sie
+eingreifen <footnote>Bis ein automatischer Mechanismus entwickelt
+wurde.</footnote>, um den neuen Schlüssel des Archivs hinzuzufügen, wenn dieser
+ausgewechselt wurde. Weitere Informationen zu den dazu notwendigen Schritten
+finden Sie unter <ref id="secure-apt-add-key">.
+
 <p>Diese Fähigkeit befindet sich noch im Entwicklungsstadium. Wenn Sie glauben,
 dass Sie Fehler gefunden haben, stellen Sie zuerst sicher, dass Sie die neuste
-Version verwenden (da sich dieses Paket vor seiner endgültigen Veröffentlichung noch
+Version verwenden (da dieses Paket vor seiner endgültigen Veröffentlichung noch
 ziemlich verändern werden kann). Falls Sie die aktuelle Version benutzen,
 schicken Sie einen Fehlerbericht für das Paket <package>apt</package>.
 
-<p>Beachten Sie, dass, wenn Sie diese Version von apt einsetzen, kein
-zusätzlicher Aufwand auf Ihrer Seite notwendig sein sollte, wenn Sie keine
-Debian-fremden Quellen verwenden. In diesen Fällen wird eine zusätzliche
-Bestätigung von apt-get erfordert. Dies wird verhindert, wenn Release- und
-Release.gpg-Dateien in den Debian-fremden Quellen zur Verfügung stehen. Die
-Release-Datei kann mit <prgn>apt-ftparchive</prgn> (ist in apt-utils 0.5.0 und
-später enthalten) erstellt werden, die Release.gpg ist nur die abgetrennte
-Signatur. Beide können mit folgender einfacher Prozedur erstellt werden:
+
+<sect1 id="check-releases">Überprüfung der Distribution mit der Release-Datei
+<!-- SB (20060130): Auf Englisch "Per distribution release check" -->
+
+<p>Dieser Abschnitt beschreibt, wie die Überprüfung der Distribution mit Hilfe
+der Release-Datei funktioniert. Dies wurde von Joey Hess geschrieben und ist
+auch im <url id="http://wiki.debian.org/SecureApt" name="Debian-Wiki">
+abrufbar.
+
+<sect2>Grundlegende Konzepte
+
+<p>Es gibt ein paar grundlegende Konzepte, die Sie brauchen, um den Rest dieses
+Abschnitts verstehen zu können.
+
+<p>Eine Checksumme ist eine Methode, bei der eine Datei auf eine relativ kurze
+Zahl heruntergekocht wird, mit der der Inhalt der Datei eindeutig identifiziert
+werden kann. Dies ist wesentlich schwieriger, als es zunächst erscheinen
+mag. Der am weitesten verbreitetste Typ von Checksummen, md5sum, ist gerade
+dabei, unbrauchbar zu werden.
+
+<p>Verschlüsselung mit öffentlichen Schlüsseln fußt auf einem Schlüsselpaar:
+einem öffentlichem Schlüssel und einem privaten Schlüssel. Der öffentliche
+Schlüssel wird an die Allgemeinheit verteilt. Der Private muss ein Geheimnis
+bleiben. Jeder, der den öffentlichen Schlüssel hat, kann eine Nachricht
+verschlüsseln, so dass sie nur noch der Besitzer des privaten Schlüssels lesen
+kann. Es besteht deneben die Möglichkeit, mit einem privaten Schlüssel eine
+Datei zu signieren. Wenn eine Datei mit einer digitalen Unterschrift versehen
+wurde, kann jeder, der den öffentlichen Schlüssel hat, überprüfen, ob die Datei
+mit diesem Schlüssel unterschrieben wurde. Ohne den privaten Schlüssel lässt
+sich eine solche Signatur nicht nachmachen.
+
+<p>Diese Schlüssel bestehen aus ziemlich langen Zahlen (1024 oder 2048 Stellen
+oder sogar länger). Damit sie leichter zu verwenden sind, haben sie eine
+kürzere Schlüssel-ID (eine Zahl mit nur acht oder 16 Stellen), mit der sie
+bezeichnet werden können.
+
+<p>Secure Apt verwendet <prgn>gpg</prgn>, um Dateien zu unterschreiben und ihre
+Unterschriften zu überprüfen.
+
+<p>Mit dem Programm <prgn>apt-key</prgn> wird der Schlüsselbund von GPG für
+Secure Apt verwaltet. Der Schlüsselbund befindet sich in der Datei
+<file>/etc/apt/trusted.gpg</file> (nicht zu verwechseln mit der verwandten,
+aber nicht sehr interessanten Datei
+<file>/etc/apt/trustdb.gpg</file>). <prgn>apt-key</prgn> kann dazu verwendet
+werden, die Schlüssel im Schlüsselbund anzuzeigen oder um Schüssel hinzuzufügen
+oder zu entfernen.
+
+<sect2>Checksums der Release-Datei
+
+<p>Jedes Archiv von Debian enthält eine <file>Release</file>-Datei, die
+jedesmal aktualisiert wird, wenn ein Paket im Archiv geändert wird. Unter
+anderem enthält die Release-Datei MD5-Summen von anderen Dateien, die sich im
+Archiv befinden. Ein Auszug einer Release-Datei:
 
 <example>
-  $ rm -f dists/unstable/Release
-  $ apt-ftparchive release dists/unstable > dists/unstable/Release
-  $ gpg --sign -ba -o dists/unstable/Release.gpg dists/unstable/Release
+MD5Sum:
+ 6b05b392f792ba5a436d590c129de21f            3453 Packages
+ 1356479a23edda7a69f24eb8d6f4a14b            1131 Packages.gz
+ 2a5167881adc9ad1a8864f281b1eb959            1715 Sources
+ 88de3533bf6e054d1799f8e49b6aed8b             658 Sources.gz
+</example>
+
+<p>Die Release-Datei enthält auch SHA1-Checksummen, was nützlich ist, wenn
+MD5-Summen vollständig unbrauchbar sind. Allerdings unterstützt apt SHA1 noch
+nicht.
+
+<p>Werfen wir einen Blick in eine Paket-Datei: wir sehen weitere MD5-Summen,
+eine für jedes darin aufgeführte Paket. Beispiel:
+
+<example>
+    Package: uqm
+    Priority: optional
+    ...
+    Filename: unstable/uqm_0.4.0-1_i386.deb
+    Size: 580558
+    MD5sum: 864ec6157c1eea88acfef44d0f34d219
+</example>
+
+<p>Mit diesen beiden Checksummen kann überprüft werden, ob Sie eine getreue
+Kopie der Paket-Datei, also mit einer MD5-Summe, die mit der in der
+Release-Datei übereinstimmt, heruntergeladen haben. Und wenn ein einzelnes
+Paket heruntergeladen wird, kann auch die MD5-Summe mit dem Inhalt der
+Paket-Datei verglichen werden. Wenn bei einer dieser Schritte ein Fehler
+auftauchen sollte, bricht Apt den Vorgang ab.
+
+<p>Nichts davon ist neue in Secure Apt, aber es bietet die Grundlage
+dafür. Beachten Sie, dass es bis hierhin eine Datei gibt, die Apt nicht
+überprüfen kann: die Release-Datei. Bei Secure Apt dreht sich alles darum, dass
+Apt die Release-Datei überprüft, bevor es irgendetwas anderes damit macht. Wenn
+man das schafft, besteht eine lückenlose Authentifizierunskette von dem Paket,
+das Sie installieren möchten, bis zum Anbieter des Pakets.
+
+
+<sect2>Überprüfung der Release-Datei
+
+<p>Damit die <file>Release</file>-Datei überprüft werden kann, wird sie mit GPG
+signiert. Diese Unterschrift kommt in die Datei <file>Release.gpg</file>, die
+mit der Release-Datei abgerufen werden kann. Sie sieht in etwa so aus
+<footnote>Genau genommen handelt es sich um eine ascii-armord abgetrennte
+GPG-Signatur.</footnote>
+, obwohl sich für gewöhnlich nur GPG ihren Inhalt ansieht:
+
+<example>
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQBCqKO1nukh8wJbxY8RAsfHAJ9hu8oGNRAl2MSmP5+z2RZb6FJ8kACfWvEx
+UBGPVc7jbHHsg78EhMBlV/U=
+=x6og
+-----END PGP SIGNATURE-----
 </example>
 
 
-<sect1>Alternativer Entwurf zur Einzelsignierung von Paketen
+<sect2>Release.gpg mit Apt überprüfen
 
-<p>Dieser zusätzliche Entwurf, jedes Paket einzeln zu signieren, erlaubt es,
-Pakete zu prüfen, selbst wenn sie nicht mehr in irgendeiner Packages-Datei
-erwähnt werden. Und so können auch Pakete von Dritten, für die es nie eine
-Packages-Datei gab, unter Debian installiert werden. Dies wird aber kein
-Standard werden.
+<p>Wenn Secure Apt eine Release-Datei herunterlädt, lädt es auch immer die
+<file>Release.gpg</file>-Datei herunter. Falls dies misslingen sollte oder die
+Signatur nicht stimmt, wird es eine Rückmeldung machen und hinweisen, dass die
+Paket-Dateien, auf die die Release-Datei verweist, und alle darin enthaltenen
+Pakete von einer nicht vertrauenswürdigen Quelle stammen. So würde dies während
+<prgn>apt-get update</prgn> aussehen:
 
-<p>Dieser Entwurf zur Paketsignierung kann mit <package>debsig-verify</package>
-und <package>debsigs</package> umgesetzt werden. Diese beiden Pakete können in
-einer .deb-Datei eingebettete Signaturen erstellen und prüfen. Debian hat
-bereits jetzt die Möglichkeiten, dies zu tun. Aber das Regelwerk und die
-Werkzeuge hierfür werden erst nach der Woody-Veröffentlichung eingeführt.
+<example>
+W: GPG error: http://ftp.us.debian.org testing Release: The following signatures
+ couldn't be verified because the public key is not available: NO_PUBKEY 010908312D230C5F
+</example>
 
-<p>Die aktuellen Versionen von dpkg (seit 1.9.21) beinhalten einen <url
-id="http://lists.debian.org/debian-dpkg/2001/debian-dpkg-200103/msg00024.html"
-name="Patch">, der diese Funktionen zur Verfügung stellt, sobald
-<package>debsig-verify</package> installiert ist.
+<p>Beachten Sie, dass die zweite Hälfte der langen Nummer die Schlüssel-ID des
+Schlüssels, von dem Apt nichts weiß, ist. Im Beispiel ist sie 2D230C5F.
 
-<p>HINWEIS: Derzeit wird <file>/etc/dpkg/dpkg.cfg</file> standardmäßig mit der
-Option "no-debsig" ausgeliefert.
+<p>Falls Sie diese Warnung ignorieren und später versuchen, ein Paket zu
+installieren, wird Sie Apt nochmals warnen:
 
-<p>HINWEIS 2: Signaturen von Entwicklern werden im Moment entfernt, wenn sie in
-das Paketarchiv gelangen, da die derzeit vorzugswürdige Methode die Überprüfung
-der Release-Datei ist, wie es oben beschrieben wurde.
+<example>
+WARNING: The following packages cannot be authenticated!
+  libglib-perl libgtk2-perl
+Install these packages without verification [y/N]?
+</example>
+
+<p>Wenn Sie nun Y sagen, haben Sie keine Möglichkeit festzustellen, ob die
+Datei, die Sie bekommen, wirklich diejenige ist, die Sie auch installieren
+möchten, oder ob sie eine ganz andere ist, die Ihnen jemand, der die Verbindung
+mit dem Server abgefangen hat
+<footnote>
+Oder Ihren DNS vergiftet hat oder den Server spooft oder die Datei auf einem
+Spiegel platziert hat, den Sie verwenden, oder ...
+</footnote>
+, unterschieben will, mit einer gemeinen Überraschung.
+
+<p>Sie können diese Abfragen abschalten, indem Sie apt mit
+--allow-unauthenticated laufen lassen.
+
+<p>Es lohnt sich auch noch darauf hinzuweisen, dass der Installer von Debian
+während des Debootstraps des Basissystems, solange Apt noch nicht verfügbar
+ist, denselben Mechanismus mit signierten Release-Dateien verwendet. Der
+Installer benutzt sogar dieses Verfahren, um Teile von sich selbst zu
+überprüfen, die er aus dem Netz gezogen hat. Debian signiert im Moment nicht
+die Release-Dateien auf den CDs. Apt kann aber so eingerichtet werden, dass es
+immer den Paketen von CDs vertraut, so dass dies nicht ein so großes Problem
+darstellt.
 
 
-<sect1 id="check-releases">Alternative zur Überprüfung der
-Distributionsveröffentlichungen
+<sect2>Wie man Apt sagt, wem es vertrauen soll
 
-<p>Für den Fall dass Sie nun zusätzliche Sicherheitsprüfungen einführen wollen,
-aber nicht die neuste Version von apt einsetzen wollen oder können (obwohl wir
-wirklich das Testen schätzen würden), können Sie das folgende Skript von
+<p>Die ganze Sicherheit des Verfahrens beruht also darauf, dass es eine
+<file>Release.gpg</file>-Datei gibt, die eine <file>Release</file>-Datei
+signiert, und dass diese Signatur von <prgn>apt</prgn> mit Hilfe von GPG
+überprüft wird. Dazu muss es den öffentlichen Schlüssel der Person kennen, die
+die Datei unterschrieben hat. Diese Schlüssel werden in Apts eigenem
+Schlüsselbund (<file>/etc/apt/trusted.gpg</file>) gespeichert. Bei der
+Verwaltung dieser Schlüssel kommt Secure Apt ins Spiel.
+
+<p>Standardmäßig befindet sich bei Debian-Systemen der Schlüssel des
+Debian-Archivs im Schlüsselbund.
+
+<example>
+# apt-key list
+/etc/apt/trusted.gpg
+--------------------
+pub   1024D/4F368D5D 2005-01-31 [expires: 2006-01-31]
+uid                  Debian Archive Automatic Signing Key (2005) &gt;ftpmaster&amp;debi
+an.org&lt;
+</example>
+
+<p>Im Beispiel ist 4F368D5D die Schlüssel-ID. Beachten Sie, dass dieser
+Schlüssel nur für ein Jahr gültig ist. Debian tauscht die Schlüssel als letzte
+Verteidigungslinie gegen Sicherheitsrisiken, die das Knacken eines Schlüssels
+umfassen, regelmäßig aus.
+
+<p>Mit dem Schlüssel des Archivs wird Apt dem offiziellen Archiv von Debian
+vertrauen. Wenn Sie aber weitere Paketdepots zu
+<file>/etc/apt/sources.list</file> hinzufügen wollen, müssen Sie Apt ihre
+Schlüssel mitteilen, wenn Sie wollen, dass Apt ihnen vertraut. Sobald Sie den
+Schlüssel haben und ihn überprüft haben, müssen Sie nur <prgn>apt-key add
+file</prgn> laufen lassen, um den Schlüssel hinzuzufügen. Der schwierigste Teil
+dabei ist es, den Schlüssel zu bekommen und ihn zu überprüfen.
+
+
+<sect2>Den Schlüssel für Paketdepots finden
+
+<p>Es gibt noch keinen standardisierten Ort, wo sich der Schlüssel für ein
+Paketdepot befindet. Es besteht die grobe Übereinkunft, dass der Schlüssel auf
+der Webseite des Paketdepots oder im Depot selbst zu finden sein sollte. Wie
+gesagt ist dies kein echter Standard, so dass Sie ihn unter Umständen suchen
+müssen.
+
+<p>Der Schlüssel des Debian-Archivs ist unter <url
+id="http://ftp-master.debian.org/ziyi_key_2006.asc"> (ersetzen Sie 2006 mit dem
+aktuellen Jahr) erhältlich. ("Ziyi" ist offensichtlich der Name einer <url
+id="http://de.wikipedia.org/wiki/Ziyi_Zhang" name="chinesischen
+Schauspielerin">.)
+
+<p><prgn>gpg</prgn> besitzt mit den Schlüsselservern eine standardisierte
+Möglichkeit, Schlüssel zu verbreiten. Damit kann GPG einen Schlüssel
+herunterladen und ihn zum Schlüsselbund hinzufügen. Beispiel:
+
+<example>
+$ gpg --keyserver pgpkeys.mit.edu --recv-key 2D230C5F
+gpg: requesting key 2D230C5F from hkp server pgpkeys.mit.edu
+gpg: key 2D230C5F: public key "Debian Archive Automatic Signing Key (2006) &lt;ftpm
+aster@debian.org&gt;" imported
+gpg: Total number processed: 1
+gpg:               imported: 1
+</example>
+
+<p>Sie können dann den Schlüssel aus Ihrem Schlüsselbund exportieren und ihn an
+<prgn>apt-key</prgn> weiterreichen:
+
+<example>
+$ gpg -a --export 2D230C5F | sudo apt-key add -
+gpg: no ultimately trusted keys found
+OK
+</example>
+
+<p>Die Warnung "gpg: no ultimately trusted keys found" bedeutet, dass GPG nicht
+so konfiguriert wurde, um einem Schlüssel vollständig zu vertrauen. Das
+Zuweisen von Vertrauensstufen ist Teil des Web-of-Trust von OpenPGP, was hier
+nicht Gegenstand ist. Daher ist die Warnung unproblematisch. Für gewöhnlich
+wird dem eignen Schlüssel eines Benutzers vollständig vertraut.
+
+
+<sect2 id="secure-apt-add-key">Auf sichere Weise einen Schlüssel hinzufügen
+
+<p>Indem Sie einen Schlüssel zu Apts Schlüsselbund hinzufügen, lassen Sie Apt
+wissen, dass es allem vertrauen soll, was mit diesem Schlüssel signiert
+wurde. Dadurch stellen Sie sicher, dass Apt nichts installiert, was nicht vom
+Inhaber des privaten Schlüssels signiert wurde. Mit ausreichender Paranoia
+erkennen Sie aber, dass dies das Problem nur um eine Stufe verlagert: Anstatt
+sich nun darum Sorgen zu machen, ob ein Paket oder eine Release-Datei korrekt
+ist, müssen Sie überprüfen, ob Sie tatsächlich den richtigen Schlüssel
+haben. Ist die Datei <url id="http://ftp-master.debian.org/ziyi_key_2006.asc">,
+die oben erwähnt wird, wirklich der Signierungsschlüssel des Debian-Archivs
+oder wurde er verändert (oder wird gar in diesem Dokument gelogen)?
+
+<p>Es ist gut, in Sicherheitsfragen Vorsicht walten zu lassen. Aber ab hier
+wird es schwieriger, Dinge zu überprüfen. <prgn>gpg</prgn> arbeitet mit dem
+Konzept der Kette des Vertrauens (chain of trust), die bei jemanden beginnt,
+dem Sie vertrauen und der einen anderen Schlüssel unterschreibt usw., bis Sie
+beim Schlüssel des Archivs sind. Wenn Sie vorsichtig sind, wollen Sie
+nachprüfen, dass Ihr Archivschlüssel von einem Schlüssel unterschrieben wurde,
+dem Sie vertrauen können, weil seine Kette des Vertrauens zu jemandem
+zurückgeht, den Sie persönlich kennen. Dazu sollten Sie eine Debian-Konferenz
+oder eine lokale LUG zum Unterschreiben der Schlüssel besuchen.
+<footnote>
+Nicht alle Schlüssel der Apt-Depots sind überhaupt mit einem anderen Schlüssel
+unterschrieben. Vielleicht hat derjenige, der das Depot einrichtet, keinen
+anderen Schlüssel zur Verfügung, oder vielleicht ist es ihm unangenehm, einen
+Schlüssel mit einer derartig wichtigen Funktion mit seinem Hauptschlüssel zu
+unterschreiben. Hinweise, wie man einen Schlüssel für ein Depot einrichtet,
+finden Sie unter <ref id="check-non-debian-releases">.
+</footnote>
+
+<p>Wenn Sie diese Sicherheitsbedenken nicht teilen (können), unternehmen Sie,
+was auch immer Sie passend finden, wenn Sie eine neue Apt-Quelle oder einen
+neuen Schlüssel verwenden. Sie könnten demjenigen, der den Schlüssel anbietet,
+eine Mail schreiben, um den Schlüssel zu überprüfen. Oder Sie vertrauen auf Ihr
+Glück und gehen davon aus, dass Sie den richten heruntergeladen haben. Das
+wichtige ist, dass Secure Apt, indem es das Problem darauf reduziert, welchen
+Archivschlüsseln Sie vertrauen, Sie sich zu vorsichtig und sicher vorgehen
+lässt, wie es Ihnen passend und notwendig erscheint.
+
+
+<sect2>Die Integrität eines Schlüssels überprüfen
+
+<p>Sie können dazu sowohl den Fingerabdruck als auch die Unterschriften des
+Schlüssels überprüfen. Den Fingerabdruck kann man aus verschiedenen Quellen
+erhalten. Sie können im Buch <url
+id="http://debiansystem.info/readers/changes/547-ziyi-key-2006" name="The
+Debian System"> nachsehen, in IRC mit Debian-Entwicklern reden. oder
+Mailinglisten lesen, wo ein Wechsel des Schlüssel angekündigt werden wird, oder
+jede andere erdenkliche Methode verwenden, um den Fingerabdruck zu
+überprüfen. Zum Beispiel können Sie auch Folgendes machen:
+
+<example>
+$ GET http://ftp-master.debian.org/ziyi_key_2006.asc | gpg --import
+gpg: key 2D230C5F: public key "Debian Archive Automatic Signing Key (2006)
+  &lt;ftpmaster&amp;debian.org&gt;" imported
+gpg: Total number processed: 1
+gpg:               imported: 1
+$ gpg --check-sigs --fingerprint 2D230C5F
+pub   1024D/2D230C5F 2006-01-03 [expires: 2007-02-07]
+      Key fingerprint = 0847 50FC 01A6 D388 A643  D869 0109 0831 2D23 0C5F
+uid   Debian Archive Automatic Signing Key (2006) &lt;ftpmaster@debian.org&gt;
+sig!3        2D230C5F 2006-01-03  Debian Archive Automatic Signing Key
+                                  (2006) &lt;ftpmaster@debian.org&gt;
+sig!         2A4E3EAA 2006-01-03  Anthony Towns &lt;aj@azure.humbug.org.au&gt;
+sig!         4F368D5D 2006-01-03  Debian Archive Automatic Signing Key
+                                  (2005) &lt;ftpmaster@debian.org&gt;
+sig!         29982E5A 2006-01-04  Steve Langasek &lt;vorlon@dodds.net&gt;
+sig!         FD6645AB 2006-01-04  Ryan Murray &lt;rmurray@cyberhqz.com&gt;
+sig!         AB2A91F5 2006-01-04  James Troup &lt;james@nocrew.org&gt;
+</example>
+
+<p>und dann von Ihrem Schlüssel (oder einem Schlüssel, dem Sie vertrauen) den
+<url
+id="http://www.de.debian.org/doc/manuals/securing-debian-howto/ch7.de.html#s-deb-pack-sign"
+name="Pfad des Vertrauens"> zu wenigstens einem der Schlüssel, der verwendet
+wurde, um den Archivschlüssel zu unterschreien, zu überprüfen. Wenn Sie
+vorsichtig sein wollen, sollten Sie Apt mitteilen, dass es dem Schlüssel nur
+vertrauen darf, wenn es einen passenden Pfad gefunden hat:
+
+<example>
+cirrus:~> gpg --export -a 2D230C5F | sudo apt-key add -
+Ok
+</example>
+
+<p>Der aktuelle Schlüssel ist mit dem vorhergehenden Archivschlüssel
+unterschrieben, so dass Sie theoretisch auf Ihrem alten Vertrauen aufbauen
+können.
+
+
+<sect2>Der jährliche Austausch des Archivschlüssels von Debian
+
+<p>Wie schon oben erwähnt wird der Schlüssel, mit dem das Debian-Archiv
+signiert wird, jedes Jahr im Januar ausgetauscht. Da Secure Apt noch jung ist,
+haben wir noch nicht sehr viel Erfahrung damit und es gibt noch ein paar
+haarige Stellen.
+
+<p>Im Januar 2006 wurde ein neuer Schlüssel für 2006 erstellt und die
+Release-Datei wurde damit unterschrieben. Um aber zu vermeiden, dass Systeme,
+die noch den alten Schlüssel von 2005 verwenden, nicht mehr konkret arbeiten,
+wurde die Release-Datei auch mit dem alten Schlüssel unterschrieben. Es war
+geplant, dass Apt je nach dem verfügbaren Schlüssel eine der beiden
+Unterschriften akzeptieren würde. Aber es zeigte sich ein Fehler in Apt, da es
+sich weigerte, der Datei zu vertrauen, wenn es nicht beide Schlüssel hatte und
+somit beide Unterschriften überprüfen konnte. Dies wurde in der Version
+0.6.43.1 ausgebessert. Es gab auch Verwirrung darüber, wie der Schlüssel an
+Benutzer verteilt wird, die bereits Secure Apt auf ihrem System laufen
+lassen. Am Anfang wurde er auf die Webseite hochgeladen, ohne Ankündigung und
+ohne eine echte Möglichkeit, ihn zu überprüfen, und die Benutzer mussten ihn
+per Hand herunterladen.
+
+<p>Aufgrund dieser Erfahrung werden die Dinge in 2007 wie folgt ablaufen:
+
+<list>
+<item>Anfang Januar wird ein neuer Schlüssel für 2007 erstellt. Vielleicht gibt
+es dieses Mal auch eine Ankündigung und eine gute Kette des Vertrauens.
+
+<item>Die <file>Release</file>-Datei wird mit diesem Schlüssel unterschrieben
+werden, während sich auch mit dem Schlüssel von 2006 unterschrieben ist. Apt
+und andere Werkzeuge werden beide Unterschriften akzeptieren.
+
+<item>Zuvor wird ein neues Paket, <package>debian-server-keyring</package>, auf
+jedem System installiert werden. Es wird aktualisiert, damit es den Schlüssel
+von 2007 enthält. Wenn Benutzer zur neuen Version wechseln, wird mit
+<prgn>apt-key</prgn> ihr Schlüsselbund aktualisiert werden. Der Schlüssel von
+2006 wird entfernt und der von 2007 hinzugefügt.
+
+<item>Der Schlüssel von 2006 verliert am 31. Januar 2007 seine Gültigkeit.
+
+</list>
+
+<p>Noch nicht ganz sicher ist, was mit denen passiert, die im Januar gar keine
+Aktualisierung durchführen, und wie diese Aktualisierung für Personen abläuft,
+die Stable laufen lassen, wenn Secure Apt auch dort verfügbar ist.
+
+
+<sect2>Bekannte Probleme bei der Prüfung
+<!-- SB (20060206): Known release checking problems -->
+
+<p>Ein nicht offensichtliches Problem ist, dass Secure Apt nicht funktioniert,
+wenn Ihre Uhr sehr verstellt ist. Wenn sie auf ein Datum in der Vergangenheit
+wie 1999 eingestellt ist, wird Apt mit einer nichts sagenden Ausgabe wie dieser
+abbrechen:
+
+<example>
+W: GPG error: http://archive.progeny.com sid Release: Unknown error executing gpg
+</example>
+
+<p>Dagegen macht <prgn>apt-key</prgn> das Problem deutlich:
+
+<example>
+gpg: key 2D230C5F was created 192324901 seconds in the future (time warp or clock problem)
+gpg: key 2D230C5F was created 192324901 seconds in the future (time warp or clock problem)
+pub   1024D/2D230C5F 2006-01-03
+uid                  Debian Archive Automatic Signing Key (2006) &lt;ftpmaster@debian.org&gt;
+</example>
+
+<p>Falls die Uhr nicht zu weit vorgeht, behandelt Apt die Schlüssel als
+abgelaufen.
+
+<p>Wenn Sie Testing oder Unstable verwenden, gibt es ein Problem, wenn Sie in
+letzter Zeit nicht apt-get update ausgeführt haben und mit apt-get ein Paket
+installieren möchten. Apt könnte sich darüber beschweren, dass es nicht
+authentifiziert werden konnte (Warum passiert das bloß?). apt-get update löst
+das Problem.
+
+
+<sect2 id="manual-check-releases">Prüfung von Hand
+
+<p>Für den Fall, dass Sie nun zusätzliche Sicherheitsprüfungen einführen wollen,
+aber nicht die neuste Version von apt einsetzen wollen oder können
+<footnote>
+Entweder weil Sie Stable (<em>Sarge</em>) oder eine ältere Veröffentlichung
+verwenden, oder weil Sie nicht die neuste Version von Apt einsetzen wollen,
+obwohl wir das Testen wirklich schätzen würden.
+</footnote>
+, können Sie das folgende Skript von
 Anthony Towns benutzen. Dieses Skript führt automatisch neue
 Sicherheitsüberprüfungen durch, damit ein Nutzer sicher gehen kann, dass die
 Software, die er herunterlädt, die gleiche ist wie die, die von Debian
@@ -651,11 +1030,11 @@ sollte auf die folgende Art benutzt werden:
 
 <item>Holen Sie sich den Schlüssel, den die Archiv-Software
 verwendet, um Release-Dateien zu signieren, <url
-id="http://ftp-master.debian.org/ziyi_key_2003.asc">
+id="http://ftp-master.debian.org/ziyi_key_2006.asc">
 und fügen Sie ihn <file>~/.gnupg/trustedkeys.gpg</file> hinzu (was
 standardmäßig von <prgn>gpgv</prgn> benutzt wird).
 <example>
-  gpg --no-default-keyring --keyring trustedkeys.gpg --import ziyi_key_2003.asc
+  gpg --no-default-keyring --keyring trustedkeys.gpg --import ziyi_key_2006.asc
 </example>
 
 <item>Entfernen Sie alle Zeilen aus <file>/etc/apt/sources.list</file>,
@@ -949,3 +1328,53 @@ erfolgt:
                 echo "$FILE" >>BAD
                 echo "BAD"
 </example>
+
+
+<sect1 id="check-non-debian-releases">Prüfung von Debian-fremden Quellen
+<!-- SB (20060206): "Release check of non Debian sources" -->
+
+<p>Beachten Sie, dass, wenn Sie die neuste Version von Apt (mit <em>Secure
+Apt</em>) einsetzen, kein zusätzlicher Aufwand auf Ihrer Seite notwendig sein
+sollte, wenn Sie keine Debian-fremden Quellen verwenden. In diesen Fällen
+erfordert apt-get eine zusätzliche Bestätigung. Dies wird verhindert, wenn
+Release- und Release.gpg-Dateien in den Debian-fremden Quellen zur Verfügung
+stehen. Die Release-Datei kann mit <prgn>apt-ftparchive</prgn> (ist in
+apt-utils 0.5.0 und später enthalten) erstellt werden, die Release.gpg ist nur
+die abgetrennte Signatur. Beide können mit folgender einfacher Prozedur
+erstellt werden:
+
+<example>
+$ rm -f dists/unstable/Release
+$ apt-ftparchive release dists/unstable > dists/unstable/Release
+$ gpg --sign -ba -o dists/unstable/Release.gpg dists/unstable/Release
+</example>
+
+
+<sect1 id="check-pkg-sign">Alternativer Entwurf zur Einzelsignierung von
+Paketen
+
+<p>Dieser zusätzliche Entwurf, jedes Paket einzeln zu signieren, erlaubt es,
+Pakete zu prüfen, selbst wenn sie nicht mehr in irgendeiner Packages-Datei
+erwähnt werden. Und so können auch Pakete von Dritten, für die es nie eine
+Packages-Datei gab, unter Debian installiert werden. Dies wird aber kein
+Standard werden.
+
+<p>Dieser Entwurf zur Paketsignierung kann mit <package>debsig-verify</package>
+und <package>debsigs</package> umgesetzt werden. Diese beiden Pakete können in
+einer .deb-Datei eingebettete Unterschriften erstellen und prüfen. Debian hat
+bereits jetzt die Möglichkeiten, dies zu tun. Aber das Regelwerk und die
+Werkzeuge hierfür werden erst nach der Woody-Veröffentlichung eingeführt.
+
+<p>Die aktuellen Versionen von dpkg (seit 1.9.21) beinhalten einen <url
+id="http://lists.debian.org/debian-dpkg/2001/debian-dpkg-200103/msg00024.html"
+name="Patch">, der diese Funktionen zur Verfügung stellt, sobald
+<package>debsig-verify</package> installiert ist.
+
+<p>HINWEIS: Derzeit wird <file>/etc/dpkg/dpkg.cfg</file> standardmäßig mit der
+Option "no-debsig" ausgeliefert.
+
+<p>HINWEIS 2: Unterschriften von Entwicklern werden im Moment entfernt, wenn
+sie in das Paketarchiv gelangen, da die derzeit vorzugswürdige Methode die
+Überprüfung der Release-Datei ist, wie es oben beschrieben wurde.
+
+
