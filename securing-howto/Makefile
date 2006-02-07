@@ -12,11 +12,6 @@
 # ------------------------------------------------------------------- #
 # Read local texmf.cnf file
 
-export PATH:=../quick-reference/bin/:${PATH}
- 
-# Woodys default LaTeX settings need more memory for en PDF
-export TEXMFCNF:=../quick-reference/texmf/:
-
 .SUFFIXES:
 
 # Following default shall be edited by the coordinator for the entire
@@ -129,15 +124,15 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 	debiandoc2html -l $(locale) -c $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
-	@for file in `ls $(MANUAL).$*.html/*` ; do\
+	@for file in `ls $(MANUAL).$*.html/*` ; do \
 	newfile=`echo $$file|\
 	    sed 's/$(shell echo $*|\
 		sed 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/abcdefghijklmnopqrstuvwxyz-/'\
-		)\.html/$*\.html/'`;\
-	if [ $$file != $$newfile ] ; then\
-		mv $$file $$newfile;\
-		echo "Rename $$file --> $$newfile";\
-	fi\
+		)\.html/$*\.html/'`; \
+	if [ $$file != $$newfile ] ; then \
+		mv $$file $$newfile; \
+		echo "Rename $$file --> $$newfile"; \
+	fi \
 	done
 	touch $(MANUAL).$*.html.stamp
 
