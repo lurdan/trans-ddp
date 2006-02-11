@@ -1,20 +1,27 @@
 #!/bin/sh
 
-# This should solve issues with debiandoc for CJK (Chinese, Japanese, ...)
 # This should solve issues with debiandoc for Polish quotation if fixed.
 
-# A few remarks which may be useful for adding Chinese support to
-# debiandoc-sgml:
-# * be careful with non-CJK 8bit characters, such as umlauts "ä", these can
-#   be part of CJK multibyte characters and it's impossible to recognize
-#   these in .tex.
-# korean depends on hlatex-fonts-base and hlatex
+#  Called as "fixlatex -l <lang> <infile> <outfile>"
 
-# $1 locale (normal pt_BR style)
-# $2 .tex filename
+locale=en
 
-locale=$1
-file=$2
+while getopts ":l:" opt
+do
+        case ${opt}
+        in 
+           l) locale=${OPTARG};;
+           \? ) echo "unknown option \`${OPTARG}'"; exit -1;;
+        esac
+done
+shift $((${OPTIND} - 1))
+
+# $1 <infile>
+# $2 <outfile>
+# (both are different, real files, no stdin/stdout/...)
+
+cp "$1" "$2"
+file="$2"
 
 dir=$(echo $locale | tr [A-Z]_ [a-z]-) # change pt_BR to pt-br
 
@@ -27,11 +34,6 @@ sed '/^\\documentclass/ a\
 mv $file.tmp $file
 
 case $locale in
-("de")
-	# use new German orthography (1998+) (ngerman) instead of old one
-	sed '/^\\documentclass/ s/\([^n]\)german/\1ngerman/' < $file > $file.tmp
-	mv $file.tmp $file
-        ;;
 ("pl")
 	cat $file | \
 	# use double quotes ,,text'': LaTeX: "`text"'
@@ -41,93 +43,18 @@ case $locale in
 	mv $file.tmp $file
 	;;
 
-("zh_TW")
-        perl -i -p \
--e 's/(^\\documentclass\[.*\,)chinese(\].*$)/$1english$2/g;' \
--e 's/(^\\usepackage\[)big5(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
--e 's/(^\\begin\{document\}$)/\\renewcommand\{\\vpageref\}\[1\]\{\(²Ä \\pageref\{\#1\} ­¶\)\}$1\n\\begin\{CJK\}\{Bg5\}\{kai\}/g;' \
--e 's/(^\\end\{document\}$)/\\clearpage\\end\{CJK\}\n$1/g;' \
--e 's/([\x80-\xff])\\textbackslash\{\}/$1\\/g;' \
--e 's/([\x80-\xff])\\textasciitilde\{\}/$1\~/g;' \
--e 's/([\x80-\xff])\\textasciicircum\{\}/$1\^/g;' \
--e 's/([\x80-\xff])\\\}/$1\}/g;' \
--e 's/([\x80-\xff])\\\{/$1\{/g;' \
--e 's/([\x80-\xff])\\\_/$1_/g;' $file
-        mv $file $file.tmp
-        bg5conv < $file.tmp > $file
-        rm $file.tmp
-        ;;
-
-("zh_CN")
-        perl -i -p \
--e 's/(^\\documentclass\[.*\,)chinese(\].*$)/$1english$2/g;' \
--e 's/(^\\usepackage\[)gb2312(\]\{inputenc\}$)/$1latin1$2\n\\usepackage\{CJK\}\n/g;' \
--e 's/(^\\begin\{document\}$)/$1\n\\begin\{CJK\}\{GB\}\{kai\}/g;' \
--e 's/(^\\end\{document\}$)/\\clearpage\\end\{CJK\}\n$1/g;' $file \
-        ;;
-
-("ja")  
-        sed -e 's/\\usepackage{babel}//' \
-            -e 's/\\begin{document}/\\usepackage{CJK}\
-                  &\
-                  \\begin{CJK}{JIS}{song}\
-                  \\renewcommand{\\vpageref}\[1\]{on page \\pageref{\#1}}\
-                  \\def\\prefacename{½ø}\
-                  \\def\\refname{Ê¸ ¸¥}\
-                  \\def\\abstractname{³µ Í×}\
-                  \\def\\bibname{»²¹ÍÊ¸¸¥}\
-                  \\def\\chaptername{¾Ï}\
-                  \\def\\appendixname{ÉÕ Ï¿}\
-                  \\def\\contentsname{ÌÜ ¼¡}\
-                  \\def\\listfigurename{¿Þ ÌÜ ¼¡}\
-                  \\def\\listtablename{É½ ÌÜ ¼¡}\
-                  \\def\\indexname{º÷ °ú}\
-                  \\def\\figurename{¿Þ}\
-                  \\def\\tablename{É½}\
-                  \\def\\partname{Éô}\
-                  \\def\\enclname{encl}\
-                  \\def\\ccname{cc}\
-                  \\def\\headtoname{¤Ø}\
-                  \\def\\pagename{ÊÇ}\
-                  \\def\\seename{»²¾È}\
-                  \\def\\alsoname{»²¾È}\
-                  \\def\\proofname{¾ÚÌÀ}\
-                  \\def\\glossaryname{ÍÑ¸ì½¸}/' \
-            -e 's/\\end{document}/\\clearpage\
-                  \\end{CJK}\
-                  &/' $file > $file.tmp
-        mv $file.tmp $file
-        ;;
-	
-(ko) 
-        sed -e 's/^\\usepackage{babel}//' \
-            -e '/^\\documentclass/ s/,korean//' \
-            -e 's/^\\usepackage\[euc-kr\]{inputenc}/\\usepackage{hfont}/' \
-	$file > $file.tmp
-	mv $file.tmp $file
-	;;
-
 (*)
 	: # do nothing
 ;;
 esac
 
-# Add CJKbookmarks option to hyperref package.
-if [ $locale = "zh_CN" -o $locale = "zh_TW" -o $locale = "ja" -o $locale = "ko" ]; then
-   cat $file | \
-   sed 's/^\(\\usepackage\[\)\(.*{hyperref}\)/\1CJKbookmarks,\2/' > $file.tmp
-   mv $file.tmp $file
-fi
-
 # Correct words in which accents such as 'é' where replaced by 'e' to be
 # compatible with the encoding. (Let's hope that there's no linebreak in
 # the text which is to substitute, but it seems to be as in .sgml files.)
 # This is related to qref only!
-sed -e "s/Renald Casagraude/R\\\'enald Casagraude/g" \
-    -e "s/Paulo Rogerio Ormenese/Paulo Rog\\\'erio Ormenese/g" \
-    -e "s/Jose Carreiro/Jos\\\'e Carreiro/g" \
-    -e 's/Stefan Schroeder/Stefan Schr\\\"oder/g' \
-    -e "s/Bartosz Fenski/Bartosz Fe\\\\\'nski/g" \
+# SGML entities such as &lstrok& are no valid HTML and are replaced
+# by [lstrok] in HTML but work in .ps, .pdf
+sed -e "s/Bartosz Fenski/Bartosz Fe\\\\\'nski/g" \
     -e 's/Radoslaw Grzanka/Rados\\l aw Grzanka/g' \
     -e 's/Rafal Michaluk/Rafa\\l\\ Michaluk/g' \
     -e 's/Tomasz Z. Napierala/Tomasz Z. Napiera\\l a/g' \
@@ -139,13 +66,6 @@ sed -e "s/Renald Casagraude/R\\\'enald Casagraude/g" \
     -e 's/pour le francais/pour le fran\\c cais/g' $file > $file.tmp
 mv $file.tmp $file
 
-# Set driver for hyperref package: hypertex (dvi), pdftex (pdf).
-# Another option (such as ps2pdf or dvips) should be used if a pdf file is
-# created via dvi->ps->pdf.
-sed 's/^\(\\usepackage\[\)\(.*{hyperref}\)/\
-\\ifx\\pdfoutput\\undefined\
-\1hypertex,\2\
-\\else\
-\1pdftex,\2\
-\\fi/' $file > $file.tmp
-mv $file.tmp $file
+test -x /usr/share/debiandoc-sgml/fixlatex && /usr/share/debiandoc-sgml/fixlatex -l "$locale" "$file" "$file.tmp"
+test -e $file.tmp && mv $file.tmp $file
+
