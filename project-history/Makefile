@@ -4,11 +4,6 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
-export PATH:=../quick-reference/bin/:${PATH}
-
-# Woodys default LaTeX settings need more memory
-export TEXMFCNF:=../quick-reference/texmf/:
-
 # Basename for SGML
 MANUAL := project-history
 
@@ -17,8 +12,22 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
-sources := $(wildcard *.??*.sgml)
+po-sources := $(wildcard *.??*.po)
+sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
+sgml-sources := $(wildcard *.??*.sgml)
+sources := $(sgml-sources) $(sgml-from-po)
 sources_noncjk := $(sources)
+
+$(MANUAL).pot: $(MANUAL).sgml
+	debiandoc2pot $(MANUAL).sgml > $(MANUAL).pot
+
+$(MANUAL).%.sgml: $(MANUAL).sgml $(MANUAL).%.po
+	po2debiandoc $(MANUAL).sgml $(MANUAL).$*.po > $(MANUAL).$*.sgml
+
+update-po: $(MANUAL).pot
+	for po in $(po-sources); do \
+	  msgmerge --width=76 $$po $(MANUAL).pot -o $$po.new && mv $$po.new $$po; \
+	done
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
@@ -31,11 +40,14 @@ html:
           debiandoc2html -c -l en $(MANUAL).sgml; \
           mv $(MANUAL).html $(MANUAL).en.html; \
         fi
-	@for i in *.??*.sgml; do \
-          j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
+	@for i in $(sgml-sources) $(po-sources); do \
+          nosuffix1=$${i%.sgml}; nosuffix=$${nosuffix1%.po}; \
+	  lang=$${nosuffix#$(MANUAL).}; \
 	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
-            echo debiandoc2html -c -l $$lang $$i; \
-            debiandoc2html -c -l $$lang $$i; \
+	    sgmlfile=$$nosuffix.sgml; \
+	    [ $$sgmlfile != $$i ] && make $$sgmlfile; \
+	    echo debiandoc2html -c -l $$lang $$sgmlfile; \
+            debiandoc2html -c -l $$lang $$sgmlfile; \
           fi; \
         done
 
@@ -74,7 +86,7 @@ publish: all
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
-# possible non-POSIX syntax below. fuck POSIX.
+# possible non-POSIX syntax below.
 	cd $(PUBLISHDIR)/$(MANUAL) && for file in *.en.html; do \
           ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
         done
@@ -89,8 +101,10 @@ validate:
 
 # cleaning up
 clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt} *~
-	rm -rf $(MANUAL)*.html
+	for suffix in txt ps dvi pdf info* log tex aux toc out sasp* tpt; do \
+	  rm -f $(MANUAL)*.$$suffix; \
+	done
+	rm -rf $(MANUAL)*.html head.tmp body.tmp *~ $(sgml-from-po)
 
 .PHONY: all publish clean distclean validate
 .SUFFIXES:
