@@ -104,7 +104,7 @@ clean distclean:
 	for suffix in txt ps dvi pdf info* log tex aux toc out sasp* tpt; do \
 	  rm -f $(MANUAL)*.$$suffix; \
 	done
-	rm -rf $(MANUAL)*.html head.tmp body.tmp *~ $(sgml-from-po)
+	rm -rf $(MANUAL)*.html head.tmp body.tmp *~ $(sgml-from-po) $(MANUAL).pot
 
 .PHONY: all publish clean distclean validate
 .SUFFIXES:
