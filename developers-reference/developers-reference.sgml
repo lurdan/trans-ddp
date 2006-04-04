@@ -7,7 +7,7 @@
   <!ENTITY % dynamicdata  SYSTEM "dynamic.ent" > %dynamicdata;
 
   <!-- CVS revision of this document -->
-  <!ENTITY cvs-rev "$Revision: 1.287 $">
+  <!ENTITY cvs-rev "$Revision: 1.288 $">
 
   <!-- if you are translating this document, please notate the CVS
        revision of the original developer's reference in cvs-en-rev -->
@@ -463,7 +463,7 @@ the following steps:
 	    <item>
 Orphan all your packages, as described in <ref id="orphaning">.
 	    <item>
-Send an email about why you are leaving the project to
+Send an gpg-signed email about why you are leaving the project to
 &email-debian-private;.
 	    <item>
 Notify the Debian key ring maintainers that you are leaving by
@@ -1047,8 +1047,8 @@ distribution.
 These are the <manref name="sources.list" section="5"> lines for
 <em>experimental</em>:
 <example>
-deb http://ftp.<var>xy</var>.debian.org/debian/ ../project/experimental main
-deb-src http://ftp.<var>xy</var>.debian.org/debian/ ../project/experimental main
+deb http://ftp.<var>xy</var>.debian.org/debian/ experimental main
+deb-src http://ftp.<var>xy</var>.debian.org/debian/ experimental main
 </example>
 	  <p>
 If there is a chance that the software could do grave damage to a system,
@@ -1705,6 +1705,11 @@ Downgrade the package to the previous version (if one exists) &mdash; this
 tests the <file>postrm</file> and <file>prerm</file> scripts.
 	      <item>
 Remove the package, then reinstall it.
+             <item>
+Copy the source package in a different directory and try unpacking it and
+rebuilding it.  This tests if the package relies on existing files outside of
+it, or if it relies on permissions being preserved on the files shipped inside
+the .diff.gz file.
 	    </list>
 
 
@@ -1747,6 +1752,10 @@ If no original source is included in the upload, the original
 source tar-file used by <prgn>dpkg-source</prgn> when constructing the
 <file>.dsc</file> file and diff to be uploaded <em>must</em> be
 byte-for-byte identical with the one already in the archive.
+       <p>
+Please notice that, in non-native packages, permissions on files that are not
+present in the .orig.tar.gz will not be preserved, as diff does not store file
+permissions in the patch.
 
 
     <sect id="distribution">Picking a distribution
@@ -2431,7 +2440,7 @@ Once you have created and tested the new package and it has been
 approved by the security team, it needs to be uploaded so that it can
 be installed in the archives. For security uploads, the place to
 upload to is
-<tt>ftp://security.debian.org/pub/SecurityUploadQueue/</tt> .
+<tt>ftp://security-master.debian.org/pub/SecurityUploadQueue/</tt> .
 
 <p>
 Once an upload to the security queue has been accepted, the package
@@ -2756,12 +2765,22 @@ new Debian version, there is no corresponding source update.  If you
 get this wrong, the archive maintainers will reject your upload (due
 to lack of corresponding source code).
 	<p>
-The ``magic'' for a recompilation-only NMU is triggered by using the
-third-level number on the Debian part of the version.  For instance,
-if the latest version you are recompiling against was version
-``2.9-3'', your NMU should carry a version of ``2.9-3.0.1''.  If the
-latest version was ``3.4-2.1'', your NMU should have a version number
-of ``3.4-2.1.1''.
+The ``magic'' for a recompilation-only NMU is triggered by using a
+suffix appended to the package version number,
+following the form b&lt;number&gt;.
+For instance, if the latest version you are
+recompiling against was version ``2.9-3'', your NMU should carry a
+version of ``2.9-3+b1''.  If the latest version was ``3.4+b1'' (i.e, a
+native package with a previous recompilation NMU), your NMU should have
+a version number of ``3.4+b2''.
+
+<footnote>
+In the past, such NMUs used the third-level number on the Debian part of
+the revision to denote their recompilation-only status; however, this
+syntax was ambiguous with native packages and did not allow proper
+ordering of recompile-only NMUs, source NMUs, and security NMUs on the
+same package, and has therefore been abandoned in favor of this new
+syntax.</footnote>
 	<p>
 Similar to initial porter uploads, the correct way of invoking
 <prgn>dpkg-buildpackage</prgn> is <tt>dpkg-buildpackage -B</tt> to only
@@ -3307,7 +3326,7 @@ urgency uploaded since the previous testing transition is taken into account.
 Those delays may be doubled during a freeze, or testing transitions may be
 switched off altogether;
     <item>
-It must have fewer release-critical bugs than the version currently available
+It must have the same number or fewer release-critical bugs than the version currently available
 in <em>testing</em>;
     <item>
 It must be available on all architectures on which it has previously
@@ -3791,10 +3810,11 @@ package related to other packages in some way that is not handled by
 the package manager (e.g., "this is the client for the foo server")?
 	    <p>
 Be careful to avoid spelling and grammar mistakes. Ensure that you
-spell-check it.  <prgn>ispell</prgn> has a special <tt>-g</tt> option
-for <file>debian/control</file> files:
+spell-check it.  Both <prgn>ispell</prgn> and <prgn>aspell</prgn>
+have special modes for checking <file>debian/control</file> files:
 
 <example>ispell -d american -g debian/control</example>
+<example>aspell -d en -D -c debian/control</example>
 	    <p>
 Users usually expect these questions to be answered in the package
 description:
@@ -3923,15 +3943,9 @@ id="bug-answering"> for more information on how to use the bug
 tracking system.
           <p>
 It is an old tradition to acknowledge bugs fixed in non-maintainer
-uploads in the first changelog entry of the proper maintainer upload,
-for instance, in a changelog entry like this:
-<example>
-  * Maintainer upload, closes: #42345, #44484, #42444.
-</example>
-This will close the NMU bugs tagged "fixed" when the package makes
-it into the archive. The bug for the fact that an NMU was done can be
-closed the same way. Of course, it's also perfectly acceptable to
-close NMU-fixed bugs by other means; see <ref id="bug-answering">.
+uploads in the first changelog entry of the proper maintainer upload.
+Please use the option <tt>-v</tt> to <prgn>dpkg-buildpackage</prgn>
+to close the relevant bug report.
         </sect1>
 
 	<sect1 id="bpp-changelog-errors">
@@ -4737,7 +4751,7 @@ to your short description. If you are looking for examples, just run:
    There are two kinds of original source tarballs: Pristine source
    and repackaged upstream source.
        </p>
-       <sect2 id="pristine source">
+       <sect2 id="pristinesource">
           <heading>Pristine source</heading>
           <p>
 The defining characteristic of a pristine source tarball is that the
@@ -4796,7 +4810,7 @@ case, <prgn>dpkg-source</prgn> renames the temporary directory
           </enumlist>
          </p>
          </sect2>
-         <sect2 id="repackaged origtargz">
+         <sect2 id="repackagedorigtargz">
             <heading>Repackaged upstream source</heading>
             <p>
 You <strong>should</strong> upload packages with a pristine source
