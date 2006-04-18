@@ -1,4 +1,1989 @@
-<appendix id="bridge-fw">Setting up a bridge firewall
-<appendix id="chroot-ssh-env"><Prgn>Chroot</Prgn> environment for <PRGN>SSH</PRGN>
-<appendix id="chroot-apache-env"><Prgn>Chroot</Prgn> environment for <PRGN>Apache</PRGN>
-<appendix id="bind-chuser">Sample script to change the default Bind installation.
+<!-- CVS revision of this document "$Revision: 1.3 $"  -->
+<!-- original version: 1.9 -->
+<!-- last translator: philipe@debian-ba.org -->
+<!-- last revisor: philipe@debian-ba.org -->
+<!-- last line: 1894 -->
+
+<appendix id="harden-step">Passo-a-passo do processo de fortalecimento
+
+<!--
+# I took the liberty to change this from "checklist" to
+# "process step by step" because this doesn't really have the
+# form of a checklist, and I had added a different sort of
+# checklist. The renaming is more to avoid confusion than
+# anything else. // era
+-->
+
+<!-- Too old information. The last release for Debian is 3.1 -->
+<p>Abaixo está uma pós-instalação, um procedimento passo-a-passo para 
+tornar no sistema Debian 2.2 GNU/Linux mais seguro. Esse procedimento 
+é uma alternativa para tornar os serviços de redes mais seguros. Será 
+mostrado o processo completo do que deve ser feito durante a 
+configuração. Também, veja <ref id="checklist">.
+
+<list>
+
+<item>Instale o sistema, levando em conta as informações sobre 
+o particionamento que foi citada anteriormente neste documento. Depois 
+da instalação básica, vá à instalação personalizada. Não selecione 
+os pacotes de tarefa. Selecione senhas no formato shadow.
+
+<item>Usando <prgn>dselect</prgn>, exclua todos os pacotes desnecessários, 
+exceto os selecionados, antes de proceder com o [I]nstall. Mantenha um número 
+reduzido de pacotes para o sistema.
+
+<item>Atualize todos os softwares para a última versão disponível dos pacotes 
+em security.debian.org como explicado anteriormente em <ref
+id="security-update">.
+
+<item>Implementar as sugestões apresentadas neste manual com relação às cotas
+de usuários, definições de login e <prgn>lilo</prgn>
+
+<item>Fazer uma lista de serviços que estão rodando no seu sistema. Tente:
+
+<example>
+  $ ps -aux
+  $ netstat -pn -l -A inet 
+  # /usr/sbin/lsof -i | grep LISTEN
+</example>
+
+Você precisará instalar o <package>lsof-2.2</package> para o terceiro 
+comando acima funcionar (execute como super-usuário). Você deve estar 
+ciente de que o <prgn>lsof</prgn> pode traduzir a palavra LISTEN para 
+suas configurações de localização.
+
+<item>Para excluir serviços desnecessários, primeiro determine qual 
+pacote fornece o serviço e como ele é inicializado. Isto pode ser 
+feito verificando os programas que escutam no soquete. O shell 
+script abaixo, que utiliza os programas <prgn>lsof</prgn> e 
+<prgn>dpkg</prgn>, faz isso:
+
+<example>
+  #!/bin/sh
+  # FIXME: this is quick and dirty; replace with a more robust script snippet
+  for i in `sudo lsof -i | grep LISTEN | cut -d " " -f 1 |sort -u` ; do
+	  pack=`dpkg -S $i |grep bin |cut -f 1 -d : | uniq`
+	  echo "Service $i is installed by $pack";
+	  init=`dpkg -L $pack |grep init.d/ `
+	  if [ ! -z "$init" ]; then
+		   echo "and is run by $init"
+	  fi
+  done
+</example>
+
+<item>Se você encontrar algum serviço desnecessário, exclua o 
+pacote associado (com <prgn>dpkg --purge</prgn>), ou desabilite a 
+inicialização automática durante a fase de boot usando o comando 
+<prgn>update-rc.d</prgn> (veja <ref id="disableserv">).
+
+<item>Para os serviços inetd (iniciados pelo superdaemon), verifique 
+quais serviços estão ativados em <file>/etc/inetd.conf</file> através de:
+
+<example>
+  $ grep -v "^#" /etc/inetd.conf | sort -u
+</example>
+
+Então desative estes serviços desnecessários comentando a linha 
+referente em <file>/etc/inetd.conf</file>, excluindo o 
+pacote ou utilizando o comando <prgn>update-inetd</prgn>.
+
+<item>Se você utiliza serviços wrapped (aqueles que utilizam
+<prgn>/usr/sbin/tcpd</prgn>), verifique se os arquivos
+<file>/etc/hosts.allow</file> e <file>/etc/hosts.deny</file> são 
+configurados de acordo com sua política de serviço.
+
+<item>Se o servidor usa mais que uma interface externa, dependendo 
+do seu serviço, você pode limitar o serviço para escutar em uma
+interface específica. Por exemplo, se você quiser somente acesso 
+interno para o FTP, você deve configurar o daemon FTP para escutar 
+somente na sua interface de gerência, não em todas interfaces 
+(i.e, 0.0.0.0:21).
+
+<item>Reinicie o computador, ou troque o modo de single user para multiuser
+usando os comandos:
+
+<example>
+  $ init 1
+  (....)
+  $ init 2
+</example>
+
+<item>Então verifique agora os serviços que estão disponíveis, e se necessário, 
+repita os passos acima.
+
+<item>Agora instale os serviços necessários, se não tiver feito isso ainda, e 
+os configure corretamente.
+
+<item>Use o comando shell abaixo para determinar com que usuário cada 
+serviço disponível está sendo executado:
+
+<example>
+  $ for i in `/usr/sbin/lsof -i |grep LISTEN |cut -d " " -f 1 |sort -u`; \
+  > do user=`ps -ef |grep $i |grep -v grep |cut -f 1 -d " "` ; \
+  > echo "Service $i is running as user $user"; done
+</example>
+
+Considere alterar esses serviços para um usuário/grupo específico e talvez 
+até enjaulá-los (<prgn>chroot</prgn>'ing) para aumentar nível de segurança. 
+Você pode fazer isto alterando os scripts de inicialização em 
+<file>/etc/init.d</file>. A maioria dos serviços no Debian usa 
+o <prgn>start-stop-daemon</prgn> com as opções 
+(<tt>--change-uid</tt> e <tt>--chroot</tt>) para fazer isso. Uma observação 
+com relação ao enjaulamento (<prgn>chroot</prgn>'ing) dos serviços: você 
+precisa colocar todos os arquivos instalados pelo pacote (use dpkg -L) que 
+fornece o serviço, assim como qualquer pacote dependente, na jaula <prgn>chroot</prgn>. 
+Informações sobre a configuração de um ambiente <prgn>chroot</prgn> para o 
+programa <prgn>ssh</prgn> podem ser encontrada em <ref id="chroot-ssh-env">.
+
+<item>Repita os passos acima para certificar que somente os serviços desejados 
+estejam rodando e esteja sendo usada a combinação de usuário/grupo correta.
+
+<item>Teste os serviços instalados para ver se estão funcionando corretamente.
+
+<item>Verifique o sistema usando um vulnerability assessment scanner (tipo o
+<package>nessus</package>), para determinar as vulnerabilidades no sistema
+(i.e., mal-configuração, serviços antigos e desnecessários).
+
+<item>Instale ferramentas de detecção de intrusão de rede e host como 
+<package>snort</package> e <package>logsentry</package>.
+
+<item>Repita o passo de varredura da rede e verifique se os sistemas
+de detecção de intrusão estão funcionando corretamente.
+
+</list>
+
+<p>Para paranóia real, também considere o seguinte:
+
+<list>
+
+<item>Adicione as capacidades de firewall do sistema, conexões de entrada
+só devem ser feitas para os serviços oferecidos e limite as conexões de 
+saída somente para aqueles que são autorizados.
+
+<item>Verifique novamente a instalação com uma nova vulnerability assessment
+usando um varredor de rede.
+
+<item>Usando um varredor de rede, verifique as conexões de saídas do sistema 
+para um host remoto e certifique-se que as conexões indesejadas sejam estabelecida.
+
+</list>
+
+<p>FIXME: este procedimento engloba o fortalecimento de serviços, mas não o 
+fortalecimento a nível de usuário, incluindo informações sobre verificação de 
+permissões de usuários, arquivos SETUID e congelamento de alterações no sistema 
+utilizando o sistema de arquivo ext2.
+
+<appendix id="checklist">Checklist de configuração
+
+<p>Este apêndice retrata resumidamente os pontos de outras seções neste 
+manual em um checklist no formato. A idéia é disponibilizar um sumário para 
+a pessoa que já leu o manual buscar uma informação rapidamente. Existem 
+outros checklists bons disponíveis, incluindo o 
+<url
+id="http://seifried.org/security/os/linux/20020324-securing-linux-step-by-step.html"
+name="Securing Linux Step by Step"> de Kurt Seifried e <url
+id="http://www.cert.org/tech_tips/usc20_full.html" name="CERT's Unix
+Security Checklist">.
+
+<!-- Order is slightly different from body text. Consider changing text? -->
+<!-- (FIXME) -->
+
+<p>FIXME: Isso é baseado na versão 1.4 do manual e talvez precise de atualização.
+
+<list>
+	  <item>Limite o acesso físico e as capacidade de inicialização
+	      <list>
+		<item>Ative a senha de BIOS
+		<item>Desative a inicialização por floppy/cdrom/...
+		<item>Configure uma senha para o LILO ou GRUB (<file>/etc/lilo.conf</file>
+			ou <file>/boot/grub/menu.lst</file>, respectivamente);
+			verifique se o arquivo de configuração do LILO ou GRUB 
+			está protegido contra gravação.
+		<item>Não permita a inicialização MBR pelo disquete 
+			sobrescrevendo a MBR (talvez não?)
+	      </list>
+	      
+	  <item>Particionamento
+	      <list>
+		
+		<item>Separe os dados de escrita do usuário, dados que não são
+		    do sistema, e dados que são trocados rapidamente em tempo 
+			de execução para suas próprias partições
+		    
+		<item>Configure as opções de mount
+		<tt>nosuid,noexec,nodev</tt> em
+		    <file>/etc/fstab</file> na partições ext2 como 
+		    <file>/tmp</file>.
+	      </list>
+	      
+	  <item>Higiene de senhas e segurança no login
+	      
+	      <list>
+		<item>Configure uma senha segura para o super-usuário
+		<item>Ative o MD5 e o shadow de senha
+		<item>Instale e use o PAM
+		    
+		    <list>
+		      
+		      <item>Adicione suporte MD5 para o PAM e tenha certeza 
+			  que (falando de forma generalizada) as entradas nos 
+			  arquivos em <file>/etc/pam.d/</file> que garantem 
+			  acesso à máquina tenham o segundo campo configurado 
+			  como  <tt>requisite</tt> ou <tt>required</tt>.
+			  <!-- or is it third? (FIXME: check) ***É no segundo
+			  campo mesmo***-->
+			  
+		      <item>Modifique o <file>/etc/pam.d/login</file> para
+			  permite somente logins locais para o super-usuário.
+
+		      <item>Também marque tty:s autorizado em
+			  <file>/etc/security/access.conf</file> e 
+			  geralmente configure este arquivo para limitar 
+			  ao máximo possível o login do super-usuário.
+			  
+		      <item>Adicione o módulo pam_limits.so se você deseja 
+			  configurar os limites por usuários
+			  
+		      <item>Modifique <file>/etc/pam.d/passwd</file>:
+			  configure o tamanho mínimo para as senhas (6 
+			  caracteres talvez) e ative o MD5
+
+		      <item>Adicione o grupo wheel para <file>/etc/group</file> 
+			  se desejar; adicione a entrada pam_wheel.so group=wheel 
+			  para <file>/etc/pam.d/su</file>
+			  
+		      <item>Para controles customizados por usuários, utilize 
+			  o módulo pam_listfile.so
+			  
+		      <item>Tenha um arquivo <file>/etc/pam.d/other</file> e o 
+			  configure com um grau de segurança reforçado
+
+		    </list>
+		    
+		<item>Configure limites em <file>/etc/security/limits.conf</file>
+		    (note que <file>/etc/limits</file> não é usado se você já 
+			estiver usando o PAM)
+
+		<item>Aumente a segurança em <file>/etc/login.defs</file>;
+		também, se você ativar o MD5 e/ou PAM, tenha certeza de 
+		fazer também as alterações correspondentes aqui, também
+		    
+		<item>Desative o acesso ftp ao super-usuário em <file>/etc/ftpusers</file>
+		    
+		<item>Desative login de rede ao super-usuário; use o <manref
+		    name="su" section="1"> ou <manref name="sudo"
+		    section="1">.  (considere instalar o
+		    <package>sudo</package>)
+		    
+		<item>Usar o PAM para reforçar barreiras adicionais aos logins?
+
+	      </list>
+
+	  <item>Outras questões de segurança local
+	      <list>
+		<item>Modificações no kernel
+		    (veja <ref id="kernel-conf">)
+		    
+		<item>Patches no Kernel
+		    (veja <ref id="kernel-patches">)
+		    
+		<item>Tighten up log file permissions
+		    (<file>/var/log/{last,fail}log</file>, Apache logs)
+		    
+		<item>Certifique-se que a verificação SETUID está ativada
+		    em <file>/etc/checksecurity.conf</file>
+		    
+		<item>Considere configurar alguns arquivos de logs como
+			somente append e os arquivo de configuração imutáveis,
+			usando o comando chattr (somente para arquivos ext2)
+
+		<item>Configurar a integridade de arquivo (veja  <ref
+		id="check-integ">).  Instale
+		<package>debsums</package>
+		    
+		<item>Efetuar o log de tudo em uma impressora local?
+		    
+		<item>Gravar suas configurações em um CD inicializável e boof
+		off?
+		    
+		<item>Desativar os módulos do kernel?
+
+	      </list>
+	      
+	  <item>Limitar acesso a rede
+	      <list>
+
+		<item>Instale e configure <prgn>ssh</prgn>
+		    (sugiro PermitRootLogin No em <file>/etc/ssh/sshd_config</file>,
+		    PermitEmptyPasswords No;
+		    note outras sugestões também no texto)
+		    
+		<item>Considere desativar ou excluir <prgn>in.telnetd</prgn>
+		    
+		<item>Geralmente, desative serviços desnecessários em
+		<file>/etc/inetd.conf</file> usando o comando <prgn>update-inetd --disable</prgn>
+		    (ou desative <prgn>inetd</prgn> completamente, ou use o um 
+			substituto como <prgn>xinetd</prgn> ou <prgn>rlinetd</prgn>)
+		    
+		<item>Desative outros serviços de rede desnecessários;
+		    mail, ftp, DNS, WWW etc não devem estar sendo executados 
+			se você não precisa deles e monitore-os regularmente.
+
+		<item>Para aqueles serviços que você precisa, não use
+			os programas mais comuns, procure por versões mais 
+			seguras distribuídas com o Debian (ou de outras 
+			fontes). Seja lá o que você for parar de executar, 
+			tenha certeza que você entende os riscos.
+
+		<item>Configure jaula <prgn>chroot</prgn> para usuários
+		externos e daemons.
+
+		<item>Configure firewall e tcpwrappers
+		    (i.e. <manref name="hosts_access" section="5">);
+		    note o truque para <file>/etc/hosts.deny</file> no texto.
+		    
+		<item>Se você executa o ftp, configure seu servidor ftpd 
+			sempre para executar enjaulado para o diretório home 
+			dos usuários
+		    
+		<item>Se você executa X, desative a autenticação xhost e 
+			use-o com <prgn>ssh</prgn>; melhor ainda, se puder 
+			desative o X (adicione -nolisten tcp para a linha 
+			de comando do X e desligue o XDMCP no
+		    <file>/etc/X11/xdm/xdm-config</file> configurando 
+		    requestPort para 0)
+		    
+		<item>Desative acesso externo para as impressoras
+		    
+		<item>Use tunelamento para qualquer sessão IMAP ou POP através 
+			do SSL ou <prgn>ssh</prgn>;
+		    instale stuneel se você quer fornecer este serviços para 
+			usuários de mail externos
+		    
+		<item>Configure um host de log e configure as outras máquinas 
+			para enviar logs para esse host (<file>/etc/syslog.conf</file>)
+		    
+		<item>Torne seguro o BIND, Sendmail, e outros daemons 
+			complexos (execute-os com uma jaula<prgn>chroot</prgn>; 
+			execute como um pseudo-usuário não root)
+
+		<item>Instale o snort ou uma ferramenta similar para log.
+		    
+		<item>Faça sem NIS ou RPC se puder (desative portmap).
+		    
+	      </list>
+
+	  <item>Políticas de segurança
+	      <list>
+		
+		<item>Eduque os usuários sobre os porquês e comos de suas 
+			políticas. Quando você proíbe algo que está disponível 
+			regularmente em outros sistemas, forneça uma documentação 
+			que explique como obter resultados similares através de 
+			outros meios mais seguros.
+
+		<item>Proíba o uso de protocolos que utilizam senhas em 
+			texto plano (<prgn>telnet</prgn>, <prgn>rsh</prgn> e 
+			similares; ftp, imap, http, ...).
+		    
+		<item>Proíba programas que usam SVGAlib.
+		    
+		<item>Use cotas de disco.
+
+	      </list>
+	      
+	  <item>Mantenha-se informado sobre questões relacionadas à segurança
+	      <list>
+		
+		<item>Inscreva-se em listas de discussão sobre segurança
+		    
+		<item>Configure <package>apt</package> para atualização de 
+			segurança -- adicione no arquivo <file>/etc/apt/sources.list</file> 
+			uma entrada (ou entradas) para
+		    http://security.debian.org/debian-security
+		    
+		<item>Também lembre-se de executar periodicamente os comandos
+		<prgn>apt-get update ; apt-get upgrade</prgn>
+		(talvez instalar como um job no <prgn>cron</prgn>?) como 
+		explicado em <ref
+		id="security-update">.
+
+	      </list>
+
+	</list>
+
+<appendix id="snort-box">Configurando um IDS stand-alone
+
+<p>Você pode facilmente configurar um sistema Debian dedicado como um 
+IDS stand-alone utilizando o <package>snort</package>.
+
+<p>Algumas linhas gerais:
+
+<list>
+
+<item>Instale um sistema Debian base e não selecione nenhum pacote
+adicional.
+
+<item>Faça o download e manualmente (com dpkg) instale os pacotes 
+necessários (veja a lista de pacotes instalados abaixo).
+
+<item>Baixe e instale o ACID (Analysis Console for Intrusion
+Databases).
+
+</list>
+
+<p>ACID está atualmente empacotado para o Debian como
+<package>acidlab</package>. Ele fornece uma interface WWW gráfica 
+para o snort. Ele também pode ser baixado de <url
+id="http://www.cert.org/kb/acid/">, <url
+id="http://acidlab.sourceforge.net"> ou <url
+id="http://www.andrew.cmu.edu/~rdanyliw/snort/">. Você também pode 
+querer ler o <url
+id="http://www.tldp.org/HOWTO/Snort-Statistics-HOWTO/index.html"
+name="Snort Statistics HOWTO">.
+
+<p>Este sistema deve ser configurado com pelo menos duas interfaces 
+de rede; uma interface conectada ao gerenciamento da LAN (para
+acessar os resultados e suporte do sistema), e outra interface sem 
+nenhum endereço IP anexada ao segmento de rede a ser analisado.
+
+<p>O arquivo padrão <file>/etc/network/interfaces</file> do Debian
+utilizado normalmente para configurar placas de redes não pode ser 
+usado, já que os programas <prgn>ifup</prgn> e <prgn>ifdown</prgn> 
+esperam um endereço IP. Em vez disso, simplesmente use <tt>ifconfig eth0 up</tt>.
+
+<p>Além da instalação ordinária, <package>acidlab</package> também
+depende dos pacotes <package>php4</package> e
+<package>apache</package> entre outros. Baixe os seguintes pacotes 
+(Note: as versões devem variar dependendo da distribuição do Debian 
+que você esteja usando, esta lista é do Debian <em>woody</em>
+Setembro de 2001):
+
+<example>
+ACID-0.9.5b9.tar.gz
+adduser_3.39_all.deb
+apache-common_1.3.20-1_i386.deb
+apache_1.3.20-1_i386.deb
+debconf_0.9.77_all.deb
+dialog_0.9a-20010527-1_i386.deb
+fileutils_4.1-2_i386.deb
+klogd_1.4.1-2_i386.deb
+libbz2-1.0_1.0.1-10_i386.deb
+libc6_2.2.3-6_i386.deb
+libdb2_2.7.7-8_i386.deb
+libdbd-mysql-perl_1.2216-2_i386.deb
+libdbi-perl_1.18-1_i386.deb
+libexpat1_1.95.1-5_i386.deb
+libgdbmg1_1.7.3-27_i386.deb
+libmm11_1.1.3-4_i386.deb
+libmysqlclient10_3.23.39-3_i386.deb
+libncurses5_5.2.20010318-2_i386.deb
+libpcap0_0.6.2-1_i386.deb
+libpcre3_3.4-1_i386.deb
+libreadline4_4.2-3_i386.deb 
+libstdc++2.10-glibc2.2_2.95.4-0.010703_i386.deb
+logrotate_3.5.4-2_i386.deb
+mime-support_3.11-1_all.deb
+mysql-client_3.23.39-3_i386.deb
+mysql-common_3.23.39-3.1_all.deb
+mysql-server_3.23.39-3_i386.deb
+perl-base_5.6.1-5_i386.deb
+perl-modules_5.6.1-5_all.deb
+perl_5.6.1-5_i386.deb
+php4-mysql_4.0.6-4_i386.deb
+php4_4.0.6-1_i386.deb
+php4_4.0.6-4_i386.deb
+snort_1.7-9_i386.deb
+sysklogd_1.4.1-2_i386.deb
+zlib1g_1.1.3-15_i386.deb
+</example>
+
+<p>Pacotes instalados (dpkg -l):
+<example>
+ii  adduser        3.39
+ii  ae             962-26
+ii  apache         1.3.20-1
+ii  apache-common  1.3.20-1
+ii  apt            0.3.19
+ii  base-config    0.33.2
+ii  base-files     2.2.0
+ii  base-passwd    3.1.10
+ii  bash           2.03-6
+ii  bsdutils       2.10f-5.1
+ii  console-data   1999.08.29-11.
+ii  console-tools  0.2.3-10.3
+ii  console-tools- 0.2.3-10.3
+ii  cron           3.0pl1-57.2
+ii  debconf        0.9.77
+ii  debianutils    1.13.3
+ii  dialog         0.9a-20010527-
+ii  diff           2.7-21
+ii  dpkg           1.6.15
+ii  e2fsprogs      1.18-3.0
+ii  elvis-tiny     1.4-11
+ii  fbset          2.1-6
+ii  fdflush        1.0.1-5
+ii  fdutils        5.3-3   
+ii  fileutils      4.1-2   
+ii  findutils      4.1-40
+ii  ftp            0.10-3.1
+ii  gettext-base   0.10.35-13
+ii  grep           2.4.2-1
+ii  gzip           1.2.4-33
+ii  hostname       2.07
+ii  isapnptools    1.21-2
+ii  joe            2.8-15.2  
+ii  klogd          1.4.1-2   
+ii  ldso           1.9.11-9   
+ii  libbz2-1.0     1.0.1-10
+ii  libc6          2.2.3-6
+ii  libdb2         2.7.7-8
+ii  libdbd-mysql-p 1.2216-2
+ii  libdbi-perl    1.18-1
+ii  libexpat1      1.95.1-5
+ii  libgdbmg1      1.7.3-27
+ii  libmm11        1.1.3-4
+ii  libmysqlclient 3.23.39-3
+ii  libncurses5    5.2.20010318-2
+ii  libnewt0       0.50-7  
+ii  libpam-modules 0.72-9
+ii  libpam-runtime 0.72-9  
+ii  libpam0g       0.72-9
+ii  libpcap0       0.6.2-1
+ii  libpcre3       3.4-1   
+ii  libpopt0       1.4-1.1
+ii  libreadline4   4.2-3 
+ii  libssl09       0.9.4-5   
+ii  libstdc++2.10  2.95.2-13 
+ii  libstdc++2.10- 2.95.4-0.01070
+ii  libwrap0       7.6-4   
+ii  lilo           21.4.3-2
+ii  locales        2.1.3-18
+ii  login          19990827-20
+ii  makedev        2.3.1-46.2
+ii  mawk           1.3.3-5
+ii  mbr            1.1.2-1 
+ii  mime-support   3.11-1 
+ii  modutils       2.3.11-13.1
+ii  mount          2.10f-5.1
+ii  mysql-client   3.23.39-3
+ii  mysql-common   3.23.39-3.1
+ii  mysql-server   3.23.39-3
+ii  ncurses-base   5.0-6.0potato1
+ii  ncurses-bin    5.0-6.0potato1
+ii  netbase        3.18-4  
+ii  passwd         19990827-20
+ii  pciutils       2.1.2-2
+ii  perl           5.6.1-5   
+ii  perl-base      5.6.1-5   
+ii  perl-modules   5.6.1-5
+ii  php4           4.0.6-4   
+ii  php4-mysql     4.0.6-4 
+ii  ppp            2.3.11-1.4
+ii  pppconfig      2.0.5
+ii  procps         2.0.6-5   
+ii  psmisc         19-2   
+ii  pump           0.7.3-2 
+ii  sed            3.02-5 
+ii  setserial      2.17-16
+ii  shellutils     2.0-7
+ii  slang1         1.3.9-1  
+ii  snort          1.7-9
+ii  ssh            1.2.3-9.3
+ii  sysklogd       1.4.1-2
+ii  syslinux       1.48-2
+ii  sysvinit       2.78-4  
+ii  tar            1.13.17-2  
+ii  tasksel        1.0-10 
+ii  tcpd           7.6-4     
+ii  telnet         0.16-4potato.1
+ii  textutils      2.0-2  
+ii  update         2.11-1    
+ii  util-linux     2.10f-5.1
+ii  zlib1g         1.1.3-15  
+</example>
+
+<appendix id="bridge-fw">Configurando uma ponte firewall
+
+<p>Esta informação foi contribuição de Francois Bayart para ajudar os 
+usuário a configurar um Linux como ponte/firewall com o kernel 2.4.x e 
+<package>iptables</package>.
+Patches do kernel não são mais necessários, uma vez que o código passou a fazer
+parte do kernel do Linux.
+<!--
+The only features needed are the bridge
+firewall patch, available at <url name="sourceforge download page"
+id="http://bridge.sourceforge.net/download.html">.
+
+<p>For example, if you are using a 2.4.18 kernel, first install the
+kernel source package, then download the <url name="patch"
+id="http://bridge.sourceforge.net/devel/bridge-nf/bridge-nf-0.0.6-against-2.4.18.diff">
+and apply it, as shown in this example:
+
+<example>
+Zipowz:/usr/src# apt-get install kernel-source-2.4.18
+Zipowz:/usr/src# cd kernel-source-2.4.18
+Zipowz:/usr/src/kernel-source-2.4.18# patch -p1 < ../bridge-nf-0.0.6-against-2.4.18.diff 
+patching file include/linux/netfilter.h
+patching file include/linux/netfilter_ipv4.h
+patching file include/linux/skbuff.h
+patching file net/bridge/br.c
+patching file net/bridge/br_forward.c
+patching file net/bridge/br_input.c
+patching file net/bridge/br_netfilter.c
+patching file net/bridge/br_private.h
+patching file net/bridge/Makefile
+patching file net/Config.in
+patching file net/core/netfilter.c
+patching file net/core/skbuff.c
+patching file net/ipv4/ip_output.c
+patching file net/ipv4/netfilter/ip_tables.c
+patching file net/ipv4/netfilter/ipt_LOG.c
+</example>-->
+
+<p>Para configurar o kernel com o suporte necessário, execute
+<tt>make menuconfig</tt> ou <tt>make xconfig</tt>. Na seção
+<em>Networking options</em>, ative as seguintes opções:
+
+<example>
+[*] Network packet filtering (replaces ipchains)
+[ ]   Network packet filtering debugging (NEW)
+<*> 802.1d Ethernet Bridging
+[*]   netfilter (firewalling) support (NEW)
+</example>
+
+<p>Cuidado: você deve desativar isso se você quiser aplicar algumas 
+regras de firewall ou o <prgn>iptables</prgn> não funcionará:
+
+<example>
+[ ]   Network packet filtering debugging (NEW)
+</example>
+
+<p>Próximo passo, adicione as opções corretas na seção <em>IP: Netfilter
+Configuration</em>. Então, compile e instale o kernel. Se você quiser fazer 
+isso no <em>jeito do Debian</em>, instale o
+<package>kernel-package</package> e execute <prgn>make-kpkg</prgn> para
+criar um pacote Debian customizado do kernel que possa ser instalado no 
+servidor usando o dpkg. Uma vez que o novo kernel é compilado e instalado, 
+instale o pacote <package>bridge-utils</package>.
+
+<p>Quando estes passos forem feitos, você pode completar a configuração 
+de sua ponte. A próxima seção apresenta duas possíveis configurações para 
+a ponte, cada uma com um mapa de rede hipotético e os comandos necessários.
+
+<sect>Uma ponte fornecendo capacidades de NAT e firewall
+
+<p>A primeira configuração usa a ponte como um firewall com tradução de 
+endereços de rede (NAT) que protege o servidor e os clientes da rede interna. 
+Um diagrama da configuração da rede é mostrado abaixo:
+
+<example>
+Internet ---- router ( 62.3.3.25 ) ---- bridge (62.3.3.26 gw 62.3.3.25 / 192.168.0.1)
+                                          |
+                                          |
+                                          |---- WWW Server (62.3.3.27 gw 62.3.3.25)
+                                          |
+                                          |
+                                         LAN --- Zipowz (192.168.0.2 gw 192.168.0.1)
+</example>
+
+<p>Os seguintes comandos mostram como esta ponte pode ser configurada.
+
+<example>
+# Create the interface br0
+/usr/sbin/brctl addbr br0
+
+# Add the Ethernet interface to use with the bridge
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Start up the Ethernet interface
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Configure the bridge ethernet
+# The bridge will be correct and invisible ( transparent firewall ).
+# It's hidden in a traceroute and you keep your real gateway on the 
+# other computers. Now if you want you can config a gateway on your 
+# bridge and choose it as your new gateway for the other computers.
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+
+# I have added this internal IP to create my NAT 
+ip addr add 192.168.0.1/24 dev br0
+/sbin/route add default gw 62.3.3.25
+</example>
+
+<sect>Uma ponte fornecendo capacidades de firewall
+
+<p>Uma segunda possível configuração é um sistema que funciona como um 
+firewall transparente para a LAN com um espaço de endereços IP públicos.
+
+<example>
+Internet ---- router (62.3.3.25) ---- bridge (62.3.3.26)
+                                        |
+                                        |
+                                        |---- WWW Server (62.3.3.28 gw 62.3.3.25)
+                                        |
+                                        |
+                                        |---- Mail Server (62.3.3.27 gw 62.3.3.25)
+</example>
+
+<p>Os seguintes comando mostram como esta ponte pode ser configurada.
+
+<example>
+# Create the interface br0
+/usr/sbin/brctl addbr br0
+
+# Add the Ethernet interface to use with the bridge
+/usr/sbin/brctl addif br0 eth0
+/usr/sbin/brctl addif br0 eth1
+
+# Start up the Ethernet interface
+/sbin/ifconfig eth0 0.0.0.0
+/sbin/ifconfig eth1 0.0.0.0
+
+# Configure the bridge Ethernet
+# The bridge will be correct and invisible ( transparent firewall ).
+# It's hidden in a traceroute and you keep your real gateway on the 
+# other computers. Now if you want you can config a gateway on your
+# bridge and choose it as your new gateway for the other computers.
+
+/sbin/ifconfig br0 62.3.3.26 netmask 255.255.255.248 broadcast 62.3.3.32
+</example>
+
+<p>Se você seguir as rotas para o Linux Mail Server, não enxergará a ponte.
+Se você quiser acessar a ponte com o <prgn>ssh</prgn>, você deve ter 
+um gateway ou acessar um outro servidor, como o "Mail Server", e então
+conectar à ponte através de uma placa de rede interna.</p>
+
+<sect>Regras básicas do IPtables
+
+<p>As regras básicas a seguir podem ser usadas em qualquer uma das duas 
+configurações mostradas acima.
+
+<example>
+  iptables -F FORWARD
+  iptables -P FORWARD DROP
+  iptables -A FORWARD -s 0.0.0.0/0.0.0.0 -d 0.0.0.0/0.0.0.0 -m state --state INVALID -j DROP
+  iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+  # Some funny rules but not in a classic Iptables sorry ...
+  # Limit ICMP 
+  # iptables -A FORWARD -p icmp -m limit --limit 4/s -j ACCEPT
+  # Match string, a good simple method to block some VIRUS very quickly
+  # iptables -I FORWARD -j DROP -p tcp -s 0.0.0.0/0 -m string --string "cmd.exe"
+
+  # Block all MySQL connection just to be sure
+  iptables -A FORWARD -p tcp -s 0/0 -d 62.3.3.0/24 --dport 3306 -j DROP
+
+  # Linux Mail Server Rules
+
+  # Allow FTP-DATA ( 20 ) , FTP ( 21 ) , SSH ( 22 ) 
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.27/32 --dport 20:22 -j ACCEPT
+
+  # Allow the Mail Server to connect to the outside
+  # Note: This is *not* needed for the previous connections 
+  # (remember: stateful filtering) and could be removed.
+  iptables -A FORWARD -p tcp -s 62.3.3.27/32 -d 0/0 -j ACCEPT
+
+  # WWW Server Rules
+
+  # Allow HTTP ( 80 ) connections with the WWW server
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 80 -j ACCEPT
+
+  # Allow HTTPS ( 443 ) connections with the WWW server
+  iptables -A FORWARD -p tcp -s 0.0.0.0/0 -d 62.3.3.28/32 --dport 443 -j ACCEPT
+
+  # Allow the WWW server to go out
+  # Note: This is *not* needed for the previous connections 
+  # (remember: stateful filtering) and could be removed.
+  iptables -A FORWARD -p tcp -s 62.3.3.28/32 -d 0/0 -j ACCEPT
+</example>
+
+<appendix id="bind-chuser">Exemplo de script para alterar a instalação padrão
+do Bind.
+
+<p>Este script automatiza o procedimento para alterar a instalação padrão 
+do servidor de nome <prgn>bind</prgn> de forma que ele <em>não</em> execute 
+como superusuário. Ele irá criar usuário e grupos que serão usados para o 
+servidor de nome. Utilize-o com bastante cuidado já que o script não foi 
+testado exaustivamente.
+
+<example>
+  #!/bin/sh
+  # Change the default Debian bind configuration to have it run
+  # with a non-root user and group.
+  #
+  # WARN: This script has not been tested thoroughly, please
+  # verify the changes made to the INITD script
+
+  # (c) 2002 Javier Fernandez-Sanguino Peña
+  #
+  #    This program is free software; you can redistribute it and/or modify
+  #    it under the terms of the GNU General Public License as published by
+  #    the Free Software Foundation; either version 1, or (at your option)
+  #    any later version.
+  #
+  #    This program is distributed in the hope that it will be useful,
+  #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  #    GNU General Public License for more details.
+  #
+  #     Please see the file `COPYING' for the complete copyright notice.
+  #
+
+  restore() {
+  # Just in case, restore the system if the changes fail
+	  echo "WARN: Restoring to the previous setup since I'm unable to properly change it."
+	  echo "WARN: Please check the $INITDERR script."
+	  mv $INITD $INITDERR
+	  cp $INITDBAK $INITD
+  }
+
+
+  USER=named
+  GROUP=named
+  INITD=/etc/init.d/bind
+  INITDBAK=$INITD.preuserchange
+  INITDERR=$INITD.changeerror
+  START="start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g $GROUP -u $USER"
+  AWKS="awk ' /start-stop-daemon --start/ { print \"$START\"; noprint = 1; }; /\/usr\/sbin\/ndc reload/ { print \"stop; sleep 2; start;\"; noprint = 1; } /\\\\$/ { if ( noprint != 0 ) { noprint = noprint + 1;} } /^.*$/ { if ( noprint != 0 ) { noprint = noprint - 1; } else { print \$0; } } '"
+
+  [ `id -u` -ne 0 ] && {
+	  echo "This program must be run by the root user"
+	  exit 1
+  }
+
+  RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+  if [ "$RUNUSER" = "$USER" ] 
+  then
+	  echo "WARN: The name server running daemon is already running as $USER"
+	  echo "ERR:  This script will not many any changes to your setup."
+	  exit 1
+  fi
+  if [ ! -f $INITD ]
+  then
+	  echo "ERR:  This system does not have $INITD (which this script tries to change)"
+	  RUNNING=`ps -eo fname |grep named`
+	   [ -z "$RUNNING" ] && \
+	      echo "ERR:  In fact the name server daemon is not even running (is it installed?)"
+	   echo "ERR:  No changes will be made to your system"
+	  exit 1
+  fi
+
+  # Check if named group exists
+  if [ -z "`grep $GROUP /etc/group`" ] 
+  then
+	  echo "Creating group $GROUP:"
+	  addgroup $GROUP
+  else
+	  echo "WARN: Group $GROUP already exists. Will not create it"
+  fi
+  # Same for the user
+  if [ -z "`grep $USER /etc/passwd`" ] 
+  then
+	  echo "Creating user $USER:"
+	  adduser --system --home /home/$USER \
+	  --no-create-home --ingroup $GROUP \
+	  --disabled-password --disabled-login $USER
+  else
+	  echo "WARN: The user $USER already exists. Will not create it"
+  fi
+
+  # Change the init.d script
+
+  # First make a backup (check that there is not already
+  # one there first)
+  if [ ! -f $INITDBAK ] 
+  then
+	  cp $INITD $INITDBAK
+  fi
+
+  # Then use it to change it
+  cat $INITDBAK |
+  eval $AWKS > $INITD
+
+  echo "WARN: The script $INITD has been changed, trying to test the changes."
+  echo "Restarting the named daemon (check for errors here)."
+
+  $INITD restart
+  if [ $? -ne 0 ] 
+  then
+	  echo "ERR:  Failed to restart the daemon."
+	  restore
+	  exit 1
+  fi
+
+  RUNNING=`ps -eo fname |grep named`
+  if [ -z "$RUNNING" ] 
+  then
+	  echo "ERR:  Named is not running, probably due to a problem with the changes."
+	  restore
+	  exit 1
+  fi
+
+  # Check if it's running as expected
+  RUNUSER=`ps -eo user,fname |grep named |cut -f 1 -d " "`
+
+  if [ "$RUNUSER" = "$USER" ] 
+  then
+	  echo "All has gone well, named seems to be running now as $USER."
+  else
+	  echo "ERR:  The script failed to automatically change the system."
+	  echo "ERR:  Named is currently running as $RUNUSER."
+	  restore
+	  exit 1
+  fi
+
+  exit 0
+</example>
+
+<p>O script anterior, execute-o no <prgn>bind</prgn> customizado do Woody (Debian 3.0), 
+irá produzir o arquivo initd abaixo depois de criar o usuário e grupo 
+'named':
+
+<example>
+  #!/bin/sh
+
+  PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+  test -x /usr/sbin/named || exit 0
+
+  start () {
+	  echo -n "Starting domain name service: named"
+	  start-stop-daemon --start --quiet \
+	      --pidfile /var/run/named.pid --exec /usr/sbin/named 
+	  echo "."	
+  }
+
+  stop () {
+	  echo -n "Stopping domain name service: named"
+	  # --exec doesn't catch daemons running deleted instances of named,
+	  # as in an upgrade.  Fortunately, --pidfile is only going to hit
+	  # things from the pidfile.
+	  start-stop-daemon --stop --quiet  \
+	      --pidfile /var/run/named.pid --name named
+	  echo "."	
+  }
+
+  case "$1" in
+      start)
+	  start
+      ;;
+
+      stop)
+	  stop
+      ;;
+
+      restart|force-reload)
+	  stop
+	  sleep 2
+	  start
+      ;;
+
+      reload)
+	  /usr/sbin/ndc reload
+      ;;
+
+      *)
+	  echo "Usage: /etc/init.d/bind {start|stop|reload|restart|force-reload}" >&2
+	  exit 1
+      ;;
+  esac
+
+  exit 0
+</example>
+
+<appendix id="fw-security-update">Atualização de segurança protegida por um firewall
+
+<p>Depois de uma instalaçõa padrão, o sistema ainda poderá ter algumas 
+vulnerabilidades de segurança. Ao menos que você baixe as atualizações 
+para os pacotes vulneráveis em outro computador (ou você tenha espelhado 
+security.debian.org para uso local), o sistema deverá ter acesso à Internet 
+para os downloads.
+
+<p>Entretanto, na medida que você se conecta à Internet estará expondo 
+seu sistema. Se um de seus serviços locais estiver vulnerável, poderá 
+ser comprometido mesmo antes de finalizar as atualizações! Isso pode ser 
+paranóico, mas as análises do <url id="http://www.honeynet.org"
+name="Projeto Honeynet"> têm mostrado que sistemas podem ser comprometidos 
+em menos de três dias, mesmo que o sistema não seja conhecido publicamento 
+(i.e., não está publicado nos registros DNS).
+
+<p>Quando estiver fazendo uma atualização em um sistema não protegido 
+por um mecanismo externo como firewall, é possível configurar seu 
+firewall local para restringir conexões envolvendo somente as próprias 
+atualizações de segurança. O exemplo abaixo mostra como configurar estas 
+capacidades de firewall, que permitem somente conexões do security.debian.org, 
+registrando todas as outras que são negadas.
+
+<p>FIXME: add IP address for security.debian.org (since otherwise you
+need DNS up to work) on /etc/hosts.
+
+<p>FIXME: test this setup to see if it works properly
+
+<p>FIXME: this will only work with HTTP URLs since ftp might need 
+the ip_conntrack_ftp module, or use passive mode.
+
+
+<example>
+  # iptables -F
+  # iptables -L
+  Chain INPUT (policy ACCEPT)
+  target     prot opt source               destination
+
+  Chain FORWARD (policy ACCEPT)
+  target     prot opt source               destination
+
+  Chain OUTPUT (policy ACCEPT)
+  target     prot opt source               destination
+  # iptables -P INPUT DROP
+  # iptables -P FORWARD DROP
+  # iptables -P OUTPUT DROP
+  # iptables -A OUTPUT -d security.debian.org --dport 80 -j ACCEPT
+  # iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+  # iptables -A INPUT -p icmp -j ACCEPT
+  # iptables -A INPUT -j LOG
+  # iptables -A OUTPUT -j LOG
+  # iptables -L
+  Chain INPUT (policy DROP)
+  target     prot opt source               destination
+  ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0          state RELATED,ESTABLISHED
+  ACCEPT     icmp --  0.0.0.0/0            0.0.0.0/0
+  LOG        all  --  anywhere             anywhere           LOG level warning
+
+  Chain FORWARD (policy DROP)
+  target     prot opt source               destination
+
+  Chain OUTPUT (policy DROP)
+  target     prot opt source               destination
+  ACCEPT     80   --  anywhere             security.debian.org
+  LOG        all  --  anywhere             anywhere           LOG level warning
+</example>
+
+<appendix id="chroot-ssh-env">Ambiente <Prgn>chroot</Prgn> para <PRGN>SSH</PRGN>
+
+<p>Criar um ambiente restrito para <PRGN>SSH</PRGN> é um trabalho duro, devido 
+às suas dependências e pelo fato que, diferente dos outros serviços, o
+<PRGN>SSH</PRGN> fornece shell remoto aos usuários. Então, você também deve 
+considerar as aplicações que serão permitidas aos usuários neste ambiente. Se 
+você criar esta estrutura de arquivos em, por exemplo <file>/var/chroot/ssh</file>, 
+poderia inicializar o servidor <prgn>ssh</prgn> enjaulado com o comando:
+
+<example>
+  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
+</example>
+
+<sect>Configurando automaticamente o ambiente (a maneira fácil)
+
+<p>Você pode facilmente criar um ambiente restrito com o pacote 
+<package>makejail</package>, já que ele automaticamente segue 
+as trilhas do servidor daemon (com <prgn>strace</prgn>) e faz com 
+que ele execute em um ambiente restrito.
+
+<p>A vantagem de programas que automaticamente geram um ambiente 
+<prgn>chroot</prgn> é que eles são capazes de copiar qualquer pacote 
+para o ambiente <prgn>chroot</prgn> (mesmo seguindo as dependências do
+pacote e certificar que foi completada). Então, fornecer as aplicações 
+dos usuários é bem mais fácil.
+
+<p>Para configurar o ambiente usando os exemplos fornecidos pelo 
+<prgn>makejail</prgn>, use o comando:
+
+<example>
+  # makejail /usr/share/doc/makejail/examples/sshd.py
+</example>
+
+<p>Leia o arquivo exemplo para ver que outras mudanças devem ser feitas 
+para o ambiente. Algumas dessas mudanças, como copiar os diretórios home 
+do usuário, não podem ser feitas automaticamente. Também limite a 
+exposição de informações sensíveis, copiando os dados de um certo número 
+de usuários dos arquivos <file>/etc/shadow</file> ou
+<file>/etc/group</file>.
+
+<p>O seguinte exemplo de ambiente tem sido (levemente) testado, foi
+construído com o arquivo de configuração fornecido no pacote e inclue 
+o pacote <package>fileutils</package>:
+
+<example>
+.
+|-- bin
+|   |-- ash
+|   |-- bash
+|   |-- chgrp
+|   |-- chmod
+|   |-- chown
+|   |-- cp
+|   |-- csh -> /etc/alternatives/csh
+|   |-- dd
+|   |-- df
+|   |-- dir
+|   |-- fdflush
+|   |-- ksh
+|   |-- ln
+|   |-- ls
+|   |-- mkdir
+|   |-- mknod
+|   |-- mv
+|   |-- rbash -> bash
+|   |-- rm
+|   |-- rmdir
+|   |-- sh -> bash
+|   |-- sync
+|   |-- tcsh
+|   |-- touch
+|   |-- vdir
+|   |-- zsh -> /etc/alternatives/zsh
+|   `-- zsh4
+|-- dev
+|   |-- null
+|   |-- ptmx
+|   |-- pts
+|   |-- ptya0
+(...)
+|   |-- tty
+|   |-- tty0
+(...)
+|   `-- urandom
+|-- etc
+|   |-- alternatives
+|   |   |-- csh -> /bin/tcsh
+|   |   `-- zsh -> /bin/zsh4
+|   |-- environment
+|   |-- hosts
+|   |-- hosts.allow
+|   |-- hosts.deny
+|   |-- ld.so.conf
+|   |-- localtime -> /usr/share/zoneinfo/Europe/Madrid
+|   |-- motd
+|   |-- nsswitch.conf
+|   |-- pam.conf
+|   |-- pam.d
+|   |   |-- other
+|   |   `-- ssh
+|   |-- passwd
+|   |-- resolv.conf
+|   |-- security
+|   |   |-- access.conf
+|   |   |-- chroot.conf
+|   |   |-- group.conf
+|   |   |-- limits.conf
+|   |   |-- pam_env.conf
+|   |   `-- time.conf
+|   |-- shadow
+|   |-- shells
+|   `-- ssh
+|       |-- moduli
+|       |-- ssh_host_dsa_key
+|       |-- ssh_host_dsa_key.pub
+|       |-- ssh_host_rsa_key
+|       |-- ssh_host_rsa_key.pub
+|       `-- sshd_config
+|-- home
+|   `-- userX
+|-- lib
+|   |-- ld-2.2.5.so
+|   |-- ld-linux.so.2 -> ld-2.2.5.so
+|   |-- libc-2.2.5.so
+|   |-- libc.so.6 -> libc-2.2.5.so
+|   |-- libcap.so.1 -> libcap.so.1.10
+|   |-- libcap.so.1.10
+|   |-- libcrypt-2.2.5.so
+|   |-- libcrypt.so.1 -> libcrypt-2.2.5.so
+|   |-- libdl-2.2.5.so
+|   |-- libdl.so.2 -> libdl-2.2.5.so
+|   |-- libm-2.2.5.so
+|   |-- libm.so.6 -> libm-2.2.5.so
+|   |-- libncurses.so.5 -> libncurses.so.5.2
+|   |-- libncurses.so.5.2
+|   |-- libnsl-2.2.5.so
+|   |-- libnsl.so.1 -> libnsl-2.2.5.so
+|   |-- libnss_compat-2.2.5.so
+|   |-- libnss_compat.so.2 -> libnss_compat-2.2.5.so
+|   |-- libnss_db-2.2.so
+|   |-- libnss_db.so.2 -> libnss_db-2.2.so
+|   |-- libnss_dns-2.2.5.so
+|   |-- libnss_dns.so.2 -> libnss_dns-2.2.5.so
+|   |-- libnss_files-2.2.5.so
+|   |-- libnss_files.so.2 -> libnss_files-2.2.5.so
+|   |-- libnss_hesiod-2.2.5.so
+|   |-- libnss_hesiod.so.2 -> libnss_hesiod-2.2.5.so
+|   |-- libnss_nis-2.2.5.so
+|   |-- libnss_nis.so.2 -> libnss_nis-2.2.5.so
+|   |-- libnss_nisplus-2.2.5.so
+|   |-- libnss_nisplus.so.2 -> libnss_nisplus-2.2.5.so
+|   |-- libpam.so.0 -> libpam.so.0.72
+|   |-- libpam.so.0.72
+|   |-- libpthread-0.9.so
+|   |-- libpthread.so.0 -> libpthread-0.9.so
+|   |-- libresolv-2.2.5.so
+|   |-- libresolv.so.2 -> libresolv-2.2.5.so
+|   |-- librt-2.2.5.so
+|   |-- librt.so.1 -> librt-2.2.5.so
+|   |-- libutil-2.2.5.so
+|   |-- libutil.so.1 -> libutil-2.2.5.so
+|   |-- libwrap.so.0 -> libwrap.so.0.7.6
+|   |-- libwrap.so.0.7.6
+|   `-- security
+|       |-- pam_access.so
+|       |-- pam_chroot.so
+|       |-- pam_deny.so
+|       |-- pam_env.so
+|       |-- pam_filter.so
+|       |-- pam_ftp.so
+|       |-- pam_group.so
+|       |-- pam_issue.so
+|       |-- pam_lastlog.so
+|       |-- pam_limits.so
+|       |-- pam_listfile.so
+|       |-- pam_mail.so
+|       |-- pam_mkhomedir.so
+|       |-- pam_motd.so
+|       |-- pam_nologin.so
+|       |-- pam_permit.so
+|       |-- pam_rhosts_auth.so
+|       |-- pam_rootok.so
+|       |-- pam_securetty.so
+|       |-- pam_shells.so
+|       |-- pam_stress.so
+|       |-- pam_tally.so
+|       |-- pam_time.so
+|       |-- pam_unix.so
+|       |-- pam_unix_acct.so -> pam_unix.so
+|       |-- pam_unix_auth.so -> pam_unix.so
+|       |-- pam_unix_passwd.so -> pam_unix.so
+|       |-- pam_unix_session.so -> pam_unix.so
+|       |-- pam_userdb.so
+|       |-- pam_warn.so
+|       `-- pam_wheel.so
+|-- sbin
+|   `-- start-stop-daemon
+|-- usr
+|   |-- bin
+|   |   |-- dircolors
+|   |   |-- du
+|   |   |-- install
+|   |   |-- link
+|   |   |-- mkfifo
+|   |   |-- shred
+|   |   |-- touch -> /bin/touch
+|   |   `-- unlink
+|   |-- lib
+|   |   |-- libcrypto.so.0.9.6
+|   |   |-- libdb3.so.3 -> libdb3.so.3.0.2
+|   |   |-- libdb3.so.3.0.2
+|   |   |-- libz.so.1 -> libz.so.1.1.4
+|   |   `-- libz.so.1.1.4
+|   |-- sbin
+|   |   `-- sshd
+|   `-- share
+|       |-- locale
+|       |   `-- es
+|       |       |-- LC_MESSAGES
+|       |       |   |-- fileutils.mo
+|       |       |   |-- libc.mo
+|       |       |   `-- sh-utils.mo
+|       |       `-- LC_TIME -> LC_MESSAGES
+|       `-- zoneinfo
+|           `-- Europe
+|               `-- Madrid
+`-- var
+    `-- run
+        |-- sshd
+        `-- sshd.pid
+
+27 directories, 733 files
+</example>
+
+<sect>Aplicando patch no <PRGN>SSH</PRGN> para ativar a funcionalidade do <prgn>chroot</prgn>
+
+<p>O <prgn>sshd</prgn> do Debian não permite restringir as operações do usuário 
+através do servidor, já que falta uma função <prgn>chroot</prgn> que o programa 
+comercial <prgn>sshd2</prgn> inclue (usando 'ChrootGroups' ou 
+'ChrootUsers', veja <manref name="sshd2_config" section="5">). Entretanto, existe 
+um patch disponível para adicionar esta funcionalidade que pode ser baixado em
+<url id="http://bugs.debian.org/139047" name="Bug report 139047">
+O patch pode ser incluído nos lançamentos futuros do pacote OpenSSH.
+Emmanuel Lacour tem os pacotes deb do <prgn>ssh</prgn>
+com este recurso em <url id="http://debian.home-dn.net/woody/ssh/">. 
+De qualquer forma é recomendável compilar o programa.
+
+<p>Uma descrição de todos os passos necessários podem ser encontrada em <url
+id="http://mail.incredimail.com/howto/openssh/"> (apesar de ser direcionada
+para usuários RedHat 7.2, quase todos deles são aplicáveis para o Debian). 
+Depois de aplicar o patch, modifique o arquivo <file>/etc/passwd</file> 
+alterando o caminho do home dos usuários (com o token especial <tt>/./</tt>):
+
+<example>
+  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>Isto irá restringir <em>ambos</em> o acesso remoto ao shell, como também 
+a cópia remota através do canal <prgn>ssh</prgn>.
+
+<p>Tenha certeza de ter todos os binários e bibliotecas necessárias dentro do 
+caminho que está enjaulado para os usuários. Estes arquivos devem pertencer ao 
+root para evitar tampering pelo usuário (como sair da jaula <prgn>chroot</prgn>'ed). 
+Um exemplo possível inclue:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
+
+<sect>Ambiente feito a mão (a maneira difícil)
+
+<p>É possível criar um ambiente, usando o método de tentativa e 
+erro, seguindo a execução do servidor <prgn>sshd</prgn> e arquivos 
+de log para determinar os arquivos necessários. O seguinte ambiente, 
+contribuído por José Luis Ledesma, é uma listagem amostral do arquivos
+que estão no ambiente <prgn>chroot</prgn> para o <prgn>ssh</prgn>:
+
+<footnote>
+Observe que não existem arquivos SETUID. Isso torna mais difícil
+para usuários remotos fugir o ambiente <prgn>chroot</prgn>. 
+Entretanto, isso também previne que os usuários alterem suas senhas,
+já que o programa <prgn>passwd</prgn> não pode modificar os arquivos 
+<file>/etc/passwd</file> ou <file>/etc/shadow</file>.
+</footnote>
+
+<example>
+.:
+total 36
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ./
+drwxr-xr-x 11 root root 4096 Jun 3 13:43 ../
+drwxr-xr-x 2 root root 4096 Jun 4 12:13 bin/
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 dev/
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 etc/
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 lib/
+drwxr-xr-x 2 root root 4096 Jun 4 12:35 sbin/
+drwxr-xr-x 2 root root 4096 Jun 4 12:32 tmp/
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 usr/
+./bin:
+total 8368
+drwxr-xr-x 2 root root 4096 Jun 4 12:13 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rwxr-xr-x 1 root root 109855 Jun 3 13:45 a2p*
+-rwxr-xr-x 1 root root 387764 Jun 3 13:45 bash*
+-rwxr-xr-x 1 root root 36365 Jun 3 13:45 c2ph*
+-rwxr-xr-x 1 root root 20629 Jun 3 13:45 dprofpp*
+-rwxr-xr-x 1 root root 6956 Jun 3 13:46 env*
+-rwxr-xr-x 1 root root 158116 Jun 3 13:45 fax2ps*
+-rwxr-xr-x 1 root root 104008 Jun 3 13:45 faxalter*
+-rwxr-xr-x 1 root root 89340 Jun 3 13:45 faxcover*
+-rwxr-xr-x 1 root root 441584 Jun 3 13:45 faxmail*
+-rwxr-xr-x 1 root root 96036 Jun 3 13:45 faxrm*
+-rwxr-xr-x 1 root root 107000 Jun 3 13:45 faxstat*
+-rwxr-xr-x 1 root root 77832 Jun 4 11:46 grep*
+-rwxr-xr-x 1 root root 19597 Jun 3 13:45 h2ph*
+-rwxr-xr-x 1 root root 46979 Jun 3 13:45 h2xs*
+-rwxr-xr-x 1 root root 10420 Jun 3 13:46 id*
+-rwxr-xr-x 1 root root 4528 Jun 3 13:46 ldd*
+-rwxr-xr-x 1 root root 111386 Jun 4 11:46 less*
+-r-xr-xr-x 1 root root 26168 Jun 3 13:45 login*
+-rwxr-xr-x 1 root root 49164 Jun 3 13:45 ls*
+-rwxr-xr-x 1 root root 11600 Jun 3 13:45 mkdir*
+-rwxr-xr-x 1 root root 24780 Jun 3 13:45 more*
+-rwxr-xr-x 1 root root 154980 Jun 3 13:45 pal2rgb*
+-rwxr-xr-x 1 root root 27920 Jun 3 13:46 passwd*
+-rwxr-xr-x 1 root root 4241 Jun 3 13:45 pl2pm*
+-rwxr-xr-x 1 root root 2350 Jun 3 13:45 pod2html*
+-rwxr-xr-x 1 root root 7875 Jun 3 13:45 pod2latex*
+-rwxr-xr-x 1 root root 17587 Jun 3 13:45 pod2man*
+-rwxr-xr-x 1 root root 6877 Jun 3 13:45 pod2text*
+-rwxr-xr-x 1 root root 3300 Jun 3 13:45 pod2usage*
+-rwxr-xr-x 1 root root 3341 Jun 3 13:45 podchecker*
+-rwxr-xr-x 1 root root 2483 Jun 3 13:45 podselect*
+-r-xr-xr-x 1 root root 82412 Jun 4 11:46 ps*
+-rwxr-xr-x 1 root root 36365 Jun 3 13:45 pstruct*
+-rwxr-xr-x 1 root root 7120 Jun 3 13:45 pwd*
+-rwxr-xr-x 1 root root 179884 Jun 3 13:45 rgb2ycbcr*
+-rwxr-xr-x 1 root root 20532 Jun 3 13:45 rm*
+-rwxr-xr-x 1 root root 6720 Jun 4 10:15 rmdir*
+-rwxr-xr-x 1 root root 14705 Jun 3 13:45 s2p*
+-rwxr-xr-x 1 root root 28764 Jun 3 13:46 scp*
+-rwxr-xr-x 1 root root 385000 Jun 3 13:45 sendfax*
+-rwxr-xr-x 1 root root 67548 Jun 3 13:45 sendpage*
+-rwxr-xr-x 1 root root 88632 Jun 3 13:46 sftp*
+-rwxr-xr-x 1 root root 387764 Jun 3 13:45 sh*
+-rws--x--x 1 root root 744500 Jun 3 13:46 slogin*
+-rwxr-xr-x 1 root root 14523 Jun 3 13:46 splain*
+-rws--x--x 1 root root 744500 Jun 3 13:46 ssh*
+-rwxr-xr-x 1 root root 570960 Jun 3 13:46 ssh-add*
+-rwxr-xr-x 1 root root 502952 Jun 3 13:46 ssh-agent*
+-rwxr-xr-x 1 root root 575740 Jun 3 13:46 ssh-keygen*
+-rwxr-xr-x 1 root root 383480 Jun 3 13:46 ssh-keyscan*
+-rwxr-xr-x 1 root root 39 Jun 3 13:46 ssh_europa*
+-rwxr-xr-x 1 root root 107252 Jun 4 10:14 strace*
+-rwxr-xr-x 1 root root 8323 Jun 4 10:14 strace-graph*
+-rwxr-xr-x 1 root root 158088 Jun 3 13:46 thumbnail*
+-rwxr-xr-x 1 root root 6312 Jun 3 13:46 tty*
+-rwxr-xr-x 1 root root 55904 Jun 4 11:46 useradd*
+-rwxr-xr-x 1 root root 585656 Jun 4 11:47 vi*
+-rwxr-xr-x 1 root root 6444 Jun 4 11:45 whoami*
+./dev:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+crw-r--r-- 1 root root 1, 9 Jun 3 13:43 urandom
+./etc:
+total 208
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rw------- 1 root root 0 Jun 4 11:46 .pwd.lock
+-rw-r--r-- 1 root root 653 Jun 3 13:46 group
+-rw-r--r-- 1 root root 242 Jun 4 11:33 host.conf
+-rw-r--r-- 1 root root 857 Jun 4 12:04 hosts
+-rw-r--r-- 1 root root 1050 Jun 4 11:29 ld.so.cache
+-rw-r--r-- 1 root root 304 Jun 4 11:28 ld.so.conf
+-rw-r--r-- 1 root root 235 Jun 4 11:27 ld.so.conf~
+-rw-r--r-- 1 root root 88039 Jun 3 13:46 moduli
+-rw-r--r-- 1 root root 1342 Jun 4 11:34 nsswitch.conf
+drwxr-xr-x 2 root root 4096 Jun 4 12:02 pam.d/
+-rw-r--r-- 1 root root 28 Jun 4 12:00 pam_smb.conf
+-rw-r--r-- 1 root root 2520 Jun 4 11:57 passwd
+-rw-r--r-- 1 root root 7228 Jun 3 13:48 profile
+-rw-r--r-- 1 root root 1339 Jun 4 11:33 protocols
+-rw-r--r-- 1 root root 274 Jun 4 11:44 resolv.conf
+drwxr-xr-x 2 root root 4096 Jun 3 13:43 security/
+-rw-r----- 1 root root 1178 Jun 4 11:51 shadow
+-rw------- 1 root root 80 Jun 4 11:45 shadow-
+-rw-r----- 1 root root 1178 Jun 4 11:48 shadow.old
+-rw-r--r-- 1 root root 161 Jun 3 13:46 shells
+-rw-r--r-- 1 root root 1144 Jun 3 13:46 ssh_config
+-rw------- 1 root root 668 Jun 3 13:46 ssh_host_dsa_key
+-rw-r--r-- 1 root root 602 Jun 3 13:46 ssh_host_dsa_key.pub
+-rw------- 1 root root 527 Jun 3 13:46 ssh_host_key
+-rw-r--r-- 1 root root 331 Jun 3 13:46 ssh_host_key.pub
+-rw------- 1 root root 883 Jun 3 13:46 ssh_host_rsa_key
+-rw-r--r-- 1 root root 222 Jun 3 13:46 ssh_host_rsa_key.pub
+-rw-r--r-- 1 root root 2471 Jun 4 12:15 sshd_config
+./etc/pam.d:
+total 24
+drwxr-xr-x 2 root root 4096 Jun 4 12:02 ./
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ../
+lrwxrwxrwx 1 root root 4 Jun 4 12:02 other -> sshd
+-rw-r--r-- 1 root root 318 Jun 3 13:46 passwd
+-rw-r--r-- 1 root root 546 Jun 4 11:36 ssh
+-rw-r--r-- 1 root root 479 Jun 4 12:02 sshd
+-rw-r--r-- 1 root root 370 Jun 3 13:46 su
+./etc/security:
+total 32
+drwxr-xr-x 2 root root 4096 Jun 3 13:43 ./
+drwxr-xr-x 4 root root 4096 Jun 4 12:35 ../
+-rw-r--r-- 1 root root 1971 Jun 3 13:46 access.conf
+-rw-r--r-- 1 root root 184 Jun 3 13:46 chroot.conf
+-rw-r--r-- 1 root root 2145 Jun 3 13:46 group.conf
+-rw-r--r-- 1 root root 1356 Jun 3 13:46 limits.conf
+-rw-r--r-- 1 root root 2858 Jun 3 13:46 pam_env.conf
+-rw-r--r-- 1 root root 2154 Jun 3 13:46 time.conf
+./lib:
+total 8316
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rw-r--r-- 1 root root 1024 Jun 4 11:51 cracklib_dict.hwm
+-rw-r--r-- 1 root root 214324 Jun 4 11:51 cracklib_dict.pwd
+-rw-r--r-- 1 root root 11360 Jun 4 11:51 cracklib_dict.pwi
+-rwxr-xr-x 1 root root 342427 Jun 3 13:46 ld-linux.so.2*
+-rwxr-xr-x 1 root root 4061504 Jun 3 13:46 libc.so.6*
+lrwxrwxrwx 1 root root 15 Jun 4 12:11 libcrack.so -> libcrack.so.2.7*
+lrwxrwxrwx 1 root root 15 Jun 4 12:11 libcrack.so.2 -> libcrack.so.2.7*
+-rwxr-xr-x 1 root root 33291 Jun 4 11:39 libcrack.so.2.7*
+-rwxr-xr-x 1 root root 60988 Jun 3 13:46 libcrypt.so.1*
+-rwxr-xr-x 1 root root 71846 Jun 3 13:46 libdl.so.2*
+-rwxr-xr-x 1 root root 27762 Jun 3 13:46 libhistory.so.4.0*
+lrwxrwxrwx 1 root root 17 Jun 4 12:12 libncurses.so.4 -> libncurses.so.4.2*
+-rwxr-xr-x 1 root root 503903 Jun 3 13:46 libncurses.so.4.2*
+lrwxrwxrwx 1 root root 17 Jun 4 12:12 libncurses.so.5 -> libncurses.so.5.0*
+-rwxr-xr-x 1 root root 549429 Jun 3 13:46 libncurses.so.5.0*
+-rwxr-xr-x 1 root root 369801 Jun 3 13:46 libnsl.so.1*
+-rwxr-xr-x 1 root root 142563 Jun 4 11:49 libnss_compat.so.1*
+-rwxr-xr-x 1 root root 215569 Jun 4 11:49 libnss_compat.so.2*
+-rwxr-xr-x 1 root root 61648 Jun 4 11:34 libnss_dns.so.1*
+-rwxr-xr-x 1 root root 63453 Jun 4 11:34 libnss_dns.so.2*
+-rwxr-xr-x 1 root root 63782 Jun 4 11:34 libnss_dns6.so.2*
+-rwxr-xr-x 1 root root 205715 Jun 3 13:46 libnss_files.so.1*
+-rwxr-xr-x 1 root root 235932 Jun 3 13:49 libnss_files.so.2*
+-rwxr-xr-x 1 root root 204383 Jun 4 11:33 libnss_nis.so.1*
+-rwxr-xr-x 1 root root 254023 Jun 4 11:33 libnss_nis.so.2*
+-rwxr-xr-x 1 root root 256465 Jun 4 11:33 libnss_nisplus.so.2*
+lrwxrwxrwx 1 root root 14 Jun 4 12:12 libpam.so.0 -> libpam.so.0.72*
+-rwxr-xr-x 1 root root 31449 Jun 3 13:46 libpam.so.0.72*
+lrwxrwxrwx 1 root root 19 Jun 4 12:12 libpam_misc.so.0 ->
+libpam_misc.so.0.72*
+-rwxr-xr-x 1 root root 8125 Jun 3 13:46 libpam_misc.so.0.72*
+lrwxrwxrwx 1 root root 15 Jun 4 12:12 libpamc.so.0 -> libpamc.so.0.72*
+-rwxr-xr-x 1 root root 10499 Jun 3 13:46 libpamc.so.0.72*
+-rwxr-xr-x 1 root root 176427 Jun 3 13:46 libreadline.so.4.0*
+-rwxr-xr-x 1 root root 44729 Jun 3 13:46 libutil.so.1*
+-rwxr-xr-x 1 root root 70254 Jun 3 13:46 libz.a*
+lrwxrwxrwx 1 root root 13 Jun 4 12:13 libz.so -> libz.so.1.1.3*
+lrwxrwxrwx 1 root root 13 Jun 4 12:13 libz.so.1 -> libz.so.1.1.3*
+-rwxr-xr-x 1 root root 63312 Jun 3 13:46 libz.so.1.1.3*
+drwxr-xr-x 2 root root 4096 Jun 4 12:00 security/
+./lib/security:
+total 668
+drwxr-xr-x 2 root root 4096 Jun 4 12:00 ./
+drwxr-xr-x 3 root root 4096 Jun 4 12:13 ../
+-rwxr-xr-x 1 root root 10067 Jun 3 13:46 pam_access.so*
+-rwxr-xr-x 1 root root 8300 Jun 3 13:46 pam_chroot.so*
+-rwxr-xr-x 1 root root 14397 Jun 3 13:46 pam_cracklib.so*
+-rwxr-xr-x 1 root root 5082 Jun 3 13:46 pam_deny.so*
+-rwxr-xr-x 1 root root 13153 Jun 3 13:46 pam_env.so*
+-rwxr-xr-x 1 root root 13371 Jun 3 13:46 pam_filter.so*
+-rwxr-xr-x 1 root root 7957 Jun 3 13:46 pam_ftp.so*
+-rwxr-xr-x 1 root root 12771 Jun 3 13:46 pam_group.so*
+-rwxr-xr-x 1 root root 10174 Jun 3 13:46 pam_issue.so*
+-rwxr-xr-x 1 root root 9774 Jun 3 13:46 pam_lastlog.so*
+-rwxr-xr-x 1 root root 13591 Jun 3 13:46 pam_limits.so*
+-rwxr-xr-x 1 root root 11268 Jun 3 13:46 pam_listfile.so*
+-rwxr-xr-x 1 root root 11182 Jun 3 13:46 pam_mail.so*
+-rwxr-xr-x 1 root root 5923 Jun 3 13:46 pam_nologin.so*
+-rwxr-xr-x 1 root root 5460 Jun 3 13:46 pam_permit.so*
+-rwxr-xr-x 1 root root 18226 Jun 3 13:46 pam_pwcheck.so*
+-rwxr-xr-x 1 root root 12590 Jun 3 13:46 pam_rhosts_auth.so*
+-rwxr-xr-x 1 root root 5551 Jun 3 13:46 pam_rootok.so*
+-rwxr-xr-x 1 root root 7239 Jun 3 13:46 pam_securetty.so*
+-rwxr-xr-x 1 root root 6551 Jun 3 13:46 pam_shells.so*
+-rwxr-xr-x 1 root root 55925 Jun 4 12:00 pam_smb_auth.so*
+-rwxr-xr-x 1 root root 12678 Jun 3 13:46 pam_stress.so*
+-rwxr-xr-x 1 root root 11170 Jun 3 13:46 pam_tally.so*
+-rwxr-xr-x 1 root root 11124 Jun 3 13:46 pam_time.so*
+-rwxr-xr-x 1 root root 45703 Jun 3 13:46 pam_unix.so*
+-rwxr-xr-x 1 root root 45703 Jun 3 13:46 pam_unix2.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_acct.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_auth.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_passwd.so*
+-rwxr-xr-x 1 root root 45386 Jun 3 13:46 pam_unix_session.so*
+-rwxr-xr-x 1 root root 9726 Jun 3 13:46 pam_userdb.so*
+-rwxr-xr-x 1 root root 6424 Jun 3 13:46 pam_warn.so*
+-rwxr-xr-x 1 root root 7460 Jun 3 13:46 pam_wheel.so*
+./sbin:
+total 3132
+drwxr-xr-x 2 root root 4096 Jun 4 12:35 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+-rwxr-xr-x 1 root root 178256 Jun 3 13:46 choptest*
+-rwxr-xr-x 1 root root 184032 Jun 3 13:46 cqtest*
+-rwxr-xr-x 1 root root 81096 Jun 3 13:46 dialtest*
+-rwxr-xr-x 1 root root 1142128 Jun 4 11:28 ldconfig*
+-rwxr-xr-x 1 root root 2868 Jun 3 13:46 lockname*
+-rwxr-xr-x 1 root root 3340 Jun 3 13:46 ondelay*
+-rwxr-xr-x 1 root root 376796 Jun 3 13:46 pagesend*
+-rwxr-xr-x 1 root root 13950 Jun 3 13:46 probemodem*
+-rwxr-xr-x 1 root root 9234 Jun 3 13:46 recvstats*
+-rwxr-xr-x 1 root root 64480 Jun 3 13:46 sftp-server*
+-rwxr-xr-x 1 root root 744412 Jun 3 13:46 sshd*
+-rwxr-xr-x 1 root root 30750 Jun 4 11:46 su*
+-rwxr-xr-x 1 root root 194632 Jun 3 13:46 tagtest*
+-rwxr-xr-x 1 root root 69892 Jun 3 13:46 tsitest*
+-rwxr-xr-x 1 root root 43792 Jun 3 13:46 typetest*
+./tmp:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:32 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+./usr:
+total 8
+drwxr-xr-x 2 root root 4096 Jun 4 12:16 ./
+drwxr-xr-x 9 root root 4096 Jun 5 10:05 ../
+lrwxrwxrwx 1 root root 7 Jun 4 12:14 bin -> ../bin//
+lrwxrwxrwx 1 root root 7 Jun 4 11:33 lib -> ../lib//
+lrwxrwxrwx 1 root root 8 Jun 4 12:13 sbin -> ../sbin//
+</example>
+
+
+
+<appendix id="chroot-apache-env">Ambiente <Prgn>chroot</Prgn> para <PRGN>Apache</PRGN>
+
+<sect>Introduçao
+
+<p>O utilitário <prgn>chroot</prgn> é muitas vezes usado para enjaular um daemon 
+dentro de uma estrutura restrita. Voce pode usá-lo para isolar um
+serviço do outro, desta forma um problema de segurança em um pacote de
+software específico não interfere em todo o servidor. A utilização do
+script <prgn>makejail</prgn> torna a configuração e atualização da
+árvore enjaulada muito mais fácil.</p>
+
+<p>FIXME: Apache também pode ser enjaulado usando 
+<url id="http://www.modsecurity.org"> que está disponível em
+<package>libapache-mod-security</package> (para Apache 1.x) e
+<package>libapache2-mod-security</package> (para Apache 2.x).
+
+<sect1>Licença
+
+<p>This document is copyright 2002 Alexandre Ratti. It has been
+dual-licensed and released under the GPL version 2 (GNU Public License)
+the GNU-FDL 1.2 (GNU Free Documentation Licence) and is
+included in this manual with his explicit permission.
+(from the <url id="http://www.gabuzomeu.net/alex/doc/apache/index-en.html"
+name="original document">)
+
+</sect1>
+</sect>
+
+<sect>Instalando o servidor
+
+<p>Este procedimento foi testado no Debian GNU/Linux&nbsp;3.0 (Woody)
+com <prgn>makejail</prgn> 0.0.4-1 (em Debian/testing).
+
+<list>
+
+<item> <p>Efetue o login como <prgn>root</prgn> e crie um novo
+diretório para jaula:
+
+<example>
+$ mkdir -p /var/chroot/apache
+</example>
+
+ </item>
+
+ <item> <p>Crie um novo usuário e novo grupo. O servidor Apache 
+enjaulado irá executar com este usuário/grupo, que não é utilizado
+para mais nada no sistema. Neste exemplo, ambos usuário e grupo são 
+chamados de <prgn>chrapach</prgn>.
+
+ <example> 
+ $ adduser --home /var/chroot/apache --shell /bin/false \
+ --no-create-home --system --group chrapach
+ </example>
+
+<p>FIXME: é preciso um novo usuário? (Apache já executa como usuário
+apache)</p>
+
+  </item>
+
+  <item>Instale o Apache normalmente no Debian: <tt>apt-get install
+apache</tt></item>
+
+<item>Configure o Apache (por exemplo defina seus subdomínios e etc.). No 
+arquivo de configuração <file>/etc/apache/httpd.conf</file>, altere as opções 
+<em>Group</em> e <em>User</em> para <tt>chrapach</tt>. Reinicie o 
+Apache e tenha certeza que o servidor está funcionando corretamente. Agora, pare o 
+daemon do Apache.</item>
+
+<item>Instale o <prgn>makejail</prgn> (disponível agora no Debian/testing). 
+Você também deve instalar <prgn>wget</prgn> e <prgn>lynx</prgn>, pois eles 
+serão usados pelo <prgn>makejail</prgn> para testar o servidor enjaulado:
+<tt>apt-get install makejail wget lynx</tt></item>
+
+<item>Copie o arquivo de configuração de exemplo para o Apache para o 
+diretório <file>/etc/makejail</file>:
+ <example> 
+ # cp /usr/share/doc/makejail/examples/apache.py /etc/makejail/ 
+ </example>
+
+</item>
+ 
+ <item>Edite o arquivo <file>/etc/makejail/apache.py</file>. Você precisa alterar 
+as opções <em>chroot</em>, <em>users</em> e <em>groups</em>. Para executar esta 
+versão do <prgn>makejail</prgn>, você também pode adicionar a opção 
+<prgn>packages</prgn>. Veja a <url
+id="http://www.floc.net/makejail/current/doc/" name="documentação do 
+makejail">. Veja o exemplo mostrado abaixo:
+
+<example>
+chroot=&quot;/var/chroot/apache&quot;
+testCommandsInsideJail=[&quot;/usr/sbin/apachectl start&quot;]
+processNames=[&quot;apache&quot;]
+testCommandsOutsideJail=[&quot;wget -r --spider http://localhost/&quot;,
+                         &quot;lynx --source https://localhost/&quot;]
+preserve=[&quot;/var/www&quot;,
+          &quot;/var/log/apache&quot;,
+          &quot;/dev/log&quot;]
+users=[&quot;chrapach&quot;]
+groups=[&quot;chrapach&quot;]
+packages=[&quot;apache&quot;, &quot;apache-common&quot;]
+userFiles=[&quot;/etc/password&quot;,
+           &quot;/etc/shadow&quot;]
+groupFiles=[&quot;/etc/group&quot;,
+            &quot;/etc/gshadow&quot;]
+forceCopy=[&quot;/etc/hosts&quot;,
+           &quot;/etc/mime.types&quot;]
+</example>
+
+<p><em>FIXME:</em> algumas opções parecem não funcionar corretamente. Por exemplo,
+<file>/etc/shadow</file> e <file>/etc/gshadow</file> não são copiados, visto que 
+<file>/etc/password</file> e <file>/etc/group</file> são copiados em vez de 
+serem filtrados.</p>
+ </item>
+ 
+<item>Crie a árvore da jaula: <tt>makejail /etc/makejail/apache.py</tt></item>
+
+<item>Se <file>/etc/password</file> e <file>/etc/group</file> forem copiados 
+completamente, digite:
+
+      <example>
+      $ grep chrapach /etc/passwd &gt; /var/chroot/apache/etc/passwd
+      $ grep chrapach /etc/group &gt; /var/chroot/apache/etc/group
+      </example>
+para substituí-los com as cópias filtradas.</item>
+
+<item>Copie as páginas e os logs do site Web dentro da jaula. Estes arquivos 
+não são copiados automaticamente (veja a opção <em>preserve</em> no arquivo 
+de configuração do <prgn>makejail</prgn>).
+      <example>
+      # cp -Rp /var/www /var/chroot/apache/var
+      # cp -Rp /var/log/apache/*.log /var/chroot/apache/var/log/apache
+      </example>
+  </item>
+
+<item>Edite o script de inicialização para que o daemon de logging do sistema 
+também ouça do socket <file>/var/chroot/apache/dev/log</file>. No arquivo 
+<file>/etc/init.d/sysklogd</file>, substitua:
+<tt>SYSLOGD=&quot;&quot;</tt> com <tt>SYSLOGD=&quot; -a
+/var/chroot/apache/dev/log&quot;</tt> e reinicie o daemon
+(<tt>/etc/init.d/sysklogd restart</tt>).</item>
+
+  <item> Edite o script de inicialização do Apache (<file>/etc/init.d/apache</file>).
+	Você pode precisar fazer algumas alterações no script de inicialização padrão para 
+	que ele funcione apropriadamente com a árvore enjaulada. Como:
+    <list>
+      <item>configure uma nova variável <em>CHRDIR</em> no início do arquivo;</item>
+      <item>edite as seções <em>start</em>, <em>stop</em>, <em>reload</em>, 
+        etc.;</item>
+      <item>adicione uma linha para montar e desmontar o sistema de arquivo <file>/proc</file> 
+que está dentro da jaula.  </item>
+    </list>
+<example>
+#! /bin/bash
+#
+# apache	Start the apache HTTP server.
+#
+
+CHRDIR=/var/chroot/apache
+
+NAME=apache
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+DAEMON=/usr/sbin/apache
+SUEXEC=/usr/lib/apache/suexec
+PIDFILE=/var/run/$NAME.pid
+CONF=/etc/apache/httpd.conf
+APACHECTL=/usr/sbin/apachectl 
+
+trap "" 1
+export LANG=C
+export PATH
+
+test -f $DAEMON || exit 0
+test -f $APACHECTL || exit 0
+
+# ensure we don't leak environment vars into apachectl
+APACHECTL="env -i LANG=${LANG} PATH=${PATH} chroot $CHRDIR $APACHECTL"
+
+if egrep -q -i "^[[:space:]]*ServerType[[:space:]]+inet" $CONF
+then
+    exit 0
+fi
+
+case "$1" in
+  start)
+    echo -n "Starting web server: $NAME"
+    mount -t proc proc /var/chroot/apache/proc
+    start-stop-daemon --start --pidfile $PIDFILE --exec $DAEMON \
+	--chroot $CHRDIR
+    ;;
+
+  stop)
+    echo -n "Stopping web server: $NAME"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" --oknodo
+    umount /var/chroot/apache/proc
+    ;;
+
+  reload)
+    echo -n "Reloading $NAME configuration"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" \
+	--signal USR1 --startas $DAEMON --chroot $CHRDIR
+    ;;
+
+  reload-modules)
+    echo -n "Reloading $NAME modules"
+    start-stop-daemon --stop --pidfile "$CHRDIR/$PIDFILE" --oknodo \
+	--retry 30
+    start-stop-daemon --start --pidfile $PIDFILE \
+	--exec $DAEMON --chroot $CHRDIR
+    ;;
+
+  restart)
+    $0 reload-modules
+    exit $?
+    ;;
+
+  force-reload)
+    $0 reload-modules
+    exit $?
+    ;;
+
+  *)
+    echo "Usage: /etc/init.d/$NAME {start|stop|reload|reload-modules|force-reload|restart}"
+    exit 1
+    ;;
+esac
+
+if [ $? == 0 ]; then
+	echo .
+	exit 0
+else
+	echo failed
+	exit 1
+fi
+</example>
+
+      <p><em>FIXME</em>: should the first Apache process be run as
+another user than root (i.e. add --chuid chrapach:chrapach)? Cons:
+chrapach will need write access to the logs, which is awkward.</p>
+  </item>
+
+  <item>Substitua no <file>/etc/logrotate.d/apache</file> o
+<tt>/var/log/apache/*.log</tt> com
+<tt>/var/chroot/apache/var/log/apache/*.log</tt> </item>
+
+  <item>Inicialize o Apache (<prgn>/etc/init.d/apache start</prgn>) e 
+verifique o que está sendo reportado no log da jaula
+(<file>/var/chroot/apache/var/log/apache/error.log</file>). Se a sua 
+configuração for mais complexa (exemplo: se também utiliza PHP e MySQL), 
+alguns arquivos provavelmente estarão faltando. Se estes arquivos não são copiados 
+automaticamente pelo <prgn>makejail</prgn>, você pode listá-los com a opção <em>forceCopy</em> 
+(para copiar os arquivos diretamente) ou <em>packages</em> (para copiar pacotes completos e 
+suas dependências) no arquivo de configuração
+<file>/etc/makejail/apache.py</file>.  </item>
+
+  <item> 
+    <p>Digite <tt>ps aux | grep apache</tt> para ter certeza que o 
+      Apache está rodando. Você deve ver algo do tipo:
+      <example>
+      root 180 0.0 1.1 2936 1436 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 189 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 190 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 191 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 192 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      chrapach 193 0.0 1.1 2960 1456 ? S 04:03 0:00 /usr/sbin/apache
+      </example>
+  </item>
+
+  <item> Certifique-se que os processos do Apache estão sendo executados 
+  na jaula chroot procurando no sistema de arquivo <file>/proc</file>: <tt>ls -la
+/proc/<em>process_number</em>/root/.</tt> onde <em>process_number</em> é um dos
+PID listados acima (por exemplo: segunda coluna; PID 189). As entradas para a 
+árvore restrita devem ser listadas:
+    <example>
+    drwxr-sr-x 10 root staff 240 Dec 2 16:06 .
+    drwxrwsr-x 4 root staff 72 Dec 2 08:07 ..
+    drwxr-xr-x 2 root root 144 Dec 2 16:05 bin
+    drwxr-xr-x 2 root root 120 Dec 3 04:03 dev
+    drwxr-xr-x 5 root root 408 Dec 3 04:03 etc
+    drwxr-xr-x 2 root root 800 Dec 2 16:06 lib
+    dr-xr-xr-x 43 root root 0 Dec 3 05:03 proc
+    drwxr-xr-x 2 root root 48 Dec 2 16:06 sbin
+    drwxr-xr-x 6 root root 144 Dec 2 16:04 usr
+    drwxr-xr-x 7 root root 168 Dec 2 16:06 var
+    </example>
+    <p>Para automatizar este teste, você pode digitar:<tt>ls -la /proc/`cat
+/var/chroot/apache/var/run/apache.pid`/root/.</tt></p>
+
+    <p><em>FIXME</em>: Add other tests that can be run to make sure the
+jail is closed?</p>
+	</item>
+</list>
+
+<p>A razão pela qual eu gosto disso é que a configuração da jaula não é 
+tão complicada e o servidor pode ser atualizado em somente duas linhas:
+
+<example> 
+apt-get update &amp;&amp; apt-get install apache
+makejail /etc/makejail/apache.py
+</example>
+
+</sect>
+<sect>Veja também
+
+<p>Se você está procurando por mais informações você pode considerar as 
+referências que foram utilizadas para fazer este tutorial:
+<list>
+
+  <item><url id="http://www.floc.net/makejail/" name="makejail
+homepage"> , this program was written by Alain Tesio)</item>
+
+<!-- Not appropriate for this section 
+  <item><a href="http://www.easter-eggs.org/article242.html">Bind9 chroot&eacute; 
+    avec <prgn>makejail</prgn></a>, Pascal Brugier, easter-eggs.org, 21/03/2002</item>
+-->
+
+  <item><url id="http://www.nuclearelephant.com/papers/chroot.html"
+name="Chrooting daemons and system processes HOWTO"> by Jonathan, Network
+Dweebs, 21/10/2002</item>
+
+<!-- Doesn't exist any more 
+  <item><url
+id="http://www.digitaltoad.net/docs/guide/secure_rh/chap29sec254.html"
+name="Apache in a chroot jail"> in <em>Securing and Optimizing
+Linux</em> written by Gerhard Mourani,
+    2000 </item>
+		-->
+</list>
+</sect>
+</appendix>
+

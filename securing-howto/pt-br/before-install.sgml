@@ -1,38 +1,561 @@
+<!-- CVS revision of this document "$Revision: 1.3 $"  -->
+<!-- original version: 1.5 -->
+<!-- last translator: sdiasneto@yahoo.com.br -->
 
-<sect1>Defina uma senha para o usuário root 
+<chapt>Antes e durante a instalação
+
+
+<sect id="bios-passwd">Escolha uma senha para a BIOS
 <p>
-Definir uma boa senha ao usuário root é o mais básico pré-requisito para ter um sistema seguro.
+Antes de instalar qualquer sistema operacional em seu computador,
+configure uma senha para a BIOS. Após a instalação (uma vez que você
+tenha habilitado o boot a partir do HD) você deve voltar a BIOS e
+alterar a sequência de boot desabilitando o boot a partir do disquete
+(floppy), cdrom e outros dispositivos. Se você não fizer assim, um
+cracker só precisará de acesso físico e um disco de boot para acessar
+o sistema inteiro.
 
-
-<sect1>Ative senhas shadow e MD5
 <p>
-Ao final da instalação, você será questionado  se as shadow passwords devem ser habilitadas. Responda sim a esta questão, assim as senhas serão gravadas no
-arquivo /etc/shadow. Somente o usuário root e o grupo shadow tem acesso de leitura ao arquivo, então nenhum usuário será capaz de copiar o arquivo e rodar
-algum programa de crack de senha nele. Você pode alternar entre senhas shadow e senhas normais a qualquer momento usando o programa shadowconfig .
-Após, você é questionado sobre usar ou não senhas criptografadas com MD5. Esta é geralmente uma boa idéia desde que permite senhas mais longas e melhor
-encriptação. 
+Desabilitar o boot a menos que uma senha seja fornecida é bem melhor.
+Isto pode ser muito eficaz num servidor, porque ele não é
+reiniciado constantemente. A desvantagem desta tática é que o reinício
+exige intervenção humana, o que pode causar problemas se a máquina
+não for facilmente acessível.
+
+<p>Observação: muitas BIOS vem de fábrica com senhas padrão bem
+conhecidas e existem programas que recuperam estas senhas, ou seja,
+alteram a senha atual para a senha original, para o caso de uma perda
+da senha pelo administrador. Assim, não dependa desta medida para
+proteger o acesso ao sistema.
+
+<sect>Particionando o sistema
+
+<sect1>Escolha um esquema de partição inteligente
+
+<p>Um esquema de partição inteligente depende de como a máquina será
+usada. Uma boa regra é ser razoavelmente generoso com suas partições
+e prestar atenção aos seguintes fatores:
+
+<list>
+<item>Qualquer diretório que um usuário tenha permissões de escrita,
+como o <file>/home</file>, <file>/tmp</file> e o
+<file>/var/tmp/</file>, devem estar separados em uma partição. Isto
+reduz o risco de um usuário malicioso utilizar o DoS (Denial of
+Service) para encher seu diretório raiz ( / ) e tornar o sistema
+inutilizável (Observação: isto não é totalmente verdade uma vez que
+sempre existe algum espaço reservado para o usuário root que o usuário
+normal não pode preencher), e também previne ataques tipo hardlink.
+
+<footnote>
+Um bom exemplo deste tipo de ataque usando /tmp é detalhado em <url
+id="http://www.hackinglinuxexposed.com/articles/20031111.html"
+name="The mysteriously persistently exploitable program (contest)">
+e
+<url id="http://www.hackinglinuxexposed.com/articles/20031214.html"
+name="The mysteriously persistently exploitable program explained">
+
+(Observe que o incidente é um relato Debian) Ele é basicamente um
+ataque no qual um usuário local usa uma aplicação setuid vulnerável
+através de um hard link para ela analisando qualque atualização (ou
+remoção) do próprio binário feita pelo administrador do sistema.
+Dpkg foi recentemente corrigido para prevenir isto (veja <url
+id="http://bugs.debian.org/225692" name="225692">) mas outros
+binários setuid (não controlados pelo gerenciador de pacotes) correm o
+risco se as partições não estiverem configuradas corretamente.
+</footnote>
+</item>
+
+<item>Qualquer partição com dados variáveis, isto é, <file>/var</file>
+(especialmente <file>/var/log</file>) também deve estar numa partição
+separada. Em um sistema Debian você deve criar <file>/var</file> um
+pouco maior que em outros sistemas porque o download de pacotes
+(cache do apt) é armazenado em <file>/var/cache/apt/archives</file>. 
+
+<item>Qualquer partição onde você queira instalar software que não
+é padrão da distribuição deve estar separada. De acordo com a
+Hierarquia Padrão do Sistema de Arquivos, estas são 
+<file>/opt</file> ou <file>/usr/local</file>. Se estas partições
+estão separadas, elas não serão apagadas se você (tiver que)
+reinstalar o Debian.
+
+<item>Do ponto de vista da segurança, é sensato tentar mover os dados
+estáticos para sua própria partição e então montar esta partição
+somente para leitura. Melhor ainda será colocar os dados numa mídia
+somenta para leitura. Veja abaixo para mais detalhes.
+
+</list>
+
+<p>No caso de um servidor de email é importante ter uma partição
+separada para o spool de email. Usuários remotos (conhecidos ou não)
+podem encher o spool de email (<file>/var/mail</file> e/ou
+<file>/var/spool/mail</file>). Se o spool está em uma partição
+separada, esta situação não tornará o sistema inutilizável. Porém (se
+o diretório de spool está na mesma partição que <file>/var</file>) o
+sistema pode ter sérios problemas: log não serão criados, pacotes
+podem não ser instalados e alguns programas podem ter problemas ao
+iniciar (se eles usam <file>/var/run</file>).
+
+<p>Para partições que você não tem certeza do espaço necesário, você
+pode instalar o Logical Volume Manager (<package>lvm-common</package>
+e os binários necessário para o kernel, estes podem ser 
+<package>lvm10</package>, <package>lvm6</package>, ou
+<package>lvm5</package>). Usando <tt>lvm</tt>, você pode criar grupos
+de volume que expandem múltiplos volumes físicos.
+
+<sect2>Escolhendo o sistema de arquivos apropriado
+
+<p>Durante o particionamento do sistema você também tem que decidir
+qual sistema de arquivos usar. O sistema de arquivos padrão em
+uma instalação Debian para partições Linux é o <tt>ext2</tt>. Porém
+é recomendado alterar para um sistema de arquivos journalling como
+<tt>ext3</tt>, <tt>reiserfs</tt>, <tt>jfs</tt> ou <tt>xfs</tt>, para
+minimizar os problemas derivados de uma quebra do sistema nos
+seguintes casos:
+
+<list>
+
+<item>Para laptops em todos os sistemas de arquivos instalados. Assim
+se acabar a bateria inesperadamente ou o sistema congelar você
+correrá menos risco de perda de dados durante a reinicialização do
+sistema.
+
+<item>para sistemas que armazenam grande quantidade de dados (como
+servidores de email, servidores ftp, sistemas de arquivos de rede
+....). Assim, em caso de queda, menos tempo será gasto para
+o servidor checar o sistema de arquivos e a probabilidade da
+perda de dados será menor.
+
+</list>
+
+<p>Deixando de lado a performance dos sistemas journalling (uma vez
+que isto pode iniciar uma verdadeira guerra), normalmente é melhor
+usar o <tt>ext3</tt>. A razão para isto é que ele é compatível com o
+antigo <tt>ext2</tt>, assim se existe alguma parte do seu sistema com
+journalling você pode desabilitar este recurso e ainda ter um sistema
+em condições de trabalhar. Também, se você precisar recuperar o
+sistema com um disco de boot (ou CDROM) você não precisa personalizar
+o kernel. Se o kernel é 2.4, o suporte a <tt>ext3</tt> já está 
+disponível, se é um kernel 2.2 você será capaz de iniciar o
+sistema de arquivos mesmo se perder as capacidades journalling. Se
+você estiver usando outro sisteama journalling diferente do
+<tt>ext3</tt>, você pode não ser capaz de recuperar o sistema a menos
+que você tenha um kernal 2.4 com os módulos necessários instalados.
+Se seu disco de resgate tem o kernel 2.2 pode ser mais difícil
+acessar sistemas <tt>reiserfs</tt> ou <tt>xfs</tt>.
+
+<p>Em qualquer caso, a integridade dos dados pode ser melhor usando
+<tt>ext3</tt> uma vez que ele usa file-data journalling enquanto
+outros usam apenas meta-data journalling, veja
+<url id="http://lwn.net/2001/0802/a/ext3-modes.php3">.
 
 
-<sect1>Execute o menor número de serviços necessário 
+<sect>Não conecte-se a internet até estar pronto
+
+<p>O sistema não deve ser imediatamente conectado a internet durante
+a instalação. Isto pode parecer estúpido mas intalação via internet é
+um método comum. Uma vez que o sistema instalará e ativará serviços
+imediatamente, se o sistema estiver conectado a internet e os
+serviços não estiverem adequadamente configurados, você estará
+abrindo brechas para ataques.
+
+<p>Observe também que alguns serviços podem ter vulnerabilidades de
+segurança não corrigidas nos pacotes que você estiver usando para a
+instalação. Isto normalmente será verdade se você estiver instalando
+a partir de mídia antiga (como CD-ROMs). Neste caso, o sistema
+poderia estar comprometido antes de terminar a instalação!
+
+<p>Uma vez que a instalação e atualizações do Debian podem ser feitas
+pela internet você pode pensar que é uma boa idéia usar este recurso
+na instalação. Se o sistema está diretamente conectado (e
+não está protegido por um firewall ou NAT), é melhor instalar sem
+conexão com a grande rede usando um mirror local com os pacotes do
+Debian e as atualizações de segurança. Você pode configurar mirrors de
+pacotes usando outro sistema conectado com ferramentas específicas do
+Debian (se ele é um sistema tipo Debian) como
+<package>apt-move</package> ou <package>apt-proxy</package>, ou
+outras, para fornecer os arquivos para o sistema instalado. Se não
+puder fazer isto, você pode configurar regras de firewall para
+limitar o acesso ao sistema enquanto estiver atualizando  (veja
+<ref id="fw-security-update">).
+
+<sect>Configure a senha do root
+<p>Configurar uma boa senha para o root é o requerimento mais básico
+para ter um sistema seguro. Veja <manref section="1" name="passwd"> 
+para mais dicas de como criar boas senhas. Você também pode usar um 
+programa gerador de senhas para fazer isto para você (veja <ref
+id="user-pwgen">).
+
+<p>Muita informação sobre a escolha de boas senhas pode ser encontrada na
+internet; dois locais que fornecem um sumário decente e racional são  
+<url name="How to: Pick a Safe Password"
+id="http://wolfram.org/writing/howto/password.html"> do Eric
+Wolfram e <url name="Unix Password Security"
+id="http://www.ja.net/CERT/Belgers/UNIX-password-security.html"> do Walter
+Belgers.
+
+
+<sect>Ative os recursos senhas shadow e senhas MD5
+<p>No final da instalação, você será perguntado se senhas shadow deve
+ser habilitada. Responda sim (yes), então as senhas serão
+mantidas no arquivo <file>/etc/shadow</file>. Apenas o root e o grupo shadow
+terá acesso de leitura a estes arquivo, assim nenhum usuário será capaz de
+pegar uma cópia deste arquivo para rodar um cracker de senhas nele. Você pode
+alternar entre senhas shadows e senhas normais a qualquer hora usando 
+<tt>shadowconfig</tt>.
+
+<p>Leia mais sobre senhas Shadow em
+<url
+name="Shadow Password"
+id="http://www.tldp.org/HOWTO/Shadow-Password-HOWTO.html">
+(<file>/usr/share/doc/HOWTO/en-txt/Shadow-Password.txt.gz</file>).
+
+<p>Além disso, você é perguntado durante a insatalação se quer usar senhas MD5
+.. Isto geralmente é uma boa idéia uma vez que permite senhas longas e
+melhor encriptação. MD5 permite o uso de senhas com mais de 8 caracteres. Isto,
+se usado sabiamente, pode tornar mais difícil ataques as senhas do sistema. MD5
+é a opção padrão quando instalando a última versão do pacote
+<package>password</package>. Você pode alterar isto a qualquer hora após a
+instalação executando <prgn>dpkg-reconfigure --priority=low
+passwd</prgn>. Você pode reconhecer senhas md5 no arquivo 
+<file>/etc/shadow</file> pelo prefixo $1$.
+
+
+<p>Isto modifica todos arquivos sob 
+<file>/etc/pam.d</file> pela substituição da linha de senha e inclusão do md5
+nela:
+<example>
+      password requer pam_unix.so md5 nullok obscure min=6 max=16
+</example>
+<p>Se <tt>max</tt> não está configurado para mais de 8 a alteração não será
+útil. Para mais informações leia <ref id="auth-pam">.
+
+<p>Observação: o padrão de configuração do Debian, mesmo quando ativada a senha
+MD5, não modifica o valor <tt>max</tt> previamente configurado.
+
+<sect>Rode o mínimo de serviços necessários
+
+<p>Serviços são programas como servidores ftp e servidores web. Uma vez que
+eles tem que estar <em>escutando</em> por conexões que requisitem o serviço,
+computadores externos podem conectar-se a eles. Serviços algumas vezes são
+vulneráveis (i.e. podem estar comprometidos sobre um certo ataque) e oferecem 
+risco a segurança.
+
+<p>Você não deve instalar serviços que não são necessários em sua máquina. Todo
+serviço instalado pode introduzir novos, talvez não óbvios ou conhecidos,
+buracos de segurança em seu computador.
+
+<p>Como você já deve saber, quando você instala um serviço o padrão é ele ser
+ativado. Em uma instalação Debian padrão, sem nenhum serviço a mais instalado,
+o footprint de serviços rodando é baixo mesmo quando falamos de serviços
+oferecidos para a rede. o footprint no Debian 2.1 não é tão firme quanto no
+Debian 2.2 (alguns serviços do <prgn>inetd</prgn> foram habilitados por
+padrão) e no Debian 2.2 o rpc portmapper é habilitado logo após a 
+installation. Rpc é instalado por padrão porque ele é necessário para muitos 
+serviços, NFS por exemplo. Ele pode ser facilmente removido, porém, veja <ref
+id="disableserv"> como desabilitá-lo.
+
+<p>Quando você instala um novo serviço de rede (daemon) em seu sistema Debian
+GNU/Linux ele pode ser habilitado de duas maneiras: através do superdaemon 
+<prgn>inetd</prgn> (uma linha será adicionada ao <file>/etc/inetd.conf</file>)
+ou através de um programa que serve de interface. Estes programas são
+controlados pelos arquivos <file>/etc/init.d</file>, que são chamados no
+momento da inicialização através do mecanismo SysV (ou outro alternativo) pelo
+uso de symlinks em <file>/etc/rc?.d/*</file> (para mais informações de como
+isto é feito leia <file>/usr/share/doc/sysvinit/README.runlevels.gz</file>).
+
+<p>Se você quer manter algum serviço, mas que será usado raramente, use os 
+comandos update, isto é, <prgn>update-inetd</prgn> e 
+<prgn>update-rc.d</prgn> para removê-los do processo de inicialização.
+
+
+<sect1 id="disableserv">Desabilitando daemons de serviço
+
+<p>Desabilitar um daemon de serviço é simples. Existem vários métodos:
+
+<list>
+
+<item>remover ou renomear os links de <file>/etc/rc${runlevel}.d/</file>
+de modo que eles não iniciem com a letra 'S'
+
+<item>mover ou renomear o script <file>/etc/init.d/_service_name_</file>
+pra outro nome, por exemplo <file>/etc/init.d/OFF._service_name_</file>
+
+<item>remover a permissão de execução do
+arquivo <file>/etc/init.d/_service_name_</file>.
+
+
+<item>editar o script <file>/etc/init.d/_service_name_</file> para parar o
+serviço imediatamente.
+
+</list>
+
+<p>Você pode remover os links de <file>/etc/rc${runlevel}.d/</file> manualmente
+ou usando <tt>update-rc.d</tt> (veja <manref section="8"
+name="update-rc.d">). Por exemplo, você pode desabilitar um serviço do runlevel
+multiusuário executando:
+
+<example>
+  update-rc.d stop XX 2 3 4 5 .
+</example>
+
+<p>Observe que, se você <em>não</em> está usando <package>file-rc</package>,
+<tt>update-rc.d -f _service_ remove</tt> não trabalhará apropriadamente, pois
+embora <em>todos</em> links sejam removidos, após reinstalação ou
+upgrade do pacote estes links serão regenerados (provavelmente não é o que você
+quer). Se pensa que isto não é intuitivo você provavelmente está certo
+(veja <url id="http://bugs.debian.org/67095" name="Bug 67095">). Texto da 
+manpage:
+
+<example>
+  Se qualquer arquivo /etc/rcrunlevel.d/[SK]??name já existe então 
+  update-rc.d não faz nada. É desta maneira que o administrador do sistema pode
+  reorgananizar os links, contanto que eles deixem pelo menos um link remanescente, 
+  sem ter sua configuração reescrita.
+</example>
+
+<p>Se você está usando <package>file-rc</package>, toda informação sobre
+serviços é manipulada por um arquivo de configuração comum e é mantida mesmo se
+os pacotes forem removidos do sistema.
+
+<p>Você pode usar a TUI (Text User Interface) fornecida
+por <package>rcconf</package>  para fazer todas estas alterações
+facilmente (<prgn>rcconf</prgn> trabalha com runlevels
+ <package>file-rc</package> e System V).
+
+<p>Outro método (não recomendado) de desabilitar serviços é:
+<tt>chmod 644 /etc/init.d/daemon</tt> (mas exibe uma mensagem de erro quando
+iniciando o sistema), ou modificando o script <file>/etc/init.d/daemon</file>
+(adicionando <prgn>exit 0</prgn> no início ou comentando a instrução 
+<tt>start-stop-daemon</tt>). Como os arquivos do <file>init.d</file> são
+arquivos de configuração, eles não serão reescritos por ocasião da upgrade.
+
+<p>Infelizmente, diferente de outros sistemas operacionanais tipo UNIX, os
+serviços no Debian não podem ser desabilitados pela modificação dos arquivos em 
+<file>/etc/default/_servicename_</file>.
+
+<p>FIXME: Adicione mais informação sobre manipulação de daemons usando file-rc
+
+<sect1 id="inetd">Desabilitando o <prgn>inetd</prgn> ou seus serviços
+
+<p>Você deve checar se realmente precisa do daemon <prgn>inetd</prgn>. Inetd
+sempre foi uma maneira de compensar deficiências do kernel, mas estas
+deficiências foram corrigidas. Existe possibilidade de ataques DoS (Denial of
+Service) contra o <prgn>inetd</prgn>, então é preferível usar daemons individuais 
+do que rodar um serviço do <prgn>inetd</prgn>. Se você ainda quer rodar
+algum serviço do <prgn>inetd</prgn>, então no mínimo alterne para um daemon mais
+configurável como <prgn>xinetd</prgn>,  <prgn>rlinetd</prgn> ou 
+<prgn>openbsd-inetd</prgn>.
 <p>
-Você não deve instalar serviços desnecessários em sua máquina. Cada serviço instalado introduz novos, talvez nem tão óbvios mas existentes, furos de segurança
-em sua maquina. Se você ainda quer ter alguns serviços mas raramente utiliza os mesmos, use os comandos de atualização (update-commands), como por exemplo:
-'update-inetd' para remove-los do processo de inicialização do sistema. Esta seção necessita uma lista de serviços, o que cada um faz e o nível de risco envolvido
-com cada um, pois os novatos não tem pistas, o que é considerado um risco de segurança em potencial. 
+
+Você deve parar todos os serviços Inetd desnecessários, como 
+<prgn>echo</prgn>, <prgn>chargen</prgn>, <prgn>discard</prgn>,
+<prgn>daytime</prgn>, <prgn>time</prgn>, <prgn>talk</prgn>,
+<prgn>ntalk</prgn> e r-services (<prgn>rsh</prgn>, <prgn>rlogin</prgn>
+e <prgn>rcp</prgn>) os quais são considerados ALTAMENTE inseguros (use
+<prgn>ssh</prgn> no lugar destes). 
+
+<p>Você pode desabilitar os serviços editando o arquivo 
+<file>/etc/inetd.conf</file> diretamente, mas o Debian fornece uma alternativa
+melhor: <tt>update-inetd</tt> (o qual comenta os serviços de modo que eles
+possam facilmente ser reativados). Você pode remover o daemon
+<prgn>telnet</prgn> para alterar o arquivo de configuração e reiniciar o daemon
+(neste caso o serviço <prgn>telnet</prgn> é desabilitado):
+
+<example>
+  /usr/sbin/update-inetd --disable telnet
+</example>
+<!-- # /etc/init.d/inetd restart não é necessário uma vez que a
+manpage diz que update-inetd envia um SIGHUP, comentário enviado por Dariusz
+Puchalak -->
+
+<p>Se você quer um serviço, mas não o quer disponível para todos os IP do seu
+host, você deve usar um recurso não documentado no <prgn>inetd</prgn>
+(substitua o nome do serviço por serviço@ip) ou use um daemon alternativo como 
+<prgn>xinetd</prgn>.
+
+<sect>Instale o mínimo de software necessário
+
+<p>O Debian vem com <em>uma grande quantidade</em> de software, por exemplo o
+Debian 3.0 <em>woody</em> inclui quase 6 CD-ROMs de software e milhares de
+pacotes. Apesar da grande quantidade de software, a instalação do sistema base
+utiliza poucos pacotes.
+<footnote>Por exemplo, no Debian Woody ela gira em torno de 40Mbs, tente
+isto para ver quanto os pacotes necessários ocupam no sistema:
+<example>
+  $ size=0
+  $ for i in `grep -A 1 -B 1 "^Section: base" /var/lib/dpkg/available |
+  grep -A 2 "^Priority: required" |grep "^Installed-Size" |cut -d : -f 2
+  `; do size=$(($size+$i)); done
+  $ echo $size
+  34234
+</example>
+</footnote>
+você pode estar mal informado e instalar mais que o realmente necessário para
+seu sistema.
+
+<p>Sabendo o que seu sistema realmente precisa, você deve instalar apenas o
+que for realmente necessário para seu trabalho. Qualquer ferramenta
+desnecessária pode ser usada por um usuário malicioso para comprometer o
+sistema ou por um invasor externo que tenha acesso ao shell (ou código remoto
+através de serviços exploráveis).
+
+<p>A presença, por exemplo, de utilitários de desenvolvimento (um compilador C)
+ou linguagens interpretadas (como <prgn>perl</prgn>, <prgn>python</prgn>,
+<prgn>tcl</prgn>...) pode ajudar um atacante a comprometer o sistema da
+seguinte maneira:
+
+<list>
+<item>permitir a ele fazer escalação de privilégios. Isto facilita, por exemplo,
+rodar exploits locais no sistema se existe um depurador e compilador prontos
+para compilar e testar.
+
+<item>fornecer ferramentas que poderiam ajudar um atacante a usar o sistema
+comprometido como <em>base de ataque</em> contra outros sistemas
+<footnote>
+Muitas invasões são feitas mais para acessar os recursos e executar
+atividades ilícitas (ataques denial of service, spam, rogue ftp servers,
+poluição dns...) do que para obter dados confidenciais dos sistemas
+comprometidos.
+</footnote>
+
+</list>
+
+<p>É claro que um invasor com acesso ao shell local pode baixar suas próprias
+ferramentas e executá-las, além disso o próprio shell pode ser usado para fazer
+complexos programas. Remover software desnecessário não impedirá o problema mas
+dificultará a ação de um possível atacante. Então, se você deixar
+disponíveis ferramentas em um sistema de produção que poderiam ser usadas
+remotamente para um ataque (veja <ref id="vuln-asses">), pode acontecer de um 
+invasor usá-las.
+
+<sect1>Removendo Perl
+
+<p>Remover o <prgn>perl</prgn> pode não ser fácil em um sistema Debian pois ele
+é muito usado. O pacote <package>perl-base</package> tem prioridade
+classificada como requerida (<em>Priority: required</em>), o que já diz tudo. 
+Você pode removê-lo mas não será capaz de rodar qualquer aplicação
+<prgn>perl</prgn> no sistema; você ainda terá que enganar o sistema de
+gerenciamento de pacotes para ele pensar que o <package>perl-base</package>
+ainda está instalado. <footnote>Você pode fazer (em outro sistema) um pacote
+dummy com o <package>equivs</package>
+</footnote>
+
+<p>Quais utilitários usam <prgn>perl</prgn>? Você mesmo pode verificar:
+
+<example>
+  $ for i in /bin/* /sbin/* /usr/bin/* /usr/sbin/*; do [ -f $i ] && {
+  type=`file $i | grep -il perl`; [ -n "$type" ] && echo $i; }; done
+</example>
+
+<p>Estes incluem os seguintes utilitários em pacotes com prioridade 
+<em>required</em> ou <em>important</em>:
+
+<list>
+<item><file>/usr/bin/chkdupexe</file> do pacote
+<package>util-linux</package>.
+
+<item><file>/usr/bin/replay</file> do pacote
+<package>bsdutils</package>.
+
+<item><file>/usr/sbin/cleanup-info</file> do pacote
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/dpkg-divert</file> do pacote
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/dpkg-statoverride</file> do pacote
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/install-info</file> do pacote
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/update-alternatives</file> do pacote
+<package>dpkg</package>.
+
+<item><file>/usr/sbin/update-rc.d</file> do pacote
+<package>sysvinit</package>.
+
+<item><file>/usr/bin/grog</file> do pacote
+<package>groff-base</package>.
+
+<item><file>/usr/sbin/adduser</file> do pacote
+<package>adduser</package>.
+
+<item><file>/usr/sbin/debconf-show</file> do pacote
+<package>debconf</package>.
+
+<item><file>/usr/sbin/deluser</file> do pacote
+<package>adduser</package>.
+
+<item><file>/usr/sbin/dpkg-preconfigure</file> do pacote
+<package>debconf</package>.
+
+<item><file>/usr/sbin/dpkg-reconfigure</file> do pacote
+<package>debconf</package>.
+
+<item><file>/usr/sbin/exigrep</file> do pacote
+<package>exim</package>.
+
+<item><file>/usr/sbin/eximconfig</file> do pacote
+<package>exim</package>.
+
+<item><file>/usr/sbin/eximstats</file> do pacote
+<package>exim</package>.
+
+<item><file>/usr/sbin/exim-upgrade-to-r3</file> do pacote
+<package>exim</package>.
+
+<item><file>/usr/sbin/exiqsumm</file> do pacote
+<package>exim</package>.
+
+<item><file>/usr/sbin/keytab-lilo</file> do pacote
+<package>lilo</package>.
+
+<item><file>/usr/sbin/liloconfig</file> do pacote
+<package>lilo</package>.
+
+<item><file>/usr/sbin/lilo_find_mbr</file> do pacote
+<package>lilo</package>.
+
+<item><file>/usr/sbin/syslogd-listfiles</file> do pacote
+<package>sysklogd</package>.
+
+<item><file>/usr/sbin/syslog-facility</file> do pacote
+<package>sysklogd</package>.
+
+<item><file>/usr/sbin/update-inetd</file> do pacote
+<package>netbase</package>.
+
+</list>
+
+<p>Assim, sem Perl e, a menos que você recompile estes utilitários em um script
+shell, você provavelmente não será capaz de gerenciar nenhum pacote
+(assim você também não será capaza de atualizar o sistema, o que <em>não é
+uma coisa boa</em>).
+
+<p>Se você está determinado a remover o Perl do Debian e tem tempo de
+sobra, envie os relatórios de bugs referentes aos pacotes acima referidos
+incluindo possíveis substituições para os utilitários escritas em shell.
+
+<sect>Leia as listas de segurança do Debian (security mailing lists)
+
+<p>Nunca é demais dar uma olhada na lista debian-security-announce, onde avisos
+e correções dos pacotes são anunciadas pela equipe de segurança do Debian, ou na 
+<url id="mailto:debian-security@lists.debian.org">, onde você pode
+participar de discussões sobre assuntos relacionados a segurança Debian.
+
+<p>Para receber importantes atualizações de segurança e alertas envie email para
+<url name="debian-security-announce-request@lists.debian.org"
+id="mailto:debian-security-announce-request@lists.debian.org"> com a
+palavra "subscribe" como assunto.  Você também pode inscrever-se nesta lista
+no endereço <url name="http://www.debian.org/MailingLists/subscribe"
+id="http://www.debian.org/MailingLists/subscribe">
+
+<p>Esta lista tem pouco volume de mensagens e assinando ela você será
+imediatamente alertado sobre atualizações de segurança para a distribuição
+Debian. Isto lhe permitirá rapidamente baixar os novos pacotes com atualizações
+de segurança, as quais são muito importantes na manutenção de um sistema seguro.
+ (Veja <ref id="security-update"> para detalhes de como fazer isto.)
 
 
-<sect1>Leia as listas de segurança Debian
-<p>
-Nunca é demais dar uma olhada na lista debian-security-announce mailinglist, onde avisos e correções para pacotes lançados são divulgados pelo time de
-segurança da Debian ou em debian-security@lists.debian.org, onde você pode participar das discussões sobre assuntos ligados a segurança em Debian. 
 
-Para receber alertas importantes de segurança, envie um email para
-<url name="debian-security-announce-request@lists.debian.org" id="mailto:debian-security-announce-request@lists.debian.org"> com a palavra "subscribe" na linha de
-subject. Você também pode inscrever-se para esta lista moderada através da página
-<url name="http://www.debian.org/MailingLists/subscribe" id="http://www.debian.org/MailingLists/subscribe">
-
-Esta lista tem um volume muito baixo e ao inscrever-se nela você será imediatamente alertado de atualizações de segurança para a distribuição Debian. Isto permite
-que você rapidamente baixe novos pacotes com correções de segurança, o que é muito importante para manter um sistema seguro (Veja a seção 5.1 para detalhes
-sobre como fazer isto).
-
-<sect1 id="disableserv">Disabling daemon services
