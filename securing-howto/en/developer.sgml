@@ -1,5 +1,5 @@
 
-<chapt>Developer's Best Practices
+<chapt>Developer's Best Practices for OS Security
 
 <!-- This chapter is based on the patch I submitted to the Developer's
      Reference, see #337086: [BPP] Best practices for security design and review -->
@@ -139,65 +139,64 @@ will run as when the package is installed or upgraded:
 <example>
 [...]
 case "$1" in
-    install|upgrade)
+  install|upgrade)
 
-       # If the package has default file it could be sourced, so that
-       # the local admin can overwrite the defaults
+  # If the package has default file it could be sourced, so that
+  # the local admin can overwrite the defaults
 
-       [ -f "/etc/default/<var>packagename</var>" ] && . /etc/default/<var>packagename</var>
+  [ -f "/etc/default/<var>packagename</var>" ] && . /etc/default/<var>packagename</var>
 
+  # Sane defaults:
 
-       # Sane defaults:
+  [ -z "$SERVER_HOME" ] && SERVER_HOME=<var>server_dir</var>
+  [ -z "$SERVER_USER" ] && SERVER_USER=<var>server_user</var>
+  [ -z "$SERVER_NAME" ] && SERVER_NAME="<var>Server description</var>"
+  [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
 
-       [ -z "$SERVER_HOME" ] && SERVER_HOME=<var>server_dir</var>
-       [ -z "$SERVER_USER" ] && SERVER_USER=<var>server_user</var>
-       [ -z "$SERVER_NAME" ] && SERVER_NAME="<var>Server description</var>"
-       [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
- 
-       # Groups that the user will be added to, if undefined, then none.
-       ADDGROUP=""
+  # Groups that the user will be added to, if undefined, then none.
+  ADDGROUP=""
 
-
-       # create user to avoid running server as root
-       # 1. create group if not existing
-       if ! getent group | grep -q "^$SERVER_GROUP:" ; then
-             echo -n "Adding group $SERVER_GROUP.."
-             addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
-            echo "..done"
-       fi
-       # 2. create homedir if not existing
-       test -d $SERVER_HOME || mkdir $SERVER_HOME
-       # 3. create user if not existing
-       if ! getent passwd | grep -q "^$SERVER_USER:"; then
-           echo -n "Adding system user $SERVER_USER.."
-           adduser --quiet \
-               --system \
-               --ingroup $SERVER_GROUP \
-               --no-create-home \
-               --disabled-password \
-               $SERVER_USER 2>/dev/null || true
-           echo "..done"
-       fi
-       # 4. adjust passwd entry
-       usermod -c "$SERVER_NAME" \
-               -d $SERVER_HOME \
-               -g $SERVER_GROUP \
-               $SERVER_USER
-       # 5. adjust file and directory permissions
-       if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
-       then
-               chown -R $SERVER_USER:adm $SERVER_HOME
-               chmod u=rwx,g=rxs,o= $SERVER_HOME
-       fi
-       # 6. Add the user to the ADDGROUP group
-       if test -n $ADDGROUP
-       then
-               if ! groups $SERVER_USER | cut -d: -f2 | grep -qw $ADDGROUP; then
-                       adduser $SERVER_USER $ADDGROUP
-               fi
-       fi
-    ;;
-    configure)
+  # create user to avoid running server as root
+  # 1. create group if not existing
+  if ! getent group | grep -q "^$SERVER_GROUP:" ; then
+     echo -n "Adding group $SERVER_GROUP.."
+     addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
+     echo "..done"
+  fi
+  # 2. create homedir if not existing
+  test -d $SERVER_HOME || mkdir $SERVER_HOME
+  # 3. create user if not existing
+  if ! getent passwd | grep -q "^$SERVER_USER:"; then
+    echo -n "Adding system user $SERVER_USER.."
+    adduser --quiet \
+            --system \
+            --ingroup $SERVER_GROUP \
+            --no-create-home \
+            --disabled-password \
+            $SERVER_USER 2>/dev/null || true
+    echo "..done"
+  fi
+  # 4. adjust passwd entry
+  usermod -c "$SERVER_NAME" \
+          -d $SERVER_HOME   \
+          -g $SERVER_GROUP  \
+             $SERVER_USER
+  # 5. adjust file and directory permissions
+  if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
+  then
+      chown -R $SERVER_USER:adm $SERVER_HOME
+      chmod u=rwx,g=rxs,o= $SERVER_HOME
+  fi
+  # 6. Add the user to the ADDGROUP group
+  if test -n $ADDGROUP
+  then
+      if ! groups $SERVER_USER | cut -d: -f2 | \
+         grep -qw $ADDGROUP; then
+           adduser $SERVER_USER $ADDGROUP
+      fi
+  fi
+  ;;
+  configure)
 
 [...]
 </example>
@@ -250,49 +249,49 @@ range of dynamic assigned system uids and the gid is belongs to a system group:
 
 <example>
 case "$1" in
-    purge)
+ purge)
 [...]
-        # find first and last SYSTEM_UID numbers
-         for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
-            case $LINE in
-               FIRST_SYSTEM_UID*)
-                  FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
-               ;;
-               LAST_SYSTEM_UID*)
-                  LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
-               ;;
-               *)
-               ;;
-            esac
-         done
-         # Remove system account if necessary
-         CREATEDUSER="<var>server_user</var>"
-         if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
-            if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
-               if [ -n "$USERID" ]; then
-                  if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
-                     [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
-		        echo -n "Removing $CREATEDUSER system user.."
-                        deluser --quiet $CREATEDUSER || true
-			echo "..done"
-                  fi
-               fi
-            fi
-         fi
-         # Remove system group if necessary
-	 CREATEDGROUP=<var>server_group</var>
-         FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
-         if [ -n "$FIST_USER_GID" ] then
-            if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
-               if [ -n "$GROUPGID" ]; then
-                  if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
-		        echo -n "Removing $CREATEDGROUP group.."
-		        delgroup --only-if-empty $CREATEDGROUP || true
-			echo "..done"
-                  fi
-               fi
-            fi
-         fi
+   # find first and last SYSTEM_UID numbers
+   for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+      case $LINE in
+         FIRST_SYSTEM_UID*)
+           FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+           ;;
+         LAST_SYSTEM_UID*)
+           LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+           ;;
+         *)
+           ;;
+         esac
+   done
+   # Remove system account if necessary
+   CREATEDUSER="<var>server_user</var>"
+   if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+    if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
+      if [ -n "$USERID" ]; then
+        if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+           [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
+              echo -n "Removing $CREATEDUSER system user.."
+              deluser --quiet $CREATEDUSER || true
+              echo "..done"
+        fi
+      fi
+    fi
+  fi
+  # Remove system group if necessary
+  CREATEDGROUP=<var>server_group</var>
+  FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+  if [ -n "$FIST_USER_GID" ] then
+    if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
+      if [ -n "$GROUPGID" ]; then
+        if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
+          echo -n "Removing $CREATEDGROUP group.."
+          delgroup --only-if-empty $CREATEDGROUP || true
+          echo "..done"
+        fi
+      fi
+    fi
+  fi
 [...]
 </example>
 

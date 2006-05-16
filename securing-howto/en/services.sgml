@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.23 $"  -->
+<!-- CVS revision of this document "$Revision: 1.24 $"  -->
 
 <chapt id="sec-services">Securing services running on your system
 
@@ -1722,6 +1722,9 @@ REMOTE_UDP_SERVICES="53" # DNS
 # Network that will be used for remote mgmt
 # (if undefined, no rules will be setup)
 # NETWORK_MGMT=192.168.0.0/24
+# Port used for the SSH service, define this is you have setup a
+# management network but remove it from TCP_SERVICES
+# SSH_PORT="22"
 
 if ! [ -x /sbin/iptables ]; then  
     exit 0
@@ -1757,11 +1760,14 @@ fw_start () {
   # Output:
   /sbin/iptables -A OUTPUT -j ACCEPT -o lo 
   /sbin/iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-  # ICMP is permitted
+  # ICMP is permitted:
   /sbin/iptables -A OUTPUT -p icmp -j ACCEPT
-  # So are security package updates
+  # So are security package updates:
+  # Note: You can hardcode the IP address here to prevent DNS spoofing
+  # and to setup the rules even if DNS does not work but then you 
+  # will not "see" IP changes for this service:
   /sbin/iptables -A OUTPUT -p tcp -d security.debian.org --dport 80 -j ACCEPT 
-  # As well as the services we have defined
+  # As well as the services we have defined>
   if [ -n "$REMOTE_TCP_SERVICES" ] ; then
   for PORT in $REMOTE_TCP_SERVICES; do
     /sbin/iptables -A OUTPUT -p tcp --dport ${PORT} -j ACCEPT
@@ -1777,6 +1783,7 @@ fw_start () {
   /sbin/iptables -A OUTPUT -j REJECT 
   /sbin/iptables -P OUTPUT DROP
   # Other network protections
+  # (some will only work with some kernel versions)
   echo 1 > /proc/sys/net/ipv4/tcp_syncookies
   echo 0 > /proc/sys/net/ipv4/ip_forward 
   echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
