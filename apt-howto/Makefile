@@ -4,9 +4,6 @@
 # Should work both for a manual in the Debian Documentation Project
 # manuals.sgml tree, and for $(MANUAL) package build.
 
-# increase pool size for Korean documents in Woody
-export TEXMFCNF=../quick-reference/texmf:
-
 # Basename for SGML
 MANUAL := apt-howto
 
@@ -28,7 +25,8 @@ html:
           j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
           langfoo=`echo $$lang | tr 'A-Z_' 'a-z-'`; \
 	  langbar=`echo $$lang | perl -pe 's/(\w\w)-(\w\w)/"$$1_".uc($$2)/e'`; \
-	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$langfoo.html ]; then \
+	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$langfoo.html ] || \
+	     [ ! -e $(MANUAL).$$lang.html/index.$$langfoo.html ]; then \
             echo debiandoc2html -c -l $$langbar $$i "($$langfoo)"; \
             debiandoc2html -c -l $$langbar $$i; \
           fi; \
