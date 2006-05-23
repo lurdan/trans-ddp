@@ -5,10 +5,10 @@ PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 
 SOURCES		:= $(wildcard *.sgml)
 
+LANGS           := fr ja
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
-		     $(filter-out developers-reference.ja.pdf, \
-		       $(foreach langext,.fr, \
-		         $(foreach fmt,html txt,developers-reference$(langext).$(fmt))))
+		     $(foreach langext,$(LANGS), \
+		       $(foreach fmt,html txt pdf,developers-reference.$(langext).$(fmt)))
 
 # programs for creating output
 DEBIANDOC2HTML	:= debiandoc2html -c
@@ -26,11 +26,7 @@ install_file	:= install -m 644 -p
 MAX_TEX_RECURSION := 5
 
 .PHONY:	all dropold
-all:    $(TARGETS) dropold
-
-dropold:
-	-rm -rf developers-reference.ja.html
-
+all:    $(TARGETS)
 
 .PHONY: validate
 validate:	$(addsuffix .validate,$(SOURCES))
