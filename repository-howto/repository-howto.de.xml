@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE"
+     "http://docbook.org/xml/4.2/docbookx.dtd">
+<article lang="de">
+  <articleinfo>
+    <title>Debian Depot HOWTO</title>
+
+    <author>
+      <firstname>Aaron</firstname>
+      <surname>Isotton</surname>
+      <affiliation>
+        <address><email>aaron@isotton.com</email></address>
+      </affiliation>
+    </author>
+    <othercredit role="traduction" class="translator">
+	<firstname>Claas Felix</firstname>
+	<surname>Beyersdorf</surname>
+	<affiliation>
+	  <address><email>claasfelix@web.de</email></address>
+	</affiliation>
+     </othercredit>
+
+    <abstract>
+      <para>Diese Dokument soll Ihnen vermittelt was ein Depot ist
+	    und wie Sie selbst ein eigenes aufbauen können.
+      </para>
+    </abstract>
+  </articleinfo>
+
+  <section id="intro">
+    <title>Einleitung</title>
+
+    <para>Ein Debian Depot ist eine Zusammenstellung von Debian-Paketen die in
+	    einer speziellen Ordnerstruktur organisiert sind.
+	    Diese Ordner-Struktur enthält auch einige zusätzliche Dateien, welche
+	    Indices und Checksummen der Pakete beinhalten.
+	    Wenn ein Benutzer ein Depot zu seiner <filename>/etc/apt/sources.list</filename>
+	    Datei hinzufügt, kann er auf einfache Weise die verfügbaren Pakete
+	    anschauen und installieren genau wie bei den Debian Paketen.</para>
+
+    <para>Ein Depot kann Online und Offline (z.B. auf einer CD-ROM) sein.
+          Der erste Fall ist allerdings häufiger.</para>
+
+  <para>Dieses Dokument erklärt wie Debian-Depots arbeiten, wie
+        erstellt werden und wie Sie sie richtig zur
+        <filename>sources.list</filename> hinzufügen.</para>
+
+    <para>Das Original Dokument können Sie unter <ulink
+        url="http://www.isotton.com/debian/docs/repository-howto/"/> finden.</para>
+
+    <section id="copyright">
+      <title>Copyright und Lizenz</title>
+
+      <para>This document, <emphasis>Debian Repository
+          HOWTO</emphasis>, is copyrighted (c) 2002-2003 by
+          <emphasis>Aaron Isotton</emphasis>.  Permission is granted
+          to copy, distribute and/or modify this document under the
+          terms of the GNU Free Documentation License, Version 1.1 or
+          any later version published by the Free Software Foundation;
+          with no Invariant Sections, with no Front-Cover Texts, and
+          with no Back-Cover Texts.</para>
+    </section> <!-- copyright  -->
+
+    <section id="feedback">
+      <title>Feedback</title>
+
+      <para>
+        Feedback zu diesem Dokument ist sehr Willkommen. Bitte, senden Sie
+        ihre Ergänzungen, Kommentare und Kritiken an folgende E-Mail
+	Adresse: <email>aaron@isotton.com</email> (in Englisch).
+      </para>
+
+      <para>
+	Feedback zur Übersetzung schicken Sie bitte an:
+	<email>debian-l10n-german@lists.debian.org</email>
+      </para>
+    </section> <!-- feedback -->
+  </section> <!-- intro -->
+
+  <section id="terms">
+    <title>Begriffe die in diesem Dokument verwendet werden.</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>Distributionen</term>
+
+        <listitem><para>Die drei Debian Distributionen:
+          »<emphasis>stable</emphasis>«, »<emphasis>testing</emphasis>«
+          und »<emphasis>unstable</emphasis>«.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>Index-Dateien</term>
+
+        <listitem><para>Die »<filename>Packages.gz</filename>«- und
+	   »<filename>Sources.gz</filename>«-Datei.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+
+  <section id="how-it-works">
+    <title>Wie Depots arbeiten</title>
+
+    <para>Ein Depot besteht eigentlich nur aus einem Verzeichnis mit
+      einigen »DEB«-Paketen und zwei speziellen Dateien:
+      <filename>Packages.gz</filename> für die »Binär«-Pakete und
+      <filename>Sources.gz</filename> für die »Quell«-Pakete.</para>
+
+    <para>Wenn Ihr Depot in der »<filename>sources.list</filename>«-Datei
+	 (dazu später mehr) korrekt eingetragen wurde, wird
+	<command>apt-get</command> den
+	»<filename>Packages.gz</filename>«-Index wenn die »Binär«-Pakete
+	(mit dem »<literal>deb</literal>«-Schlüsselwort) und
+	»<filename>Sources.gz</filename>« wenn die »Quell«-Pakete (mit
+	dem »<literal>deb-src</literal>«-Schlüsselwort) aufgelistet werden.</para>
+
+    <para>»<filename>Packages.gz</filename>« enthält den Namen, die Version,
+      die Größe, die Kurz- und Lang-Beschreibung und die abhängigkeiten
+      eines jeden Paketes und einige zusätzliche Information welche für uns
+      nicht von Interesse sind.  Alle diese Informationen werden aufgelistet (und benutzt
+      von) den Debian-Paket-Verwaltern wie
+      <command>dselect</command> oder
+      <command>aptitude</command>.</para>
+
+    <para>»<filename>Sources.gz</filename>« enthält den Namen, die Version
+      und die »Bau-Abhängigkeiten« (die das Paket zum bauen benötigt) von
+      jedem Paket (und auch einige Informationen die wieder nicht von Interesse
+      für uns sind); diese Informationen werden von <command>apt-get
+      source</command> und vergleichbaren Werkzeugen verwendet.</para>
+
+    <para>Es gibt noch eine optionale »<filename>Release</filename>«-Datei,
+	welche einige Informationen über Ihr Depot enthält; diese wird für das so genannte
+	»<emphasis>Pinning (Anheften)</emphasis>« benutzt, eiInteressanterer Trick auf den ich
+	in diesem Dokument nicht näher eingehen möchte.  Sie können mehr über Anheften im <ulink
+		  url="http://www.debian.org/doc/manuals/apt-howto/">APT
+		HOWTO</ulink> nachlesen.</para>
+
+   <para>Sobald Sie ihr Depot aufgebaut haben, können Sie alle ihre Pakete
+	zusammen mit denen von Debian auflisten und installieren.
+	Wenn Sie ein Paket im Depot aktualisieren, wird es beim Benutzer aktualisiert,
+	wenn dieser das Kommando <command>apt-get upgrade</command> ausführt; Und für jeden
+	Benutzer ist es leicht sich eine kurze Beschreibung und andere wichtige
+	Informationen über Ihre Pakete anzeigen zu lassen.</para>
+
+   <para>Aber es gibt noch mehr. Wenn richtig erstellt, kann das Depot
+	verschiedene Pakete für jede unterstützte Distribution und jede
+	der (zur Zeit Elf) unterstützten Architekturen bereitstellen.
+	»<literal>apt</literal>« wird automatisch das für den Rechner des
+	Benutzers richtige Paket hohlen, ohne ihn über die anderen
+	Architekturen zu informieren. Zusätzlich ist es Ihnen erlaubt
+	Ihre Pakete Gruppen zuzuordnen, genau wie die »Debian«-Pakete
+	in »<literal>main</literal>«, »<literal>non-free</literal>« und
+	»<literal>contrib</literal>« unterteilt sind.  Wenn Ihre Software
+	Plattformübergreifend ist, werden Sie Paket-Depots lieben.</para>
+
+  </section> <!-- how-it-works -->
+
+  <section id="setting-up">
+    <title>Wie Sie ein Depot aufbauen</title>
+
+    <para>Es gibt zwei Arten von Depots: Komplexere wo der Benutzer nur
+	  den Basis-Pfad zum Depot, die Distribution und die Komponenten
+	  die er möchte angeben muss (apt hohlt automatisch die für die richtige
+	  Architektur gedachten Pakete, sovern verfügbar).
+	  Und einfacherer bei dennen der Benutzer einen exakten Pfad
+	  angeben muss (und apt braucht keine Magie um herrauszufinden welches
+	  das richtige Paket ist). Die Ersten sind ein wenig schwerer aufzusetzen
+	  aber leichter zu benutzen und sollten immer für komplexe und/oder
+	  Platformübergreifende Depots benutzt werden. Die Zweiten sind leichter
+	  aufzusetzen, aber sollten nur für kleine oder »einzel-Architektur«-Depots
+	  benutzt werden.</para>
+
+    <para>Obwohl das nicht wirklich richtig ist, nenne ich die Ersten
+      »<emphasis>Automatische-Depots</emphasis>« und die Zweiten
+      »<emphasis>Triviale-Depots</emphasis>«.</para>
+    <section>
+
+      <title>Automatische-Depots</title>
+
+      <para>Die Verzeichnis-Struktur von einem Automatischen-Depot mit
+        den Standrad Debian-Architekturen und Komponenten sieht wie folgt
+        aus:</para>
+
+      <example id="debian-repository-example">
+        <title>Ein Standart Debian Repository</title>
+
+      <screen>(Ihr Repository Verzeichnisbaum)
+|
++-dists
+  |
+  |-stable
+  | |-main
+  | | |-binary-alpha
+  | | |-binary-arm
+  | | |-binary-...
+  | | +-source
+  | |-contrib
+  | | |-binary-alpha
+  | | |-binary-arm
+  | | |-binary-...
+  | | +-source
+  | +-non-free
+  |   |-binary-alpha
+  |   |-binary-arm
+  |   |-binary-...
+  |   +-source
+  |
+  |-testing
+  | |-main
+  | | |-binary-alpha
+  | | |-binary-arm
+  | | |-binary-...
+  | | +-source
+  | |-contrib
+  | | |-binary-alpha
+  | | |-binary-arm
+  | | |-binary-...
+  | | +-source
+  | +-non-free
+  |   |-binary-alpha
+  |   |-binary-arm
+  |   |-binary-...
+  |   +-source
+  |
+  +-unstable
+    |-main
+    | |-binary-alpha
+    | |-binary-arm
+    | |-binary-...
+    | +-source
+    |-contrib
+    | |-binary-alpha
+    | |-binary-arm
+    | |-binary-...
+    | +-source
+    +-non-free
+      |-binary-alpha
+      |-binary-arm
+      |-binary-...
+      +-source</screen>
+
+      </example>
+
+      <para>Die »Freien«-Pakete kommen in »<literal>main</literal>«; die
+        »nicht-Freien« in »<literal>non-free</literal>« und die »Freien«, die
+	von einem »nicht-Freien« abhängen kommen in
+	»<literal>contrib</literal>«. Debian unterstützt momentan 11
+        Architekturen; Ich habe die meisten davon aufgrund der länge
+	ausgespart.
+      </para>
+
+      <para>Jedes »<filename>binary-*</filename>«-Verzeichnis enthält eine
+	»<filename>Packages.gz</filename>« und eine optionale
+	»<filename>Release</filename>«-Datei. Jedes
+	»<filename>source</filename>«-Verzeichnis enthält eine
+	»<filename>Sources.gz</filename>« und eine optionale
+	»<filename>Release</filename>«-Datei. Beachten Sie, das die
+        <emphasis>Pakete</emphasis> nicht im selben Verzeichnis wie die
+	»Index-Dateien« liegen müssen, weil die »Index-Dateien« die Pfade
+        zu den verschiedenen Paketen enthalten; in wirklichkeit, können sie
+        <emphasis>überall</emphasis> sonst im Depot liegen.  Dies macht es möglich,
+        <link
+        linkend="pools">pools</link> zu erstellen.</para>
+
+   <para>Sie können so viele Distributionen und Gruppen anlegen und bennen
+         wie sie wollen. Die von mir im Beispiel benutzen sind lediglich
+         die, die von Debian verwendet werden.  Sie können, zum
+         Beispiel, die Distribution <literal>current</literal>
+         und <literal>beta</literal> (anstelle von
+         <literal>stable</literal>, <literal>testing</literal> und
+         <literal>unstable</literal>) und die Gruppen
+         <literal>foo</literal>, <literal>bar</literal>,
+         <literal>baz</literal> und <literal>qux</literal> (anstelle von
+         <literal>main</literal>, <literal>contrib</literal> und
+         <literal>non-free</literal>) verwenden.</para>
+
+    <para>Obwohl Sie die möglichkeit haben die Gruppen zu bennen wie Sie wollen,
+        ist es erstmal eine gute Idee die standard Distributionen von Debian benutzen,
+        weil diese den Debian Benutzern bekannt sind.</para>
+
+      </section>
+
+    <section>
+
+      <title>Triviale-Depots</title>
+
+      <para>Triviale-Depots bestehen aus einem Hauptverzeichnis und
+        sovielen Unterverzeichnisen wie Sie wollen.  Da der Benutzer den
+	Pfad zum Hauptverzeichnis des Depots und den Relativen Pfad
+	vom Hauptverzeichnis zum Verzeichnis mit den Index-Dateien angeben
+	muss, können Sie machen was Sie wollen (sogar alles in das
+        Hauptverzeichnis des Depots packen. In dem Fall ist der
+        Relative-Pfad sehr leicht
+        <quote><filename>/</filename></quote>).</para>
+
+      <example id="trivial-example">
+        <title>Ein Triviales-Depot mit zwei Unterverzeichnisen</title>
+
+        <screen>(Ihr Depot Verzeichnisbaum)
+|
+|-binary
++-source</screen>
+      </example>
+
+    </section>
+
+    <section>
+      <title>Erstellen der Index-Dateien</title>
+
+      <para><command>dpkg-scanpackages</command> generiert die
+        »<filename>Packages</filename>«-Datei und
+        <command>dpkg-scansources</command> die
+	»<filename>Sources</filename>«-Datei.</para>
+
+      <para>Beide schicken ihre Ausgabe an stdout; Dadurch können Sie, zum
+        erstellen einer komprimierten Datei, ein Kommando wie dieses verwenden:
+        <command>dpkg-scanpackages
+        <replaceable>Argumente</replaceable> | gzip -9c &gt;
+        Packages.gz</command>.</para>
+
+      <para>Die zwei Werkzeuge arbeiten beide auf die selbe Weise; beide
+	kriegen zwei Argumente (in wirklichkeit sind es mehr, aber ich möchte
+	hier nicht näher darauf eingehen; Sie können gerne die Handbuch-Seiten
+	lesen wenn Sie mehr wissen wollen); als Erstes
+        das Verzeichnis in dem die Pakete liegen, und das
+        Zweite ist die <emphasis>Überschreib-Datei</emphasis>.  Für
+	einfache Depots brauchen wir keine Überscheib-Dateien, aber da
+	es ein benötigtes Argument ist geben wir einfach
+	<literal>/dev/null</literal> an.</para>
+
+      <para><command>dpkg-scanpackages</command> Scant die
+        »<filename>.deb</filename>«-Pakete;
+        <command>dpkg-scansources</command> Scant die
+	»<filename>.dsc</filename>«-Dateien.  Folglich ist es Nötig
+        die <filename>.orig.gz</filename>-,
+        <filename>.diff.gz</filename>- und <filename>.dsc</filename>-Dateien
+        an die selbe Stelle zu packen.  Die <filename>.changes</filename>-Dateien
+        werden nicht gebraucht.</para>
+
+      <para>Falls Sie ein »Triviales-Depot« wie das aus
+	    <xref linkend="trivial-example"/> haben, können Sie
+          die zwei Index-Dateien wie folgt gennerieren:</para>
+
+      <screen>$ cd mein-Depot
+$ dpkg-scanpackages binary /dev/null | gzip -9c &gt; binary/Packages.gz
+$ dpkg-scansources source /dev/null | gzip -9c &gt; source/Sources.gz</screen>
+
+      <para>Wenn Sie ein Komplexes Depot wie bei <xref
+          linkend="debian-repository-example"/> haben, müssen Sie
+          ein paar Scripte schreiben, um diesen Prozess zu automatisieren.</para>
+
+      <para>Sie können auch das
+        <replaceable>Verzeichnisprefix</replaceable> Argument der zwei
+        Werkzeuge benutzen um die Syntax ein wenig zu vereinfachen. Ich lasse dies als
+        Übung für den Leser.  (Es ist in den Handbuchseiten
+	Dokumentiert).</para>
+    </section>
+
+    <section id="release">
+      <!-- todo: Release should be between <filename> tags, but then
+      xmltex won't compile it -->
+      <title>Die »Release«-Datei erstellen</title>
+
+      <para>Wenn Sie dem Benutzer Ihres Depots erlauben wollen
+        <emphasis>Pinning (Anheften)</emphasis> mit Ihrem Depot zu nutzen, müssen
+        Sie eine »<filename>Release</filename>«-Datei in jedem Verzeichnis
+        mit Index-Dateien hinzufügen.  (Sie können mehr über Anheften im
+        <ulink
+        url="http://www.debian.org/doc/manuals/apt-howto/">APT
+        HOWTO</ulink>) erfahren.</para>
+
+      <para>Die »<filename>Release</filename>«-Dateien einfache und
+        kurze Textdateien der folgenden Form:</para>
+
+      <screen>Archive: <replaceable>Archiv</replaceable>
+Component: <replaceable>Gruppe</replaceable>
+Origin: <replaceable>IhreFirma</replaceable>
+Label: <replaceable>IhreFirma Debian Depot</replaceable>
+Architecture: <replaceable>Architektur</replaceable></screen>
+
+      <variablelist>
+        <varlistentry>
+          <term><literal>Archive</literal></term>
+
+          <listitem>
+            <para>Der Name der Distribution von Debian zu der die Pakete
+	      in diesem Verzeichnis gehört (oder Entwickelt wurde),
+              z.B. <literal>stable</literal>,
+              <literal>testing</literal> oder
+              <literal>unstable</literal>.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><literal>Component</literal></term>
+
+          <listitem>
+            <para>Die Gruppe der Pakete in diesem Verzeichnis, zum
+            Beispiel <literal>main</literal>,
+            <literal>non-free</literal>, oder
+            <literal>contrib</literal>.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><literal>Origin</literal></term>
+
+          <listitem>
+            <para>Der Name des Paket-Autors.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><literal>Label</literal></term>
+
+          <listitem>
+            <para>Ein angemessenes Kennzeichen für das Paket oder für Ihr
+              Depot.  Benutzen Sie Ihre Fantasie.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><literal>Architecture</literal></term>
+
+          <listitem>
+            <para>Die Architektur der Pakete in diesem Verzeichnis,
+              wie <literal>i386</literal>,
+              <literal>sparc</literal> oder
+              <literal>source</literal>.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
+      <para>Es ist wichtig <literal>Archive</literal> und
+        <literal>Architecture</literal> richtig zu haben, da sie am meisten
+        für pinning verwendet werden.  Die anderen sind weniger wichtig.</para>
+    </section>
+
+    <section id="pools">
+      <title>Pools erstellen</title>
+
+      <para>Bei »Automatischen-Depots« wird das Veröffentlichen der Pakete in
+	      den verschiedenen Verzeichnissen schnell zu einer unmöglichen
+	      Aufgabe.  Es ist außerdem eine große Verschwendung von Platz und Bandbreite, da es
+	      Pakete gibt (zum Beispiel Dokumentations-Pakete), welche für jede
+	      Architektur gleich sind.</para>
+
+      <para>In diesem Fall ist ein <emphasis>Pool</emphasis> eine mögliche
+	Lösung. Ein Pool ist ein zusätzliches Verzeichnis im Hauptverzeichnis
+        eines Depots welches <emphasis>Alle</emphasis>
+        Pakete (die »Binäries« für alle Architekturen, Distributionen
+        und Gruppen und alle »Quellen«) enthält.  Durch eine Kombination
+        von »Überschreib«-Dateien (welche nicht durch dieses Dokument
+        abgedeckt sind) und Skripten können viele Probleme vermieden werden.  Ein schönes
+	Beispiel für ein Pool-Depot ist das Debian-Depot
+        selber.</para>
+
+
+      <para>Pools sind nur für große Depots sinnvoll. Ich habe nie welche
+	erstellt und werde wohl auch in naher Zukunft keine erstellen müssen,
+	deshalb werde ich hier nicht beschreiben, wie Sie einen erstellen können.  Wenn Sie
+	meinen das ein Kapitel dazu ergänzt werden sollte, fühlen Sie sich frei eines zu
+	verfassen, und mich zu kontaktieren.</para>
+
+    </section>
+
+    <section>
+      <title>Werkzeuge</title>
+
+      <para>Es gibt verschiedene Werkzeuge um die Erstellung eines Debian-Archivs zu
+        automatisieren und vereinfachen. Ich habe die meisten Namenhaften Werkzeuge
+        hier aufgezählt.</para>
+
+      <para><command>apt-ftparchive</command> wird benutzt um eine
+        Kollektion von Debian-Paket-Dateien in eine geeignete Archiv
+	Hirarchie, wie die von Offizielen Debian Archiv einzugliedern.  Es ist
+        ein Teil des <literal>apt-utils</literal> Paketes.</para>
+
+      <para><command>apt-move</command> wird benutzt um eine Kollektion von
+	von Debian-Paket-Dateien in eine geeignete Archiv-Hirarchie, wie sie
+	vom offiziellen Debian-Archive verwendet wird zu verschieben.</para>
+
+    </section>
+
+  </section> <!-- setting-up -->
+
+  <section id="using-a-repository">
+    <title>Ein Depot benutzen</title>
+
+    <para>Ein Depot zu benutzen ist sehr einfach, hängt aber davon ab,
+      was für eine Art von Depot Sie erstellt haben: »Binär« oder »Quell« und
+      »Automatisch« oder »Trivial«.</para>
+
+    <para>Jeder Depot bekommt eine Zeile in der
+      <filename>sources.list</filename>; für ein »Binäres« benutzen Sie das
+      <literal>deb</literal> Schlüsselwort und für ein »Quell« benutzen Sie das
+      <literal>deb-src</literal> Schlüsselwort.</para>
+
+    <para>Jede Zeile gehorcht der folgenden Syntax:
+
+      <screen>deb|deb-src <replaceable>uri</replaceable> <replaceable>Distribution</replaceable> [<replaceable>Gruppe1</replaceable>] [<replaceable>Gruppe2</replaceable>] [...]</screen>
+
+      Die <replaceable>uri</replaceable> ist die URI des Hauptverzeichnisses des
+      Depots, so wie
+      <literal>ftp://ftp.yoursite.com/debian</literal>,
+      <literal>http://yoursite.com/debian</literal> oder für Lokale
+      Dateien,
+      <literal>file::///home/joe/my-debian-depot</literal>.  Der
+      folgende Slash ist optional.</para>
+
+    <para>Für »Automatische-Depots« müssen Sie eine Distribution
+      und mindestens eine Gruppe angeben. Die Distribution darf nicht
+      nicht mit einem Slash enden.</para>
+
+    <example>
+      <!-- todo: sources.list should be tagged as <filename>, but xmltex
+      doesn't support that -->
+      <title>Zwei »Automatische-Depots« aus meiner <filename>sources.list</filename></title>
+
+      <screen>deb ftp://sunsite.cnlab-switch.ch/mirror/debian/ unstable main contrib non-free
+deb-src ftp://sunsite.cnlab-switch.ch/mirror/debian/ unstable main contrib non-free</screen>
+
+      <para>Diese zwei Zeilen Definieren ein Automatisches »Binär«- und »Quell«-
+      Depot mit Hauptverzeichnis
+      <literal>ftp://sunsite.cnlab-switch.ch/mirror/debian/</literal>,
+      der Distribution <literal>unstable</literal> und den Gruppen
+      <literal>main</literal>, <literal>contrib</literal> und
+      <literal>non-free</literal>.</para>
+    </example>
+
+    <para>Wenn das Depot nicht Automatisch ist, definiert
+      <emphasis>distribution</emphasis> den Relativen-Pfad zu den Index-Dateien
+      und muss mit einem Slash enden, ausserdem darf keine Gruppe angegeben werden.
+      </para>
+
+    <example>
+      <title>Zwei »Triviale-Depots« aus meiner
+      <filename>sources.list</filename></title>
+
+      <screen>deb file:///home/aisotton/rep-exact binary/
+deb-src file:///home/aisotton/rep-exact source/</screen>
+
+      <para>Die erste der zwei Zeilen legt ein »Binär«-Depot
+        unter <filename>/home/aisotton/rep-exact/binary</filename> auf meinem
+        Lokalen Rechner fest; die Zweite legt ein »Quell«-Depot unter
+        <filename>/home/aisotton/rep-exact/source</filename> fest.</para>
+    </example>
+  </section> <!-- using-a-repository -->
+
+  <section>
+    <title>Siehe auch</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>Die <command>apt-ftparchive</command>
+        Dokumentation.</para>
+      </listitem>
+
+      <listitem>
+        <para>Die <command>apt-get</command> Dokumentation und die
+        Dokumentation für <literal>apt</literal>.</para>
+      </listitem>
+
+      <listitem>
+        <para>Die <command>apt-move</command> Dokumentation.</para>
+      </listitem>
+
+      <listitem>
+        <para><ulink url="http://www.apt-get.org/"/> für viele Beispiele
+          von echten Depots.</para>
+      </listitem>
+
+      <listitem>
+        <para>Das <ulink
+            url="http://www.debian.org/doc/manuals/apt-howto/">APT
+            HOWTO</ulink>.</para>
+      </listitem>
+
+
+      <listitem>
+        <para>Die <command>dpkg-scanpackages</command>
+          Dokumentation.</para>
+      </listitem>
+
+      <listitem>
+        <para>Die <command>dpkg-scansources</command>
+          Dokumentation.</para>
+      </listitem>
+
+      <listitem>
+        <para>Die <literal>sources.list(5)</literal> Handbuchseiten.</para>
+      </listitem>
+    </itemizedlist>
+
+  </section>
+</article>

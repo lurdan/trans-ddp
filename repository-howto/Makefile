@@ -5,7 +5,8 @@
 # in .deb format, etc)
 
 manual := $(notdir $(CURDIR)).fr \
-	  $(notdir $(CURDIR)).en 
+	  $(notdir $(CURDIR)).en \
+	  $(notdir $(CURDIR)).de 
 
 manualdir := $(notdir $(CURDIR))
 # this can and will be overriden by a higher level makefile
