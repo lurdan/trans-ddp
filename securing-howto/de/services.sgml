@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.21" -->
+<!-- CVS revision of original english document "1.24" -->
 
 <chapt id="sec-services">Absichern von Diensten, die auf Ihrem System
 laufen
@@ -957,7 +957,7 @@ start-stop-daemon --start
 
 anfängt zu<footnote>Beachten Sie, dass Sie abhängig von Ihrer
 Bind-Version die Option <tt>-g</tt> nicht haben, höchstwahrscheinlich
-wenn Sie Woody oder Sarge laufen und bind9 (9.2.1 oder 9.2.4) installiert haben.</footnote>:
+wenn Sie bind9 von Woody (9.2.1-2.woody) oder Sarge (9.2.4) installiert haben.</footnote>:
 <example>
 start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g named -u named
 </example>
@@ -1076,11 +1076,13 @@ Bind 8). Diese Dokumente sollten auch nach der Installation des Paketes
 anderes nützliches Dokument ist <url
 id="http://web.archive.org/web/20011024064030/http://www.psionic.com/papers/dns/dns-linux">.
 
-<p>Wenn Sie für Bind 8.2.3 (aus Debian Potato) ein komplettes
+<p>Wenn Sie für Bind ein komplettes
 Chroot-Gefängnis aufsetzen (d.h. Sie benutzen nicht nur <tt>-t</tt>),
-stellen Sie sicher, dass Sie die folgenden Dateien darin haben:
+stellen Sie sicher, dass Sie die folgenden Dateien darin haben
+<footnote>Diese Einstellungen wurden für Bind 8.4.3 von Debian Potato getestet.
+</footnote>:
 
-<!-- SB(20050909) TODO: This has to be checked. -->
+<!-- FIXME: this needs to be reviewed -->
 
 <example>
 dev/log -  syslogd sollte hierauf hören
@@ -1200,20 +1202,33 @@ http://Ihr_Apache_Server/~benutzer
 abgegriffen werden.
 
 <p>Wenn Sie dies nicht erlauben wollen, müssen Sie in der
-<file>/etc/apache/http.conf</file>-Konfigurationsdatei Folgendes
-auskommentieren:
+Konfigurationsdatei <file>/etc/apache/http.conf</file> (von Apache 1.3)
+folgendes Module auskommentieren:
 
 <example>
 LoadModule userdir_module /usr/lib/apache/1.3/mod_userdir.so
 </example>
 
-Wenn das Modul statisch gelinkt war (Sie können dies mittels
-<tt>apache -l</tt> überprüfen), müssen Sie stattdessen das Folgende
-hinzufügen:
+<p>Wenn Sie Apache 2.0 verwenden, müssen Sie die Datei
+<file>/etc/apache2/mods-enabled/userdir.load</file> entfernen oder die
+Standardkonfiguration einschränken, indem Sie
+<file>/etc/apache2/mods-enabled/userdir.conf</file> bearbeiten.
+
+<p>Falls allerdings das Modul statisch verlinkt wurde (Sie können die Module,
+die einkompiliert wurden,  mittels
+<tt>apache -l</tt> überprüfen), müssen Sie das Folgende der Konfigurationsdatei
+von Apache hinzufügen:
 
 <example>
 Userdir disabled
 </example>
+
+<p>Beachten Sie, dass <tt>disabled</tt> nur ab Version 1.3 von Apache verfügbar
+ist 
+<footnote>Falls Sie eine ältere Version von Apache einsetzen (wovon
+abgeraten wird, da sie seit der Veröffentlichung von Apache 1.3 in Woody nicht
+mehr unterstützt wird), müssen Sie der Konfigurationsdatei Folgendes
+hinzufügen:
 
 <example>
 &lt;Directory /home/*/public_html&gt;
@@ -1222,10 +1237,13 @@ Userdir disabled
     Deny from all
 &lt;/Directory&gt;
 </example>
+</footnote>.
 
-<p>Ein Angreifer kann immer noch die Benutzer bestimmen, da die Antwort
+<p>Ein Angreifer kann immer noch die Benutzer herausfinden, da die Antwort
 des Web-Servers <em>403 Permission Denied</em> und nicht
-<em>404 Not available</em> lautet.
+<em>404 Not available</em> lautet. Mit dem Rewrite-Modul können Sie das
+verhindern.
+
 
 <sect1>Rechte von Log-Datei
 
@@ -1693,36 +1711,12 @@ guarddog-Werkzeug, obwohl es sich leicht an fortgeschrittene Benutzer richtet).
 Administrator konfigurieren kann, ist eine Definition des erlaubten und
 verbotenen Netzwerkverkehrs, der verwendet wird, eine Anzahl von
 Firewall-Regeln, die das System am Start ausführt, zu generieren.
-
-<item><package>mason</package>, eine Anwendung, die basierend auf dem Netzwerkverkehr,
-den Ihr System "sieht", Firewall-Regeln vorschlagen kann.
-
-<item><package>ferm</package>
-
-<item><package>lokkit</package> oder <package>gnome-lokkit</package>
-
-<item><package>ipac-ng</package>, hilft nicht beim Einrichten von
-traditionellen Firewall-Regeln sondern von
-Netzwerk-Verkehr-Klassifikations-Regeln.
-
-<item><package>filtergen</package>
-
-<item><package>fiaif</package>
-
-<item><package>hlfl</package>
-
-<item><package>kmyfirewall</package>
-
-<item><package>netscript-2.4</package>
-
 </list>
-<!-- No longer available :
-fwctl 
-fireflier
-easyfw
-firewall-easy
-gfcc
--->
+
+<p>Es gibt in Debian auch noch eine Menge anderer Frontends für Iptables. Eine
+vollständige Liste kann auf der <url id="http://wiki.debian.org/Firewalls"
+name="Firewall-Seite des Debian-Wikis">, die auch einen Vergleich der
+verschiedenen Pakete enthält, abgerufen werden.
 
 <p>Seien Sie gewarnt, dass manche der zuvor skizzierten Pakete
 Firewall-Skripte einführen, die beim Systemstart ausgeführt
@@ -1830,6 +1824,9 @@ REMOTE_UDP_SERVICES="53" # DNS
 # Network that will be used for remote mgmt
 # (if undefined, no rules will be setup)
 # NETWORK_MGMT=192.168.0.0/24
+# Port used for the SSH service, define this is you have setup a
+# management network but remove it from TCP_SERVICES
+# SSH_PORT="22"
 
 if ! [ -x /sbin/iptables ]; then  
     exit 0
@@ -1865,11 +1862,14 @@ fw_start () {
   # Output:
   /sbin/iptables -A OUTPUT -j ACCEPT -o lo 
   /sbin/iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-  # ICMP is permitted
+  # ICMP is permitted:
   /sbin/iptables -A OUTPUT -p icmp -j ACCEPT
-  # So are security package updates
+  # So are security package updates:
+  # Note: You can hardcode the IP address here to prevent DNS spoofing
+  # and to setup the rules even if DNS does not work but then you 
+  # will not "see" IP changes for this service:
   /sbin/iptables -A OUTPUT -p tcp -d security.debian.org --dport 80 -j ACCEPT
-  # As well as the services we have defined
+  # As well as the services we have defined:
   if [ -n "$REMOTE_TCP_SERVICES" ] ; then
   for PORT in $REMOTE_TCP_SERVICES; do
     /sbin/iptables -A OUTPUT -p tcp --dport ${PORT} -j ACCEPT
@@ -1885,6 +1885,7 @@ fw_start () {
   /sbin/iptables -A OUTPUT -j REJECT 
   /sbin/iptables -P OUTPUT DROP
   # Other network protections
+  # (some will only work with some kernel versions)
   echo 1 > /proc/sys/net/ipv4/tcp_syncookies
   echo 0 > /proc/sys/net/ipv4/ip_forward 
   echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 
@@ -1984,7 +1985,7 @@ run-parts aufgerufen werden (vergleiche <manref name="run-parts" section="8">).
 
 <P><strong>ACHTUNG</strong>: Diese Informationen gelten nur für iptables
 in <em>Woody</em>. Versionen nach 1.2.7-8 haben nicht mehr länger das
-init.d-Skript, das hier beschrieben wird. Benutzer von Debian 3.1 (Sarge) oder
+init.d-Skript, das hier beschrieben wird. Benutzer von Debian 3.1 (<em>Sarge</em>) oder
 neueren Veröffentlichungen sollten entweder die Firewall-Regeln manuell
 aufbauen oder eines der Programme zur Erzeugung einer Firewall verwenden, die
 weiter oben beschrieben wurden.

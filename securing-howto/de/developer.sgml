@@ -1,0 +1,319 @@
+<!-- CVS revision of original english document "1.2" -->
+
+<chapt>Der gute Umgang von Entwicklern mit der Sicherheit des OS
+
+<!-- This chapter is based on the patch I submitted to the Developer's
+     Reference, see #337086: [BPP] Best practices for security design and
+     review -->
+
+<p>Dieses Kapitel handelt von einigen der anerkannten Vorgehensweisen, wenn
+Entwickler Pakete für Debian erstellen. Wenn Sie sehr an sicherheitsbewusster
+Programmierung interessiert sind, sollten Sie David Wheelers <url
+id="http://www.dwheeler.com/secure-programs/" name="Secure Programming for
+Linux and Unix HOWTO"> und
+<url id="http://www.securecoding.org" name="Secure Coding: Principles and Practices">
+von Mark G. Graff und Kenneth R. van Wyk (O'Reilly, 2003) lesen.
+
+<sect id="bpp-devel-design">
+   <heading>Das richtige Vorgehen für die Nachprüfung der Sicherheit und
+   Gestaltung</heading>
+
+<p>Entwickler, die Software in Pakete packen, sollten größte Anstrengung darauf
+verwenden sicherzustellen, dass die Installation der Software und ihre
+Verwendung keine Sicherheitsrisiken für das System oder seine Benutzer
+eröffnet.
+
+<p>Dazu sollten sie vor der Veröffentlichung der Software oder einer neuen
+Version den Quellcode des Pakets nachprüfen, um Fehler zu finden, die zu
+Sicherheitslücken führen können. Bekanntermaßen ist der Aufwand für die
+Fehlerbehebung in verschiedenen Stadien der Entwicklung unterschiedlich. So ist
+es leichter (und billiger), Fehler während der Entwicklung auszubessern als
+später, wenn die Software schon herausgegeben wurde und nur noch gewartet wird
+(einige Studien behaupten, dass die Kosten in dieser Phase <strong>60</strong>
+Mal höher sind). Zwar gibt es Hilfsmittel, die versuchen, Fehler automatisch zu
+entdecken. Entwickler sollten dennoch die verschiedenen Sicherheitsfehler
+kennen, damit sie sie verstehen und sie so in eigenen (oder fremden)
+Programmcode entdecken können.
+
+<p>Programmierfehler, die typischerweise zu Sicherheitsproblemen führen, sind
+insbesondere: <url id="http://de.wikipedia.org/wiki/Puffer%C3%BCberlauf"
+name="Pufferüberläufe,">, Format-String-Überläufe, Heap-Überläufe und
+Integer-Überläufe (in C/C++ Programmen), vorübergehende <url
+id="http://de.wikipedia.org/wiki/Symlink-Schwachstelle"
+name="Symlink-Schwachstellen"> (in Skripten), <url
+id="http://de.wikipedia.org/wiki/Directory_Traversal" name="Directory
+Traversal"> und die Injektion von Befehlen (auf Servern) und <url
+id="http://de.wikipedia.org/wiki/Cross-Site_Scripting" name="Cross-Site
+Scripting"> und <url id="http://de.wikipedia.org/wiki/SQL-Injektion"
+name="SQL-Injektionen"> (bei web-orientierten Anwendungen). Eine ausführliche
+Liste von Sicherheitsfehlern finden Sie in Fortifys <url
+id="http://vulncat.fortifysoftware.com/" name="Taxonomy of Software Security
+Errors">.
+
+<p>Einige dieser Probleme können Sie nur erkennen, wenn Sie ein Experte in der
+verwendeten Programmiersprache sind. Aber andere können leicht entdeckt und
+behoben werden. Zum Beispiel kann eine Symlink-Schwachstelle auf Grund einer
+falschen Verwendung von temporären Verzeichnissen ohne Weiteres entdeckt
+werden, indem Sie <tt>grep -r "/tmp/" .</tt> ausführen. Diese Verweise sollten
+überprüft werden und mit fest einprogrammierten Dateinamen ersetzt werden, die
+temporäre Verzeichnisse in Shell-Skripten mit <prgn>mktemp</prgn> oder
+<prgn>tempfile</prgn>, in Perl-Skripten mit <manref name="File::Temp"
+section="3perl"> und C/C++ Skripten mit <manref name="tmpfile" section="3">
+erstellen.
+<!-- SB(20060618): Mir ist der Satz unverständlich. "Those calls can be reviewed and replace
+the hardcoded filenames using temporary directories to calls to either
+<prgn>mktemp</prgn> or <prgn>tempfile</prgn> in shell
+scripts, <manref name="File::Temp" section="3perl"> in Perl scripts,
+or <manref name="tmpfile" section="3"> in C/C++." -->
+
+<p>Es stehen Ihnen einige Werkzeuge zur Verfügung, die Sie dabei unterstützen,
+den Quellcode auf Sicherheitsprobleme hin zu überprüfen. Dazu zählen
+<package>rats</package>, <package>flawfinder</package> und
+<package>pscan</package>. Weitere Informationen finden Sie in der <url
+id="http://www.de.debian.org/security/audit/tools" name="Liste der Werkzeuge,
+die vom Debian-Security-Audit-Team verwendet wird">.
+
+<p>Beim Paketieren von Software sollten Entwickler darauf achten, dass sie
+allgemein anerkannte Sicherheitsprinzipien einhalten. Dazu gehören:
+
+<list>
+
+<item>Die Software sollte mit so geringen Rechten wie möglich laufen
+  <list>
+  <item>Falls das Paket Binaries mit setuid oder setgid enthält, wird
+  <prgn>Lintian</prgn> vor <url
+  id="http://lintian.debian.org/reports/Tsetuid-binary.html" name="setuid">,
+  <url id="http://lintian.debian.org/reports/Tsetgid-binary.html"
+  name="setgid"> und <url
+  id="http://lintian.debian.org/reports/Tsetuid-gid-binary.html" name="setuid
+  und setgid"> Binaries warnen.
+  <item>Die Daemons, die in einem Paket enthalten sind, sollten mit den Rechten
+  eines Benutzers laufen, der nur geringe Privilegien besitzt (vergleichen Sie
+  dazu <ref id="bpp-lower-privs">).
+  </list>
+
+<item>Automatisierte Aufgaben (also mit <prgn>cron</prgn>) sollten NICHT mit
+Root-Rechten laufen. Zumindest sollten mit Root-Rechten keine komplizierten
+Aufgaben erledigt werden.
+
+</list>
+
+<p>Falls Sie diese Prinzipien nicht einhalten können, sollte Sie sichergehen,
+dass das Programm, das mit umfangreicheren Rechten läuft, auf
+Sicherheitsprobleme überprüft wurde. Wenn Sie sich nicht sicher sind oder Hilfe
+benötigen, sollten Sie sich mit dem <url
+id="http://www.de.debian.org/security/audit/" name="Sicherheits-Audit-Team von
+Debian"> in Verbindung setzen. Wenn Binaries setuid/setgid verwenden, sollten
+Sie die Richtlinie von Debian zu <url
+id="http://www.debian.org/doc/debian-policy/ch-files.html#s10.9" name="Rechten
+und Besitzern"> beachten.
+
+<p>Für weitere Information, insbesondere hinsichtlich Sicherheitsfragen,
+sollten Sie das <url
+id="http://www.dwheeler.com/secure-programs/" name="Secure Programming
+for Linux and Unix HOWTO"> und das <url
+id="https://buildsecurityin.us-cert.gov/portal/" name="Build Security
+In"> Portal lesen (oder den Programmautor darauf hinweisen).
+
+
+<!-- This should be explained here until #291177 gets fixed and this is
+	added to poliy -->
+<sect id="bpp-lower-privs">
+  <heading>Benutzer und Gruppen für Daemons erstellen
+
+<p>Wenn Ihre Software als Daemon läuft, der keine Root-Rechte benötigt, müssen
+Sie für ihn einen Benutzer erstellen. Es gibt zwei Arten von Benutzern in
+Debian, die für Pakete verwendet werden können: statische UIDs (werden von
+<package>base-passwd</package> vergeben, eine Liste der statischen Benutzern in
+Debian finden Sie bei <ref id="faq-os-users">) und dynamisches UIDs, die in
+einem zugewiesenen Bereich liegen.
+
+<p>Im ersten Fall müssen Sie mit <package>base-passwd</package> eine Benutzer-
+oder Gruppen-ID erstellen. Wenn der Benutzer verfügbar ist, muss das Paket, das
+Sie anbieten möchten, eine Abhängigkeit vom Paket
+<package>base-passwd</package> enthalten.
+
+<p>Im zweiten Fall müssen Sie den Systembenutzer entweder entweder
+<em>preinst</em> oder <em>postinst</em> erstellen und dafür sorgen, dass das
+Paket von <tt>adduser (>= 3.11)</tt> abhängt.
+
+<p>Im folgenden Programmbeispiel soll gezeigt werden, wie der Benutzer oder
+Gruppe, mit deren Rechten der Daemon laufen wird, bei der Installation oder
+Aktualisierung des Pakets erstellt wird.
+
+<example>
+[...]
+case "$1" in
+  install|upgrade)
+
+  # If the package has default file it could be sourced, so that
+  # the local admin can overwrite the defaults
+
+  [ -f "/etc/default/<var>packagename</var>" ] && . /etc/default/<var>packagename</var>
+
+  # Sane defaults:
+
+  [ -z "$SERVER_HOME" ] && SERVER_HOME=<var>server_dir</var>
+  [ -z "$SERVER_USER" ] && SERVER_USER=<var>server_user</var>
+  [ -z "$SERVER_NAME" ] && SERVER_NAME="<var>Server description</var>"
+  [ -z "$SERVER_GROUP" ] && SERVER_GROUP=<var>server_group</var>
+
+  # Groups that the user will be added to, if undefined, then none.
+  ADDGROUP=""
+
+  # create user to avoid running server as root
+  # 1. create group if not existing
+  if ! getent group | grep -q "^$SERVER_GROUP:" ; then
+     echo -n "Adding group $SERVER_GROUP.."
+     addgroup --quiet --system $SERVER_GROUP 2>/dev/null ||true
+     echo "..done"
+  fi
+  # 2. create homedir if not existing
+  test -d $SERVER_HOME || mkdir $SERVER_HOME
+  # 3. create user if not existing
+  if ! getent passwd | grep -q "^$SERVER_USER:"; then
+    echo -n "Adding system user $SERVER_USER.."
+    adduser --quiet \
+            --system \
+            --ingroup $SERVER_GROUP \
+            --no-create-home \
+            --disabled-password \
+            $SERVER_USER 2>/dev/null || true
+    echo "..done"
+  fi
+  # 4. adjust passwd entry
+  usermod -c "$SERVER_NAME" \
+          -d $SERVER_HOME   \
+          -g $SERVER_GROUP  \
+             $SERVER_USER
+  # 5. adjust file and directory permissions
+  if ! dpkg-statoverride --list $SERVER_HOME >/dev/null
+  then
+      chown -R $SERVER_USER:adm $SERVER_HOME
+      chmod u=rwx,g=rxs,o= $SERVER_HOME
+  fi
+  # 6. Add the user to the ADDGROUP group
+  if test -n $ADDGROUP
+  then
+      if ! groups $SERVER_USER | cut -d: -f2 | \
+         grep -qw $ADDGROUP; then
+           adduser $SERVER_USER $ADDGROUP
+      fi
+  fi
+  ;;
+  configure)
+
+[...]
+</example>
+
+<p>Außerdem müssen Sie für das Init.d-Skript sicherstellen,
+
+<list>
+<item>dass der Daemon beim Starten seine Rechte ablegt: Wenn die Software nicht
+selbst den <manref name="setuid" section="2"> oder <manref name="seteuid"
+section="2"> Aufruf absetzt, sollten Sie die Option <tt>--chuid</tt> für
+<prgn>start-stop-daemon</prgn> verwenden.
+
+<item>dass der Daemon nur angehalten wird, wenn die Benutzer-IDs
+übereinstimmen. Dafür ist die Option <tt>--user</tt> von
+<prgn>start-stop-daemon</prgn> hilfreich.
+
+<item>dass der Daemon nicht gestartet wird, wenn sein Benutzer oder Gruppe
+nicht existiert:
+<example>
+  if ! getent passwd | grep -q "^<var>server_user</var>:"; then
+     echo "Server user does not exist. Aborting" >&2
+     exit 1
+  fi
+  if ! getent group | grep -q "^<var>server_group</var>:" ; then
+     echo "Server group does not exist. Aborting" >&2
+     exit 1
+  fi
+</example>
+
+</list>
+
+<p>Wenn das Paket einen Systembenutzer erstellt, kann er wieder in
+<em>postrm</em> entfernt werden, wenn das Paket vollständig gelöscht wird
+(purge). Dabei gibt es allerdings einen Nachteil. Zum Beispiel werden Dateien,
+die von dem Benutzer des Daemons erstellt wurden, benutzerlos und können später
+einem neuen Benutzer gehören, dem die gleiche UID zugewiesen wurde
+<footnote>Interessante Diskussionen zu diesem Thema finden sich in <url
+id="http://lists.debian.org/debian-mentors/2004/10/msg00338.html"> und <url
+id="http://lists.debian.org/debian-devel/2004/05/msg01156.html">.</footnote>.
+Daher ist nicht zwingend notwendig, dass Benutzer beim vollständigen Löschen
+eines Pakets entfernt werden. Dies hängt vielmehr vom jeweiligen Paket ab. Im
+Zweifelsfall sollte der Administrator gefragt werden (mit
+<prgn>debconf</prgn>), was passieren soll, wenn ein Paket gelöscht wird.
+
+<p>Sehen Sie sich folgenden Code an <footnote>Unter Umständen wird er als
+<prgn>dh_adduser</prgn> in debhelper enthalten sein. Sehen Sie sich dazu <url
+id="http://bugs.debian.org/81697" name="#81967">, <url
+id="http://bugs.debian.org/291177" name="#291177"> und <url
+id="http://bugs.debian.org/118787" name="#118787"> an.</footnote>, der zuvor
+erstellte Benutzer und Gruppen entfernt. Dies geschieht aber nur dann, wenn die
+UID im Bereich der dynamisch zugewiesenen System-UIDs liegt und die GID 
+einer Systemgruppe angehört:
+
+<example>
+case "$1" in
+ purge)
+[...]
+   # find first and last SYSTEM_UID numbers
+   for LINE in `grep SYSTEM_UID /etc/adduser.conf | grep -v "^#"`; do
+      case $LINE in
+         FIRST_SYSTEM_UID*)
+           FIST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+           ;;
+         LAST_SYSTEM_UID*)
+           LAST_SYSTEM_UID=`echo $LINE | cut -f2 -d '='`
+           ;;
+         *)
+           ;;
+         esac
+   done
+   # Remove system account if necessary
+   CREATEDUSER="<var>server_user</var>"
+   if [ -n "$FIST_SYSTEM_UID" ] && [ -n "$LAST_SYSTEM_UID" ]; then
+    if USERID=`getent passwd $CREATEDUSER | cut -f 3 -d ':'`; then
+      if [ -n "$USERID" ]; then
+        if [ "$FIST_SYSTEM_UID" -le "$USERID" ] && \
+           [ "$USERID" -le "$LAST_SYSTEM_UID" ]; then
+              echo -n "Removing $CREATEDUSER system user.."
+              deluser --quiet $CREATEDUSER || true
+              echo "..done"
+        fi
+      fi
+    fi
+  fi
+  # Remove system group if necessary
+  CREATEDGROUP=<var>server_group</var>
+  FIRST_USER_GID=`grep ^USERS_GID /etc/adduser.conf | cut -f2 -d '='`
+  if [ -n "$FIST_USER_GID" ] then
+    if GROUPGID=`getent group $CREATEDGROUP | cut -f 3 -d ':'`; then
+      if [ -n "$GROUPGID" ]; then
+        if [ "$FIST_USER_GID" -gt "$GROUPGID" ]; then
+          echo -n "Removing $CREATEDGROUP group.."
+          delgroup --only-if-empty $CREATEDGROUP || true
+          echo "..done"
+        fi
+      fi
+    fi
+  fi
+[...]
+</example>
+
+<p>Wenn ein Programm unter einem Benutzer mit beschränkten Rechten läuft, wird
+sichergestellt, dass Sicherheitsprobleme nicht das gesamte System beschädigen
+können. Dieses Vorgehen beachtet auch das Prinzip der <em>geringst möglichen
+Privilegien</em>. Denken Sie daran, dass Sie die Rechte eines Programms auch
+noch durch andere Methoden als beschränkte Benutzerrechte weiter einschränken
+können <footnote>Sie können sogar eine SELinux-Richtlinie
+erstellen.</footnote>.  Weitere Informationen finden Sie im Abschnitt <url
+id="http://www.dwheeler.com/secure-programs/Secure-Programs-HOWTO/minimize-privileges.html"
+name="Minimize Privileges"> des Buchs <em>Secure Programming for Linux and Unix
+HOWTO</em>.
+
+</sect>
+
+</chapt>
