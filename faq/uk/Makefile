@@ -59,6 +59,6 @@ ps dvi pdf info: %: $(manual).$(currentlang).%
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
 	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
-	rm -f *~ .*~ core tsa* head.tmp body.tmp $(manual).tpt
+	rm -f *~ .*~ core tsa*
 
 .PHONY: all publish clean distclean validate
