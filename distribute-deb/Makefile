@@ -17,9 +17,9 @@ publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
 	rm -f $(PUBLISHDIR)/$(manual)/*.html
 	install -p -m 644 $(manual).html $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).pdf $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).dvi $(PUBLISHDIR)/$(manual)
-	install -p -m 644 $(manual).ps $(PUBLISHDIR)/$(manual)
+#	install -p -m 644 $(manual).pdf $(PUBLISHDIR)/$(manual)
+#	install -p -m 644 $(manual).dvi $(PUBLISHDIR)/$(manual)
+#	install -p -m 644 $(manual).ps $(PUBLISHDIR)/$(manual)
 
 validate:
 	xmllint --noout --loaddtd --catalogs $(sources)
