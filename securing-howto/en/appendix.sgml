@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.23 $"  -->
+<!-- CVS revision of this document "$Revision: 1.24 $"  -->
 
 <appendix id="harden-step">The hardening process step by step
 
@@ -1057,39 +1057,80 @@ the ip_conntrack_ftp module, or use passive mode.
 <p>Creating a restricted environment for <PRGN>SSH</PRGN> is a tough job due 
 to its dependencies and the fact that, unlike other servers, <PRGN>SSH</PRGN> 
 provides a remote shell to users. Thus, you will also have to consider the
-applications users will be allowed to use in the environment. If you create 
-this file structure in, for example <file>/var/chroot/ssh</file>, you could 
-start the <prgn>ssh</prgn> server <prgn>chroot</prgn>'ed with this command:
+applications users will be allowed to use in the environment.</p>
 
-<example>
-  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
-</example>
+<p>You have two options to setup a restricted remote shell:
 
-<p>Notice, however, that in order for SSH to work the partition where the
-chroot is setup cannot be mounted with the <em>nodev</em> option. If you use
-that option, then you will get the following error: <em>PRNG is not seeded</em>,
-because <file>/dev/urandom</file> does not work in the chroot.
+<list>
+<item>Chrooting the ssh users, by properly configuring the ssh daemon you can
+ask it to chroot a user after authentication just before it is provided a
+shell.  Each user can have their own environment.
 
-<sect>Using <package>libpam-chroot</package>
+<item>Chrooting the ssh server, since you chroot the ssh application itself all
+users are chrooted to the defined environment.
+
+</list>
+
+<p>The first option has the advantage of making it possible to have both
+non-chrooted and chrooted users, if you don't introduce any setuid application
+in the user's chroots it is more difficult to break out of it. However, you
+might need to setup individual chroots for each user and it is more difficult
+to setup (as it requires cooperation from the SSH server). The second option is
+more easy to setup, and protects from an exploitation of the ssh server itself
+(since it's also in the chroot) but it will have the limitation that all users
+will share the same chroot environment (you cannot setup a per-user chroot
+environment).
+
+<sect>Chrooting the ssh users
+
+<p>You can setup the ssh server so that it will chroot a set of defined users
+into a shell with a limited set of applications available.
+
+<sect1>Using <package>libpam-chroot</package>
 
 <p>Probably the easiest way is to use the <package>libpam-chroot</package>
-package provided in Debian. Once you install it you need to
+package provided in Debian. Once you install it you need to:
 
 <list>
 <item>Modify <file>/etc/pam.d/ssh</file> to use this PAM module, add
-as its last line:
+as its last line<footnote><p>You can use the <em>debug</em> option
+to have it send the progress of the module to the <em>authpriv.notice</em>
+facility</p></footnote>:
 <example>
 session    required   pam_chroot.so
 </example>
 
-<item>set a proper chroot environment. You can either review
-<file>/usr/share/doc/libpam-chroot/examples/</file>, use 
-<package>makejail</package> or setup a minimum Debian environment with
+<item>set a proper chroot environment for the user. You can try using
+the scripts available at <file>/usr/share/doc/libpam-chroot/examples/</file>,
+use the
+<package>makejail</package>
+<footnote><p>You can create a very limited bash environment with the following
+python definition for makejail, just create
+the directory <file>/var/chroots/users/foo</file> and
+a file with the following contents and call it <file>bash.py</file>:
+<example>
+chroot="/var/chroots/user/foo"
+cleanJailFirst=1
+testCommandsInsideJail=["bash ls"]
+</example>
+<p>And then run <em>makejail bash.py</em> to create the user environment
+at <file>/var/chroots/user/foo</file>. To test the environment run: 
+<example>
+# chroot /var/chroots/user/foo/ ls
+bin  dev  etc  lib  proc  sbin  usr
+</example>
+</p>
+</footnote>
+program or setup a minimum Debian environment with
 <package>debootstrap</package>. Make sure the environment includes
-the needed <file>/dev/ptmx</file> and <file>/dev/pty*</file> devices
-and the <file>/dev/pts/</file> subdirectory (running MAKEDEV in the 
-<file>/dev</file> directory of the chrooted environment should be sufficient).
-
+the needed devices
+<footnote><p>In some occasions you might need the 
+<file>/dev/ptmx</file> and <file>/dev/pty*</file> devices
+and the <file>/dev/pts/</file> subdirectory. Running MAKEDEV in the
+<file>/dev</file> directory of the chrooted environment should be sufficient to 
+create them if they do not exist. If you are using kernels (version 2.6) which 
+dynamically create device files you will need to create the /dev/pts/ files
+yourself and grant them the proper privileges.</p></footnote>.
 
 <item>Configure <file>/etc/security/chroot.conf</file>
 so that the users you determine are chrooted to the directory you setup
@@ -1097,8 +1138,14 @@ previously. You might want to have independent directories for
 different users so that they will not be able to see neither the whole 
 system nor each other's.
 
-<item>Configure SSH: If you are running a newer (post-3.4) version of 
-OpenSSH that uses Privilege Separation you need to disable it:  
+<item>Configure SSH: Depending on your OpenSSH version the chroot
+environment might work straight of the box or not. Since 3.6.1p2 the
+<em>do_pam_session()</em> function is called after sshd has dropped privileges,
+since chroot() needs root priviledges it will not work with Privilege
+separation on. In newer OpenSSH versions, however, the PAM code has been
+modified and do_pam_session is called before dropping priviledges so it will
+work even with Privilege separation is on. If you have to disable modify 
+the <file>/etc/ssh/sshd_config</file> like this:
 <example>
 UsePrivilegeSeparation no
 </example>
@@ -1114,17 +1161,222 @@ granting the <em>sshd</em> user privileges to make the chroot() system call.
 </footnote>
 
 </list>
+ 
+<p>If you don't disable <em>Privilege Separation</em> you will need an
+<file>/etc/passwd</file> which includes the user's UID inside the chroot for
+<em>Privilege Separation</em> to work properly.
+
+<p>If you have <em>Privilege Separation</em> set to <strong>yes</strong> and
+your OpenSSH version does not behave properly you will need to disable it. If
+you don't, users that try to connect to your server and would be chrooted by
+this module will see this:
+
+<example>
+$ ssh -l user server
+user@server's password:
+Connection to server closed by remote host.
+Connection to server closed.
+</example>
+
+<p>This is because the ssh daemon, which is running as 'sshd', is not be able
+to make the chroot() system call. To disable Privilege separation you have to
+modify the <file>/etc/ssh/sshd_config</file> configuration file as described
+above.
+
+<p>Notice that if any of the followin is missing the users will not
+be able to logon to the chroot:
+
+<list>
+
+<item>The <file>/proc</file> filesystem needs to be mounted in the users'
+chroot.
+
+<item>The necessary <file>/dev/pts/</file> devices need to exist. If the files
+are generated by your running kernel automatically then you have to manually
+create them on the chroot's <file>/dev/</file>
+
+<item>The user's home directory has to exist in the chroot, otherwise the ssh
+daemon will not continue.
+
+</list>
+
+<p>You can debug all these issues if you use the <em>debug</em> keyword in the
+<file>/etc/pam.d/ssh</file> PAM definition. If you encounter issues you might
+find it useful to enable the debugging mode on the ssh client too.
 
 <p>Note: This information is also available (and maybe more up
 to date) in <file>/usr/share/doc/libpam-chroot/README.Debian.gz</file>,
 please review it for updated information before taking the above steps.
 
-<sect>Automatically making the environment (the easy way)
+</sect1>
+
+<sect1>Patching the <prgn>ssh</prgn> server 
+
+<p>Debian's <prgn>sshd</prgn> does not allow restriction of a user's movement 
+through the server, since it lacks the <prgn>chroot</prgn> function that the 
+commercial program <prgn>sshd2</prgn> includes (using 'ChrootGroups' or 
+'ChrootUsers', see <manref name="sshd2_config" section="5">). However, there 
+is a patch available to add this functionality available from 
+<url id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> 
+(requested and available in <url id="http://bugs.debian.org/139047" name="Bug
+#139047"> in Debian).
+The patch may be included in future releases of the OpenSSH package.
+Emmanuel Lacour has <prgn>ssh</prgn> deb
+packages for <em>sarge</em> with this feature. They are 
+available at <url id="http://debian.home-dn.net/sarge/ssh/">. Notice that
+those might not be up to date so completing the compilation step is recommended.
+
+<p>A description of all the necessary steps can be found at <url
+id="http://mail.incredimail.com/howto/openssh/"> (though it is aimed
+at RedHat 7.2 users, almost all of them are applicable to
+Debian). After applying the patch, modify <file>/etc/passwd</file> by
+changing the home path of the users (with the special <tt>/./</tt>
+token):
+
+<example>
+  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>This will restrict <em>both</em> remote shell access, as well as
+remote copy through the <prgn>ssh</prgn> channel.
+
+<p>Make sure to have all the needed binaries and libraries in the
+<prgn>chroot</prgn>'ed path for users. These files should be owned by root to 
+avoid tampering by the user (so as to exit the <prgn>chroot</prgn>'ed jailed). 
+A sample might include:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+</example>
+<example>
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+</example>
+<example>
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+</example>
+<example>
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+</example>
+<example>
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+</example>
+<example>
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
+</sect1>
+
+</sect>
+
+<sect>Chrooting the ssh server
+
+<p>If you create a chroot which includes the SSH server files 
+in, for example <file>/var/chroot/ssh</file>, you would start the
+<prgn>ssh</prgn> server <prgn>chroot</prgn>'ed with this command:
+
+<example>
+  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
+</example>
+
+<p>That would make startup the <prgn>sshd</prgn> daemon inside the chroot. In
+order to do that you have to first prepare the contents of the
+<file>/var/chroot/ssh</file> directory so that it includes both the SSH server
+and all the utilities that the users connecting to that server might need.  If
+you are doing this you should make certain that OpenSSH that uses Privilege
+Separation (which is the default) having the following line in the
+configuration
+file <file>/etc/ssh/sshd_config</file>:
+
+<example>
+UsePrivilegeSeparation yes
+</example>
+
+<p>That way the remote daemon will do as few things as possible as the root
+user so even if there is a bug in it it will not compromise the chroot. Notice
+that, unlike the case in which you setup a per-user chroot, the ssh daemon is
+running in the same chroot as the users so there is at least one potential
+process running as root which could break out of the chroot.
+
+<p>Notice, also, that in order for SSH to work in that location, the partition
+where the chroot directory resides cannot be mounted with the <em>nodev</em>
+option. If you use that option, then you will get the following error: <em>PRNG
+is not seeded</em>, because <file>/dev/urandom</file> does not work in the
+chroot.
+
+<sect1>Setup a minimal system (the really easy way)
+
+<p>You can use <package>debootstrap</package> to setup a minimal environment
+that just includes the ssh server. In order to do this you just have to create 
+a chroot as described in the
+<url id="http://www.debian.org/doc/manuals/reference/ch-tips.en.html#s-chroot"
+name="chroot section of the Quick Reference Guide">. This method is bound to
+work (you will get all the necessary componentes for the chroot) but at the
+cost of disk space (a minimal installation of Debian will amount to several
+hundred megabytes). This minimal system might also include setuid files that a
+user in the chroot could use to break out of the chroot if any of those could
+be use for a privilege escalation.
+
+</sect1>
+
+<sect1>Automatically making the environment (the easy way)
 
 <p>You can easily create a restricted environment with the
 <package>makejail</package> package, since it automatically takes care
 of tracing the server daemon (with <prgn>strace</prgn>), and makes it
-run under the restricted environment.
+run under the restricted environment. 
 
 <p>The advantage of programs that automatically generate <prgn>chroot</prgn>
 environments is that they are capable of copying any package to the
@@ -1132,21 +1384,47 @@ environments is that they are capable of copying any package to the
 making sure it's complete). Thus, providing user applications is easier.
 
 <p>To set up the environment using <prgn>makejail</prgn>'s provided
-examples, just use the command:
+examples, just create <file>/var/chroot/sshd</file> and use the command:
 
 <example>
   # makejail /usr/share/doc/makejail/examples/sshd.py
 </example>
 
+<p>This will setup the chroot in the <file>/var/chroot/sshd</file> directory.
+Notice that this chroot will not fully work unless you:
+
+<list>
+<item><p>Mount the <em>procfs</em> filesystem in
+<file>/var/chroot/sshd/proc</file>. <prgn>Makejail</prgn> will mount it for you
+but if the system reboots you need to remount it running:
+<example>
+# mount -t proc proc /var/chroot/sshd/proc
+</example>
+
+<p>You can also have it be mounted automatically by editing
+<file>/etc/fstab</file> and including this line:
+
+<example>
+proc-ssh /var/chroot/sshd/proc  proc none 0 0
+</example>
+
+<item>Have syslog listen to the device <file>/dev/log</file> inside the chroot.
+In order to do this you have modify <file>/etc/default/syslogd</file> and
+add <em>-a /var/chroot/sshd/dev/log</em> to the <strong>SYSLOGD</strong>
+variable definition.
+
+</list>
+
 <p>Read the sample file to see what other changes need to be made to
 the environment. Some of these changes, such as copying user's home
 directories, cannot be done automatically. Also, limit the exposure of
 sensitive information by only copying the data from a given number of
-users from the files <file>/etc/shadow</file> or
-<file>/etc/group</file>.
+users from the files <file>/etc/shadow</file> or <file>/etc/group</file>.
+Notice that if you are using Privilege Separation the <em>sshd</em> user needs
+to exist in those files.
 
-<p>The following sample environment has been (slightly) tested and is
-built with the configuration file provided in the package and includes
+<p>The following sample environment has been (slightly) tested in Debian 3.0
+and is built with the configuration file provided in the package and includes
 the <package>fileutils</package> package:
 
 <example>
@@ -1339,116 +1617,28 @@ the <package>fileutils</package> package:
 27 directories, 733 files
 </example>
 
-<sect>Patching <PRGN>SSH</PRGN> to enable <prgn>chroot</prgn> functionality
-
-<p>Debian's <prgn>sshd</prgn> does not allow restriction of a user's movement 
-through the server, since it lacks the <prgn>chroot</prgn> function that the 
-commercial program <prgn>sshd2</prgn> includes (using 'ChrootGroups' or 
-'ChrootUsers', see <manref name="sshd2_config" section="5">). However, there 
-is a patch available to add this functionality available from 
-<url id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> 
-(requested in <url id="http://bugs.debian.org/139047" name="Bug #139047">
-in Debian).
-The patch may be included in future releases of the OpenSSH package.
-Emmanuel Lacour has <prgn>ssh</prgn> deb
-packages for <em>sarge</em> with this feature. They are 
-available at <url id="http://debian.home-dn.net/sarge/ssh/">. Notice that
-those might not be up to date so completing the compilation step is recommended.
-
-<p>A description of all the necessary steps can be found at <url
-id="http://mail.incredimail.com/howto/openssh/"> (though it is aimed
-at RedHat 7.2 users, almost all of them are applicable to
-Debian). After applying the patch, modify <file>/etc/passwd</file> by
-changing the home path of the users (with the special <tt>/./</tt>
-token):
+<p>For Debian release 3.1 you have to make sure that the environment includes
+also the common files for PAM. The following files need to be copied over to
+the chroot if <prgn>makejail</prgn> did not do it for you:
 
 <example>
-  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+$ ls /etc/pam.d/common-*
+/etc/pam.d/common-account  /etc/pam.d/common-password
+/etc/pam.d/common-auth     /etc/pam.d/common-session
 </example>
 
-<p>This will restrict <em>both</em> remote shell access, as well as
-remote copy through the <prgn>ssh</prgn> channel.
+<p>
 
-<p>Make sure to have all the needed binaries and libraries in the
-<prgn>chroot</prgn>'ed path for users. These files should be owned by root to 
-avoid tampering by the user (so as to exit the <prgn>chroot</prgn>'ed jailed). 
-A sample might include:
 
-<example>
-./bin:
-total 660
-drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
--r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
--r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
--rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
--r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
--r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
-lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+</sect1>
 
-./etc:
-total 24
-drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--rw-r--r--    1 root     root           54 Mar 15 13:23 group
--rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
--rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
--rw-r--r--    1 root     root           52 Mar 15 13:23 shells
-
-./lib:
-total 1848
-drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
--rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
--rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
--rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
--rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
--rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
--rw-r--r--    1 root     root        34144 Mar 15 16:10
-libnss_files.so.2
--rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
--rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
--rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
--rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
--rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
-
-./usr:
-total 16
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
-drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
-drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
-
-./usr/bin:
-total 340
-drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
--rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
--rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
--r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
--rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
--r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
--rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
-
-./usr/lib:
-total 852
-drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
--rw-r--r--    1 root     root       771088 Mar 15 13:01
-libcrypto.so.0.9.6
--rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
--rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
-</example>
-
-<sect>Handmade environment (the hard way)
+<sect1>Manually creating the environment (the hard way)
 
 <p>It is possible to create an environment, using a trial-and-error
 method, by monitoring the <prgn>sshd</prgn> server traces and log
 files in order to determine the necessary files. The following
 environment, contributed by José Luis Ledesma, is a sample listing of
-files in a <prgn>chroot</prgn> environment for <prgn>ssh</prgn>:
+files in a <prgn>chroot</prgn> environment for <prgn>ssh</prgn> in Debian woody (3.0):
 
 <footnote>
 Notice that there are no SETUID files. This makes it more difficult
