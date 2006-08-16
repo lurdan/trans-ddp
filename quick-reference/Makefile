@@ -199,6 +199,10 @@ $(MANUAL1).%.html.stamp: $(MANUAL1).%.sgml  $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.html.ent fix.ent
 	debiandoc2html $(BUILD_OPT) -t $(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL1).$*.html
+	if [ ! -e $(MANUAL1).$*.html/index.$*.html \
+	  -o $(MANUAL1).$*.html/$(MANUAL1).$*.html -nt $(MANUAL1).$*.html/index.$*.html ]; \
+	  then mv $(MANUAL1).$*.html/$(MANUAL1).$*.html $(MANUAL1).$*.html/index.$*.html; \
+	fi
 # since $(MANUAL1).%.html/index.%.html cannot be a target file
 	touch $(MANUAL1).$*.html.stamp
 
@@ -206,6 +210,10 @@ $(MANUAL2).%.html.stamp: $(MANUAL2).%.sgml  $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.html.ent fix.ent
 	debiandoc2html $(BUILD_OPT) -t$(MANUAL2) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL2).$*.html
+	if [ ! -e $(MANUAL2).$*.html/index.$*.html \
+	  -o $(MANUAL2).$*.html/$(MANUAL2).$*.html -nt $(MANUAL2).$*.html/index.$*.html ]; \
+	  then mv $(MANUAL2).$*.html/$(MANUAL2).$*.html $(MANUAL2).$*.html/index.$*.html; \
+	fi
 # since $(MANUAL2).%.html/index.%.html cannot be a target file
 	touch $(MANUAL2).$*.html.stamp
 
