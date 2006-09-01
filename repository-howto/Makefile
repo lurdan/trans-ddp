@@ -6,7 +6,8 @@
 
 manual := $(notdir $(CURDIR)).fr \
 	  $(notdir $(CURDIR)).en \
-	  $(notdir $(CURDIR)).de 
+	  $(notdir $(CURDIR)).de \
+	  $(notdir $(CURDIR)).uk 
 
 manualdir := $(notdir $(CURDIR))
 # this can and will be overriden by a higher level makefile
