@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.23" -->
+<!-- CVS revision of original english document "1.24" -->
 
 <appendix id="harden-step">Der Abhärtungsprozess Schritt für
 Schritt
@@ -1105,69 +1105,165 @@ the ip_conntrack_ftp module, or use passive mode.
 <p>Es ist eine schwere Aufgabe, eine eingeschränkte Umgebung für
 <prgn>SSH</prgn> zu erstellen. Das liegt zum einen an seinen Abhängigkeiten und
 zum anderen daran, dass <prgn>SSH</prgn> im Gegensatz zu anderen Servern den
-Nutzern eine entfernte Shell zu Verfügung stellt. Daher müssen Sie sich
-überlegen, welche Programme Benutzer in der Umgebung verwenden sollen. Wenn Sie
-diese Dateistruktur zum Beispiel in <file>/var/chroot/ssh</file> erstellen,
-können Sie den <prgn>ssh</prgn>-Server mit folgendem Befehl in einer
-<prgn>chroot</prgn>-Umgebung starten:
+Benutzern eine entfernte Shell zur Verfügung stellt. Daher müssen Sie sich
+überlegen, welche Programme Benutzer in der Umgebung verwenden sollen.
 
-<example>
-  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
-</example>
+<p>Sie haben zwei Möglichkeiten, eine beschränkte entfernte Shell einzurichten:
 
-<p>Beachten Sie aber, dass SSH nur funktioniert, wenn die Partition, in der
-chroot eingerichtet wurde, nicht mit der Option <em>nodev</em> gemountet
-wurde. Wenn Sie diese Option verwenden, bekommen Sie folgende Fehlermeldung:
-<em>PRNG is not seeded</em>, weil <file>/dev/urandom</file> nicht in der
-chroot-Umgebung funktioniert.
+<list>
+<item>die SSH-Benutzer in ein Chroot-Gefängnis einsperren: Dazu müssen Sie den
+SSH-Daemon so konfigurieren, dass er Benutzer nach der Authentifizierung in
+ein Chroot-Gefängnis einsperrt, bevor sie eine Shell bekommen. Jeder Benutzer
+kann seine eigene Umgebung haben.
+
+<item>den SSH-Server in ein Chroot-Gefängnis einsperren: Wenn die SSH-Anwendung
+sich selbst in einer Chroot-Umgebung befindet, sind auch alle Benutzer in
+diese Umgebung eingesperrt.
+
+</list>
+
+<p>Die erste Möglichkeit hat den Vorteil, dass es möglich ist, sowohl
+unbeschränkte als auch beschränkte Benutzer zu haben. Falls Sie keine
+Setuid-Anwendungen in der Chroot-Umgebung zur Verfügung stellen, wird es
+schwieriger, aus dem Gefängnis auszubrechen. Allerdings müssen Sie
+gegebenenfalls Chroot-Umgebungen für jeden Benutzer einzeln
+einrichten. Außerdem ist die Konfiguration schwieriger, da es Zusammenarbeit
+mit dem SSH-Server erfordert. Die zweite Möglichkeit ist leichter zu
+verwirklichen und schützt vor dem Ausnutzen eines Exploits des SSH-Servers, da
+auch dieser im Chroot-Gefängnis ist. Jedoch müssen alle Benutzer die gleiche
+Chroot-Umgebung verwenden. Verschiedene Umgebungen für verschiedene Benutzer
+sind nicht möglich.
 
 
-<sect>Einsatz von <package>libpam-chroot</package>
+<sect>SSH-Benutzer in ein Chroot-Gefängnis einsperren
+
+<p>Sie können den SSH-Server so einrichten, dass er bestimmte Benutzer in eine
+Chroot-Umgebung einsperrt, so dass sie eine Shell mit nur einer beschränkten
+Anzahl von Anwendungen zur Verfügung haben.
+
+
+<sect1>Einsatz von <package>libpam-chroot</package>
 
 <p>Der wahrscheinlich leichteste Weg ist, das Paket
 <package>libpam-chroot</package>, das in Debian vorhanden ist, zu verwenden. Wenn
-Sie es installiert haben, müssen Sie
+Sie es installiert haben, müssen Sie:
 
 <list>
 
 <item><file>/etc/pam.d/ssh</file> verändern, um dieses PAM-Modul zu
-verwenden. Fügen Sie dazu als letzte Zeile Folgendes ein:
+verwenden. Fügen Sie dazu als letzte Zeile Folgendes ein<footnote>Sie können
+die Option <em>debug</em> verwenden. Damit wird der Fortschritt des Moduls
+unter <em>authpriv.notice</em> protokolliert.</footnote>:
 <example>
 session    required   pam_chroot.so
 </example>
 
-<item>eine passende Chroot-Umgebung einrichten. Sie können entweder
-<file>/usr/share/doc/libpam-chroot/examples/</file> durcharbeiten,
-<package>makejail</package> benutzen oder eine minimale Debian-Umgebung mit
+<item>eine passende Chroot-Umgebung für die Benutzer einrichten. Sie können
+versuchen, die Skripte unter
+<file>/usr/share/doc/libpam-chroot/examples/</file> zu verwenden, das Programm
+<package>makejail</package> benutzen
+<footnote>Mit folgendem Python-Aufruf können Sie eine sehr eingeschränkte
+Bash-Umgebung für makejail erstellen. Erstellen Sie das Verzeichnis
+<file>/var/chroots/users/foo</file> und eine Datei mit dem Namen
+<file>bash.py</file> und folgendem Inhalt:
+<example>
+  chroot="/var/chroots/user/foo"
+  cleanJailFirst=1
+  testCommandsInsideJail=["bash ls"]
+</example>
+Führen Sie dann <em>makejail bash.py</em> aus, um eine Benutzer-Umgebung unter
+<file>/var/chroots/user/foo</file> zu erstellen. So testen Sie die Umgebung:
+<example>
+  # chroot /var/chroots/user/foo/ ls
+  bin  dev  etc  lib  proc  sbin  usr
+</example>
+</footnote>
+oder eine minimale Debian-Umgebung mit
 <package>debootstrap</package> aufsetzen. Stellen Sie sicher, dass die Umgebung
-die notwendigen Geräte <file>/dev/ptmx</file> und <file>/dev/pty*</file> und
-das Unterverzeichnis <file>/dev/pts/</file> enthält (es sollte ausreichen,
-MAKEDEV im <file>/dev</file>-Verzeichnis der Chroot-Umgebung auszuführen).
+die notwendigen Geräte enthält
+<footnote>
+Unter Umständen benötigen Sie die Geräte <file>/dev/ptmx</file> und
+<file>/dev/pty*</file> und das Unterverzeichnis <file>/dev/pts/</file>. Es
+sollte ausreichen, MAKEDEV im <file>/dev</file>-Verzeichnis der Chroot-Umgebung
+auszuführen, um sie zu erstellen, falls sie nicht existieren. Wenn Sie einen
+Kernel einsetzen, der die Gerätedateien dynamisch erstellt (Version 2.6),
+müssen Sie die Dateien /dev/pts/ selbst erstellen und mit den passenden Rechten
+ausstatten.</footnote>.
 
 <item><file>/etc/security/chroot.conf</file> bearbeiten, damit die ausgewählten
 Nutzer in das Verzeichnis eingesperrt werden, das Sie zuvor eingerichtet
 haben. Sie sollten unabhängige Verzeichnisse für verschiedene Nutzer haben,
 damit sie weder das ganze System noch sich gegenseitig sehen können.
 
-<item>SSH konfigurieren: Wenn Sie eine neuere Version (post-3.4) von OpenSSH
-betreiben, die die Trennung von Rechten (Privilege Separation) verwendet,
-müssen Sie das abschalten:
+<item>SSH konfigurieren: Je nach der eingesetzen OpenSSH-Version funktioniert
+die Chroot-Umgebung sofort. Seit 3.6.1p2 wird die Funktion
+<em>do_pam_session()</em> aufgerufen, nachdem sshd seine Rechte abgelegt
+hat. Da chroot() Root-Rechte benötigt, wird es mit Rechtetrennung nicht
+funktionieren. Allerdings wurde in neueren OpenSSH-Versionen der PAM-Code
+verändert, so dass do_pam_session vor dem Ablegen der Rechte aufgerufen
+wird. Daher funktioniert es auch mit aktivierter Rechtetrennung. Falls Sie sie
+abschalten müssen, müssen Sie <file>/etc/ssh/sshd_config</file> so verändern:
 <example>
 UsePrivilegeSeparation no
 </example>
+
 <p>Beachten Sie, dass das die Sicherheit Ihres Systems verringern wird, da dann
 der OpenSSH-Server als <em>Root</em> laufen wird. Das bedeutet, dass wenn eine
 Angriffsmöglichkeit aus der Ferne gegen OpenSSH entdeckt wird, ein Angreifer
 <em>Root</em>-Rechte anstatt nur <em>Sshd</em>-Rechte erlangen wird und somit
 das gesamte System kompromittiert.
 <footnote>
-Wenn Sie einen Kernel verwenden, der Mandatory Access Control (RSBAC/SElinux)
-unterstützt, können Sie das Ändern der Konfiguration verhindern, indem Sie dem
-<em>Sshd</em>-Nutzer die notwendigen Rechte einräumen, um den Systemaufruf
+Wenn Sie einen Kernel verwenden, der Mandatory-Access-Control (RSBAC/SElinux)
+unterstützt, müssen Sie die Konfiguration nicht ändern, wenn Sie dem
+<em>Sshd</em>-Benutzer die notwendigen Rechte einräumen, um den Systemaufruf
 chroot() ausführen zu können.
 </footnote>
 
 </list>
+
+<p>Wenn Sie die <em>Rechtetrennung</em> nicht deaktivieren, brauchen Sie im
+Chroot-Gefängnis <file>/etc/passwd</file>, welches die Benutzer-UID enthält,
+damit die <em>Rechtetrennung</em> funktioniert.
+
+<p>Wenn Sie die Option <em>Rechtetrennung</em> auf <strong>yes</strong> gesetzt
+haben und Ihre Version von OpenSSH nicht richtig läuft, müssen Sie sie
+abschalten. Wenn Sie das unterlassen, werden Benutzer, die sich mit Ihrem
+Server verbinden wollen und von diesem Modul in eine Chroot-Umgebung
+eingesperrt werden sollen, Folgendes zu sehen bekommen:
+
+<example>
+$ ssh -l user server
+user@server's password:
+Connection to server closed by remote host.
+Connection to server closed.
+</example>
+
+<p>Dies geschieht, weil der SSH-Daemon, der als 'sshd' läuft, nicht den
+Systemaufruf chroot() ausführen kann. Um die Rechtetrennung abzuschalten,
+müssen Sie die Konfigurationsdatei <file>/etc/ssh/sshd_config</file> wie oben
+beschrieben verändern.
+
+<p>Beachten Sie, dass, wenn Folgendes fehlt, sich die Benutzer nicht in die
+Chroot-Umgebung anmelden können:
+
+<list>
+
+<item>Das Dateisystem <file>/proc</file> muss in der Chroot-Umgebung des
+Benutzers gemounted sein.
+
+<item>Die notwendigen Geräte unter <file>/dev/pts/</file> müssen
+vorliegen. Falls diese Dateien automatisch vom Kernel erstellt werden, müssen
+Sie sie von Hand unter <file>/dev/</file> in der Chroot-Umgebung erstellen.
+
+<item>Das Home-Verzeichnis des Benutzers muss in der Chroot-Umgebung
+existieren. Ansonsten wird der SSH-Daemon nicht fortfahren.
+
+</list>
+
+<p>Sie können diese Probleme mit dem Schlüsselwort <em>debug</em> in der
+PAM-Konfiguration <file>/etc/pam.d/ssh</file> debuggen. Falls Sie auf Probleme
+stoßen, kann es sich als nützlich erweisen, auch den Debugging-Modus des
+SSH-Clients zu aktivieren.
 
 <p>Hinweis: Diese Informationen sind auch in
 <file>/usr/share/doc/libpam-chroot/README.Debian.gz</file> enthalten (und
@@ -1176,36 +1272,225 @@ Informationen vorhanden sind, bevor Sie die oben aufgezeigten Schritte
 ausführen.
 
 
-<sect>Automatisches Erstellen der Umgebung (der leichte Weg)
+<sect1>Patchen des <prgn>ssh</prgn>-Servers
+
+<p>Debians <prgn>sshd</prgn> gestattet nicht, die Bewegungen eines Benutzer
+durch den Server zu beschränken, da er keine <prgn>Chroot</prgn>-Funktionalität
+besitzt. Diese ist im Gegensatz dazu Bestandteil des kommerziellen Programms
+<prgn>sshd2</prgn> (Es verwendet 'ChrootGroups' oder 'ChrootUsers', siehe
+<manref name="sshd2_config" section="5">). Allerdings gibt es einen Patch, der
+<prgn>sshd</prgn> um diese Funktion erweitert. Den Patch erhalten Sie unter
+<url id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> (wurde in
+<url id="http://bugs.debian.org/139047" name="Fehlerbericht #139047">
+nachgefragt).  Der Patch könnte Bestandteil von zukünftigen Veröffentlichungen
+des OpenSSH-Pakets werden. Emmanuel Lacour bietet <prgn>ssh</prgn>-Pakete als
+Debs mit diesen Fähigkeiten für <em>Sarge</em> an. Sie sind unter <url
+id="http://debian.home-dn.net/sarge/ssh/"> verfügbar. Beachten Sie aber, dass
+sie nicht aktuell sein müssen, daher wird empfohlen, den Weg der Kompilierung
+zu gehen.
+
+<p>Eine Beschreibung von den notwendigen Schritten finden Sie unter <url
+id="http://mail.incredimail.com/howto/openssh/"> (So ziemlich alles dort trifft
+auch auf Debian zu, auch wenn von Red Hat 7.3 die Rede ist).  Nachdem Sie den
+Patch angewendet haben, müssen Sie <file>/etc/passwd</file> anpassen, indem Sie
+das Home-Verzeichnis der Benutzer ändern (mit dem speziellen <tt>/./</tt>
+Kürzel).
+
+<example>
+  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
+</example>
+
+<p>Dies wird <em>sowohl</em> den Fernzugriff auf die Shell <em>als auch</em>
+Fernkopien über den <prgn>ssh</prgn>-Kanal einschränken.
+
+<p>Gehen Sie sicher, dass Sie alle benötigten Programme und Bibliotheken in den
+<prgn>Chroot</prgn>-Pfaden der Benutzer haben. Diese Dateien sollte Root
+besitzen, um Manipulationen durch den Benutzer zu verhindern (zum Beispiel um
+das <prgn>chroot</prgn>-Gefängnis zu verlassen). Ein Beispiel könnte so
+aussehen:
+
+<example>
+./bin:
+total 660
+drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
+-r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
+-r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
+-rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
+-r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
+-r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
+lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
+</example>
+<example>
+./etc:
+total 24
+drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rw-r--r--    1 root     root           54 Mar 15 13:23 group
+-rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
+-rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
+-rw-r--r--    1 root     root           52 Mar 15 13:23 shells
+</example>
+<example>
+./lib:
+total 1848
+drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+-rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
+-rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
+-rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
+-rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
+-rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
+-rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
+-rw-r--r--    1 root     root        34144 Mar 15 16:10
+libnss_files.so.2
+-rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
+-rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
+-rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
+-rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
+-rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
+</example>
+<example>
+./usr:
+total 16
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
+drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
+</example>
+<example>
+./usr/bin:
+total 340
+drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
+-rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
+-r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
+-rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
+-r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
+-rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
+</example>
+<example>
+./usr/lib:
+total 852
+drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
+drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
+-rw-r--r--    1 root     root       771088 Mar 15 13:01
+libcrypto.so.0.9.6
+-rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
+-rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+</example>
+
+
+<sect>Einsperren des SSH-Servers in einem Chroot-Gefängnis
+
+<p>Wenn Sie eine Chroot-Umgebung erstellen, welche die Dateien des SSH-Servers
+enthält, z.B. unter <file>/var/chroot/ssh</file>, sollten Sie den im
+<prgn>chroot</prgn>-Gefängnis eingesperrten <prgn>ssh</prgn>-Server mit diesem
+Befehl starten:
+
+<example>
+  # chroot /var/chroot/ssh /sbin/sshd -f /etc/sshd_config
+</example>
+
+<p>Das führt dazu, dass der <prgn>sshd</prgn>-Daemon innerhalb des
+Chroot-Gefängnisses gestartet wird. Dazu müssen Sie zunächst dafür sorgen, dass
+das Verzeichnis <file>/var/chroot/ssh</file> den SSH-Server und die Werkzeuge
+enthält, die Benutzer benötigen, die sich mit dem Server verbinden. Wenn Sie
+das vorhaben, sollten Sie sicherstellen, dass OpenSSH Rechtetrennung einsetzt
+(was standardmäßig so ist). Dazu muss in der Konfigurationsdatei
+<file>/etc/ssh/sshd_config</file> folgende Zeile enthalten sein:
+
+<example>
+  UsePrivilegeSeparation yes
+</example>
+
+<p>Dadurch wird der entfernte Daemon so wenig Dinge wie möglich als Root
+ausführen. Wenn er also einen Fehler enthalten sollte, kann damit nicht aus dem
+Chroot-Gefängnis ausgebrochen werden. Beachten Sie, dass, anderes als wenn Sie
+eine Chroot-Umgebung für jeden Benutzer einzeln einrichten, in diesem Fall der
+SSH-Daemon im selben Chroot-Gefängnis wie die Benutzer läuft. Es gibt also
+mindestens eine Prozess in der Chroot-Umgebung, der als Root läuft. Mit ihm ist
+es möglich, aus dem Chroot-Gefängnis auszubrechen.
+
+<p>Beachten Sie auch, dass SSH nur funktioniert, wenn die Partition, auf der
+die Chroot-Umgebung eingerichtet wurde, nicht mit der Option <em>nodev</em>
+gemountet wurde. Wenn Sie diese Option verwenden, bekommen Sie folgende
+Fehlermeldung: <em>PRNG is not seeded</em>, weil <file>/dev/urandom</file>
+nicht in der Chroot-Umgebung funktioniert.
+
+
+<sect1>Einrichten eines minimalen Systems (der wirklich leichte Weg)
+
+<p>Sie können mit <package>debootstrap</package> eine minimale Umgebung
+einrichten, die ausschließlich den SSH-Server enthält. Dafür müssen Sie nur
+eine Chroot-Umgebung einrichten, wie es im <url
+id="http://www.de.debian.org/doc/manuals/reference/ch-tips.de.html#s-chroot"
+name="Chroot-Abschnitt der Debian-Referenz"> beschrieben wird. Diese
+Vorgehensweise ist idiotensicher (Sie werden alle für die Chroot-Umgebung
+notwendigen Bestandteile erhalten), aber dies geht auf Kosten von
+Plattenspeicher. Eine minimale Installation von Debian benötigt einige hundert
+Megabyte. Dieses minimale System könnte auch Setuid-Dateien enthalten, mit
+denen ein Benutzer aus dem Chroot-Gefängnis ausbrechen könnte, wenn sie eine
+Rechteerweiterung zulassen.
+
+
+<sect1>Automatisches Erstellen der Umgebung (der leichte Weg)
 
 <p>Mit dem Paket <package>makejail</package> können Sie leicht eine
 eingeschränkte Umgebung erstellen, da es automatisch den Trace des
 Server-Daemons verfolgt (mit <prgn>strace</prgn>) und dafür sorgt, dass er in
-den eingeschränkten Umgebung läuft.
+der eingeschränkten Umgebung läuft.
 
 <p>Der Vorteil von Programmen, die automatisch die <prgn>chroot</prgn>-Umgebung
 einrichten, liegt darin, dass sie im Stande sind, Pakete in die
 <prgn>chroot</prgn>-Umgebung zu kopieren (und verfolgen sogar die
 Abhängigkeiten der Pakete, um sicherzustellen, dass sie vollständig
-sind). Dadurch wird das Bereitstellen von Anwendungen für Nutzer leichter.
-<!-- SB (20050308): "Thus, providing user applications is easier." Verstehe ich
-nicht, was das bedeuten soll. -->
+sind). Dadurch wird das Bereitstellen von Anwendungen für Benutzer leichter.
 
-<p>Verwenden Sie folgenden Befehl, um eine Umgebung aus den von
-<prgn>makejail</prgn> zur Verfügung gestellten Beispielen zu erstellen:
+<p>Um ein Chroot-Gefängnis aus den von <prgn>makejail</prgn> zur Verfügung
+gestellten Beispielen zu einzurichten, müssen Sie <file>/var/chroot/sshd</file>
+erstellen und folgenden Befehl ausführen:
 
 <example>
   # makejail /usr/share/doc/makejail/examples/sshd.py
 </example>
 
+<p>Dies wird eine Chroot-Umgebung im Verzeichnis <file>/var/chroot/sshd</file>
+erstellen. Beachten Sie, dass diese Chroot-Umgebung nicht voll funktionstüchtig
+ist, bis Sie nicht:
+
+<list>
+<item><p>Das Dateisystem <em>procfs</em> in <file>/var/chroot/sshd/proc</file>
+eingebunden haben. <prgn>Makejail</prgn> wird es für Sie einbinden. Aber nach
+einem Neustart werden Sie es erneut einbinden müssen:
+<example>
+  # mount -t proc proc /var/chroot/sshd/proc
+</example>
+<p>Es kann auch automatisch eingebunden werden. Dazu müssen Sie
+<file>/etc/fstab</file> bearbeiten und folgende Zeile eintragen:
+<example>
+  proc-ssh /var/chroot/sshd/proc  proc none 0 0
+</example>
+
+<item>Syslog auf das Geräte <file>/dev/log</file> in der Chroot-Umgebung
+horchen lassen. Dazu müssen Sie <file>/etc/default/syslogd</file> ändern und
+<em>-a /var/chroot/sshd/dev/log</em> zur Definition von der Variable
+<strong>SYSLOGD</strong> hinzufügen.
+
+</list>
+
 <p>Sehen Sie sich die Beispielsdatei an, um herauszufinden, welche Änderungen
 an der Umgebung vorgenommen werden müssen. Einige diese Änderungen können nicht
 automatisch vorgenommen werden, wie z.B. das Kopieren des Home-Verzeichnisses
-eines Nutzers. Außerdem sollten Sie die Gefährdung von sensiblen Informationen
-begrenzen, indem Sie nur die Daten bestimmter Nutzer aus den Dateien
+eines Benutzers. Außerdem sollten Sie die Gefährdung von sensiblen Informationen
+begrenzen, indem Sie nur die Daten bestimmter Benutzer aus den Dateien
 <file>/etc/shadow</file> und <file>/etc/group</file> kopieren.
+Beachten Sie, dass, falls Sie Rechtetrennung verwenden, der Benutzer
+<em>sshd</em> in diesen Dateien vorhanden sein muss.
 
-<p>Die folgende Beispielumgebung wurde (ein wenig) getestet. Sie basiert auf
+<p>Die folgende Beispielumgebung wurde (ein wenig) unter Debian 3.0 getestet. Sie basiert auf
 der Konfigurationsdatei, die mit dem Paket geliefert wird, und beinhaltet das
 Paket <package>fileutils</package>.
 
@@ -1399,123 +1684,25 @@ Paket <package>fileutils</package>.
 27 directories, 733 files
 </example>
 
-
-<sect><prgn>SSH</prgn> patchen, um <prgn>chroot</prgn>-Funktionen zu
-ermöglichen
-
-<p>Debians <prgn>sshd</prgn> erlaubt es Ihnen nicht, die Bewegungen eines
-Nutzer durch den Server zu beschränken, da er keine
-<prgn>Chroot</prgn>-Funktionalität besitzt. Diese ist im Gegensatz dazu
-Bestandteil des kommerziellen Programms <prgn>sshd2</prgn> (es verwendet
-'ChrootGroups' oder 'ChrootUsers', siehe <manref name="sshd2_config"
-section="5">). Allerdings gibt es einen Patch, der <prgn>sshd</prgn> um diese
-Funktion erweitert. Den Patch erhalten Sie unter <url
-id="http://chrootssh.sourceforge.net" name="ChrootSSH project"> (wurde in <url
-id="http://bugs.debian.org/139047" name="Fehlerbericht #139047"> nachgefragt).
-Der Patch
-könnte Bestandteil von zukünftigen Veröffentlichungen des OpenSSH-Pakets
-werden. Emmanuel Lacour bietet <prgn>ssh</prgn>-Pakete als debs mit diesen
-Fähigkeiten für <em>Sarge</em> an. Sie sind unter <url
-id="http://debian.home-dn.net/sarge/ssh/"> verfügbar. Beachten Sie aber, dass
-sie nicht aktuell sein müssen, daher wird empfohlen, den Weg der Kompilierung
-zu gehen.
-
-<p>Eine Beschreibung von den notwendigen Schritten finden Sie unter <url
-id="http://mail.incredimail.com/howto/openssh/"> (so ziemlich alles trifft dort
-auch auf Debian zu, auch wenn von Red Hat 7.2 die Rede ist).  Nachdem Sie den
-Patch angewendet haben, müssen Sie <file>/etc/passwd</file> anpassen, indem Sie
-das Home-Verzeichnis des Nutzers ändern (mit dem speziellen <tt>/./</tt>
-Kürzel).
+<p>Bei Debian 3.1 müssen Sie sicherstellen, dass das Gefängnis auch die Dateien
+für PAM enthält. Falls es nicht schon <prgn>makejail</prgn> für Sie erledigt
+hat, müssen Sie folgende Dateien in die Chroot-Umgebung kopiert:
 
 <example>
-  joeuser:x:1099:1099:Joe Random User:/home/joe/./:/bin/bash
-</example>
-
-<p>Dies wird <em>sowohl</em> den Fernzugriff auf die Shell <em>als auch</em>
-Fernkopien über den <prgn>ssh</prgn>-Kanal einschränken.
-
-<p>Gehen Sie sicher, dass Sie alle benötigten Programme und Bibliotheken in den
-<prgn>Chroot</prgn>-Pfaden der Nutzer haben. Diese Dateien sollte Root
-besitzen, um Manipulationen durch den Nutzer zu verhindern (zum Beispiel das
-<prgn>chroot</prgn>-Gefängnis verlassen). Ein Beispiel könnte so aussehen:
-
-<example>
-./bin:
-total 660
-drwxr-xr-x    2 root     root         4096 Mar 18 13:36 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--r-xr-xr-x    1 root     root       531160 Feb  6 22:36 bash
--r-xr-xr-x    1 root     root        43916 Nov 29 13:19 ls
--r-xr-xr-x    1 root     root        16684 Nov 29 13:19 mkdir
--rwxr-xr-x    1 root     root        23960 Mar 18 13:36 more
--r-xr-xr-x    1 root     root         9916 Jul 26  2001 pwd
--r-xr-xr-x    1 root     root        24780 Nov 29 13:19 rm
-lrwxrwxrwx    1 root     root            4 Mar 30 16:29 sh -> bash
-
-./etc:
-total 24
-drwxr-xr-x    2 root     root         4096 Mar 15 16:13 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--rw-r--r--    1 root     root           54 Mar 15 13:23 group
--rw-r--r--    1 root     root          428 Mar 15 15:56 hosts
--rw-r--r--    1 root     root           44 Mar 15 15:53 passwd
--rw-r--r--    1 root     root           52 Mar 15 13:23 shells
-
-./lib:
-total 1848
-drwxr-xr-x    2 root     root         4096 Mar 18 13:37 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
--rwxr-xr-x    1 root     root        92511 Mar 15 12:49 ld-linux.so.2
--rwxr-xr-x    1 root     root      1170812 Mar 15 12:49 libc.so.6
--rw-r--r--    1 root     root        20900 Mar 15 13:01 libcrypt.so.1
--rw-r--r--    1 root     root         9436 Mar 15 12:49 libdl.so.2
--rw-r--r--    1 root     root       248132 Mar 15 12:48 libncurses.so.5
--rw-r--r--    1 root     root        71332 Mar 15 13:00 libnsl.so.1
--rw-r--r--    1 root     root        34144 Mar 15 16:10
-libnss_files.so.2
--rw-r--r--    1 root     root        29420 Mar 15 12:57 libpam.so.0
--rw-r--r--    1 root     root       105498 Mar 15 12:51 libpthread.so.0
--rw-r--r--    1 root     root        25596 Mar 15 12:51 librt.so.1
--rw-r--r--    1 root     root         7760 Mar 15 12:59 libutil.so.1
--rw-r--r--    1 root     root        24328 Mar 15 12:57 libwrap.so.0
-
-./usr:
-total 16
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 .
-drwxr-xr-x    8 guest    guest        4096 Mar 15 16:53 ..
-drwxr-xr-x    2 root     root         4096 Mar 15 15:55 bin
-drwxr-xr-x    2 root     root         4096 Mar 15 15:37 lib
-
-./usr/bin:
-total 340
-drwxr-xr-x    2 root     root         4096 Mar 15 15:55 .
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
--rwxr-xr-x    1 root     root        10332 Mar 15 15:55 env
--rwxr-xr-x    1 root     root        13052 Mar 15 13:13 id
--r-xr-xr-x    1 root     root        25432 Mar 15 12:40 scp
--rwxr-xr-x    1 root     root        43768 Mar 15 15:15 sftp
--r-sr-xr-x    1 root     root       218456 Mar 15 12:40 ssh
--rwxr-xr-x    1 root     root         9692 Mar 15 13:17 tty
-
-./usr/lib:
-total 852
-drwxr-xr-x    2 root     root         4096 Mar 15 15:37 .
-drwxr-xr-x    4 root     root         4096 Mar 15 13:00 ..
--rw-r--r--    1 root     root       771088 Mar 15 13:01
-libcrypto.so.0.9.6
--rw-r--r--    1 root     root        54548 Mar 15 13:00 libz.so.1
--rwxr-xr-x    1 root     root        23096 Mar 15 15:37 sftp-server
+  $ ls /etc/pam.d/common-*
+  /etc/pam.d/common-account  /etc/pam.d/common-password
+  /etc/pam.d/common-auth     /etc/pam.d/common-session
 </example>
 
 
-<sect>Von Hand gemachte Umgebung (der schwierige Weg)
+<sect1>Die Chroot-Umgebung von Hand erstellen (der schwierige Weg)
 
 <p>Es ist möglich, eine Umgebung mit der Trial-and-Error-Methode zu
 erstellen. Dazu müssen Sie die Traces und die Logdateien des
 <prgn>sshd</prgn>-Servers überwachen, um die notwendigen Dateien
 herauszufinden. Die folgende Umgebung, die von José Luis Ledesma zur Verfügung
-gestellt wurde, ist eine beispielhafte Aufführung der Dateien in einer
-<prgn>chroot</prgn>-Umgebung für <prgn>ssh</prgn>.
+gestellt wurde, ist eine beispielhafte Auflistung der Dateien in einer
+<prgn>chroot</prgn>-Umgebung für <prgn>ssh</prgn> unter Debian 3.0:
 <footnote>
 Beachten Sie, dass keine SETUID-Dateien vorhanden sind. Das erschwert es
 entfernten Benutzern, aus der <prgn>chroot</prgn>-Umgebung auszubrechen. Es
