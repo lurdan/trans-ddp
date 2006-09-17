@@ -12,7 +12,7 @@ MANUAL :=	$(shell basename $(shell pwd))
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 # What do we want by default?
-all:		publish
+all:		$(MANUAL).html/index.html
 
 # This target installs the generated HTML in the published directory.
 publish:	$(MANUAL).html/index.html
