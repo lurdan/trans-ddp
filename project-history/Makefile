@@ -12,8 +12,8 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
-#po-sources := $(wildcard *.??*.po)
-#sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
+po-sources := $(wildcard *.??*.po)
+sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
 sources_noncjk := $(sources)
@@ -21,13 +21,15 @@ sources_noncjk := $(sources)
 $(MANUAL).pot: $(MANUAL).sgml
 	debiandoc2pot $(MANUAL).sgml > $(MANUAL).pot
 
-$(MANUAL).%.sgml: $(MANUAL).sgml $(MANUAL).%.po
+# Update PO files after each change of $(MANUAL).sgml to avoid possible build errors
+$(po-sources): $(MANUAL).%.po: $(MANUAL).sgml $(MANUAL).pot
+	msgmerge --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
+
+$(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).sgml
 	po2debiandoc $(MANUAL).sgml $(MANUAL).$*.po > $(MANUAL).$*.sgml
 
-update-po: $(MANUAL).pot
-	for po in $(po-sources); do \
-	  msgmerge --width=76 $$po $(MANUAL).pot -o $$po.new && mv $$po.new $$po; \
-	done
+update-po:
+	$(MAKE) $(po-sources)
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
