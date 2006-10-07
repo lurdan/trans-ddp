@@ -12,8 +12,8 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
-po-sources := $(wildcard *.??*.po)
-sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
+#po-sources := $(wildcard *.??*.po)
+#sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
 sources_noncjk := $(sources)
