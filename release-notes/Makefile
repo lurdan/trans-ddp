@@ -18,7 +18,9 @@ endif
 # The following languages are currently disabled
 # ca: not updated for Sarge
 # fi, sk: old Sarge translations missing essential information
-LANGUAGES := en cs da de es fr it ja ko nl pt_BR ro ru zh_CN zh_TW
+# All translations disabled; will be enabled as updates for Etch come in
+# LANGUAGES := en cs da de es fr it ja ko nl pt_BR ro ru zh_CN zh_TW
+LANGUAGES := en
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))

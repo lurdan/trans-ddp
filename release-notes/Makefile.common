@@ -11,12 +11,45 @@ currentlangcn := $(subst _,-,$(shell echo $(currentlang) | tr A-Z a-z))
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/releases/$(release)
 
-sources := $(wildcard *.sgml) ../$(manual).ent ../dynamic.ent
+sources := $(manual).$(currentlang).sgml ../$(manual).ent ../dynamic.ent
 
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
 
 all: html text ps pdf
+
+# create SGML from PO file if existent
+# see also ../project-history/Makefile for PO->SGML Makefile integration
+# No backup PO file
+export VERSION_CONTROL:=off
+
+ORIGINAL = ../en/$(manual).en.sgml
+POFILE = $(manual).$(currentlang).po
+
+IGNOREDINCLUSIONS = dynamicdata shareddata
+
+# CHECKME: Is addenda/*.add really used (see option -a of po4a-translate)?
+$(manual).%.sgml: $(ORIGINAL) $(manual).%.po \
+		$(wildcard addenda/*.add) ../dynamic.ent
+	-po4a-translate -k 0 -f sgml -m $(ORIGINAL) \
+	    -p $(manual).$*.po -l $(manual).$*.sgml \
+	    $(patsubst %,-a %,$(wildcard addenda/*.add)) \
+	    -o ignore-inclusion="$(IGNOREDINCLUSIONS)"
+
+# po4a ignores conditionals so we can use any architecture for ../dynamic.ent
+# "update-po: override architecture=i386" does not work
+update-po: $(ORIGINAL)
+	if ! [ -e ../dynamic.ent ]; then $(MAKE) architecture=i386 ../dynamic.ent; fi
+	po4a-updatepo -f sgml -m $(ORIGINAL) -p $(POFILE) \
+	    -o ignore-inclusion="$(IGNOREDINCLUSIONS)"; \
+
+stats: ../dynamic.ent
+	-@echo -n "$(POFILE): " 1>&2; \
+	po4a-gettextize -f sgml -m $(ORIGINAL) \
+	    -o ignore-inclusion="$(IGNOREDINCLUSIONS)" \
+	    | sed -e "s/charset=CHARSET/charset=ascii/" \
+	    | msgmerge -q $(POFILE) - \
+	    | msgfmt -o /dev/null --statistics -;
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
@@ -24,7 +57,7 @@ publish: all
 	install -p -m 644 $(manual).$(currentlang).html/*.html $(PUBLISHDIR)/$(manual)
 	install -p -m 644 $(manual)*.txt $(manual)*.ps $(manual)*.pdf $(PUBLISHDIR)/$(manual)
 
-validate:
+validate: $(manual).$(currentlang).sgml
 	nsgmls -ges -wall $(manual).$(currentlang).sgml
 
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
@@ -64,6 +97,6 @@ endif
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
 	for ext in txt ps dvi pdf info\* aux log man tex toc sasp\* tpt; do rm -f $(manual)*.$$ext; done
-	rm -f *~ .*~ core tsa*
+	rm -f *~ .*~ core tsa* $(patsubst %.po,%.sgml,$(wildcard *.??*.po))
 
 .PHONY: all publish clean distclean validate
