@@ -20,7 +20,7 @@ endif
 # fi, sk: old Sarge translations missing essential information
 # All translations disabled; will be enabled as updates for Etch come in
 # LANGUAGES := en cs da de es fr it ja ko nl pt_BR ro ru zh_CN zh_TW
-LANGUAGES := en es fr nl
+LANGUAGES := en es fr nl sv
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
