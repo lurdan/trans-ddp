@@ -9,7 +9,9 @@ include $(CURDIR)/../Makefile.common
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	debiandoc2html -c -l $(currentlang) $<
 	for file in $(manual).$(currentlang).html/*.en-us.iso-8859-1.html; do \
-          sed 's/en-us.iso-8859-1/$(currentlangcn)/g' $$file > $${file%.en-us.iso-8859-1.html}.$(currentlangcn).html; \
-	  rm $$file; \
+          if [ -e "$$file" ]; then \
+	    sed 's/en-us.iso-8859-1/$(currentlangcn)/g' $$file > $${file%.en-us.iso-8859-1.html}.$(currentlangcn).html; \
+	    rm $$file; \
+	  fi \
 	done
 
