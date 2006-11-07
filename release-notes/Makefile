@@ -18,6 +18,7 @@ endif
 # The following languages are currently disabled
 # ca: not updated for Sarge
 # fi, sk: old Sarge translations missing essential information
+# vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
 # LANGUAGES := en cs da de es fr it ja ko nl pt_BR ro ru zh_CN zh_TW
 LANGUAGES := en es fr nl sv
