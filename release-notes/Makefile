@@ -81,7 +81,7 @@ endif
 
 clean::
 	rm -f dynamic*.ent relnotes.tar.bz2
-	find -name 'release-notes-*' -type d -maxdepth 1 -exec rm -fr {} \;
+	find -maxdepth 1 -name 'release-notes-*' -type d -exec rm -fr {} \;
 clean:: $(LANGUAGES-clean)
 
 $(LANGUAGES-clean):
