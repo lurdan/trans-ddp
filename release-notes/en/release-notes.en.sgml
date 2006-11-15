@@ -1,7 +1,7 @@
 <!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN" [
   <!entity % dynamicdata  SYSTEM "../dynamic.ent"       > %dynamicdata;
   <!entity % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
-  <!entity docid "$Id: release-notes.en.sgml,v 1.92 2006-11-14 16:40:57 aba Exp $">
+  <!entity docid "$Id: release-notes.en.sgml,v 1.93 2006-11-15 12:52:13 aba Exp $">
 ]>
 
 <!-- Be careful with automatic reformatting. Please note that the indentation
@@ -864,6 +864,258 @@ dpkg: error processing <var>&lt;package-name-for-foo&gt;</var> (--unpack):
         </sect1>
         </sect>
 
+        <sect id="newkernel"><heading>Upgrading your kernel and related
+        packages</heading>
+
+	  <p>You should upgrade the linux kernel separate from the rest of
+          your packages.
+<!-- TODO: add something in "before you upgrade", and get the order right -->
+          You may wish to do so yourself, either by installing one
+	  of the <package/linux-image-*/ packages or by compiling a customized
+	  kernel from sources.
+          Please read the information in this section about possible issues
+          with kernel upgrades.</p> 
+
+          <p>The linux kernel packages have been renamed to linux-* (from kernel-*)
+          to clean up the namespace.</p>
+
+	  <p>If you are currently using a kernel from the 2.4 series,
+          the older stable Linux kernel series, you should upgrade to a 2.6
+          series kernel, as 2.4 is no longer supported in Etch.
+          If you are currently using a kernel from the 2.2 series, you 
+          must upgrade to (at least the 2.4 series, better to a 2.6 series
+          kernel prior to upgrading your packages.
+<!-- TODO: incoporate this part in this section -->
+          Some issues associated with an upgrade to 2.6 are documented in
+          <!--
+          <ref id="upgrade-to-2.6">. --></p>
+
+        <sect1><heading>initrd-tools deprecated</heading>
+          <p><prgn>initrd-tools</prgn> is no longer supported and has been
+          superseded by <prgn>initramfs-tools</prgn> and <prgn>yaird</prgn>.
+          Upgrading to an etch kernel will cause
+          <prgn>initramfs-tools</prgn> to be installed by default. If you
+          are upgrading from a 2.4 kernel to a 2.6 kernel for the first
+          time, you must use <prgn>initramfs-tools</prgn>.
+          <prgn>yaird</prgn> will cause linux-image-2.6 installations to
+          fail when running on a 2.2 or 2.4 kernel.</p>
+        </sect1>
+
+        <sect1><heading>devfs deprecated</heading>
+          <p>Etch no longer provides support for <prgn>devfs</prgn>.
+          It is recommended that users transition to udev for dynamic
+          <file>/dev</file> management.
+          Debian kernels not longer include support for <prgn>devfs</prgn>,
+          so <prgn>devfs</prgn> users will need to manually convert their
+          systems before upgrading to an etch kernel.</p>
+
+          <p>If you see the string 'devfs' in <file>/proc/mounts</file>,
+          you are likely using devfs.
+          Any config files that reference devfs style names will need to be
+          adjusted to use udev style names. Files that are most likely to
+          refer to devfs style device names include <file>/etc/fstab</file>,
+          <file>/etc/lilo.conf</file>, <file>/boot/grub/menu.lst</file>, etc.
+        </sect1>
+
+<![ %i386-amd64-ia64 [
+        <sect1><heading>standard kernels contain SMP abilities</heading>
+          <p>Multiprocessor systems no longer require a *-smp flavour of the
+          Linux kernel.  linux-image packages without the -smp suffix
+          support have gained support for multiprocessor systems
+          on amd64, i386 and ia64 since Etch.
+        </p></sect1>
+]]>
+
+<![ %i386 [
+        <sect1><heading>i386 kernel flavour deprecated</heading>
+          <p>Support for the 80386 sub-archicture for i386 has been dropped in
+          etch.  The 386 kernel flavor is no longer supported and has been
+          replaced by the new 486 flavour.
+        </p></sect1>
+]]>
+          
+        <sect1><heading>Device enumeration reordering</heading>
+          <p>Etch features a more robust mechanism for hardware discovery
+          than previous releases. However, this may cause changes in the
+          order devices are discovered on your system affecting the order
+          in which device names are assigned.
+          For example, if you have two network adapters that are associated
+          with two different drivers, the devices eth0 and eth1 refer to
+          maybe swapped.</p>
+
+          <p>For network devices, you can avoid this reordering by using the
+          <prgn>ifrename</prgn> utility to bind physical devices to
+          specific names at boot time.
+<!-- TODO: add ifupdown-scripts-zg2 as well here? -->
+          See <manref name="ifrename" section="8"> and <manref name="iftab"
+          section="5"> for more information.</p>
+
+<!-- TODO:
+          *** maks: please review the initramfs stuff for accuracy - I'm going
+          ***       by what I remember, and haven't tested this recently
+          -->
+          <p>For storage devices, you can avoid this reordering by using
+          <prgn>initramfs-tools</prgn> and configuring
+          <prgn>initramfs-tools</prgn> to load storage devices in the same
+          order they are currently loaded.
+          To do this, identify the order the storage modules on your system
+          were loaded by looking at the output of lsmod.
+          lsmod lists modules in the reverse order that they were loaded
+          in, i.e., the first module in the list was the last one
+          loaded.</p>
+
+          <p>However, removing and reloading modules after initial boot
+          will affect this order. Also, your kernel may have some drivers
+          linked statically, and these names will not appear in the output
+          of <prgn>lsmod</prgn>. You may be able to decipher these driver
+          names and load order from looking at
+          <file>/var/log/kern.log</file>, or the output of
+          <prgn>dmesg</prgn>.</p>
+
+          <p>Add these module names to /etc/initramfs-tools/modules in the
+          order they should be loaded at boottime.
+          Some module names may have changed between sarge and etch. For
+          example, sym53c8xx_2 has become sym53c8xx.</p>
+
+          <p>You will then need to regenerate your initramfs image(s) by
+          executing <prgn>update-initramfs -k all</prgn>.</p>
+
+          <p>Once you are running an etch kernel and udev, you may
+          reconfigure your system to access disks by an alias that is not
+          dependent upon driver load order. These aliases reside in the
+          <file>/dev/disk/</file> hierarchy.</p>
+        </sect1>
+
+<![ %ia64 [
+        <sect1><heading>Serial device reordering</heading>
+          <p>If you have an HP machine and you're using the MP serial
+          console port (the connector labelled "console" on the 3-headed
+          cable), this kernel upgrade will break your console!</p>
+
+          <p>Please read the following information before upgrading.</p>
+
+          <p><list>
+          <item><p>The console device will change from <file>ttyS0</file> to
+           <file>ttyS1</file>, <file>ttyS2</file>, or <file>ttyS3</file> so
+            <list>
+            <item><p>Edit <file>/etc/inittab</file> to add a getty entry for
+             <file>/dev/ttyS1</file> (rx4640, rx5670, rx7620, rx8620, Superdome),
+             <file>/dev/ttyS2</file> (rx1600), or
+             <file>/dev/ttyS3</file> (rx2600).</p></item>
+            <item><p>Edit <file>/etc/securetty</file> to add
+             <file>ttyS1</file>, <file>ttyS2</file>, or
+             <file>ttyS3</file>.</p></item>
+            <item><p>Leave the existing <file>ttyS0</file> entries in
+             <file>/etc/inittab</file> and <file>/etc/securetty</file> so
+             you can still boot old kernels.</p></item>
+            </list></p></item>
+
+          <item><p>Edit <file>/etc/elilo.conf</file> to remove any "console="
+           arguments<p></item>
+
+          <item><p>Run elilo to install the bootloader with new
+           configuration.</p></item>
+
+          <item><p>Reboot and use the EFI boot option maintenance menu to
+           select exactly one device for console output, input, and standard
+           error.  Then do a cold reset so the changes take
+           effect.</p> 
+          
+           <p>For the MP console, be careful to select the device with
+           "Acpi(HWP0002,700)/Pci(...)/Uart" in the path.</p></item>
+          </list></p>
+
+          <p>Details about these changes:
+          <list>
+           <item><p>Prior to this patch, serial device names depended on
+           the HCDP, which in turn depends on EFI console settings.  After
+           this patch, the naming always stays the same, regardless of
+           firmware settings.</p></item>
+           
+           <item><p>If you want to have multiple devices in the EFI console
+           path, you can, but Linux won't be able to deduce which console
+           to use, so it will default to using VGA.  You can use
+           "console=hcdp" (the UART device from the EFI path) or
+           "console=ttyS&lt;n&gt;" to select the device directly.</p></item>
+          </list></p>
+
+          <p>Troubleshooting
+          <list>
+           <item><p>No kernel output after "Uncompressing Linux... done":
+            <list>
+              <item><p>You're using an MP port as the console and specified
+              "console=ttyS0".  This port is now named something else.
+              Remove the "console=" option.</p></item>
+              
+              <item><p>Multiple UARTs selected as EFI console devices, and
+              you're looking at the wrong one.  Make sure only one UART is
+              selected (use the EFI Boot Manager "Boot option maintenance"
+              menu).</p></item> 
+              
+              <item><p>You're physically connected to the MP port but have
+              a non-MP UART selected as EFI console device.  Either move
+              the console cable to the non-MP UART, or change the EFI
+              console path to the MP UART (the MP UART is the one with
+              "Acpi(HWP0002,700)/Pci(...)/Uart" in it.)</p></item>
+            </list></p></item>
+
+           <item><p>Long pause (60+ seconds) between "Uncompressing
+           Linux... done" and start of kernel output:
+             No early console, probably because you used
+             "console=ttyS&lt;n&gt;".  Remove the "console=" option.</p></item>
+
+           <item><p>Kernel and init script output works fine, but no
+           "login:" prompt: Add getty entry to /etc/inittab for console
+           tty.  Use the table in above or look for the "Adding console on
+           ttyS&lt;n&gt;" message that tells you which device is the
+           console.</p></item>
+
+           <item><p>"login:" prompt, but can't login as root:
+           Add entry to <file>/etc/securetty</file> for console tty.</p></item>
+          </list></p>
+        </sect1>
+]]>
+
+        <sect1><heading>upgrading the kernel</heading>
+          <p>When you dist-upgrade from &oldreleasename; to &releasename;,
+          it is strongly recommended that you install a new
+          linux-image-2.6-* metapackage.
+          This package may automatically be installed by the dist-upgrade
+          process. You can verify this by running:
+          <example>
+# dpkg -l | grep '^ii  linux-image'
+          </example></p>
+
+          <p>If you do not see any output, then you will need to install a
+          new linux-image package by hand. To see a list of available
+          linux-image-2.6 metapackages, run:
+          <example>
+# apt-cache search linux-image-2.6- | grep -v transition
+          </example></p>
+
+          <p>If you are unsure about which package to select, run
+          <prgn>uname -r</prgn> and look for a package with a similar name.
+          For example, if you see '2.4.27-3-686', it is recommended that you
+          install linux-image-2.6-686.
+          You may also use apt-cache to see a long description of each
+          package in order to help choose the best one available.
+          For example:
+          <example>
+# apt-cache show linux-image-2.6-686
+          </example></p>
+
+         <p>You should then use <tt/aptitude install/ to install it. Once
+         this new kernel is installed you should reboot at the next available
+         opportunity to get the benefit.</p>
+
+         <p>For the more adventurous there is an easy way to compile your
+         own custom kernel on &debian;. Install the
+         <package>kernel-package</package> tool and read the documentation
+         in <file>/usr/share/doc/kernel-package</file>.</p>
+
+        </sect1>
+        </sect>
+
         <sect id="nownownow"><heading>Things to do before rebooting</heading>
 
           <p>When <tt>aptitude dist-upgrade</tt> has finished, the
@@ -876,50 +1128,6 @@ dpkg: error processing <var>&lt;package-name-for-foo&gt;</var> (--unpack):
 	  more info on the upgrade of the X window system packages. This is
 	  relevant for users of all previous Debian releases. In short, you
 	  need to read it.</p>
-
-        <sect1 id="newkernel"><heading>Upgrading your kernel</heading>
-
-	  <p>Note that the Linux kernel was <em/not/ upgraded by these
-	  procedures. You may wish to do so yourself, either by installing one
-	  of the <package/linux-image-*/ packages or by compiling a customized
-	  kernel from sources.</p> 
-<!-- JFS: This is not strictly true, if the user was using a non-versioned
-  kernel (kernel-image-2.6-686) he _will_ upgrade the kernel if using
-  aptitude (post-sarge) -->
-
-<!-- TODO: Needs to be updated
-           Mention 2.4 no longer supported; mention rename to linux-*
-           Upgrade from 2.6.8 may cause problems -->
-<![ %defaulted-2.4 [
-
-	 <p>If you are currently using a kernel from the 2.4 series,
-	 the older stable Linux kernel series, you may wish to upgrade to a 2.6
-	 series kernel for better hardware support or improved performance.</p>
-
-         <p>However, you are strongly advised <strong/not/ to upgrade to a 2.6
-         kernel as part of the upgrade from &oldreleasename; to &releasename;.
-         Some issues associated with an upgrade to 2.6 are documented in
-         <ref id="upgrade-to-2.6">.</p>
-]]>
-
-         <p>To upgrade your kernel you must first choose the kernel most
-         appropriate for your subarchitecture. A list of kernels available for
-         you to install can be found with:
-
-         <example>
-# apt-cache search ^linux-image
-         </example></p>
-
-         <p>You should then use <tt/aptitude install/ to install it. Once
-         this new kernel is installed you should reboot at the next available
-         opportunity to get the benefit.</p>
-
-         <p>For the more adventurous there is an easy way to compile your
-         own custom kernel on &debian;. Install the
-         <package>kernel-package</package> tool and read the documentation
-         in <file>/usr/share/doc/kernel-package</file>.</p>
-
-        </sect1>
 
         <sect1 id="mdadm"><heading>Upgrading mdadm</heading>
 
