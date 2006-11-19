@@ -102,6 +102,8 @@ ps dvi pdf info: %: $(manual).$(currentlang).%
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
 	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,out,tpt,sasp*}
+	rm -f *.tmp
+	rm -f $(manual)*.{txt,ps,pdf}.gz
 	rm -f faqdynamic.ent *~ .*~ core tsa*
 	@[ ! -d ru ] || $(MAKE) -C ru $@
 	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
