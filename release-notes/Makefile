@@ -2,7 +2,10 @@
 # Makefile for the release notes, top-level
 #
 
-arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%//)
+# m68k port is included in the source, but should not be built by default
+# as the port is not supported for Etch but may yet be for Lenny.
+# It can still be built by explicitly specifying 'architecture=m68k'
+arches := $(shell grep '\[ <!entity arch-title' release-notes.ent | awk '{print $$2}' | sed s/%// | grep -v 'm68k')
 
 ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file 	:= install -m 2664 -p
