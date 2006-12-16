@@ -5,7 +5,7 @@ PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 
 SOURCES		:= $(wildcard *.sgml)
 
-LANGS           := fr ja
+LANGS           := fr
 TARGETS		:= $(foreach fmt,html txt pdf,developers-reference.$(fmt)) \
 		     $(foreach langext,$(LANGS), \
 		       $(foreach fmt,html txt pdf,developers-reference.$(langext).$(fmt)))
@@ -26,7 +26,11 @@ install_file	:= install -m 644 -p
 MAX_TEX_RECURSION := 5
 
 .PHONY:	all dropold
-all:    $(TARGETS)
+all:    $(TARGETS) dropold
+
+dropold:
+	-rm -rf developers-reference.ja.html
+
 
 .PHONY: validate
 validate:	$(addsuffix .validate,$(SOURCES))
