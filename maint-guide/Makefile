@@ -102,7 +102,7 @@ validate:
 # cleaning up
 clean distclean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
-	rm -rf $(MANUAL)*.html
+	rm -rf $(MANUAL)*.html *.tmp
 
 .PHONY: all publish clean distclean validate
 .SUFFIXES:
