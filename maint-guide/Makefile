@@ -69,7 +69,7 @@ $(MANUAL).en.ps: $(MANUAL).sgml
 	mv $(MANUAL).ps $(MANUAL).en.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $* $<
+	debiandoc2latexps -v -l $* $<
 
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
@@ -102,7 +102,12 @@ validate:
 # cleaning up
 clean distclean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
-	rm -rf $(MANUAL)*.html *.tmp
+	rm -rf $(MANUAL)*.html 
+	rm -r *.tmp
+ifeq ("$(BUILD_TYPE)", "web")
+#       remove artfacts from web 
+	rm -f $(MANUAL)
+endif
 
 .PHONY: all publish clean distclean validate
 .SUFFIXES:
