@@ -101,12 +101,12 @@ validate:
 
 # cleaning up
 clean distclean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
-	rm -rf $(MANUAL)*.html 
-	rm -r *.tmp
+	-rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
+	-rm -rf $(MANUAL)*.html 
+	-rm -r *.tmp
 ifeq ("$(BUILD_TYPE)", "web")
 #       remove artfacts from web 
-	rm -f $(MANUAL)
+	-rm -f $(MANUAL)
 endif
 
 .PHONY: all publish clean distclean validate
