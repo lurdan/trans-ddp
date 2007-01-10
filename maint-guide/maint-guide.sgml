@@ -5,7 +5,7 @@
 <!ENTITY % default  SYSTEM "default.ent">  %default;
 
 ]>
-<!-- CVS revision of this document "$Revision: 1.103 $"  -->
+<!-- CVS revision of this document "$Revision: 1.104 $"  -->
 <!-- CVS revision of original english document "*.**"  -->
 
 <debiandoc>
@@ -1661,13 +1661,15 @@ simplest of such patch maintenance system proposed.  Other ones are
 dbs, cdbs, etc.
 <p>
 A package which is packaged properly with the <prgn>dpatch</prgn> system
-has modifications to the source clearly documented as patch set files in
+has modifications to the source clearly documented as a set of 
+-p1 patch files with header in
 <file>debian/patches/</file> and the source tree is untouched outside of
 <file>debian/</file> directory.  If you are asking a sponsor to upload
 your package, this kind of clear separation and documentation of your
 changes are very important to expedite the package review by your
 sponsor.  The usage method of <prgn>dpatch</prgn> is explained in
-<manref section="1" name="dpatch">.
+<manref section="1" name="dpatch"> and 
+<manref section="1" name="dpatch-edit-patch">.
 <p>
 When someone (including yourself) provides you with a patch to the
 source later, then the package modification under dpatch is quite
@@ -2287,67 +2289,72 @@ $ cp -a  <var>gentoo-1.0.2</var> <var>gentoo-1.0.2-orig</var>
 $ cd <var>gentoo-1.0.2</var>
 $ dh_make -e <var>name@domain.dom</var> -f /path/from/<var>gentoo-1.0.2</var>.tar.gz
 ... Answer prompts.
-... Fix source tree by editor
-... Try building packages with "dpkg-buildpackage -rfakeroot -us -uc"
-... Edit source to make source buildable.
-... Do not erase ../<var>gentoo_1.0.2</var>.orig.tar.gz
-$ cd ..
-$ cp -a <var>gentoo-1.0.2</var> <var>gentoo-1.0.2-keep</var> # safety backup
-$ mv <var>gentoo-1.0.2</var>/debian debian
-$ diff -Nru  <var>gentoo-1.0.2-orig</var> <var>gentoo-1.0.2</var> &gt; <var>patch-file</var>
-... You may overwrite <var>gentoo-1.0.2</var> directory while doing this.
-... Make sure to keep <var>gentoo-1.0.2</var>-keep for your safety
-$ mkdir -p debian/patches
-$ dpatch patch-template <var>patch-file</var> \
-   -p "01_patchname" "patch-file description" \
-   &lt; <var>patch-file</var> &gt; debian/patches/01_patchname.dpatch
-$ cd debian/patches
-$ echo 01_patchname.dpatch >00list
-$ cd ../.. # back to <var>/path/to</var>
-$ rm -rf <var>gentoo-1.0.2</var>
-$ editor debian/rules
 </example>
-Here <file>debian/rules</file> originally looks like:
+Here part of <file>debian/rules</file> originally looks like:
 <example>
-config.status: configure
-     ./configure --prefix=/usr --mandir=/usr/share
-build: config.status
-     ${MAKE}
+configure: configure-stamp
+configure-stamp:
+        dh_testdir
+        # Add here commands to configure the package.
+        touch configure-stamp
+build: build-stamp
+build-stamp: configure-stamp 
+        dh_testdir
+        # Add here commands to compile the package.
+        $(MAKE)
+        #docbook-to-man debian/gentoo.sgml > gentoo.1
+        touch $@
 clean:
-     $(testdir)
-     $(testroot)
-     ${MAKE} distclean
-     rm -rf debian/imaginary-package debian/files debian/substvars
+        dh_testdir
+        dh_testroot
+        rm -f build-stamp configure-stamp
+        # Add here commands to clean up after the build process.
+        -$(MAKE) clean
+        dh_clean 
 </example>
-You change <file>debian/rules</file> to the following by the editor to
-use <package>dpatch</package>:
+You change this part of <file>debian/rules</file> to the following 
+by the editor to use <package>dpatch</package> and add 
+<package>dpatch</package> to the <tt>Depends:</tt> line in the 
+<file>debian/control</file> file:
 <example>
-config.status: patch configure
-     ./configure --prefix=/usr --mandir=/usr/share
-build: config.status
-     ${MAKE}
+configure: configure-stamp
+configure-stamp: patch
+        dh_testdir
+        # Add here commands to configure the package.
+        touch configure-stamp
+build: build-stamp
+build-stamp: configure-stamp 
+        dh_testdir
+        # Add here commands to compile the package.
+        $(MAKE)
+        #docbook-to-man debian/gentoo.sgml > gentoo.1
+        touch $@
 clean: clean-patched unpatch
-clean-patched:
-     $(testdir)
-     $(testroot)
-     ${MAKE} distclean
-     rm -rf debian/imaginary-package debian/files debian/substvars
+        dh_testdir
+        dh_testroot
+        rm -f build-stamp configure-stamp
+        # Add here commands to clean up after the build process.
+        -$(MAKE) clean
+        dh_clean 
 patch: patch-stamp
 patch-stamp:
      dpatch apply-all
      dpatch call-all -a=pkg-info >patch-stamp
-
 unpatch:
      dpatch deapply-all
      rm -rf patch-stamp debian/patched
 </example>
 <p>
 Now you are ready to repackage the source tree with
-<package>dpatch</package> system.
+<package>dpatch</package> system with the help of 
+<prgn>dpatch-edit-patch</prgn>.
 <example>
-$ tar -xvzf <var>gentoo_1.0.2</var>.orig.tar.gz
-$ cp -a debian/ <var>gentoo-1.0.2</var>/debian
-$ cd <var>gentoo-1.0.2</var>
+$ dpatch-edit-patch patch 10_firstpatch
+... Fix source tree by editor
+$ exit 0
+... Try building packages with "debuild -us -uc"
+... Clean source with "debuild clean"
+... Repeat dpatch-edit-patch until making source buildable.
 $ sudo pbuilder update
 $ pdebuild
 $ cd /var/cache/pbuilder/result/
