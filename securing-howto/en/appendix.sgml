@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.25 $"  -->
+<!-- CVS revision of this document "$Revision: 1.26 $"  -->
 
 <appendix id="harden-step">The hardening process step by step
 
@@ -794,15 +794,32 @@ iptables -A FORWARD -p tcp -s 62.3.3.28/32 -d 0/0 -j ACCEPT
 <appendix id="bind-chuser">Sample script to change the default Bind installation.
 
 <p>This script automates the procedure for changing the
-<prgn>bind</prgn> name server's default installation so that it does
-<em>not</em> run as the superuser. It will create the user and groups
-to be used for the name server. Use with extreme care since it has not
-been tested thoroughly.
+<prgn>bind</prgn> version 8 name server's default installation so that it does
+<em>not</em> run as the superuser. Notice that <prgn>bind</prgn>
+version 9 in Debian already does this by default
+<footnote>
+Since version 9.2.1-5. That is, since Debian release <em>sarge</em>.</footnote>
+, and you are much better using that version than <prgn>bind</prgn>
+version 8.
+
+<p>This script is here for historical purposes and to show how you
+can automate this kind of changes system-wide.  The script will create the user
+and groups defined for the name server and will modify both
+<file>/etc/default/bind</file> and <file>/etc/init.d/bind</file>
+so that the program will run with that user. Use with extreme care since it has
+not been tested thoroughly.
+
+<p>You can also create the users manually and use the patch available for the
+default init.d script attached to <url
+id="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=157245" name="bug report
+#157245">.
 
 <example>
   #!/bin/sh
-  # Change the default Debian bind configuration to have it run
+  # Change the default Debian bind v8 configuration to have it run
   # with a non-root user and group.
+  # 
+  # DO NOT USER this with version 9, use debconf for configure this instead
   #
   # WARN: This script has not been tested thoroughly, please
   # verify the changes made to the INITD script
@@ -834,10 +851,10 @@ been tested thoroughly.
   USER=named
   GROUP=named
   INITD=/etc/init.d/bind
+  DEFAULT=/etc/default/bind
   INITDBAK=$INITD.preuserchange
   INITDERR=$INITD.changeerror
-  START="start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g $GROUP -u $USER"
-  AWKS="awk ' /start-stop-daemon --start/ { print \"$START\"; noprint = 1; }; /\/usr\/sbin\/ndc reload/ { print \"stop; sleep 2; start;\"; noprint = 1; } /\\\\$/ { if ( noprint != 0 ) { noprint = noprint + 1;} } /^.*$/ { if ( noprint != 0 ) { noprint = noprint - 1; } else { print \$0; } } '"
+  AWKS="awk ' /\/usr\/sbin\/ndc reload/ { print \"stop; sleep 2; start;\"; noprint = 1; } /\\\\$/ { if ( noprint != 0 ) { noprint = noprint + 1;} } /^.*$/ { if ( noprint != 0 ) { noprint = noprint - 1; } else { print \$0; } } '"
 
   [ `id -u` -ne 0 ] && {
     echo "This program must be run by the root user"
@@ -849,10 +866,10 @@ been tested thoroughly.
   if [ "$RUNUSER" = "$USER" ] 
   then
     echo "WARN: The name server running daemon is already running as $USER"
-    echo "ERR:  This script will not many any changes to your setup."
+    echo "ERR:  This script will not do any changes to your setup."
     exit 1
   fi
-  if [ ! -f $INITD ]
+  if [ ! -f "$INITD" ]
   then
     echo "ERR:  This system does not have $INITD (which this script tries to change)"
     RUNNING=`ps eo fname |grep named`
@@ -860,6 +877,15 @@ been tested thoroughly.
       echo "ERR:  In fact the name server daemon is not even running (is it installed?)"
     echo "ERR:  No changes will be made to your system"
     exit 1
+  fi
+
+  # Check if there are options already setup 
+  if [ -e "$DEFAULT" ]
+  then
+    if grep -q ^OPTIONS $DEFAULT; then
+      echo "ERR: The $DEFAULT file already has options set."
+      echo "ERR:  No changes will be made to your system"
+    fi
   fi
 
   # Check if named group exists
@@ -893,6 +919,12 @@ been tested thoroughly.
   # Then use it to change it
   cat $INITDBAK |
   eval $AWKS > $INITD
+
+  # Now put the options in the /etc/default/bind file:
+  cat >>$DEFAULT <<EOF
+# Make bind run with the user we defined
+OPTIONS="-u $USER -g $GROUP"
+EOF
 
   echo "WARN: The script $INITD has been changed, trying to test the changes."
   echo "Restarting the named daemon (check for errors here)."
@@ -930,60 +962,8 @@ been tested thoroughly.
 </example>
 
 <p>The previous script, run on Woody's (Debian 3.0) custom
-<prgn>bind</prgn>, will produce the following initd file after
-creating the 'named' user and group:
-
-<example>
-  #!/bin/sh
-
-  PATH=/sbin:/bin:/usr/sbin:/usr/bin
-
-  test -x /usr/sbin/named || exit 0
-
-  start () {
-    echo -n "Starting domain name service: named"
-    start-stop-daemon --start --quiet \
-      --pidfile /var/run/named.pid --exec /usr/sbin/named 
-    echo "."
-  }
-
-  stop () {
-    echo -n "Stopping domain name service: named"
-    # --exec doesn't catch daemons running deleted instances of named,
-    # as in an upgrade.  Fortunately, --pidfile is only going to hit
-    # things from the pidfile.
-    start-stop-daemon --stop --quiet  \
-      --pidfile /var/run/named.pid --name named
-    echo "."
-  }
-
-  case "$1" in
-      start)
-        start
-      ;;
-
-      stop)
-        stop
-      ;;
-
-      restart|force-reload)
-        stop
-        sleep 2
-        start
-      ;;
-
-      reload)
-        /usr/sbin/ndc reload
-      ;;
-
-      *)
-        echo "Usage: /etc/init.d/bind {start|stop|reload|restart|force-reload}" >&2
-        exit 1
-      ;;
-  esac
-
-  exit 0
-</example>
+<prgn>bind</prgn> (version 8), will modify the initd file after
+creating the 'named' user and group and will 
 
 <appendix id="fw-security-update">Security update protected by a firewall
 
@@ -1335,8 +1315,8 @@ in, for example <file>/var/chroot/ssh</file>, you would start the
 order to do that you have to first prepare the contents of the
 <file>/var/chroot/ssh</file> directory so that it includes both the SSH server
 and all the utilities that the users connecting to that server might need. If
-you are doing this you should make certain that OpenSSH that uses Privilege
-Separation (which is the default) having the following line in the
+you are doing this you should make certain that OpenSSH uses <em>Privilege
+Separation</em> (which is the default) having the following line in the
 configuration
 file <file>/etc/ssh/sshd_config</file>:
 
@@ -1362,7 +1342,7 @@ chroot.
 that just includes the ssh server. In order to do this you just have to create 
 a chroot as described in the
 <url id="http://www.debian.org/doc/manuals/reference/ch-tips.en.html#s-chroot"
-name="chroot section of the Quick Reference Guide">. This method is bound to
+name="chroot section of the Debian Reference"> document. This method is bound to
 work (you will get all the necessary componentes for the chroot) but at the
 cost of disk space (a minimal installation of Debian will amount to several
 hundred megabytes). This minimal system might also include setuid files that a
@@ -1899,7 +1879,7 @@ lrwxrwxrwx 1 root root 8 Jun 4 12:13 sbin -> ../sbin//
 
 <p>The <prgn>chroot</prgn> utility is often used to jail a daemon in a
 restricted tree. You can use it to insulate services from one another,
-so that security issues in a software package do not jeoparize the
+so that security issues in a software package do not jeopardize the
 whole server. When using the <prgn>makejail</prgn> script, setting up
 and updating the chrooted tree is much easier.</p>
 
@@ -1974,7 +1954,7 @@ server: <tt>apt-get install makejail wget lynx</tt></item>
  
  <item>Edit <file>/etc/makejail/apache.py</file>. You need to change
 the <em>chroot</em>, <em>users</em> and <em>groups</em> options. To
-run this version of <prgn>makejail</prgn>, you can also added a
+run this version of <prgn>makejail</prgn>, you can also add a
 <prgn>packages</prgn> option. See the <url
 id="http://www.floc.net/makejail/current/doc/" name="makejail
 documentation">. A sample is shown here:
