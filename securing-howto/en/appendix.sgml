@@ -1,4 +1,4 @@
-<!-- CVS revision of this document "$Revision: 1.28 $"  -->
+<!-- CVS revision of this document "$Revision: 1.29 $"  -->
 
 <appendix id="harden-step">The hardening process step by step
 
@@ -872,14 +872,10 @@ update itself. The example below shows how to set up such local
 firewall capabilities, which allow connections from
 security.debian.org only, logging all others.
 
-<p>FIXME: add IP address for security.debian.org (since otherwise you
-need DNS up to work) on /etc/hosts.
 
-<p>FIXME: test this setup to see if it works properly
-
-<p>FIXME: this will only work with HTTP URLs since ftp might need 
-the ip_conntrack_ftp module, or use passive mode.
-
+<p>The following example can be use to setup a restricted firewall ruleset. Run
+this commands from a local console (not a remote one) to reduce the chances of
+locking yourself out of the system.
 
 <example>
   # iptables -F
@@ -892,14 +888,14 @@ the ip_conntrack_ftp module, or use passive mode.
 
   Chain OUTPUT (policy ACCEPT)
   target     prot opt source               destination
-  # iptables -P INPUT DROP
-  # iptables -P FORWARD DROP
-  # iptables -P OUTPUT DROP
   # iptables -A OUTPUT -d security.debian.org --dport 80 -j ACCEPT
   # iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   # iptables -A INPUT -p icmp -j ACCEPT
   # iptables -A INPUT -j LOG
   # iptables -A OUTPUT -j LOG
+  # iptables -P INPUT DROP
+  # iptables -P FORWARD DROP
+  # iptables -P OUTPUT DROP
   # iptables -L
   Chain INPUT (policy DROP)
   target     prot opt source               destination
@@ -915,6 +911,50 @@ the ip_conntrack_ftp module, or use passive mode.
   ACCEPT     80   --  anywhere             security.debian.org
   LOG        all  --  anywhere             anywhere           LOG level warning
 </example>
+
+<p>Note: Using a <em>DROP</em> policy in the INPUT chain is the most correct
+thing to do, but be <em>very</em> careful when doing this after flushing the
+chain from a remote connection. When testing firewall rulesets from a remote
+location it is best if you run a script with the firewall ruleset (instead
+of introducing the ruleset line by line through the command line) and,
+as a precaution, keep a backdoor<!--
+--><footnote>Such as <em>knockd</em>. Alternatively, you can open
+a different console and have the system ask for confirmation that there
+is somebody on the other side, and reset the firewall chain if no
+confirmation is given. The following test script could be of use:
+<example>
+#!/bin/bash
+
+while true; do
+    read -n 1 -p "Are you there? " -t 30 ayt
+    if [ -z "$ayt" ] ; then
+        break
+    fi
+done
+
+# Reset the firewall chain, user is not available
+echo
+echo "Resetting firewall chain!"
+iptables -F
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+exit 1
+</example>
+<p>Of course, you should disable any backdoors before getting the system
+into production.
+</footnote> configured
+so that you can re-enable access to the system if you make a mistake.  That way
+there would be no need to go to a remote location to fix a firewall ruleset
+that blocks you.
+
+<p>FIXME: This needs DNS to be working properly since it is required
+for security.debian.org  to work. You can add security.debian.org to
+/etc/hosts but now it is a CNAME to several hosts (there is more than
+one security mirror)
+
+<p>FIXME: this will only work with HTTP URLs since ftp might need 
+the ip_conntrack_ftp module, or use passive mode.
 
 <appendix id="chroot-ssh-env"><Prgn>Chroot</Prgn> environment for <PRGN>SSH</PRGN>
 
