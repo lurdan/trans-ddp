@@ -35,7 +35,7 @@ MANUAL1 := reference
 MANUAL2 := quick-reference
 
 # Build option
-BILD_OPT := 
+BUILD_OPT := 
 
 # Basename for language-independent SGML-template and tar-ball name.
 MANUAL0 := qref
@@ -51,12 +51,29 @@ else
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 endif
 
+# This can and will be overridden by a higher level makefile
+ifeq ("$(SFUSER)", "")
+SFUSER := $$USER
+endif
+
+ifeq ("$(LANGS)", "")
+LANGS := $$LANGS
+endif
+ifeq ("$(BUILD_TYPE)", "sf")
+# Locales for "distclean" target for the sf:
+LANGSALL := en fr it es de pt-br pl zh-tw zh-cn ja ru fi
+# Locale list of "publish" target for the sf full documents:
+LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru fi
+# Locale list of "publish" target for the sf short documents:
+LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru fi
+else
 # Locales for "distclean" target for the DDP:
-LANGSALL := en fr it es de pt-br pl zh-tw zh-cn ja ru
+LANGSALL := en fr it es de pt-br pl zh-tw zh-cn ja ru fi
 # Locale list of "publish" target for the DDP full documents:
-LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru
+LANGS1 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru fi
 # Locale list of "publish" target for the DDP short documents:
-LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru
+LANGS2 :=   en fr it es de pt-br pl zh-tw zh-cn ja ru fi
+endif
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := default.ent
@@ -197,23 +214,15 @@ $(MANUAL2).%.sgml: $(MANUAL0).sgml
 
 $(MANUAL1).%.html.stamp: $(MANUAL1).%.sgml  $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.html.ent fix.ent
-	debiandoc2html $(BUILD_OPT) -t $(MANUAL1) -l $$(echo $* | bin/getlocale) -c $<
+	debiandoc2html $(BUILD_OPT) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL1).$*.html
-	if [ ! -e $(MANUAL1).$*.html/index.$*.html \
-	  -o $(MANUAL1).$*.html/$(MANUAL1).$*.html -nt $(MANUAL1).$*.html/index.$*.html ]; \
-	  then mv $(MANUAL1).$*.html/$(MANUAL1).$*.html $(MANUAL1).$*.html/index.$*.html; \
-	fi
 # since $(MANUAL1).%.html/index.%.html cannot be a target file
 	touch $(MANUAL1).$*.html.stamp
 
 $(MANUAL2).%.html.stamp: $(MANUAL2).%.sgml  $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.html.ent fix.ent
-	debiandoc2html $(BUILD_OPT) -t$(MANUAL2) -l $$(echo $* | bin/getlocale) -c $<
+	debiandoc2html $(BUILD_OPT) -l $$(echo $* | bin/getlocale) -c $<
 	bin/fixhtml $* $(MANUAL2).$*.html
-	if [ ! -e $(MANUAL2).$*.html/index.$*.html \
-	  -o $(MANUAL2).$*.html/$(MANUAL2).$*.html -nt $(MANUAL2).$*.html/index.$*.html ]; \
-	  then mv $(MANUAL2).$*.html/$(MANUAL2).$*.html $(MANUAL2).$*.html/index.$*.html; \
-	fi
 # since $(MANUAL2).%.html/index.%.html cannot be a target file
 	touch $(MANUAL2).$*.html.stamp
 
@@ -411,107 +420,103 @@ publish-tar: $(MANUAL0).tar.gz
 
 #====[ DDP test-script ]==============================================
 web:
+	# Adjust LANGS? for partial update and test for DDP
 	$(MAKE) BUILD_TYPE=web "LANGS1=en fr" "LANGS2=en" publish-all
 #====[ sourceforge maint-script ]==============================================
 sf-proto:
-	$(MAKE) sf-clean    BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
-	$(MAKE) publish-all BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
-	$(MAKE) scp-all     BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)"
+	$(MAKE) sf-clean    BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)" SFUSER="$(SFUSER)"
+	$(MAKE) publish-all BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)" SFUSER="$(SFUSER)"
+	$(MAKE) scp-all     BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)" SFUSER="$(SFUSER)"
 
 sf:
-	if [ "x$(LANGS)" = "x" ]; then \
-		LANGS="en fr it es pt-br de pl zh-tw zh-cn ja ru" ;\
-	fi ;\
-	$(MAKE) sf-proto \
-	 "LANGS1=$$LANGS" \
-	 "LANGS2=$$LANGS" 
+	$(MAKE) sf-proto    BUILD_TYPE=sf LANGS1="$(LANGS1)" LANGS2="$(LANGS2)" SFUSER="$(SFUSER)"
 
 sf-test:
+	# Adjust LANGS? for partial update and test for sf
 	$(MAKE) txt BUILD_TYPE=sf \
-	 "LANGS1=en fr it es pt-br de pl zh-tw zh-cn ja ru" \
-	 "LANGS2=en fr it es pt-br de pl zh-tw zh-cn ja ru"
+	 "LANGS1=en fr it es pt-br de pl zh-tw zh-cn ja ru fi" \
+	 "LANGS2=en fr it es pt-br de pl zh-tw zh-cn ja ru fi" \
+	  SFUSER="$(SFUSER)"
 
 sf-clean:
-	$(MAKE) distclean   BUILD_TYPE=sf \
-	 "LANGS1=en fr it es pt-br de pl zh-tw zh-cn ja ru" \
-	 "LANGS2=en fr it es pt-br de pl zh-tw zh-cn ja ru"
+	$(MAKE) distclean   BUILD_TYPE=sf SFUSER="$(SFUSER)"
 
 scp-all:
-	$(MAKE) scp-init BUILD_TYPE=sf
+	$(MAKE) scp-init BUILD_TYPE=sf SFUSER="$(SFUSER)"
 	echo SCP all files
-	$(MAKE) scp0     BUILD_TYPE=sf
-	$(MAKE) scp1     BUILD_TYPE=sf
-	$(MAKE) scp2     BUILD_TYPE=sf
-	$(MAKE) scp3     BUILD_TYPE=sf
+	$(MAKE) scp0     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp1     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp2     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp3     BUILD_TYPE=sf SFUSER="$(SFUSER)"
 
 # For failed upload, just run this instead.
 
 scp-main:
 	echo SCP all files
-	$(MAKE) scp0     BUILD_TYPE=sf
-	$(MAKE) scp1     BUILD_TYPE=sf
-	$(MAKE) scp2     BUILD_TYPE=sf
-	$(MAKE) scp3     BUILD_TYPE=sf
+	$(MAKE) scp0     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp1     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp2     BUILD_TYPE=sf SFUSER="$(SFUSER)"
+	$(MAKE) scp3     BUILD_TYPE=sf SFUSER="$(SFUSER)"
 
 scp-init:
 	echo clear all files
-	-ssh $$SFUSER@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/Debian
-	-ssh $$SFUSER@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/doc
-	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
-	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
-	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
-	ssh $$SFUSER@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/doc/
+	-ssh $(SFUSER)@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/Debian
+	-ssh $(SFUSER)@shell.sf.net rm -Rf /home/groups/q/qr/qref/htdocs/doc
+	ssh $(SFUSER)@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	ssh $(SFUSER)@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
+	ssh $(SFUSER)@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	ssh $(SFUSER)@shell.sf.net install -d -m 2775 -g qref /home/groups/q/qr/qref/htdocs/doc/
 
 scp0:
 	echo SCP README
 	scp -pC README \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
 	echo SCP $(MANUAL0).tar.gz
 	scp -p $(PUBLISHDIR)/$(MANUAL0).tar.gz \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/
 
 scp1:
 	echo SCP $(MANUAL1) html
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.html \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
 
 	echo SCP $(MANUAL1) $(EXAMPLE)
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/* \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/$(EXAMPLE)/
 
 	echo SCP $(MANUAL1) txt
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.txt \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
 
 	echo SCP $(MANUAL1) PS
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.ps \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)/
 
 	echo SCP $(MANUAL1) PDF
 	scp -prC $(PUBLISHDIR)/$(MANUAL1)/*.pdf \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL1)
 
 scp2:
 	echo SCP $(MANUAL2) html
 	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.html \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
 	echo SCP $(MANUAL2) txt
 	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.txt \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
 	echo SCP $(MANUAL2) PS
 	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.ps \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
 	echo SCP $(MANUAL2) PDF
 	scp -prC $(PUBLISHDIR)/$(MANUAL2)/*.pdf \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/Debian/$(MANUAL2)/
 
 scp3: manual.html.stamp
 	echo SCP manual.html
 	scp -prC manual.html/*.html \
-	$$SFUSER@shell.sf.net:/home/groups/q/qr/qref/htdocs/doc/
+	$(SFUSER)@shell.sf.net:/home/groups/q/qr/qref/htdocs/doc/
 
 #====[ validating SGML ]=======================================================
 validate:
@@ -576,7 +581,7 @@ publish-clean:
 	rm -Rf $(PUBLISHDIR)/$(MANUAL2)
 	rm -f $(PUBLISHDIR)/debian-reference
 
-clean_SUFFIXES := txt ps dvi pdf info* log tex aux toc sasp* out tov tpt hyp
+clean_SUFFIXES := txt ps dvi pdf info* log tex tex-in aux toc sasp* out tov tpt hyp
 
 clean:
 	rm -f $(addprefix $(MANUAL1).*.,$(clean_SUFFIXES))
