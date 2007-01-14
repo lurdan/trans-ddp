@@ -1,0 +1,1095 @@
+<!-- CVS revision of this document "$Revision: 1.1 $"  -->
+<!--Line width ruler (ruler uses 78 characters)     34567890123456789012345-->
+<!-- DON'T TOUCH GROFF SECTION!!! -->
+
+
+<chapt id="program">Programming
+<p>
+Do not use "test" as the name of an executable test file. <prgn>test</prgn> is
+a shell built-in.
+
+<sect>Where to start
+<p>
+References:
+<list compact>
+<item>Documents and examples under <file>&dochome;<var>package</var></file>
+<item><url id="&uno-jclark;" name="Unix / Programming Information">
+<item><em>Linux Programming Bible</em> (John Goerzen/IDG books)
+</list>
+<p>
+Many long info documents can be obtained as paperbacks from 
+<url id="&gnuhome;" name="GNU">.
+<p>
+The next four sections contain sample scripts in different languages for
+creating a text file of account information to be added to
+<file>/etc/passwd</file> using a batch processor such as the
+<prgn>newusers</prgn> program. Each script requires as input a file with lines
+of the form <tt>first_name last_name password</tt>.  (Actual user home
+directories will not be created via these scripts.)
+</sect>
+
+<sect id="shell">Shell
+<p>
+Reading shell scripts is the <strong>best</strong> way to understand how 
+a Unix-like system works.  Here, I give some pointers and reminders for shell
+programming.  See <url id="&shell-mistakes;" name="Shell Mistakes">
+to learn from mistakes.
+
+<sect1 id="bash">Bash &ndash; <strong>GNU</strong> standard interactive shell
+<p>
+References for Bash:
+<list compact>
+<item><manref name="bash" section="1">
+<item><tt>info bash</tt>
+<item>the LDP <url id="&bashprogintro-howto;" name="BASH Programming - Introduction HOWTO">
+as starter information.
+<item><tt>mc &dochome;bash/examples/ &dochome;bash/</tt>
+ <p>
+ (Install the <package>bash-doc</package> package to see the example files.)
+<item><em>Learning the bash Shell</em>, 2nd edition (O'Reilly)
+</list>
+<p>
+Short program example (creates account entries for <prgn>newusers</prgn> from
+standard input):
+<example>
+#!/bin/bash
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+pid=1000;
+while read n1 n2 n3 ; do
+if [ ${n1:0:1} != "#" ]; then
+let pid=$pid+1
+echo ${n1}_${n2}:password:${pid}:${pid}:,,,/home/${n1}_${n2}:/bin/bash
+fi
+done
+</example>
+
+<sect1 id="posix-shell">POSIX shells
+<p>
+Several packages provide a POSIX shell in &debian;:
+<list compact>
+ <item><package>dash</package> (Sarge)
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 176
+  <item>Smallest and fastest by far &ndash; best for initial boot
+ </list>
+ <item><package>ash</package> (Woody)
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 180
+  <item>Smaller and much faster &ndash; good for initial boot
+ </list>
+ <item><package>bash</package>
+ <list compact>
+  <item>Essential: yes
+  <item>Priority: required
+  <item>Installed-Size: 580
+  <item>Larger and featureful &ndash; many extensions implemented
+ </list>
+ <item><package>pdksh</package>
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 408
+  <item>Complete AT&amp;T ksh look-alike
+ </list>
+</list>
+<p>
+If you are writing a shell script for portability, it is best to write it as
+a POSIX shell script.  Use <file>/bin/sh</file> linked to 
+<prgn>ash</prgn> (or <prgn>dash</prgn>) to test its POSIX compliance. 
+Avoid writing scripts with "bashisms" or the "zshisms".
+For example, avoid:
+<list compact>
+<item><tt>if [ <var>foo</var> == <var>bar</var> ] ; then ... </tt>
+<item><tt>diff -u <var>file</var>.c{.orig,} </tt>
+<item><tt>mkdir <var>/foo</var>{<var>bar</var>,<var>baz</var>} </tt>
+</list>
+<p>
+The description for the shell in this document applies only for the
+POSIX type shells and thus does not apply for the <prgn>csh</prgn> type
+shells including <prgn>tcsh</prgn>.
+
+
+<sect1 id="shell-param">Shell parameters
+<p>
+Several <strong>special parameters</strong> to remember:
+<example compact>
+$0      = name of the shell or shell script
+$1      = first(1) shell argument
+ ...
+$9      = ninth(9) shell argument
+$#      = number of positional parameters
+"$*"    = "$1 $2 $3 $4 ... $<var>n</var>"
+"$@"    = "$1" "$2" "$3" "$4" ... "$<var>n</var>"
+$?      = exit status of the most recent command
+$$      = PID of this shell script
+$!      = PID of most recently started background job
+</example>
+<p>
+Basic <strong>parameter expansions</strong> to remember:
+<example compact>
+    Form        If <var>var</var> is set       If <var>var</var> is not set
+${<var>var</var>:-<var>string</var>}  $<var>var</var>                <var>string</var>
+${<var>var</var>:+<var>string</var>}  <var>string</var>              null
+${<var>var</var>:=<var>string</var>}  $<var>var</var>                <var>string</var> 
+                                    (and run <var>var</var>=<var>string</var>)
+${<var>var</var>:?<var>string</var>}  $<var>var</var>                (echo <var>string</var> and then exit)
+</example>
+Here, the colon `:' in all of these operators is actually optional.
+<list compact>
+<item>With `:' = operator test for "exist" and "not null".
+<item>Without `:' = operator test for "exist" only.
+</list>
+<p>
+Basic <strong>parameter substitutions</strong> to remember:
+<example compact>
+    Form        Result
+${<var>var</var>&percnt;<var>suffix</var>}   Remove smallest <var>suffix</var> pattern
+${<var>var</var>&percnt;&percnt;<var>suffix</var>}  Remove largest <var>suffix</var> pattern
+${<var>var</var>#<var>prefix</var>}   Remove smallest <var>prefix</var> pattern
+${<var>var</var>##<var>prefix</var>}  Remove largest <var>prefix</var> pattern
+</example>
+
+<sect1 id="shell-redirect">Shell redirection
+<p>
+Basic <strong>redirection</strong> to remember (here the [<var>n</var>]
+is an optional number to specify the file descriptor):
+<example compact>
+[<var>n</var>]&gt; <var>file</var>      Redirect stdout (or <var>n</var>) to <var>file</var>.
+[<var>n</var>]&gt;&gt; <var>file</var>     Append stdout (or <var>n</var>) to <var>file</var>.
+[<var>n</var>]&lt; <var>file</var>      Redirect stdin (or <var>n</var>) from <var>file</var>.
+[<var>n1</var>]&gt;&amp;<var>n2</var>       Redirect stdout (or <var>n1</var>) to <var>n2</var>.
+2&gt; <var>file</var>  &gt;&2   Redirect stdout and stderr to <var>file</var>.
+ &gt; <var>file</var> 2&gt;&1   Redirect stdout and stderr to <var>file</var>.
+| <var>command</var>      Pipe stdout to <var>command</var>.
+2&gt;&1 | <var>command</var> Pipe stderr and stdout to <var>command</var>.
+</example>
+Here,
+<list compact>
+<item>stdin: standard input (file descriptor = 0)
+<item>stdout: standard output (file descriptor = 1)
+<item>stderr: standard error (file descriptor = 2)
+</list>
+<p>
+The shell allows you to open files using the <prgn>exec</prgn> built-in
+with an arbitrary file descriptor.
+<example>
+$ echo Hello &gt;foo
+$ exec 3&lt;foo 4&gt;bar  # open files
+$ cat &lt;&amp;3 &gt;&amp;4       # redirect stdin to 3, stdout to 4
+$ exec 3&lt;&amp;- 4&gt;&amp;-    # close files
+$ cat bar
+Hello
+</example>
+Here <var>n</var><tt>&lt;&amp;-</tt> and <var>n</var><tt>&gt;&amp;-</tt>
+mean to close the file descriptor <var>n</var>.
+
+<sect1 id="shell-cond">Shell conditionals
+<p>
+Each command returns an <strong>exit status</strong> which can be used for 
+conditional expressions:
+<list compact>
+<item>Success: 0 (True)
+<item>Error: 1&ndash;255 (False)
+</list>
+Note that the use here of a 0 value to mean "true" differs from the
+usual convention in some other areas of computing.
+Also, `[' is the equivalent of the <prgn>test</prgn> command,
+which evaluates its arguments up to `]' as a conditional expression.
+<p>
+Basic <strong>conditional idioms</strong> to remember are:
+<example compact>
+<var>command</var> && <var>if_success_run_this_command_too</var> || true
+<var>command</var> || <var>if_not_success_run_this_command_instead</var>
+
+if [ <var>conditional_expression</var> ]; then  
+ <var>if_success_run_this_command</var>
+else
+ <var>if_not_success_run_this_command</var>
+fi
+</example>
+Here <tt>|| true</tt> was needed to ensure this shell script will not exit
+at this line accidentally when shell is invoked with <tt>-e</tt> flag.
+<p>
+<strong>File</strong> comparison operators in the conditional expression are:
+<example compact>
+-e <var>file</var>         True if <var>file</var> exists.
+-d <var>file</var>         True if <var>file</var> exists and is a directory.
+-f <var>file</var>         True if <var>file</var> exists and is a regular file.
+-w <var>file</var>         True if <var>file</var> exists and is writable.
+-x <var>file</var>         True if <var>file</var> exists and is executable.
+<var>file1</var> -nt <var>file2</var> True if <var>file1</var> is newer than <var>file2</var>. (modification)
+<var>file1</var> -ot <var>file2</var> True if <var>file1</var> is older than <var>file2</var>. (modification)
+<var>file1</var> -ef <var>file2</var> True if they are the same device and inode numbers.
+</example>
+<p>
+<strong>String</strong> comparison operators in the conditional expression are:
+<example compact>
+     -z <var>str</var>    True if the length of <var>str</var> is zero.
+     -n <var>str</var>    True if the length of <var>str</var> is non-zero.
+<var>str1</var> == <var>str2</var>   True if the strings are equal.
+<var>str1</var> =  <var>str2</var>   True if the strings are equal.
+    ("=" should be used in place of "==" for strict POSIX compliance) 
+<var>str1</var> != <var>str2</var>   True if the strings are not equal.
+<var>str1</var> &lt;  <var>str2</var>   True if <var>str1</var> sorts before <var>str2</var> (locale dependent).
+<var>str1</var> &gt;  <var>str2</var>   True if <var>str1</var> sorts after <var>str2</var> (locale dependent).
+</example>
+<p>
+<strong>Arithmetic</strong> integer comparison operators in the 
+conditional expression are <tt>-eq</tt>, <tt>-ne</tt>, <tt>-lt</tt>, 
+<tt>-le</tt>, <tt>-gt</tt>, and <tt>-ge</tt>.
+</sect1>
+
+<sect1 id="clprocess">Command-line processing
+<p>
+The shell processes a script as follows:
+<list compact>
+<item>split into <strong>tokens</strong> by the metacharacters: SPACE, TAB, NEWLINE, ;, (, ), &lt;, &gt;, |, &amp;
+<item>check <strong>keyword</strong> if not within "..." or '...' (loop)
+<item>expand <strong>alias</strong> if not within "..." or '...' (loop)
+<item>expand <strong>brace</strong>, <tt>a{1,2}</tt> -> <tt>a1 a2</tt>, if not within "..." or '...'
+<item>expand <strong>tilde</strong>, ~<var>user</var> -> <var>user</var>'s home 
+directory, if not within "..." or '...'
+<item>expand <strong>parameter</strong>, $<var>PARAMETER</var>, if not within '...'
+<item>expand <strong>command substitution</strong>, $(<var>command</var>), if not within '...'
+<item>split into <strong>words</strong> with $IFS if not within "..." or '...'
+<item>expand *?[] in <strong>pathname</strong> if not within "..." or '...'
+<item>look up <strong>command</strong>
+<list compact>
+<item>function
+<item>built-in
+<item>file in $PATH
+</list>
+<item>loop
+</list>
+<p>
+Single quotes within double quotes have no effect.
+<p>
+Executing <tt>set -x</tt> in the shell or invoking the shell with
+<tt>-x</tt> option make the shell to print all of commands executed.
+This is quite handy for debugging.
+</sect1>
+
+</sect>
+
+<sect id="awk">Awk
+<p>
+References for Awk:
+<list compact>
+<item><em>Effective awk Programming</em>, 3rd edition (O'Reilly)
+<item><em>Sed &amp; awk</em>, 2nd edition (O'Reilly)
+<item><manref name="mawk" section="1"> and <manref name="gawk" section="1">
+<item><tt>info gawk</tt>
+</list>
+<p>
+Short program example (creates <prgn>newusers</prgn> command entry):
+<example>
+#!/usr/bin/awk -f
+# Script to create a file suitable for use in the 'newusers' command,
+# from a file consisting of user IDs and passwords in the form:
+# first_name last_name password
+# Copyright (c) KMSelf Sat Aug 25 20:47:38 PDT 2001
+# Distributed under GNU GPL v 2, or at your option, any later version.
+# This program is distributed WITHOUT ANY WARRANTY.
+
+BEGIN {
+    # Assign starting UID, GID
+    if ( ARGC &gt; 2 ) {
+        startuid = ARGV[1]
+        delete ARGV[1]
+    }
+    else {
+        printf( "Usage:  newusers startUID file\n" \
+          "  where:\n" \ 
+          "    startUID is the starting userid to add, and\n" \
+          "    file is an input file in form:\n" \
+          "      first_name last_name password\n" \
+        )
+        exit
+    }
+
+    infile = ARGV[1]
+    printf( "Starting UID: &percnt;s\n\n", startuid )
+}
+
+/^#/ { next }
+
+{
+    ++record
+    first = $1
+    last = $2
+    passwd = $3
+    user= substr( tolower( first ), 1, 1 ) tolower( last )
+    uid = startuid + record - 1
+    gid = uid
+    printf( "&percnt;s:&percnt;s:&percnt;d:&percnt;d:&percnt;s &percnt;s,,/home/&percnt;s:/bin/bash\n",  \
+        user, passwd, uid, gid, first, last, user \
+        )
+}
+</example>
+<p>
+Two packages provide POSIX <package>awk</package> in &debian;:
+<list compact>
+ <item><package>mawk</package>
+ <list compact>
+  <item>Priority: required
+  <item>Installed-Size: 228
+  <item>Smaller and much faster &ndash; good for default install
+  <item>Compile-time limits exist
+  <list compact>
+   <item>NF = 32767
+   <item>sprintf buffer = 1020
+  </list>
+ </list>
+ <item><package>gawk</package>
+ <list compact>
+  <item>Priority: optional
+  <item>Installed-Size: 1708
+  <item>Larger and featureful &ndash; many extensions implemented
+  <list compact>
+   <item>System V Release 4 version of UNIX
+   <item>Bell Labs awk
+   <item>GNU-specific
+  </list>
+ </list>
+</list>
+</sect>
+
+<sect id="perl">Perl
+<p>
+This is <strong>the</strong> interpreter on a Unix-like system.
+<p>
+References for Perl:
+<list compact>
+<item><manref name="perl" section="1">
+<item><em>Programming Perl</em>, 3rd edition (O'Reilly)
+<item><url id="&perlhome;" name="The Perl Directory">
+</list>
+<p>
+Short program example (creates <prgn>newusers</prgn> command entry):
+<example>
+#!/usr/bin/perl
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+$pid=1000;
+while (&lt;STDIN&gt;) {
+        if (/^#/) { next;}
+        chop;
+        $pid++;
+        ($n1, $n2, $n3) = split / /;
+        print $n1,"_",$n2,":", $n3, ":",$pid,
+                  ":",$pid,",,,/home/",$n1,"_",$n2,":/bin/bash\n"
+}
+</example>
+<p>
+Install Perl module <var>module_name</var>:
+<example>
+# perl -MCPAN -e 'install <var>module_name</var>'
+</example>
+ 
+</sect>
+
+<sect id="python">Python
+<p>
+It's a nice object-oriented interpreter.
+<p>
+References for Python:
+<list compact>
+<item><manref name="python" section="1">
+<item><em>Learning Python</em> (O'Reilly).
+<item><url id="&pythonhome;" name="Python Programming Language">
+</list>
+<p>
+Short program example (creates <prgn>newusers</prgn> command entry):
+<example>
+#! /usr/bin/env python
+import sys, string
+
+# (C) Osamu Aoki Sun Aug 26 16:53:55 UTC 2001 Public Domain
+# Ported from awk script by KMSelf Sat Aug 25 20:47:38 PDT 2001
+# This program is distributed WITHOUT ANY WARRANTY.
+
+def usages():
+    print \
+"Usage:  ", sys.argv[0], " start_UID [filename]\n" \
+"\tstartUID is the starting userid to add.\n" \
+"\tfilename is input filename. If not specified, standard input.\n\n" \
+"Input file format:\n"\
+"\tfirst_name last_name password\n"
+                return 1
+
+def parsefile(startuid):
+    #
+    # main filtering
+    #
+    uid = startuid
+    while 1:
+        line = infile.readline()
+        if not line:
+            break
+        if line[0] == '#':
+            continue
+        (first, last, passwd) = string.split(string.lower(line))
+        # above crashes with wrong # of parameters :-)
+        user = first[0] + last
+        gid = uid
+        lineout = "&percnt;s:&percnt;s:&percnt;d:&percnt;d:&percnt;s &percnt;s,,/home/&percnt;s:/bin/bash\n" &percnt;  \
+            (user, passwd, uid, gid, first, last, user)
+        sys.stdout.write(lineout)
+        +uid
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        usages()
+    else:
+        uid = int(sys.argv[1])
+        #print "# UID start from: &percnt;d\n" &percnt; uid
+        if len(sys.argv) &gt; 1:
+            infilename   = string.join(sys.argv[2:])
+            infile = open(infilename, 'r')
+            #print "# Read file from: &percnt;s\n\n" &percnt; infilename
+        else:
+            infile = sys.stdin
+        parsefile(uid)
+</example>
+</sect>
+
+<sect id="make">Make
+<p>
+References for Make:
+<list compact>
+<item><tt>info make</tt>
+<item><manref name="make" section="1">
+<item><em>Managing Projects with make</em>, 2nd edition (O'Reilly)
+</list>
+<p>
+Simple automatic variables:
+<p>
+Rule syntax:
+<example>
+<var>target</var>: [ <var>prerequisites</var> ... ]
+ [TAB]  <var>command1</var>
+ [TAB]  -<var>command2</var> # ignore errors
+ [TAB]  @<var>command3</var> # suppress echoing
+</example>
+Here <tt>[TAB]</tt> is a TAB code.
+Each line is interpreted by the shell after <prgn>make</prgn> variable
+substitution.  Use <tt>\</tt> at the end of a line to continue the script.
+Use <tt>$$</tt> to enter <tt>$</tt> for environment values for a shell script.
+<p>
+<strong>Implicit rules</strong> for the <var>target</var> and
+<var>prerequisites</var> can be written, for example, as:
+<example>
+&percnt;: &percnt;.c header.h
+</example>
+or,
+<example>
+&percnt;.o: &percnt;.c header.h
+</example>
+Here, the <var>target</var> contains the character <tt>&percnt;</tt>
+(exactly one of them).  The <tt>&percnt;</tt> can match any nonempty
+substring in the actual target filenames.  The <var>prerequisites</var>
+likewise use <tt>&percnt;</tt> to show how their names relate to the
+actual target name.
+<p>
+<strong>Suffix rules</strong> are the <strong>obsolete</strong> way of
+defining implicit rules for <prgn>make</prgn>.  They are still supported
+in GNU <prgn>make</prgn> for compatibility, but use equivalent pattern
+rules whenever possible:
+<example>
+old suffix rule --&gt; new pattern rule
+.c:             --&gt; &percnt;  : &percnt;.c
+.c.o:           --&gt; &percnt;.o: &percnt;.c
+</example>
+Automatic variables for the rule:
+<example>
+foo.o: new1.c new2.c old1.c new3.c
+$@ == foo.o                         (target)
+$< == new1.c                        (first one)
+$? == new1.c new2.c new3.c          (newer ones)
+$^ == new1.c new2.c old1.c new3.c   (all)
+$* == `&percnt;' matched stem in the target pattern.
+</example>
+Variable references:
+<example>
+foo1 := bar    # One-time expansion
+foo2  = bar    # Recursive expansion
+foo3 += bar    # Append
+SRCS := $(wildcard *.c)
+OBJS := $(foo:c=o)
+OBJS := $(foo:&percnt;.c=&percnt;.o) 
+OBJS := $(patsubst &percnt;.c,&percnt;.o,$(foo)) 
+DIRS  = $(dir directory/filename.ext) # Extracts "directory"
+ $(notdir NAMES...), $(basename NAMES...), $(suffix NAMES...) ...
+</example>
+Run <tt>make -p -f/dev/null</tt> to see automatic internal rules. 
+</sect>
+
+<sect id="c">C
+<p>
+Preparation:
+<example>
+# apt-get install glibc-doc manpages-dev libc6-dev gcc
+</example>
+<p>
+References for C:
+<list compact>
+<item><tt>info libc</tt> (C library function reference)
+<item><manref name="gcc" section="1">
+<item><manref name="each_C_library_function_name" section="3">
+<item>Kernighan &amp; Ritchie, <em>The C Programming Language</em>, 
+ 2nd edition (Prentice Hall).
+</list>
+<p>
+
+<sect1>Simple C program (<prgn>gcc</prgn>)
+<p>
+A simple example to compile <file>example.c</file> with a library
+<file>libm</file> into an executable <prgn>run_example</prgn>:
+<example>
+$ cat &gt; example.c &lt;&lt; EOF
+#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char **argv, char **envp){
+        double x;
+        char y[11];
+        x=sqrt(argc+7.5);
+        strncpy(y, argv[0], 10); /* prevent buffer overflow */
+        y[10] = '\0'; /* fill to make sure string ends with '\0' */
+        printf("&percnt;5i, &percnt;5.3f, &percnt;10s, &percnt;10s\n", argc, x, y, argv[1]);
+        return 0;
+}
+EOF
+$ gcc -Wall -g -o run_example example.c -lm
+$ ./run_example
+        1, 2.915, ./run_exam,     (null)
+$ ./run_example 1234567890qwerty
+        2, 3.082, ./run_exam, 1234567890qwerty
+</example>
+Here, <tt>-l<strong>m</strong></tt> is needed to link library
+<file>lib<strong>m</strong></file> for <prgn>sqrt()</prgn>.  The actual library is in
+<file>/lib/</file> with filename <file>libm.so.6</file>, which is a symlink to
+<file>libm-2.1.3.so</file>.
+<p>
+Look at the last parameter in the output text.  There are more than 10
+characters even though <tt>&percnt;10s</tt> is specified.  
+<p>
+The use of pointer memory operation functions without boundary checks, such as
+<prgn>sprintf</prgn> and <prgn>strcpy</prgn>, is deprecated to prevent buffer
+overflow exploits that leverage the above overrun effects.  Instead, use
+<prgn>snprintf</prgn> and <prgn>strncpy</prgn>.
+</sect1>
+
+<sect1>Debugging
+
+<sect2>Debugging with <prgn>gdb</prgn>
+<p>
+Preparation:
+<example>
+# apt-get install gdb
+</example>
+<p>
+References for <prgn>gdb</prgn>:
+<list compact>
+<item><tt>info gdb</tt> (tutorial)
+<item><manref name="gdb" section="1">
+<item><url id="&gdbtutorial;">
+</list>
+<p>
+Use <prgn>gdb</prgn> to debug a program compiled with the <tt>-g</tt> option.  
+Many commands can be abbreviated.  Tab expansion works as in the shell.
+<example>
+$ gdb program
+(gdb) b 1                # set breakpoint at line 1
+(gdb) run <var>arg1 arg2 arg3</var> # run program
+(gdb) next               # next line
+...
+(gdb) step               # step forward
+...
+(gdb) p parm             # print parm 
+...
+(gdb) p parm=12          # set value to 12
+</example>
+<p>
+For debugging from within Emacs, refer to <ref id="editkey">.
+<p>
+Since all installed binaries should be stripped on the &debian; system
+by default, most debugging symbols are removed. In order to make
+<prgn>gdb</prgn> useful for debugging &debian; packages, pertinent
+packages need to be rebuild with following care:
+<list compact>
+<item>Edit <file>debian/control</file> to bump the package 
+<url id="&policy-version;" name="version">. 
+<item>Check build scripts and ensure to use <tt>CFLAGS=-g
+-Wall</tt> for compiling binaries.
+<item>Export <tt>DEB_BUILD_OPTIONS=nostrip,noopt</tt> for building
+the &debian; package.
+</list>
+See <url name="Policy 10.1" id="&strip-symbols;"> for more info.
+</sect2>
+
+<sect2 id="ss-ldd">Check dependency on libraries
+<p>
+Use <prgn>ldd</prgn> to find out a program's dependency on libraries:
+<example>
+$ ldd /bin/ls
+        librt.so.1 => /lib/librt.so.1 (0x4001e000)
+        libc.so.6 => /lib/libc.so.6 (0x40030000)
+        libpthread.so.0 => /lib/libpthread.so.0 (0x40153000)
+        /lib/ld-linux.so.2 => /lib/ld-linux.so.2 (0x40000000)
+</example>
+For <prgn>ls</prgn> to work in a <prgn>chroot</prgn>ed environment, the above
+libraries must be available in your <prgn>chroot</prgn>ed environment.
+<p>
+The following commands will also be useful:
+<list compact>
+<item><prgn>strace</prgn>: trace system calls and signals
+<item><prgn>ltrace</prgn>: trace library calls
+</list>
+</sect2>
+ 
+<sect2>Debugging with memory leak detection tools
+<p>
+There are several memory leak detection tools available in &debian;.
+<p>
+<list compact>
+<item><package>njamd</package>
+<item><package>valgrind</package>
+<item><package>dmalloc</package>
+<item><package>electric-fence</package>
+<item><package>memprof</package>
+<item><package>memwatch</package> (not packaged, get this from 
+ <url id="&memwatch-home;" name="memwatch">.)
+<item><package>mpatrol</package>
+<item><package>leaktracer</package>
+<item><package>libgc6</package>
+<item><tt>Insure++</tt> from 
+  <url id="&parasofthome;" name="Parasoft">. (non-free, commercial for fee)
+</list>
+<p>
+Also check out <url id="&mallocdebughome;" 
+  name="Debugging Tools for Dynamic Storage Allocation and Memory Management">.
+
+<sect1>Flex &ndash; a better Lex
+<p>
+<prgn>flex</prgn> is a fast lexical analyzer generator.
+<p>
+References for <prgn>flex</prgn>:
+<list compact>
+<item><tt>info flex</tt> (tutorial)
+<item><manref name="flex" section="1">
+</list>
+<p>
+You need to provide your own <prgn>main()</prgn> and <prgn>yywrap()</prgn>, or
+your <file>program.l</file> should look like this to compile without a library
+(<prgn>yywrap</prgn> is a macro; <tt>&percnt;option main</tt> turns on <tt>&percnt;option
+noyywrap</tt> implicitly):
+<example>
+&percnt;option main
+&percnt;&percnt;
+.|\n    ECHO ;
+&percnt;&percnt;
+</example>
+Alternatively, you may compile with the <tt>-lfl</tt> linker option at the 
+end of your <prgn>cc</prgn> command line (like AT&amp;T-Lex with <tt>-ll</tt>). No
+<tt>&percnt;option</tt> is needed in this case.
+</sect1>
+
+<sect1>Bison &ndash; a better Yacc
+<p>
+Several packages provide a Yacc-compatible LALR parser generator in &debian;:
+<p>
+<list compact>
+ <item><package>bison</package>: GNU LALR parser generator
+ <item><package>byacc</package>: The Berkeley LALR parser generator
+ <item><package>btyacc</package>: Backtracking parser generator based on <package>byacc</package>
+</list>
+<p>
+References for <prgn>bison</prgn>:
+<list compact>
+<item><tt>info bison</tt> (tutorial)
+<item><manref name="bison" section="1">
+</list>
+<p>
+You need to provide your own <prgn>main()</prgn> and <prgn>yyerror()</prgn>.
+<prgn>main()</prgn> calls <prgn>yyparse()</prgn> which calls
+<prgn>yylex()</prgn>, usually created with FleX.
+<example>
+&percnt;&percnt;
+
+&percnt;&percnt;
+</example>
+</sect1>
+
+<sect1>Autoconf
+<p>
+<prgn>autoconf</prgn> is a tool for producing shell scripts that 
+automatically configure software source code packages to adapt to 
+many kinds of UNIX-like systems using the entire GNU build system.  
+<p>
+<prgn>autoconf</prgn> produces the configuration script 
+<prgn>configure</prgn>.  <prgn>configure</prgn> 
+automatically creates a customized <file>Makefile</file> using
+the <file>Makefile.in</file> template.
+ 
+<sect2>Compile and install a program
+<p>
+&debian; does not touch files in <file>/usr/local/</file> (see 
+<ref id="diverse">). So if you compile a program from source, install 
+it into <file>/usr/local/</file> so it will not interfere with &debian;.
+<example>
+$ cd src
+$ ./configure --prefix=/usr/local
+$ make
+$ make install # this puts the files in the system
+</example>
+
+<sect2>Uninstall program
+<p>
+If you still have the source and if it uses 
+<prgn>autoconf</prgn>/<prgn>automake</prgn> and if you
+can remember how you configured it:
+<example>
+$ ./configure <var>all-of-the-options-you-gave-it</var>
+# make uninstall
+</example>
+<p>
+Alternatively, if you are absolutely sure that the install process puts 
+files only under <file>/usr/local/</file> and there is nothing important 
+there, you can erase all its contents by:
+<example>
+# find /usr/local -type f -print0 | xargs -0 rm -f
+</example>
+If you are not sure where files are installed, you should consider 
+using <package>checkinstall</package>, which provides a clean path
+for the uninstall.
+</sect1>
+
+</sect>
+<sect id="cgi">Web
+<p>
+Basic interactive dynamic web pages can be made as follows:
+<list compact>
+<item>Queries are presented to the browser user using HTML forms.
+<item>Filling and clicking on the form entries will send an URL with
+encoded parameters
+<footnote>
+Here <tt>%nn</tt> is used to the encoded character of hexadecimal
+<tt>nn</tt>.
+</footnote>
+from the browser to the web server.  For example:
+<list compact>
+<item><tt>http://www.foo.dom/cgi-bin/program.pl?VAR1=VAL1&amp;VAR2=VAL2&amp;VAR3=VAL3</tt>
+<item><tt>http://www.foo.dom/cgi-bin/program.py?VAR1=VAL1&amp;VAR2=VAL2&amp;VAR3=VAL3</tt>
+<item><tt>http://www.foo.dom/program.php?VAR1=VAL1&amp;VAR2=VAL2&amp;VAR3=VAL3</tt>
+</list>
+<item>CGI program (any one of <prgn>program.*</prgn>) on the web server
+will receive decoded parameters "<tt>VAR1=VAL1 VAR2=VAL2 VAR3=VAL3</tt>" as
+the contents of environment variable "<tt>QUERY_STRING</tt>" and executes
+itself.
+<item><tt>stdout</tt> of CGI program will be sent to the web browser and is
+presented as an interactive dynamic web page.
+</list>
+For security reasons it is better not to hand craft new hacks for 
+parsing CGI parameters.  There are established modules for them in Perl (see 
+<ref id="perl">) and Python (see <ref id="python">).  <url id="&phphome;"
+name="PHP"> comes with these functionality. When client data storage is
+needed, cookies are used.  When client side data processing is needed, 
+javascript is frequently used.
+<p>
+For more, see <url id="http://hoohoo.ncsa.uiuc.edu/cgi/" name="The Common
+Gateway Interface">, <url id="&apachehome;" name="The Apache Software 
+Foundation">, and <url id="&javascripthome;" name="JavaScript">.  
+<p>
+Searching "CGI tutorial" on Google by typing encoded URL 
+<tt>&google-eg;</tt> directly to the browser address is a good way to 
+see the CGI script in action on the Google server.
+<!--
+http://www.google.com/search?hl=en&ie=UTF-8&q=CGI+tutorial
+http://stein.cshl.org/WWW/CGI/
+http://stein.cshl.org/WWW/docs/handout.html
+http://stein.cshl.org/WWW/software/mailmerge/
+-->
+
+<sect id="doc-prep">Document preparation
+<p>
+
+<sect1 id="roff"><tt>roff</tt> typesetting
+<p>
+Traditionally, <tt>roff</tt> is the main Unix text processing system.
+<p>
+See <manref name="roff" section="7">,
+<manref name="groff" section="7">,
+<manref name="groff" section="1">,
+<manref name="grotty" section="1">,
+<manref name="troff" section="1">,
+<manref name="groff_mdoc" section="7">,
+<manref name="groff_man" section="7">,
+<manref name="groff_ms" section="7">,
+<manref name="groff_me" section="7">,
+<manref name="groff_mm" section="7">, and
+<tt>info groff</tt>.
+<p>
+A good tutorial on <prgn>-me</prgn> macros exists.
+If you have <package>groff</package> (1.18 or newer), find <file>&f-meintro;</file> and
+do the following:
+<example>
+$ zcat &f-meintro; | \
+     groff -Tascii -me - | less -R
+</example>
+The following will make a completely plain text file:
+<example>
+$ zcat &f-meintro; | \
+    GROFF_NO_SGR=1 groff -Tascii -me - | col -b -x &gt; <var>meintro.txt</var>
+</example>
+For printing, use PostScript output.
+<example>
+$ groff -Tps <var>meintro.txt</var> | lpr
+$ groff -Tps <var>meintro.txt</var> | mpage -2 | lpr
+</example>
+
+
+
+
+<sect1 id="sgml">SGML
+<p>
+Preparation:
+<example>
+# apt-get install debiandoc-sgml debiandoc-sgml-doc
+</example>
+References for <package>debiandoc-sgml</package>:
+<list compact>
+<item><file>&f-debiandoc-sgml;</file>
+<item><manref name="debiandoc-sgml" section="1">
+<item><em><url name="DocBook: The Definitive Guide"
+      id="&f-docbook-defguide;"></em>, by Walsh and Muellner, (O'Reilly)
+      (package <package>&p-docbook-defguide;</package>)
+</list>
+<p>
+SGML enables management of multiple formats of a document. One easy SGML
+system is Debiandoc, which is used here. This requires minor conversion from
+original text files for the following characters:
+<!-- nbsp bug in PDF ? -->
+<list compact>
+<item>"&lt;" --&gt; <tt>&amp;lt;</tt>
+<item>"&gt;" --&gt; <tt>&amp;gt;</tt>
+<item>"&nbsp;" --&gt; <tt>&amp;nbsp;</tt>  (nonbreakable space)
+<item>"&amp;" --&gt; <tt>&amp;amp;</tt>
+<item>"&percnt;" --&gt; <tt>&amp;percnt;</tt>
+<item>"&copy;" --&gt; <tt>&amp;copy;</tt>
+<item>"&ndash;" --&gt; <tt>&amp;ndash;</tt>
+<item>"&mdash;" --&gt; <tt>&amp;mdash;</tt>
+</list>
+<p>
+To mark a section as a nonprintable comment, enter:
+<example>
+&lt;!-- State issue here ... --&gt;
+</example>
+To mark a section with a switchable comment, enter:
+<example>
+&lt;![ &percnt;FIXME; [ State issue here ... ]]&gt;
+</example>
+In SGML, the <em>first definition</em> of an entity wins.  For example:
+<example>
+&lt;!entity &percnt; qref "INCLUDE"&gt;
+&lt;![ &percnt;qref; [ &lt;!entity param "Data 1"&gt; ]]&gt;
+&lt;!entity param "Data 2"&gt;
+&amp;param;
+</example>
+This ends up as "Data 1".  If the first line has "IGNORE" instead of
+"INCLUDE", this ends up as "Data 2" (the second line is a conditional
+statement).  Also, repeating phrases can be defined in advance 
+separately from the context.
+<example>
+&lt;!entity <var>whoisthis</var> "my"&gt;
+Hello &amp;<var>whoisthis</var>; friend.
+This is &amp;<var>whoisthis</var>; book.
+</example>
+This results in the following:
+<example>
+Hello my friend.
+This is my book.
+</example>
+See the short SGML example <file>sample.sgml</file> in the 
+<url id="&examples;" name="examples">.
+<p>
+When SGML documents become bigger, sometimes TeX which is used as the 
+backend text processor may cause errors. See <ref id="texlatex">.
+
+<!-- XXX FIXME XXX: Add XML section-->
+
+<sect1 id="texlatex">TeX/LaTeX
+<p>
+Preparation:
+<example>
+# tasksel # select Miscellaneous  --&gt; TeX/LaTeX environment
+</example>
+References for LaTeX:
+<list compact>
+<item><url id="&tetex-howto;" name="The teTeX HOWTO: The Linux-teTeX Local Guide">
+<item><manref name="tex" section="1">
+<item><manref name="latex" section="1">
+<item><em>The TeXbook</em>, by Donald E. Knuth, (Addison-Wesley)
+      <footnote>
+        The TeX source of this book is available at
+        <url id="&texbooksource;">.  <url id="&texbookmacros;"> contains
+        most of the required macros.  You can process this document with
+        <prgn>tex</prgn> after commenting lines 7 to 10 and adding
+        <tt>\input manmac \proofmodefalse</tt>.
+        <p>
+        It's strongly recommended to buy this book (and all other books
+        from Donald E. Knuth) instead of using the online version but
+        the source is a great example of TeX input!
+      </footnote>
+<item><em>LaTeX - A Document Preparation System</em>, by Leslie Lamport,
+      (Addison-Wesley)
+<item><em>The LaTeX Companion</em>, by Goossens, Mittelbach, Samarin,
+      (Addison-Wesley)
+</list>
+<p>
+This is the most powerful typesetting environment.  Many SGML processors 
+use this as their back end text processor.  Lyx provided by 
+<package>lyx</package>, <package>lyx-xforms</package>, or 
+<package>lyx-qt</package> and GNU TeXmacs provided by
+<package>texmacs</package> package offers nice WYSIWYG editing environment 
+for LaTeX while many use Emacs and Vim as the choice for the source editor.
+<p>
+There are many online resources available:
+<list compact>
+<item><url id="&f-tetex-doc;" name="teTeX - A Documentation Guide">
+      (<package>&p-tetex-doc;</package> package)
+<!-- translators please add the following documents: 
+1) "The Not So Short Introduction to LaTeX2e"
+(&f-tetex-doc; links to an English copy on harddisk (slightly outdated))
+There exist many translations (and MUCH more documents in ../):
+ftp://ftp.dante.de/tex-archive/info/lshort/
+2) ftp://ftp.dante.de/tex-archive/info/<your-language>
+
+PS: I (Jens) don't like the following references (too short, external)
+-->
+<item><url id="&pfaffbenhome;" name="A Quick Introduction to LaTeX">
+<item><url id="&latexlyx;" name="A Simple Guide to Latex/Lyx">
+<item><url id="&latexbasic;" name="Word Processing Using LaTeX">
+<item><url id="&local-guide;" name="Local User Guide to teTeX/LaTeX">
+</list>
+When documents become bigger, sometimes TeX may cause errors. 
+You must increase pool size in <file>/etc/texmf/texmf.cnf</file> (or more
+appropriately edit <file>/etc/texmf/texmf.d/95NonPath</file> and 
+run <prgn>update-texmf</prgn>) to fix this.
+
+
+<sect1 id="literate">Literate Programming
+<p>
+Instead of writing code containing documentation, the literate programmer
+writes documentation containing code.  This approach ensures a good
+documentation for a program.
+<p>
+For more on literate-programming, see
+<url id="&literatehome;" name="Literate Programming">.
+
+<sect2 id="noweb">Noweb
+<p>
+Preparation:
+<example>
+# apt-get install nowebm
+</example>
+References for Noweb:
+<list compact>
+<item><url id="&nowebhome;" name="Noweb --- A Simple, Extensible Tool for Literate Programming">
+<item><manref name="noweb" section="1">
+</list>
+<p>
+This is a WEB-like literate-programming tool which is simpler while 
+providing extensibility and language-independence. 
+<footnote>
+This WEB has <strong>nothing</strong> to do with World Wide Web.  
+WEB (for PASCAL) and CWEB (for C/C++) are traditional literate-programming 
+tools.
+</footnote>
+When <prgn>noweb</prgn> is invoked, it writes the program source code to
+the output files mentioned in the noweb file, and it writes a TeX file
+for typeset documentation.
+<p>
+The &debian; <package>ifupdown</package> package is a fine example.
+<example>
+$ apt-get source ifupdown
+$ cd ifupdown*
+$ make ifupdown.pdf ifupdown.ps
+</example>
+
+<sect2 id="doxygen">Doxygen
+<p>
+Preparation:
+<example>
+# apt-get install doxygen doxygen-doc doxygen-gui
+</example>
+References for Doxygen (created by <prgn>doxygen</prgn>!):
+<list compact>
+<item><url id="&doxygenhome;" name="Homepage">
+<item><url id="/usr/share/doc/doxygen-doc/html/index.html">
+</list>
+<p>
+It can generate HTML, RTF, Unix manual pages, PostScript, and PDF (using LaTeX)
+documentation for C++, C, Java, IDL, and to some extent PHP and C# programs.
+Doxygen is compatible to JavaDoc (1.1), Qt-Doc, KDOC and was specifically
+designed to be used for projects that make use of Troll Tech's
+<url id="&qthome;" name="Qt"> toolkit.  It creates include dependency
+graphs, collaboration diagrams, and graphical class hierarchy graphs even
+for not documented programs.  The output is similar to Qt's documentation.
+
+<sect id="packaging">Packaging
+<p>
+Preparation:
+<example>
+# apt-get install &p-debian-policy; &p-developers-reference; \
+                  &p-maint-guide; dh-make debhelper
+# apt-get install packaging-manual # if Potato
+</example>
+References for packaging:
+<list compact>
+ <item><ref id="pkg-basics"> (basics)
+ <item>Debian New Maintainers' Guide (tutorial)
+ <item><manref name="dh-make" section="1">
+ <item>Debian Developer's Reference (best practice)
+ <item>Debian Policy Manual (authoritative)
+ <item>Packaging Manual (Potato) 
+</list>
+
+<sect1 id="pack-binary">Packaging a single binary
+<p>
+Quick-and-dirty method to Package a single binary per Joey Hess.
+<example>
+# mkdir -p mypkg/usr/bin mypkg/DEBIAN
+# cp binary mypkg/usr/bin
+# cat &gt; mypkg/DEBIAN/control
+Package: mypackage
+Version: 1
+Architecture: i386
+Maintainer: Joey Hess &lt;joeyh@debian.org&gt;
+Description: my little package
+ Don't expect much.
+^D
+# dpkg-deb -b mypkg
+</example>
+
+<sect1 id="pack-dh-make">Packaging with tools
+<p>
+Use <prgn>dh_make</prgn> from the <package>dh-make</package> package to create
+a baseline package.  Then, proceed according to instructions in <manref
+name="dh-make" section="1">.
+This uses <prgn>debhelper</prgn> in <prgn>debian/rules</prgn>.
+<p>
+An older approach is to use <prgn>deb-make</prgn> from the
+<package>debmake</package> package.  This uses no <prgn>debhelper</prgn>
+scripts and depends only on the shell.  Do not use this any more.
+<p>
+For examples of multiple-source packages, see "mc" (<tt>dpkg-source -x
+mc_4.5.54.dsc</tt>), which uses "sys-build.mk" by Adam Heath
+(<email>doogie@debian.org</email>), and "glibc" (<tt>dpkg-source -x
+glibc_2.2.4-1.dsc</tt>), which uses another system by the late Joel Klecker
+(<email>espy@debian.org</email>).
+
+</sect>
+
+</chapt>

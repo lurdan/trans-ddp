@@ -1,0 +1,1024 @@
+<!-- CVS revision of original english document "1.128"  -->
+
+<!--Line width ruler (ruler uses 78 characters) 34567890123456789012345-->
+
+<chapt id="package">Debianin pakettienhallinta
+
+<p>
+<prgn>aptitude</prgn> on nykyään suositeltu tekstikäyttöliittymä ohjelman
+APT (Advanced Package Tool) käyttöön. Se pitää erikseen kirjaa
+tarkoituksella asennetuista paketeista ja riippuvuuksien takia
+asennetuista paketeista. Jälkimmäiset <prgn>aptitude</prgn> poistaa
+automaattisesti, kun mikään tarkoituksella asennettu paketti ei enää
+riipu niistä.
+Se sisältää kehittyneitä pakettien suodatusominaisuuksia, mutta niiden
+käyttäminen voi olla vaikeaa.
+<p>
+<prgn>synaptic</prgn> on nykyään suositeltu graafinen käyttöliittymä
+ohjelman APT käyttöön. Sen pakettien suodatusominaisuuksia on helpompi
+käyttää kuin <prgn>aptitude</prgn>n.
+Se tukee koeluontoisesti
+<url id="&debtags;" name="Debianin pakettimerkkejä">.
+<p>
+Debianin palvelimien verkkokuorman vähentämiseksi ja latausten
+nopeuttamiseksi tulisi paketit hakea Debianin peilipalvelimilta.
+<p>
+Jos sama paketti on tarpeen asentaa useammalle koneelle paikallisesssa
+verkossa, voit ohjelmalla <prgn>squid</prgn> perustaa paikallisen
+HTTP-välityspalvelimen APT:n kautta ladatuille paketeille.
+Tarvittaessa aseta arvo ympäristömuuttujalle <tt>http_proxy</tt> tai
+aseta arvo <tt>http</tt> tiedostossa <file>/etc/apt/apt.conf</file>. 
+<p>
+Vaikka osiossa <manref name="apt_preferences" section="5"> kuvattu
+APT:n valintajärjestelmä on tehokas, sen vaikutukset saattavat olla
+vaikeasti ymmärrettäviä.
+Se on luonteeltaan edistynyt ominaisuus.
+<p>
+<![%f-ref;[
+Kappaleessa <ref id="chroot"> kuvattu metodi on suositeltava
+The use of the method described in <ref id="chroot"> is desirable for
+]]>
+<![%q-ref;[
+Ohjelman chroot käyttö on suositeltavaa 
+The use of chroot is desirable for
+]]>
+järjestelmän vakauden turvaamiseksi ja uusimpien
+ohjelmaversioiden saamiseksi samanaikaisesti.
+<p>
+Tämä luku pohjaa Woodyn jälkeiseen järjestelmään.
+Jotkin ominaisuudet saattavat vaatia Sarge-järjestelmän tai myöhemmän.
+
+<sect id="pkg-intro">Esittely
+<p>
+Jos kaiken kehittäjille tarkoitetun dokumentaation lukeminen tuntuu liian
+paljolta, lue tämä luku ja pääset nauttimaan Debianin
+<tt>testing</tt>/<tt>unstable</tt>-jakeluiden täydestä voimasta. :-)
+
+<sect1>Tärkeimmät pakettienhallintatyökalut
+<p>
+<example>
+dpkg      &ndash; &debian; pakettitiedostojen asennusohjelma
+apt-get   &ndash; Komentorivikäyttöliittymä APT-ohjelmalle
+aptitude  &ndash; Kehittynyt teksti- ja komentorivikäyttöliittymä APT:lle
+synaptic  &ndash; Graafinen käyttöliittymä APT:lle
+dselect   &ndash; Menupohjainen pakettienhallintaohjelma
+tasksel   &ndash; Tehtävienasennusohjelma
+</example>
+Nämä ohjelmat eivät kaikki ole toistensa vaihtoehtoja.
+Esimerkiksi <prgn>dselect</prgn> käyttää sekä APT:ia että <prgn>dpkg</prgn>:tä.
+<p>
+APT käyttää tiedostoja <file>/var/lib/apt/lists/*</file> saatavilla olevien
+pakettien seuraamiseen kun taas <prgn>dpkg</prgn> käyttää tiedostoa
+<file>/var/lib/dpkg/available</file>. Jos paketteja on asennettu
+<prgn>aptitude</prgn>:lla tai muilla APT:n käyttöliittymillä ja halutaan
+asentaa paketteja <prgn>dselect</prgn>:llä, tulee ensin päivittää tiedosto
+<file>/var/lib/dpkg/available</file> valitsemalla <tt>[U]pdate</tt>
+<prgn>dselect</prgn>:n valikoista (tai ajaa "<tt>dselect update</tt>").
+<p>
+<prgn>apt-get</prgn> automaattisesti asentaa kaikki paketit, joista
+valittu paketti riippuu. Se ei asenna paketteja, joita ainoastaan
+suositellaan tai ehdotetaan.
+<p>
+<prgn>aptitude</prgn>n asetuksissa voidaan puolestaan määrätä
+paketin suosittelemat tai ehdottamat paketit asennettaviksi.
+<p>
+<prgn>dselect</prgn> Näyttää käyttäjälle listan paketeista, joita
+valittu paketti suosittelee tai ehdottaa ja antaa käyttäjän
+valita asennettavat näistä vapaasti.
+<![%f-ref;[
+Katso <ref id="depends">.
+]]>
+</sect1>
+
+<sect1>Aputyökalut
+<p>
+<example>
+dpkg-reconfigure  - muuttaa jo asennetun paketin asetuksia
+                    (jos se käyttää debconf:ia)
+dpkg-source       - hallinnoi lähdekoodipaketteja
+dpkg-buildpackage - automatisoi pakettien rakentamisen
+apt-cache         - tutkii paikallista pakettiarkistoa
+</example>
+</sect1>
+</sect>
+
+<sect id="apt-install">Debianin pakettien hallinnan aloitus
+<p>
+
+<sect1 id="setup-apt">APT:n laittaminen käyttövalmiiksi
+<p>
+Muokkaa tiedostoa <file>sources.list</file> kappaleen
+<ref id="testing-transition"> ohjeiden mukaan.
+<footnote>
+Jos seuraat <tt>testing</tt>- tai <tt>unstable</tt>-jakeluita
+Voit poistaa viittaukset jakeluun <tt>stable</tt> tiedostoista
+<file>/etc/apt/sources.list</file> ja
+<file>/etc/apt/preferences</file>
+koska <tt>testing</tt> on aluksi <tt>stable</tt>:n kopio.
+</footnote>
+
+<![%f-ref;[
+Katso myös
+<ref id="install">, <ref id="woody"> ja <ref id="bin-editor">.
+]]>
+
+<sect1 id="tasksel">Tehtävien asennus
+<p>
+Paketteja on mahdollista asentaa ryhmittäin siten, että yhden ryhmän
+paketteja tyypillisesti tarvitaan Debian-järjestelmän tietynlaiseen
+käyttöön. Tällaisia pakettiryhmiä kutsutaan "tehtäviksi".
+<p>
+Helpoin tapa asentaa tehtäviä on käyttää alkuasennuksen aikana ohjelmaa
+<prgn>tasksel</prgn>.
+Komento 
+<example>dselect update</example>
+on ajettava ennen sen käyttöä.
+<p>
+Ohjelmalla <prgn>aptitude</prgn> voi myös asentaa tehtäviä ja se on
+suositeltava työkalu.
+Sitä käytettäessä on mahdollista poistaa yksittäisiä paketteja
+tehtävistä ennen niiden asennusta.
+</sect1>
+
+<sect1 id="aptitude"><prgn>aptitude</prgn>
+<p>
+<prgn>aptitude</prgn> on uusi menu-pohjainen pakettien asennusohjelma.
+Se on samankaltainen kuin <prgn>dselect</prgn>, mutta tehty alusta
+asti uudelleen APT:n päälle.
+Sitä voidaan käyttää <prgn>apt-get</prgn>:n sijaan useimpien komentojen
+osalta.
+Katso <manref name="aptitude" section="1"> ja <file>&f-aptitude-readme;</file>.
+<p>
+Kun <prgn>aptitude</prgn> otetaan käyttöön, on parempi jatkaa sen
+käyttämistä pakettien asentamiseen vaihtoehtoisten metodien sijaan.
+Muuten menetetään hyöty, joka saadaan <prgn>aptitude</prgn>:n kyvystä
+pitää kirjaa tarkoituksella asennetuista paketeista.
+<p>
+Käytettäessä <prgn>aptitude</prgn>:a kokoruututilassa, sille voidaan
+antaa yhden kirjaimen komentoja, jotka yleensä ovat pieniä kirjaimia.
+Tärkeimmät komennot ovat:
+<example>
+Näppäily    Toiminto
+F10         Valikko
+?           Apua näppäinkomennoissa (täydellinen listaus)
+u           Päivitä pakettiarkiston tiedot
++           Merkitse paketti päivitettäväksi tai asennettavaksi
+-           Merkitse paketti poistettavaksi (säilytä asetukset)
+_           Merkitse paketti hävitettäväksi (poista asetukset)
+=           Merkitset paketti säilytettäväksi
+U           Merkitset päivitettäväksi kaikki paketit, jotka voidaan päivittää
+g           Lataa ja asenna merkityt paketit
+q           Poistu nykyisestä näkymästä ja tallenna muutokset
+x           Poistu nykyisestä näkymästä ja hylkää muutokset
+Enter       Näytä tietoa paketista
+C           Näytä paketin muutosloki
+l           Vaihda näytettävien pakettien rajoitusta
+/           Hae seuraava osuma
+\           Toista edellinen haku
+</example>
+Kuten <prgn>apt-get</prgn>, <prgn>aptitude</prgn> asentaa paketit,
+joista valittu paketti on riippuvainen.
+<prgn>aptitude</prgn> tarjoaa myös mahdollisuuden suositeltujen
+ja ehdotettujen pakettien lataamiseen ja asentamiseen.
+Voit vaihtaa oletustoimintaa valitsemalla valikosta
+<tt>F10 -> Options -> Dependency handling</tt>.
+<p>
+Muita <prgn>aptitude</prgn>n etuja ovat:
+<list compact>
+<item><prgn>aptitude</prgn> tarjoaa asennettavaksi paketin kaikki versiot.
+<item><prgn>aptitude</prgn> pitää lokia toiminnastaan tiedostossa <file>&f-aptitude-log;</file>.
+<item><prgn>aptitude</prgn> helpottaa vanhentuneiden ohjelmien löytämistä
+listaamalla ne osiossa "Obsolete and Locally Created Packages".
+<item><prgn>aptitude</prgn> tarjoaa tehokkaan järjestelmän tiettyjen
+pakettien etsimiseen ja näytettyjen pakettien rajoittamiseen.
+Ohjelman <prgn>mutt</prgn> tuntevat käyttäjät oppivat nämä nopeasti,
+koska mutt inspiroi käytettyä lausekesyntaksia.
+Katso osiota "SEARCHING, LIMITING, AND EXPRESSIONS" dokumentissa
+<file>&f-aptitude-readme;</file>.
+<item><prgn>aptitude</prgn>:n kokoruututilassa on ohjelman <prgn>su</prgn>
+toiminnallisuus upotettuna ja ohjelmaa voidaan ajaa tavallisena käyttäjänä
+kunnes todella tarvitaan ylläpitäjän oikeuksia.
+</list>
+</sect1>
+
+<sect1 id="dselect"><prgn>dselect</prgn>
+<p>
+Vakaissa julkaisuissa Potatoon asti
+<prgn>dselect</prgn> oli pääasiallinen pakettienhallintatyökalu.
+Sargessa kannattaisi sen sijaan käyttää ohjelmaa <prgn>aptitude</prgn>.
+<p>
+Käynnistettäessä <prgn>dselect</prgn> automaattisesti valitsee "Required"-,
+"Important"- ja "Standard"-paketit (vaadittavat, tärkeät ja vakiopaketit).
+<p>
+<prgn>dselect</prgn>:ssä on jossain määrin outo käyttöliittymä.
+Useimmat käyttäjät kuitenkin tottuvat siihen.
+Siinä on neljä komentoa
+(Iso kirjain tarkoittaa ISOA!):
+<example>
+Näppäily    Toiminto
+Q           Lopeta. Vahvista nykyiset valinnat ja lopeta joka tapauksessa.
+            (kumoa riippuvuudet)
+R           Palauta! En tarkoittanut sitä.
+D           Toimi! dselectin mielipiteellä ei ole väliä.
+U           Laita kaikki suositeltuun tilaan.
+</example>
+Komentojen <tt>D</tt> ja <tt>Q</tt> kanssa on mahdollista tehdä ristiriitaisia
+valintoja omalla vastuulla. Näitä komentoja tulisi käyttää varoen.
+<p>
+Rivin "expert" lisääminen tiedostoon
+<file>/etc/dpkg/dselect.cfg</file> vähentää ohjelman tulostuksia.
+<p>
+Jos <prgn>dselect</prgn> toimii hitaasti jollain koneella,
+ohjelma voidaan ajaa nopeammalla koneella asennettavien pakettien
+määrittämiseksi ja käyttää sen jälkeen komentoa
+<tt>apt-get install</tt> hitaalla koneella pakettien asentamiseen.
+</sect1>
+
+<sect1 id="apt-track">Jakeluiden seuraaminen APT:lla
+<p>
+<tt>testing</tt>-jakelun seuraaminen sen muuttuessa tapahtuu muuttamalla
+tiedoston <file>/etc/apt/preferences</file> sisältö seuraavanlaiseksi:
+<example>
+Package: *
+Pin: release a=testing
+Pin-Priority: 800
+
+Package: *
+Pin: release a=stable
+Pin-Priority: 600
+</example>
+<tt>testing</tt>-jakelun seuraamisen sivuvaikutuksena
+tietoturvapäivityksiä sisältävien pakettien asennus
+saattaa viivästyä.
+Tämä johtuu siitä, että paketit ladataan ensin jakeluun
+<tt>unstable</tt> ja ne siirtyvät <tt>testing</tt>-jakeluun
+viiveellä.
+<p>
+Ohjesivu <manref name="apt_preferences" section="5"> sisältää
+monimutkaisempia esimerkkejä esimerkiksi siitä kuinka seurata
+<tt>testing</tt>:iä, mutta samalla asentaa valittuja paketteja
+<tt>unstable</tt>:sta.
+<p>
+Esimerkkejä tiettyjen pakettien lukitsemisesta tiettyyn versioon,
+samalla kun muita paketteja päivitetään, löytyy 
+<url id="&examples;" name="examples-alihakemistosta"> tiedostoista
+<file>preferences.testing</file> ja <file>preferences.unstable</file>.
+<p>
+Jos paketteja käytetään sekaisin eri jakeluista esim.
+<tt>testing</tt>:stä ja <tt>stable</tt>:sta tai
+<tt>unstable</tt>:sta ja <tt>stable</tt>:sta,
+päivittyvät peruspaketit kuten
+<package>libc6</package> lähes pakolla jossain vaiheessa
+<tt>testing</tt>- tai <tt>unstable</tt>-versioihin,
+jotka saattavat sisältää virheitä.
+Varoitus on annettu.
+<p>
+Toisena esimerkkinä <file>preferences.stable</file>
+pakottaa kaikki paketit palaamaan <tt>stable</tt>-versioon.
+<p>
+<strong>Paketin</strong> myöhemmästä versiosta aiempaan
+palaaminen ei ole virallisesti tuettua Debianissa.
+Saattaa kuitenkin olla, että aikaisempaan versioon palaaminen
+on tarpeellista, jos uudempi versio toimii virheellisesti.
+Aiemmat pakettiversiot löytyvät paikallisesti hakemistosta
+<file>/var/cache/apt/archives/</file> verkosta osoitteesta
+<url id="&snapshothome;">. Katso myös <ref id="rescue-dpkg">.
+<p>
+Palaaminen aiempaan <strong>jakeluun</strong> ei myöskään ole
+tuettua ja aiheuttaa hyvin todennäköisesti ongelmia.
+Äärimäisessä hädässä tätä voi kuitenkin yrittää
+viimeisenä ratkaisuna.
+</sect1>
+
+<sect1 id="apt-commands">Komennot <prgn>aptitude</prgn>, <prgn>apt-get</prgn> ja <prgn>apt-cache</prgn>
+<p>
+Seurattaessa <tt>testing</tt>:iä yllä olevan esimerkin mukaisesti,
+voidaan järjestelmää päivittää seuraavilla komennoilla:
+<list>
+<item><tt>aptitude update</tt> (tai
+      <tt>apt-get update</tt>)
+ <p>Nämä päivittävät listan pakettivarastoista saatavilla olevista paketeista.
+<item><tt>aptitude upgrade</tt> (tai
+      <tt>apt-get upgrade</tt> tai
+      <tt>aptitude dist-upgrade</tt> tai
+      <tt>apt-get dist-upgrade</tt>)
+ <p>Nämä seuraavat <tt>testing</tt>-jakelua &mdash;
+ ne päivittävät vuorollaan järjestelmän jokaisen paketin asennettuaan
+ <tt>testing</tt>-jakelusta muista paketeista sellaiset versiot,
+ joista kyseinen paketti  on riippuvainen.
+<footnote>
+Komentojen <tt>upgrade</tt> ja <tt>dist-upgrade</tt> erot näkyvät
+vain kun pakettien uusien versioiden riippuvuussuhteet ovat eri
+kuin pakettien vanhempien versioiden.
+Yksityiskohdat löytyvät ohjesivulta <manref name="apt-get" section="8">.
+<p>
+Käskyt <tt>aptitude upgrade</tt> ja <tt>aptitude dist-upgrade</tt> käynnistävät
+<prgn>aptitude</prgn>:n komentorivitilassa. Voit vaihtaa kokoruututilaan
+painamalla <tt>e</tt>-näppäintä.
+</footnote>
+<item><tt>apt-get dselect-upgrade</tt>
+ <p>Tämä seuraa <tt>testing</tt>-jakelua &mdash;
+ se päivittää kunkin järjestelmän paketin ohjelman
+ <prgn>dselect</prgn> valintojen mukaisesti.
+<item><tt>aptitude install <var>paketti</var>/unstable</tt>
+ <p>Tämä asentaa <var>paketin</var> <tt>unstable</tt>-jakelusta, mutta
+ paketit, joista se on riippuvainen, <tt>testing</tt>-jakelusta.
+<item><tt>aptitude install -t unstable <var>paketti</var></tt>
+ <p>Tämä asentaa <var>paketin</var> <tt>unstable</tt>-jakelusta samoin
+ kuin paketit, joista se on riippuvainen. Tämä saadaan aikaan asettamalla
+ <tt>unstable</tt>-jakelun Pin-Priority arvoon 990.
+<item><tt>apt-cache policy <var>foo bar ...</var></tt>
+ <p>Tämä tarkistaa pakettien <var>foo bar ...</var> tilan.
+<item><tt>aptitude show <var>foo bar ...</var> | less</tt>
+(tai <tt>apt-cache show <var>foo bar ...</var> | less</tt>)
+ <p>Tämä näyttää pakettien <var>foo bar ...</var> tiedot.
+<item><tt>aptitude install <var>foo=2.2.4-1</var></tt>
+ <p>Tämä asentaa paketin <var>foo</var> version <var>2.2.4-1</var>.
+<item><tt>aptitude install <var>foo bar-</var></tt>
+ <p>Tämä asentaa paketin <var>foo</var> ja poistaa paketin <var>bar</var>.
+<item><tt>aptitude remove <var>bar</var></tt>
+ <p>Tämä poistaa paketin <var>bar</var>, mutta ei sen asetustiedostoja.
+<item><tt>aptitude purge <var>bar</var></tt>
+ <p>Tämä poistaa paketin <var>bar</var> ja kaikki sen asetustiedostot.
+</list>
+Jos yllä olevissa esimerkeissä ohjelmalle <prgn>apt-get</prgn> annetaan
+valitsin <tt>-u</tt>, se listaa kaikki päivitettävät paketit ja
+pyytää käyttäjältä varmistuksen ennen päivitystä.
+<prgn>aptitude</prgn> tekee näin oletuksena.
+Tämän voi asettaa <prgn>apt-get</prgn>:n oletukseksi seuraavasti:
+<example>
+$ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+// Näytä aina lista päivitettävistä paketeista (-u)
+APT::Get::Show-Upgraded "true";
+.
+</example>
+<p>
+Valitsimen <tt>--no-act</tt> avulla on mahdollista simuloida
+toimintaa asentamatta, poistamatta, jne. mitään paketteja oikeasti.
+
+<sect id="survival">Debianin selviytymiskomennot
+<p>
+Tämä tieto tuo mukanaan ikuisten päivitysten onnen. :-)
+
+<sect1 id="bug-check">Tarkista Debianin virheet ja etsi apua
+<P>
+Jos tietyn paketin kanssa ilmenee ongemia, tulisi ennen avun etsimistä
+tai virheen ilmoittamista tarkistaa seuraavat sivut.
+(<prgn>lynx</prgn>, <prgn>links</prgn> ja <prgn>w3m</prgn> toimivat kaikki):
+<example>
+$ lynx &bugs;
+$ lynx &bugs;<var>paketti</var>  # jos paketin nimi on tiedossa
+$ lynx &bugs;<var>virhenumero</var>     # jos virhenumero on tiedossa
+</example>
+Etsi Googlessa (www.google.com) hakusanoilla, joihin sisältyy "site:debian.org".
+<p>
+Epävarmassa tilanteessa kannattaa lukea ohjeita. Aseta <tt>CDPATH</tt> seuraavasti:
+<example>
+export CDPATH=.:/usr/local:/usr/share/doc
+</example>
+ja kirjoita
+<example>
+$ cd <var>paketti</var>
+$ pager README.Debian # jos tiedosto on olemassa
+$ mc 
+</example>
+<![%f-ref;[
+Muita avun lähteitä on listattu kappaleessa <ref id="support">.
+]]>
+</sect1>
+
+<sect1 id="apt-trouble">APT upgrade:n vianetsintä
+<p>
+Päivitettäessä paketteja <tt>unstable</tt>:ssa tai
+<tt>testing</tt>:ssä kappaleen <ref id="upgrade-system">
+ohjeiden mukaan, saattaa riippuvuuksissa ilmetä ongelmia.
+Useimmiten tämän johtuu siitä, että päivitettävä paketti on
+riippuvainen paketista, joka ei ole vielä saatavilla.
+Ongelman voi korjata ajamalla komennon:
+<example>
+# aptitude dist-upgrade
+</example>
+Jos tämä ei auta, toista jompaa kumpaa seuraavista komennoista kunnes
+ongelma ratkeaa:<example>
+# aptitude -f upgrade        # jatka päivittämistä myös virheistä huolimatta
+... tai
+# aptitude -f dist-upgrade   # jatka päivittämistä ja tarvittaessa poistamista virheistä huolimatta
+</example>
+<p>
+Jotkin pahasti hajalla olevat päivitysskriptit saattavat aiheuttaa jatkuvia ongelmia.
+Tällöin kannattaa yleensä tutkia ja korjata kyseisen paketin skriptejä
+<file>/var/lib/dpkg/info/<var>paketti</var>.{post,pre}{inst,rm}</file>
+ja tämän jälkeen ajaa:
+<example>
+# dpkg --configure -a    # tekee kaikkien osittain asennettujen pakettien asetukset
+</example>
+<p>
+Jos skripti valittaa puuttuvasta asetustiedostosta, etsi hakemistosta
+<file>/etc/</file> vastaavaa tiedostoa. Jos hakemistosta löytyy muuten
+samanniminen tiedosto päätteellä <tt>.dpkg-new</tt> (tai jotain vastaavaa),
+poista pääte siirtämällä tiedosto toiselle nimelle komennolla <prgn>mv</prgn>.
+<p>
+Pakettien riippuvuussuhteissa voi ilmetä ongelmia asennettaessa niitä
+<tt>unstable</tt>:ssa tai <tt>testing</tt>:ssä.
+Riippuvuuksia voi kiertää seuraavasti.
+<example>
+# aptitude -f install <var>paketti</var> # unohda puuttuvat riippuvuudet
+</example>
+<p>
+Vaihtoehtoisesti tilanteen voi korjata käyttämällä pakettia
+<package>equivs</package>.
+Katso <file>&f-equivs;</file><![%f-ref;[ ja <ref id="equivs">]]>.
+</sect1>
+
+<sect1 id="rescue-dpkg">Pelastus käyttäen ohjelmaa <prgn>dpkg</prgn>
+<p>
+Jos APT:n käyttäminen johtaa umpikujaan, paketit voi ladata Debianin
+peilipalvelimilta ja asentaa ohjelmalla <prgn>dpkg</prgn>.
+Jos käytettävissä ei ole verkkoyhteyttä, pakettien väliaikaisia kopioita
+voi etsiä hakemistosta <file>/var/cache/apt/archives/</file>.
+<example>
+# dpkg -i fetchmail_6.2.5-4_i386.deb
+</example>
+Jos todella tarvitun paketin asennus tällä tavalla epäonnistuu
+riippuvuussuhdeongelmien takia, niiden tarkistusta voi ohjata
+mm. valitsimilla <tt>--ignore-depends</tt> ja
+<tt>--force-depends</tt>.
+Katso yksityiskohdat kappaleesta <manref name="dpkg" section="8">.
+</sect1>
+
+<sect1 id="recover-status">Pakettien valintatietojen palauttaminen
+<p>
+Jos tiedosto <file>/var/lib/dpkg/status</file> korruptoituu mistään
+syystä, Debian-järjestelmä menettää tiedon valituista paketeista ja
+kärsii pahasti. Vanhempi versio tiedostosta <file>/var/lib/dpkg/status</file>
+voi löytyvä nimellä <file>/var/lib/dpkg/status-old</file> tai
+<file>/var/backups/dpkg.status.*</file>.
+<p>
+Hakemiston <file>/var/backups/</file> pitäminen eri levyosiolla voi olla
+hyvä idea, koska tämä hakemisto sisältää paljon tärkeää järjestelmätietoa.
+<p>
+Jos vanhaa versiota tiedostosta <file>/var/lib/dpkg/status</file> ei ole
+saatavilla, voidaan tieto palauttaa hakemistossa
+<file>/usr/share/doc/</file> olevista hakemistoista.
+<example>
+# ls /usr/share/doc | \
+  grep -v [A-Z] | \
+  grep -v '^texmf$' | \
+  grep -v '^debian$' | \
+  awk '{print $1 " install"}' | \
+  dpkg --set-selections
+# dselect --expert # asentaa järjestelmän uudelleen, poista tarpeettomat
+</example>
+
+<sect1 id="rescue-var">Järjestelmän pelastaminen hakemiston <file>/var</file> tuhoutumisen jälkeen
+<p>
+Koska hakemisto <file>/var</file> sisältää usein päivitettävää tietoa, kuten
+sähköposteja, se korruptoituu helpommin kuin esim. <file>/usr/</file>.
+Hakemiston <file>/var</file> sijoittaminen omalle levyosiolleen vähentää riskejä.
+Jos tapahtuu katastrofi, on <file>/var/</file> ehkä rakennettava uudelleen,
+jotta Debian-järjestelmä voidaan pelastaa.
+<p>
+Hajonneeseen järjestelmään voidaan kopioida toisesta toimivasta, minimaalisesta
+Debian-järjestelmästä hakemisto <file>/var</file>, esimerkiksi
+<file><url id="&var-tar-gz;" name="var.tar.gz"></file>, kunhan lähdehakemisto
+on samasta tai vanhemmasta Debianin versiosta. Tämän jälkeen
+<example>
+# cd /
+# mv var var-old      # jos jäljellä on mitään käyttökelpoista
+# tar xvzf var.tar.gz # puretaan hakemisto Woody-jakelusta
+# aptitude            # tai dselect
+</example>
+Tämän jälkeen järjestelmän pitäisi toimia. Pakettitietojen palauttamista
+voidaan edistää kappaleen <ref id="recover-status"> ohjeiden avulla.
+([FIXME]: This procedure needs more experiments to verify.)
+</sect1>
+
+<sect1 id="un-bootable">Paketin asentaminen käynnistyskelvottomana järjestelmään
+<p>
+Linux käynnistetään Debianin pelastuslevykkeeltä tai -CD:ltä tai toiselta osiolta
+Linuxissa, jossa on monikäynnistys.
+<![%f-ref;[
+Katso <ref id="booting">.
+]]>
+Käynnistyskelvoton järjestelmä liitetään hakemistoon <file>/target</file>
+ja asennetaan paketti käyttäen <prgn>dpkg</prgn>:n chroot-asennusmoodia.
+<example>
+# dpkg --root /target -i <var>pakettitiedosto.deb</var>
+</example>
+Tämän jälkeen tehdään asetukset ja korjataan ongelmat.
+<p>
+Jos käynnistysongelmat johtuvat vain hajonneesta <prgn>lilo</prgn>:sta,
+voi järjestelmän käynnistää Debianin standardilta pelastuslevykkeeltä.
+Jos Linux-asennuksen juuriosio on <file>/dev/hda12</file> ja halutaan
+käynnistää ajotasolle 3, kirjoitetaan käynnistyskehotteessa:
+<example>
+boot: rescue root=/dev/<var>hda12</var> 3
+</example>
+Käynnistyvä järjestelmä on lähes täysin toimiva ja käyttää ytimenään
+levykeellä olevaa ydintä. (Pieniä häiriöitä voi esiintyä johtuen
+puuttuvista ytimen ominaisuuksista tai moduleista.)
+</sect1>
+
+<sect1>Mitä tehdä, jos <prgn>dpkg</prgn>-komento on hajalla
+<p>
+Minkään <tt>.deb</tt>-paketin asentaminen saattaa olla mahdotonta, jos
+<prgn>dpkg</prgn> on hajonnut. Tilanteen voi korjata seuraavalla
+proseduurilla. (Ensimmäisellä rivillä voit korvata komennon "links"
+haluamallasi selainkomennolla.)
+<example>
+$ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
+  ... lataa toimiva dpkg_<var>versio</var>_<var>ark</var>.deb
+$ su
+password: *****
+# ar x dpkg_<var>versio</var>_<var>ark</var>.deb
+# mv data.tar.gz /data.tar.gz
+# cd /
+# tar xzfv data.tar.gz
+</example>
+Alustalla <tt>i386</tt> voidaan käyttää myös URL:ia
+<tt>http://packages.debian.org/dpkg</tt>.
+</sect1>
+
+</sect>
+
+<sect id="debian-package">Debianin nirvana-komennot
+<p>
+Näiden komentojen ymmärtämistä seuraava <strong>valaistuminen</strong>
+päästää käyttäjän ikuisesta pahan karman päivityshelvetistä ja päästää
+hänet Debianin <strong>nirvanaan</strong>. :-)
+
+<sect1 id="info-file">Tietoa tiedostosta
+<p>
+Asennetut paketit, joihin liittyy tiedosto, jonka nimi on tiettyä muotoa,
+voi löytää komennolla:
+<example>
+$ dpkg {-S|--search} lauseke
+</example>
+Tai vastaavasti voi etsiä Debianin arkistoista:
+<example>
+$ wget http://ftp.us.debian.org/debian/dists/<var>sarge</var>/<var>Contents-i386.gz</var>
+$ zgrep -e lauseke <var>Contents-i386.gz</var>
+</example>
+Tai voi käyttää erikoistuneita pakettikomentoja:
+<example>
+# aptitude install dlocate 
+$ dlocate <var>tiedostonimi</var> # Komentojen dpkg -L ja dpkg -S nopea vaihtoehto
+...
+# aptitude install auto-apt # työkalu, joka asentaa paketteja tarvittaessa
+# auto-apt update           # luo tietokannan auto-apt:lle
+$ auto-apt search <var>lauseke</var> # etsii lauseketta sekä asennetuista että asentamattomista paketeista
+</example>
+</sect1>
+
+<sect1 id="info-package">Tietoa paketista
+<p>
+Tietoja voidaan etsiä pakettiarkistoista. Ennen tätä tulee varmistaa,
+että APT käyttää oikeita arkistoja muokkaamalla tiedostoa
+<file>/etc/apt/sources.list</file>.
+Paketin nykyisen version vertailu jakeluiden <tt>testing</tt> ja
+<tt>unstable</tt> versioihin onnistuu komennolla
+<tt>apt-cache policy</tt>
+<example>
+# apt-get   check           # Päivitä välimuisti ja etsi rikkoutuneita paketteja
+$ apt-cache search  <var>lauseke</var> # Etsi paketin tekstikuvauksesta
+$ apt-cache policy  <var>paketti</var> # Paketin tärkeys-/jakelutiedot
+$ apt-cache show -a <var>paketti</var> # Näytä paketin kaikkien jakeluiden kuvaukset
+$ apt-cache showsrc <var>paketti</var> # Näytä vastaavan lähdekoodipaketin kuvaus
+$ apt-cache showpkg <var>paketti</var> # Pakettitietoja virheiden korjaukseen
+# dpkg  --audit|-C          # Etsi osittain asennettuja paketteja
+$ dpkg {-s|--status} <var>paketti</var> ... # Asennetun paketin kuvaus
+$ dpkg -l <var>paketti</var> ...       # Asennetun paketin satuts status (1 rivi/paketti)
+$ dpkg -L <var>paketti</var> ...       # Listaa paketin asentamat tiedostot
+</example>
+<!-- Erase this when manual page gets fixed.  FIXME -->
+<tt>apt-cache showsrc</tt> -komento is ole Woody-jakelusta lähtien ole
+ollut dokumentoitu, mutta se toimii. :-)
+<p>
+Pakettitietoja löytyy myös seuraavista tiedostoista (näitä voi selata esim
+ohjelman <tt>mc</tt> avulla):
+<example>
+/var/lib/apt/lists/*
+/var/lib/dpkg/available
+</example>
+Seuraavat tiedostot kertovat mitä oikeastaan on tapahtunut muutaman
+edellisen asennussession aikana.
+<example>
+/var/lib/dpkg/status
+/var/backups/dpkg.status*
+</example>
+
+</sect1>
+
+<sect1 id="apt-get-auto">Valvomaton asennus APT:lla
+<p>
+Valvomattoman asennuksen voi tehdä lisäämällä seuraavan rivin tiedostoon
+<file>/etc/apt/apt.conf</file>:
+<example>
+Dpkg::Options {"--force-confold";}
+</example>
+Tämä vastaa komennon <tt>aptitude -y install <var>paketti</var></tt> tai
+<tt>apt-get -q -y install <var>paketti</var></tt> ajamista.
+Koska kaikkiin kysymyksiin vastataan automaattisesti "kyllä", tämä voi
+aiheuttaa ongelmia ja sitä pitäisi käyttää varoen.
+Katso <manref name="apt.conf" section="5"> and <manref name="dpkg" section="1">.
+<p>
+Minkä tahansa paketin asetuksia voidaan myöhemmin muuttaa kappaleen
+<ref id="reconfigure"> ohjeiden mukaan.
+
+<sect1 id="reconfigure">Asennettujen pakettien asetuksien päivittäminen
+<p>
+Asennettujen pakettien asetuksia voidaan muuttaa seuraavilla komennoilla
+<example>
+# dpkg-reconfigure --priority=<var>medium</var> <var>paketti</var> [...]
+# dpkg-reconfigure --all   # päivitä kaikkien pakettien asetukset
+# dpkg-reconfigure locales # luo mahdolliset uudet maa-asetukset
+# dpkg-reconfigure --p=<var>low</var> xserver-xfree86 # päivitä X serverin asetukset
+</example>
+Jos on tarvetta muuttaa ohjelman <prgn>debconf</prgn> toimintatilaa
+pysyvästi, se voidaan tehdä tällä.
+<p>
+Joissain ohjelmissa on erillisiä asetusten tekoskriptejä.
+<footnote>
+Jotkin <prgn>*config</prgn> skriptit ovat katoamassa uudemmassa
+Sarge-julkaisussa ja toiminnallisuudet siirretään
+<prgn>debconf</prgn>-järjestelmään.
+</footnote>
+<example>
+apt-setup     - luo /etc/apt/sources.list
+install-mbr   - asenna pääkäynnistyslohkon hallinnoija
+tzconfig      - aseta paikallinen aikavyöhyke
+gpmconfig     - muokkaa gpm-hiiritaustaohjelman asetuksia
+eximconfig    - muokkaa Exim (MTA):n asetuksia
+texconfig     - muokkaa teTeX:n asetuksia
+apacheconfig  - muokkaa Apache:n (httpd) asetuksia
+cvsconfig     - muokkaa CVS:n asetuksia
+sndconfig     - muokkaa äänentoistojärjestelmän asetuksia
+...
+update-alternatives - aseta oletuskomentoja esim., vim on vi
+update-rc.d         - System-V init skriptien hallinta
+update-menus        - Debian-menujärjestelmä
+...
+</example>
+</sect1>
+
+<sect1 id="remove">Pakettien poistaminen ja siivoaminen
+<p>
+Paketin poisto niin, tetä sen asetustiedostot säilytetään:
+<example>
+# aptitude remove <var>paketti</var> ...
+# dpkg   --remove <var>paketti</var> ...
+</example>
+Paketin ja asetustiedostojen poistaminen:
+<example>
+# aptitude purge  <var>paketti</var> ...
+# dpkg   --purge  <var>paketti</var> ...
+</example>
+</sect1>
+
+<sect1 id="hold">Vanhempien pakettien säilyttäminen
+<p>
+Esimerkiksi pakettien <package>libc6</package> ja <package>libc6-dev</package>
+nykyisten versioiden säilyttäminen ajettaessa <prgn>dselect</prgn> tai
+<tt>aptitude install <var>paketti</var></tt> voidaan tehdä seuraavasti:
+<example>
+# echo -e "libc6 hold\nlibc6-dev hold" | dpkg --set-selections
+</example>
+<tt>aptitude install <var>paketti</var></tt>-komentoa ei tämä "säilytys" haittaa.
+Säilyttääksesi paketin pakottamalla automaattisen paluun aikaisempaan
+versioon ajettaessa <tt>aptitude upgrade <var>paketti</var></tt> tai
+<tt>aptitude dist-upgrade</tt>, lisää seuraava tiedostoon
+<file>/etc/apt/preferences</file>:
+<example>
+Package: libc6
+Pin: release a=stable
+Pin-Priority: 2000
+</example>
+"<tt>Package:</tt>"-kohdassa ei voi olla "<tt>libc6*</tt>"-tyylisiä määritelmiä.
+Jos kaikki lähdekoodipakettiin <package>glibc</package> liittyvät binääripaketit
+halutaan pitää samassa versiossa, ne on listattava kaikki erikseen.
+<p>
+Seuraava komento listaa tällä hetkellä säilytettävät paketit:
+<example>
+dpkg --get-selections "*"|grep -e "hold$"
+</example>
+</sect1>
+
+<sect1 id="mixedsys"><tt>stable</tt>/<tt>testing</tt>/<tt>unstable</tt>-sekajärjestelmä
+<p>
+<prgn>apt-show-versions</prgn>-komennolla voidaan listata paketin
+saataville olevat versiot jakeluittain.
+<example>
+$ apt-show-versions | fgrep /testing | wc
+... montako pakettia järjestelmässä on testing:stä
+$ apt-show-versions -u
+... päivitettävissä olevat paketit
+$ aptitude install `apt-show-versions -u -b | fgrep /unstable`
+... päivitä kaikki unstable-paketit uusimpiin versioihin
+</example>
+</sect1>
+
+<sect1 id="cache">Pakettitiedostojen karsiminen välimuistista
+<p>
+APT jättää paketteja asennettaessa pakettitiedostot välimuistiin hakemistoon
+<file>/var/cache/apt/archives/</file> ja se täytyy puhdistaa.
+<example>
+# aptitude autoclean # poistaa hyödyttömät pakettitiedostot
+# aptitude clean     # poistaa kaikki talletetut pakettitiedostot
+</example>
+</sect1>
+
+<sect1 id="record">Järjestelmäasetusten tallennus/kopiointi
+<p>
+Paikallisen kopion tekeminen pakettien valintatiloista:
+<example>
+# debconf-get-selections &gt; <var>debconfsel.txt</var>
+# dpkg --get-selections "*" &gt;<var>valinnat</var>   # tai käytä \*
+</example>
+<tt>"*"</tt> sisällyttää tiedostoon <tt><var>valinnat</var></tt> myös "siivotut" paketit.
+<p>
+Tämä tiedosto voidaan siirtää toiseelle tietokoneella ja käyttää asennukseen siellä:
+<example>
+# dselect update
+# debconf-set-selections &lt; <var>debconfsel.txt</var>
+# dpkg --set-selections &lt;<var>valinnat</var>
+# apt-get -u dselect-upgrade    # <var>tai</var> dselect install
+</example>
+</sect1>
+
+<sect1 id="port">Paketin sovittaminen <tt>stable</tt>-järjestelmään
+<p>
+Tehtäessä <tt>stable</tt>-järjestelmän osittaista päivitystä, paketin
+rakentaminen uudelleen lähdekoodipaketista nykyisessä ympäristössä on
+suositeltavaa. Tällä vältetään riippuvuuksista johtuva massiivinen
+pakettien päivitys. Seuraavat rivit on ensin lisättävä tiedostoon
+<file>/etc/apt/sources.list</file>:
+<example>
+deb-src &http-us;debian testing \
+ main contrib non-free
+deb-src &http-us;debian unstable \
+ main contrib non-free
+</example>
+Tulostussyistä kukin <tt>deb-src</tt>-rivi on jaettu kahdelle riville, mutta tiedostossa <file>sources.list</file> kaiken tulisi olla yhdellä rivillä.
+<p>
+Tämän jälkeen haetaan lähdekoodi ja tehdään paikallinen paketti:
+<example>
+$ apt-get update  # päivitä lista lähdekoodipaketeista
+$ apt-get source <var>paketti</var>
+$ dpkg-source -x <var>paketti.dsc</var>
+$ cd <var>paketti-versio</var>
+  ... myös paketin vaatimat paketit (Build-Depends .dsc-tiedostossa)
+      tulee asentaa. Myös paketti "fakeroot" tarvitaan.
+
+$ dpkg-buildpackage -rfakeroot 
+
+  ...tai (ei allekirjoitusta)
+$ dpkg-buildpackage -rfakeroot -us -uc # käytä myöhemmin "debsign"-ohjelmaa, jos tarpeen
+
+  ...Sitten asennus
+$ su -c "dpkg -i <var>pakettitiedosto.deb</var>"
+</example>
+Yleensä vain muutama "-dev"-päätteinen paketti tarvitaan riippuvuussuhteiden
+tyydyttämiseen. <prgn>debsign</prgn> on paketissa
+<package>devscripts</package>. <prgn>auto-apt</prgn> voi auttaa
+riippuvuuksien tyydyttämisessä. <prgn>fakeroot</prgn>-ohjelman
+käyttö välttää tarpeetonta pääkäyttäjätunnuksen käyttöä.
+<p>
+In Woody, these dependency issues can be simplified.  
+For example, to compile a source-only <package>pine</package> package:
+<example>
+# apt-get build-dep pine
+# apt-get source -b pine
+</example>
+</sect1>
+
+<sect1 id="local">Paikallinen pakettiarkisto
+<p>
+APT:n ja <prgn>dselect</prgn>-järjestelmän kanssa yhteensopivan paikallisen
+pakettiarkiston luominen vaatii, että luodaan  <file>Packages</file>-tiedosto
+ja että pakettitiedostot talletetaan tietynlaiseen hakemistopuuhun.
+<p>
+Paikallinen, virallisten Debian-arkistojen kaltainen <tt>deb</tt>-varasto
+voidaan tehdä seuraavasti:
+<example>
+# aptitude install dpkg-dev
+# cd <var>/usr/local</var>
+# install -d <var>pool</var> # fyysiset paketit sijaitsevat täällä
+# install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
+# ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+# editor <var>override</var> # määritä <var>priority</var> ja <var>section</var>
+# dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
+   &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
+# cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
+Archive: <var>unstable</var>
+Version: <var>3.0</var>
+Component: <var>main</var>
+Origin: <var>Local</var>
+Label: <var>Local</var>
+Architecture: <var>i386</var>
+EOF
+# echo "deb file:<var>/usr/local</var> <var>unstable</var> <var>main</var>" \
+   &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+Vaihtoehtoisesti, nopea karkea versio paikallisesta <tt>deb</tt>-varastosta
+voidaan tehdä seuraavasti:
+<example>
+# aptitude install dpkg-dev
+# mkdir <var>/usr/local/debian</var>
+# mv <var>/jos/ssain/paketti.deb</var> <var>/usr/local/debian</var>
+# dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
+  gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
+#  echo "deb file:<var>/usr/local/debian</var> ./" &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+Näitä arkistoja voidaan etäkäyttää tarjoamalla pääsy hakemistoihin joko
+HTTP:llä tai FTP:llä ja vaihtamalla rivejä tiedostossa 
+<file>/etc/apt/sources.list</file> tämän mukaisesti.
+
+<sect1 id="alien">Vieraiden binääripakettien muuntaminen tai asentaminen
+<p>
+<package>alien</package> mahdollistaa Red Hat:n <tt>rpm</tt>-, Stampeden <tt>slp</tt>-, Slackwaren <tt>tgz</tt>- ja Solariksen
+<tt>pkg</tt>-tiedostomuotojen muuntamisen Debianin <tt>deb</tt>-paketeiksi.
+Näin ollen on mahdollista käyttää <prgn>alien</prgn>-ohjelmaa
+toisesta Linux-jakelusta peräisin olevan paketin muuntamiseen
+haluamaasi pakettiformaattiin ja paketin asentamiseen järjestelmään.
+<package>alien</package> tukee myös LSB-paketteja.
+</sect1>
+
+<sect1 id="auto-apt">Automaattiasennus-komento
+<p>
+<prgn>auto-apt</prgn> on tarvittaessa paketteja asentava työkalu.
+<example>
+$ sudo auto-apt update
+ ... päivitä tietokanta
+$ auto-apt -x -y run
+Entering auto-apt mode: /bin/bash
+Exit the command to leave auto-apt mode.
+$ less /usr/share/doc/med-bio/copyright # käytä tiedostoa, jota ei ole
+ ...  Asennetaan tiedoston tarjoava paketti.
+ ... Asennetaan myös riippuvuudet
+</example>
+</sect1>
+
+<sect1 id="debsums">Asennettujen pakettitiedostojen varmennus
+<p>
+<prgn>debsums</prgn> mahdollistaa asennettujen pakettitiedostojen
+varmennuksen MD5-tarkistussummia vastaan. Joillekin paketeille ei ole
+saatavissa MD5-tarkistussummia. Mahdollinen väliaikainen korjaus
+ylläpitäjille:
+<example>
+# cat >>/etc/apt/apt.conf.d/90debsums
+DPkg::Post-Install-Pkgs {"xargs /usr/bin/debsums -sg";};
+^D
+</example>
+tekijänä Joerg Wendland <email>joergland@debian.org</email> (testaamaton).
+
+<![%f-ref;[
+<sect1 id="spy"><file>sources.list</file>:n optimointi
+<p>
+Testattaessa USA:ssa, hienot <file>sources.list</file>:n optimointiyritykset
+eivät tuottaneet merkittävää parannusta toimintaan. Tämä tehtiin valitsemalla
+käsin lähellä oleva sivusto <prgn>apt-setup</prgn>-ohjelmalla.
+<p>
+<prgn>apt-spy</prgn> luo <file>sources.list</file>-tiedoston automaattisesti
+perustuen saantiviiveisiin ja kaistanleveyteen. <prgn>netselect-apt</prgn>
+luo täydellisemmän <file>sources.list</file>:n, mutta käyttää huonompaa
+metodia parhaan peilin valitsemiseen (ping-aikojen vertailu).
+<example>
+# aptitude install apt-spy
+# cd /etc/apt ; mv sources.list sources.list.org
+# apt-spy -d testing -l sources.apt
+</example>
+</sect1>
+
+]]>
+
+
+</sect>
+
+<sect id="pecuriarities">Muita Debianin omituisuuksia
+
+<sect1 id="dpkg-divert"><prgn>dpkg-divert</prgn> -komento
+<p>
+<!-- copied from manual page -->
+Tiedostojen <strong>ohjaukset</strong> ovat tapa pakottaa <prgn>dpkg</prgn>
+asentamaan tiedosto muualle kuin sen oletussijaintiin. Ohjauksia voidaan
+käyttää Debianin pakettiskripteissä tiedoston siirtämiseen, kun se
+aiheuttaa törmäyksen. Järjestelmän ylläpitäjät voivat myös käyttää ohjauksia
+paketin asetustiedoston syrjäyttämiseen tai kun <prgn>dpkg</prgn>:n halutaan
+säilyttävän joitain tiedostoja (joita ei ole merkitty asetustiedostoiksi)
+asennettaessa uudempaa versiota paketista, joka sisältää kyseiset tiedostot.
+<![%f-ref;[(Katso <ref id="conffile">)]]>.
+<example>
+# dpkg-divert [--add]  <var>filename</var> # lisää "ohjaus"
+# dpkg-divert --remove <var>filename</var> # poista "ohjaus"
+</example>
+Yleensä ohjelman <prgn>dpkg-divert</prgn> käyttöä kannattaa välttää, jos
+se ei ole aivan välttämätöntä.
+</sect1>
+
+<sect1 id="equivs"> <package>equivs</package>-paketti
+<p>
+Käännettäessä ohjelmaa lähdekoodista, on parasta tehdä siitä oikea
+paikallinen Debian-paketti (<tt>*.deb</tt>).
+Käytä <tt>equivs</tt>-pakettia viimeisenä toivona.
+<example>
+Package: equivs
+Priority: extra
+Section: admin
+Description: Circumventing Debian package dependencies
+ This is a dummy package which can be used to create Debian
+ packages, which only contain dependency information.
+ (Debianin pakettiriippuvuuksien kiertäminen
+ Tätä valepakettia voidaan käyttää sellaisten Debian-pakettien
+ luomiseen, jotka sisältävät vain riippuvuussuhdetietoa.)
+</example>
+</sect1>
+
+<sect1 id="alternatives">Vaihtoehtoiset komennot
+<p>
+Komennon <prgn>vi</prgn> voi määrätä ajamaan ohjelman <prgn>vim</prgn>
+ohjelmalla <prgn>update-alternatives</prgn>:
+<example>
+# update-alternatives --display vi
+...
+# update-alternatives --config vi
+  Selection    Command
+-----------------------------------------------
+      1        /usr/bin/elvis-tiny
+      2        /usr/bin/vim
+*+    3        /usr/bin/nvi
+
+Enter to keep the default[*], or type selection number: 2
+</example>
+Debianin vaihtoehtojärjestelmän vaihtoehdot listataan hakemistossa
+<file>/etc/alternatives/</file> symbolisina linkkeinä.
+<p>
+X Window -ympäristön voi asettaa käyttämällä 
+<prgn>update-alternatives</prgn>:ia tiedostoihin
+<file>/usr/bin/x-session-manager</file> ja
+<file>/usr/bin/x-window-manager</file>.
+<![%f-ref;[
+Lisätietoja löytyy kappaleesta <ref id="custom-x">.
+]]>
+<p>
+<file>/bin/sh</file> on suora symbolinen linkki tiedostoon
+<file>/bin/bash</file> tai <file>/bin/dash</file>.  On turvallisempaa
+käyttää <file>/bin/bash</file>:ia, joka on yhteensopiva
+vanhojen Bashismin saastuttamien skriptien kanssa, mutta
+POSIX-yhteensopivuuteen vaativan <file>/bin/dash</file>:n käyttö
+pakottaa kurinalaisuuteen. Linuxin 2.4-ytimeen päivittäminen
+tyypillisesti asettaa linkin tiedostoon <file>/bin/dash</file>.
+</sect1>
+
+<sect1 id="sys-v">Ajotasojen käyttö
+<p>
+Asennettaessa useimmat Debian-paketit asettavat palvelunsa ajettaviksi
+ajotasoilla 2-5.
+Näin ollen ajotasojen 2, 3, 4 ja 5 välillä ei ole eroja
+mukauttamattomassa Debian-järjestelmässä.
+Debian jättää paikallisen ylläpitäjän vastuulle
+<![%f-ref;[
+ajotasojen mukauttamisen kappaleen <ref id="custombootscripts"> ohjeiden mukaan.
+]]>
+<![%q-ref;[
+ajotasojen mukauttamisen.
+]]>
+Tämä poikkeaa tavasta, jolla ajotasoja käytetään joissain muissa
+suosituista GNU/Linux-jakeluissa.
+Yksi mahdollisesti haluttu muutos on <prgn>xdm</prgn>:n
+tai <prgn>gdm</prgn>:n poistaminen ajotasolta 2,
+jolloin X-ikkunointijärjestelmä ei käynnisty
+käynnistyssekvenssin lopuksi. Se voidaan käynnistää
+vaihtamalla ajotasolle 3.
+<p>
+<![%f-ref;[
+Lisätietoja ajotasoista löytyy kappaleesta <ref id="runlevels">.
+]]>
+
+<sect1 id="disables">Pois päältä kytketyt taustapalvelut
+<p>
+Debianin kehittäjät suhtautuvat vakavasti järjestelmän turvallisuuteen.
+Monet taustapalvelut asennetaan niin, että
+vain osa palveluista ja ominaisuuksista ovat käytössä.
+<p>
+Komento <tt>ps aux</tt> ja tiedostojen <file>/etc/init.d/*</file> ja
+<file>/etc/inetd.conf</file> sisältö on tarkistettava, jos on mitään epäilyksiä
+(Exim:stä, DHCP:stä, ...).
+Myös <file>/etc/hosts.deny</file> kannattaa tarkistaa<![%f-ref;[ kuten
+kappaleessa <ref id="loginctrl">]]>.
+Myös komento <prgn>pidof</prgn> on hyödyllinen (katso 
+<manref name="pidof" section="8">). 
+<p>
+X11 ei oletuksena salli (etä-) TCP/IP-yhteksiä uusimmissa Debianin versioissa.
+<![%f-ref;[
+Katso <ref id="xtcp">.
+]]>
+SSH:n X-forwarding (X-yhteyksien edelleenvälittäminen) on myös estetty.
+<![%f-ref;[
+Katso <ref id="xssh">.
+]]>
+</sect1>
+</sect>
+
+</chapt>
