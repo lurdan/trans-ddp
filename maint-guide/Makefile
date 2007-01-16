@@ -65,21 +65,21 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
 
 $(MANUAL).en.ps: $(MANUAL).sgml
-	debiandoc2latexps -l en $<
+	debiandoc2latexps -s bin/fixlatex -l en $<
 	mv $(MANUAL).ps $(MANUAL).en.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -v -l $* $<
+	debiandoc2latexps -s bin/fixlatex -l $* $<
 
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
-	debiandoc2latexpdf -l en $<
+	debiandoc2latexpdf -s bin/fixlatex -l en $<
 	mv $(MANUAL).pdf $(MANUAL).en.pdf
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -s bin/fixlatex -l $* $<
 
 # publishing to the DDP web pages
 publish: all
