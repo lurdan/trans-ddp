@@ -10,6 +10,7 @@ BUILD_TYPE  := web
 # For DDP web build, we need to use woody machine.
 ifeq ("$(BUILD_TYPE)", "web")
 # temporary workaround until www-master updates debiandoc-sgml
+#export PATH=../quick-reference/bin/:${PATH}
 export PATH:=../quick-reference/bin/:${PATH}
 
 # Woodys default LaTeX settings need more memory for Korean PDF
@@ -30,7 +31,8 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 all: html txt ps pdf
 
 sources := $(wildcard *.??*.sgml)
-sources_noncjk := $(sources)
+#sources_noncjk := $(sources)
+sources_noncjk := $(filter-out maint-guide.zh-tw.sgml,$(sources))
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
@@ -65,21 +67,21 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
 
 $(MANUAL).en.ps: $(MANUAL).sgml
-	debiandoc2latexps -s bin/fixlatex -l en $<
+	debiandoc2latexps -l en $<
 	mv $(MANUAL).ps $(MANUAL).en.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -s bin/fixlatex -l $* $<
+	debiandoc2latexps -l $* $<
 
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
-	debiandoc2latexpdf -s bin/fixlatex -l en $<
+	debiandoc2latexpdf -l en $<
 	mv $(MANUAL).pdf $(MANUAL).en.pdf
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -s bin/fixlatex -l $* $<
+	debiandoc2latexpdf -l $* $<
 
 # publishing to the DDP web pages
 publish: all
