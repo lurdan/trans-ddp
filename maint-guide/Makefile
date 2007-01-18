@@ -32,7 +32,7 @@ all: html txt ps pdf
 
 sources := $(wildcard *.??*.sgml)
 #sources_noncjk := $(sources)
-sources_noncjk := $(filter-out maint-guide.zh-tw.sgml,$(sources))
+sources_noncjk := $(filter-out maint-guide.zh_TW.sgml,$(sources))
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
