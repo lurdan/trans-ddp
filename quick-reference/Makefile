@@ -13,6 +13,8 @@
 # Read local texmf.cnf file
 
 export TEXMFCNF=texmf:
+# ensure that bin/fixlatex is found
+export PATH:=bin/:$(PATH)
 
 # do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
 .SUFFIXES:
@@ -242,21 +244,21 @@ $(MANUAL2).%.txt: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 
 $(MANUAL1).%.dvi: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexdvi $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.dvi: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexdvi $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexdvi $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PS
 
 $(MANUAL1).%.ps: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexps $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.ps: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS)
 	ln -sf fix.latex.ent fix.ent
-	bin/debiandoc2latexps $(BUILD_OPT) -s bin/fixlatex -l  $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexps $(BUILD_OPT) -l  $$(echo $* | bin/getlocale) $<
 
 # PDF
 
@@ -264,13 +266,13 @@ $(MANUAL1).%.pdf: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS) \
                   %/hyperref-full.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-full.cfg hyperref.cfg
-	bin/debiandoc2latexpdf $(BUILD_OPT) -s bin/fixlatex -l $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 $(MANUAL2).%.pdf: $(MANUAL2).%.sgml $(MANUAL2).%.ent $(SGMLSRCS) \
                   %/hyperref-quick.cfg
 	ln -sf fix.latex.ent fix.ent
 	ln -sf $*/hyperref-quick.cfg hyperref.cfg
-	bin/debiandoc2latexpdf $(BUILD_OPT) -s bin/fixlatex -l $$(echo $* | bin/getlocale) $<
+	bin/debiandoc2latexpdf $(BUILD_OPT) -l $$(echo $* | bin/getlocale) $<
 
 # XML
 $(MANUAL1).%.xml: $(MANUAL1).%.sgml $(MANUAL1).%.ent $(SGMLSRCS)
