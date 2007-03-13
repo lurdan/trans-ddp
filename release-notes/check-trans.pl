@@ -24,10 +24,12 @@
 
 # Enable for debugging
 $DEBUG = 1;
-#
-#
+
+# Program configuration
 $ORIGLANG="en";
 $LANGS="ca cs da de es fi fr it ja ko nl pt pt_BR pt_PT ro ru sk sv vi zh_CN zh_TW";
+
+$|=1;
 
 $origrelease = find_current_release();
 
@@ -41,7 +43,9 @@ my $minor_orig_release = minor_version($origrelease);
 foreach $lang (split(" ",$LANGS)) {
     $langrelease = find_lang_release($lang);
     if ( $langrelease eq "NONE" ) {
-            print "WARN: [ $lang ] is not using SGML, skipping\n";
+        if ( check_po($lang) < 0 ) {
+            print "ERROR: [ $lang ] has no SGML nor PO files\n";
+        }
     } elsif ( $langrelease ne "EMPTY" ) {
         my $minor_lang_release = minor_version($langrelease);
         if ( $minor_lang_release < $minor_orig_release ) {
@@ -97,3 +101,23 @@ sub minor_version {
     return $minor;
 }
 
+sub check_po {
+    my ($LANG) = @_;
+    # Return if o PO files for translation available
+    return -1 if ( ! -e "$LANG/release-notes.$LANG.po" );
+    # or if LANG is not what we expected
+    return -1 if ( $LANG !~ /^[\w\_]+$/ ) ;
+    # or if we don't have gettext available
+    if ( ! -e "/usr/bin/msgfmt") {
+        print "WARN: Cannot check PO translation for $LANG, gettext not installed\n";
+        return -1;
+    }
+    $stats = `LC_ALL=C /usr/bin/msgfmt --stat -c -o /dev/null $LANG/release-notes.$LANG.po 2>&1`;
+    print "$LANG PO stats: $stats";
+    if ( $stats =~ /fuzzy/ or $stats =~ /untranslated/ ) {
+            print "\t$LANG PO translation OUT OF DATE\n";
+    } else {
+            print "\t$LANG PO translation up to date\n";
+    }
+    return 0;
+}
