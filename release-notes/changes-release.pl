@@ -18,8 +18,8 @@ getopts('dp:r:m:a:');
 # Debug
 my $debug       = $opt_d || 0;
 # Releases and path location 
-my $prevrelease = $opt_p || "woody";
-my $currelease  = $opt_r || "sarge";
+my $prevrelease = $opt_p || "sarge";
+my $currelease  = $opt_r || "etch";
 my $mirrordir   = $opt_m || "/home/mirrors/debian/debian.org";
 my $arch        = $opt_a || "i386";
 my @releases = ( $currelease, $prevrelease ) ;
@@ -35,6 +35,8 @@ foreach $releasei (0 .. $#releases ) {
 	foreach $componenti (0 .. $#components ) {
 		my $component = $components[$componenti];
 		$release{$release}{$component}=$mirrordir."/dists/".$release."/".$component."/binary-".$arch."/Packages";
+		$release{$release}{$component}=$mirrordir."/dists/".$release."/".$component."/binary-".$arch."/Packages.gz" if ! -r $release{$release}{$component};
+		$release{$release}{$component}=$mirrordir."/dists/".$release."/".$component."/binary-".$arch."/Packages.bz2" if ! -r $release{$release}{$component};
 		die "Cannot read  $release{$release}{$component}" if  ! -r  $release{$release}{$component};
 		print "Found component '$component' for release '$release' at $release{$release}{$component}\n" if $debug;
 	}
@@ -47,11 +49,11 @@ $totalnumbers{$prevrelease}=0;
 
 # For each release read all the files and make a *Big* hash
 
-foreach $file ( keys(%{$release{$prevrelease}}) ) {
-	read_file($prevrelease,$release{$prevrelease}{$file});
+foreach $component ( keys(%{$release{$prevrelease}}) ) {
+	read_file($prevrelease,$component,$release{$prevrelease}{$component});
 }
-foreach $file ( keys(%{$release{$currelease}}) ) {
-	read_file($currelease,$release{$currelease}{$file});
+foreach $component ( keys(%{$release{$currelease}}) ) {
+	read_file($currelease,$component,$release{$currelease}{$component});
 }
 
 # Once this is done compare all the packages found and their description
@@ -90,6 +92,10 @@ print "\n";
 # Final numbers:
 foreach $release ( keys(%totalnumbers) ) {
 	print "Total packages for ".$release.": ".$totalnumbers{$release}."\n";
+	foreach $componenti (0 .. $#components ) {
+		my $component = $components[$componenti];
+	        print "\tPackages in ".$component.": ".$totalcomponent{$release}{$component}."\n";
+        }
 } # of the foreach
 print "Added packages: $#added\n";
 print "Removed packages: $#removed\n";
@@ -176,9 +182,17 @@ sub retrieve_text {
 
 sub read_file {
 # Read in a Package file and retrieves packages for a given release
-	my ($release,$file)=@_;
+	my ($release,$component,$file)=@_;
 
-	open (FILE,"$file") || die ("Cannot open $file: $!");
+        print "Package file is $file\n";
+        if ( $file =~ /.gz$/ ) {
+            open (FILE,"gzip -d -c $file|") || die ("Cannot uncompress gzipped $file: $!");
+        } elsif ( $file =~ /.bz2$/ ) {
+            open (FILE,"bzip2 -d -c $file|") || die ("Cannot uncompress bzipped $file: $!");
+        } else {
+        # Standard, uncompressed file
+            open (FILE,"$file") || die ("Cannot open $file: $!");
+        }
 	print "Reading $file\n" if $debug;
 # Finite-state machine
 # 0 - no package
@@ -194,6 +208,7 @@ sub read_file {
 			$packages{$release}{$packagename}=$description."{".$version."}";
 			print "Found $packagename: $description ($version)\n" if $debug;
 			$totalnumbers{$release}++;
+			$totalcomponent{$release}{$component}++;
 			$state=0;
 		}
 		if ( /^$/ && $state > 0  ){
