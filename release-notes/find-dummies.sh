@@ -54,13 +54,36 @@ ARCH=i386
 # This probably needs no changes:
 PREV_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${PREV_RELEASE}/main/binary-${ARCH}/Packages"
 CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages"
+if [ ! -e "$CUR_RELEASE_PACK" ]; then
+# Try with .gz
+    CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages.gz"
+fi
+if [ ! -e "$CUR_RELEASE_PACK" ]; then
+# Try with .bz2
+    CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages.bz2"
+fi
+if [ ! -e "$CUR_RELEASE_PACK" ]; then
+    echo "ERROR: Could not find any release file for $CUR_RELEASE, looked into ${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/"
+    exit 1
+fi
+CUR_RELEASE_FILE=$CUR_RELEASE_PACK
+if echo $CUR_RELEASE_PACK | grep -q ".gz"; then
+    CUR_RELEASE_FILE=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
+    gzip -d -c $CUR_RELEASE_PACK >$CUR_RELEASE_FILE
+fi
+if echo $CUR_RELEASE_PACK | grep -q ".bz2"; then
+    CUR_RELEASE_FILE=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
+    bzip2 -d -c $CUR_RELEASE_PACK >$CUR_RELEASE_FILE
+fi
 
 tmpfile=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
 trap " [ -f \"$tmpfile\" ] && /bin/rm -f -- \"$tmpfile\"" 0 1 2 3 13 15
 # Find all packages that are "dummy"
-grep-available -n -s Package -F Description "dummy" $CUR_RELEASE_PACK  >$tmpfile
-grep-available -n -s Package -F Description "transitional" $CUR_RELEASE_PACK  >>$tmpfile
-grep-available -n -s Package -r -F Description "smooth|ease upgrade" $CUR_RELEASE_PACK  >>$tmpfile
+grep-available -n -s Package -F Description "dummy" $CUR_RELEASE_FILE  >$tmpfile
+grep-available -n -s Package -F Description "transitional" $CUR_RELEASE_FILE  >>$tmpfile
+grep-available -n -s Package -r -F Description "smooth|ease upgrade" $CUR_RELEASE_FILE  >>$tmpfile
+
+[ "$CUR_RELEASE_FILE" != "$CUR_RELEASE_PACK" ] && rm -f "$CUR_RELEASE_FILE"
 
 cat $tmpfile | sort -u |
 while read package; do
