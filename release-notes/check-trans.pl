@@ -27,7 +27,7 @@ $DEBUG = 1;
 
 # Program configuration
 $ORIGLANG="en";
-$LANGS="ca cs da de es fi fr it ja ko nl pt pt_BR pt_PT ro ru sk sv vi zh_CN zh_TW";
+$LANGS="ca cs da de es fi fr it ja ko nl pt pt_BR ro ru sk sv vi zh_CN zh_TW";
 
 $|=1;
 
