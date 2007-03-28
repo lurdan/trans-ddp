@@ -36,6 +36,7 @@ dropold:
 validate:	$(addsuffix .validate,$(SOURCES))
 
 # hmmm, this rule may need to be revised/tested
+.PHONY: publish
 publish:	all
 	[ -d $(PUBLISHDIR) ] || exit 1
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
@@ -43,6 +44,7 @@ publish:	all
 	$(install_file) developers-reference*.html/*.html developers-reference*pdf	\
 	   $(PUBLISHDIR)/$(MANUAL)
 	ln -sf index.en.html $(PUBLISHDIR)/$(MANUAL)/index.html
+	ln -sf developers-reference.en.pdf $(PUBLISHDIR)/$(MANUAL)/developers-reference.pdf
 
 developers-reference.html:	developers-reference.sgml
 	$(htmllink)
