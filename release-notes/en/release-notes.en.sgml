@@ -1,7 +1,7 @@
 <!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN" [
   <!entity % dynamicdata  SYSTEM "../dynamic.ent"       > %dynamicdata;
   <!entity % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
-  <!entity docid "$Id: release-notes.en.sgml,v 1.219 2007-04-01 14:41:50 fjp Exp $">
+  <!entity docid "$Id: release-notes.en.sgml,v 1.220 2007-04-02 08:13:43 fjp Exp $">
 ]>
 
 <!-- Be careful with automatic reformatting. Please note that the indentation
@@ -1706,7 +1706,7 @@ dpkg-deb: subprocess paste killed by signal (Broken pipe)
           example, sym53c8xx_2 has become sym53c8xx.</p>
 
           <p>You will then need to regenerate your initramfs image(s) by
-          executing <tt>update-initramfs -k all</tt>.</p>
+          executing <tt>update-initramfs -u -k all</tt>.</p>
 
           <p>Once you are running an &releasename; kernel and <prgn/udev/, you may
           reconfigure your system to access disks by an alias that is not
@@ -1842,6 +1842,112 @@ dpkg-deb: subprocess paste killed by signal (Broken pipe)
           FAQ">.</p>
 
         </sect1>
+]]>
+
+<![ %s390 [
+	<sect1 id="s390-config"><heading>S/390 hardware configuration</heading>
+
+	  <p>Not all S/390 hardware can be configured automatically. For the
+	  &releasename; kernels a new utility <package/sysconfig-hardware/ is
+	  used to correctly set up devices. Unfortunately documentation for
+	  this utility and its configuration files is not yet available. The
+	  configuration files for <package/sysconfig-hardware/ can be found
+          under <file>/etc/sysconfig/</file>.</p>
+
+	  <p>Especially if your system is currently running a 2.4 kernel,
+	  getting the configuration right can be a challenge. If you need any
+	  help, feel free to contact the
+	  <url id="http://lists.debian.org/debian-s390"
+	  name="Debian S/390 mailing list">.</p>
+
+	  <p>First install the utility and regenerate the initramfs initrd as
+	  the utility provides some scripts that need to be included in the
+	  initrd:
+	  <example>
+# aptitude install sysconfig-hardware
+# update-initramfs -u -k all
+	  </example></p>
+
+	<sect2 id="s390-dasd"><heading>Configuration for disks</heading>
+
+	  <p>This is done by modifying <file>/etc/zipl.conf</file>. The
+	  sysconfig utility can use the device path to the root device to
+	  enable it, which means that this path needs to be passed in the kernel
+	  boot parameters. For a regular dasd, the path is composed as follows:
+	  <example>
+&lt;bus&gt;-&lt;device&gt;
+	  </example>
+
+	  For the <tt/root/ parameter the partition needs to be appended to
+	  the path. So if your dasda is <tt/0.0.0122/, instead of
+	  <file>root=/dev/dasda1</file> you would include the following in
+	  the <tt/parameters/ line in <tt>/etc/zipl.conf</tt>:
+	  <example>
+root=/dev/disks/by-path/ccw-0.0.0122-part1
+	  </example>
+
+	  Or, alternatively you can use the <tt/enable/ parameter to specify
+	  the device to be enabled; in that case the partition:
+	  <example>
+root=/dev/dasda1 enable=ccw-0.0.0122
+	  </example>
+
+	  The paths to be used can vary for different devices. For example, for
+	  disks on a zFCP fiberchannel host adapter, the path consists of bus,
+	  device, driver, wwpn and lun. The parameters for a RAID1 would look
+	  like (on a single line):
+	  <example>
+root=/dev/md0 enable=ccw-0.0.2900-zfcp-0x21000020371c93a5:0
+enable=ccw-0.0.2900-zfcp-0x21000020371d8f94:0
+	  </example></p>
+
+	  <p>Other dasd devices (dasds not needed to bring up the root file
+	  system are enabled through configuration files in
+	  <file>/etc/sysconfig/hardware/</file>. For a regular dasd, you just
+	  need to touch a file with the device path in its name:
+	  <example>
+# cd /etc/sysconfig/hardware
+# touch config-ccw-0.0.0122
+	  </example>
+
+	  For disks on a zFCP fiberchannel host adapter the individual devices
+	  are listed inside the file. Using the same example as above,
+	  create a file <file/config-ccw-0.0.2900/ containing (second device
+	  truncated for readability):
+	  <example>
+ZFCP_DEVICES=(0x21000020371c93a5:0x0000000000000000 0x2100...:0x...)
+	  </example></p>
+
+	</sect2>
+	<sect2 id="s390-other"><heading>Configuration for network devices</heading>
+
+	  <p>Network devices are enabled through configuration files in
+	  <file>/etc/sysconfig/hardware/</file>. For a ctc network device with
+	  read channel <tt/0.0.0a00/ and write channel <tt/0.0.0a01/ and using
+	  the S/390 protocol, you would create a file <file/config-ccw-0.0.0a00/
+	  containing:
+	  <example>
+CCWGROUP_CHANS=(0.0.0a00 0.0.0a01)
+CTC_PROTOCOL=0
+	  </example>
+
+	  For a qeth network device with layer2 mode enabled, this could be a
+	  file <file/config-ccw-0.0.0600/:
+	  <example>
+CCWGROUP_CHANS=(0.0.0600 0.0.0601 0.0.0602)
+QETH_OPTIONS=(layer2)
+	  </example></p>
+
+	  <p>Supported options for ctc are: <tt/CTC_PROTOCOL/ and <tt/CTC_BUFFER/;
+	  and for qeth: <tt/QETH_PORTNAME/, <tt/QETH_PORTNO/ and <tt/QETH_OPTIONS/.
+	  </p>
+	  <p>As network devices on S/390 do not have a stable MAC address, it is
+	  not possible to use <prgn/udev/ persistent device naming. Instead you
+	  can add an option <tt/INTERFACE_NAME/ in the configuration file to
+	  rename an interface.</p>
+
+	</sect2>
+	</sect1>
 ]]>
 
         <sect1 id="mdadm"><heading>Upgrading mdadm</heading>
