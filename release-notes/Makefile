@@ -19,8 +19,7 @@ endif
 # sk: old Sarge translations missing essential information
 # vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
-# LANGUAGES := cs da ko pt_BR ro zh_CN zh_TW
-LANGUAGES := en ca de es fi fr it nl ja ru sv pt
+LANGUAGES := en fr pt
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
