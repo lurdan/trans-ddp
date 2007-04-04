@@ -16,7 +16,8 @@ po-sources := $(wildcard *.??*.po)
 sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
-sources_noncjk := $(sources)
+sources_lessja := $(patsubst project-history.ja.sgml,,$(sources))
+sources_noncjk := $(patsubst project-history.ko.sgml,,$(sources_lessja))
 
 $(MANUAL).pot: $(MANUAL).sgml
 	debiandoc2pot $(MANUAL).sgml > $(MANUAL).pot
