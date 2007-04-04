@@ -16,11 +16,11 @@ else
 endif
 
 # The following languages are currently disabled
-# fi, sk: old Sarge translations missing essential information
+# sk: old Sarge translations missing essential information
 # vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
 # LANGUAGES := cs da ko pt_BR ro zh_CN zh_TW
-LANGUAGES := en ca de es fr it nl ja ru sv pt
+LANGUAGES := en ca de es fi fr it nl ja ru sv pt
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
