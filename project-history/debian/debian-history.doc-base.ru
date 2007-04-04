@@ -8,3 +8,9 @@ Format: HTML
 Index: /usr/share/doc/debian-history/ru/index.html
 Files: /usr/share/doc/debian-history/ru/*.html
 
+Format: pdf
+Files: /usr/share/doc/debian-history/ru/*.pdf
+
+Format: PostScript
+Files: /usr/share/doc/debian-history/ru/*.ps.gz
+

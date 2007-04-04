@@ -36,7 +36,7 @@ update-po:
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
 html:
-	@if [ $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
+	@if [ ! -f $(MANUAL).en.html/index.en.html -o $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
           rm -r $(MANUAL).en.html; \
           echo debiandoc2html -c -l en $(MANUAL).sgml; \
           debiandoc2html -c -l en $(MANUAL).sgml; \
@@ -45,7 +45,7 @@ html:
 	@for i in $(sgml-sources) $(po-sources); do \
           nosuffix1=$${i%.sgml}; nosuffix=$${nosuffix1%.po}; \
 	  lang=$${nosuffix#$(MANUAL).}; \
-	  if [ $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
+	if [ ! -f $(MANUAL).$$lang.html/index.$$lang.html -o $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
 	    sgmlfile=$$nosuffix.sgml; \
 	    [ $$sgmlfile != $$i ] && make $$sgmlfile; \
 	    echo debiandoc2html -c -l $$lang $$sgmlfile; \
