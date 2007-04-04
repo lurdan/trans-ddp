@@ -1,7 +1,7 @@
 <!DOCTYPE debiandoc PUBLIC "-//DebianDoc//DTD DebianDoc//EN" [
   <!entity % dynamicdata  SYSTEM "../dynamic.ent"       > %dynamicdata;
   <!entity % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
-  <!entity docid "$Id: release-notes.en.sgml,v 1.248 2007-04-04 01:00:36 vorlon Exp $">
+  <!entity docid "$Id: release-notes.en.sgml,v 1.249 2007-04-04 01:25:16 vorlon Exp $">
 ]>
 
 <!-- Be careful with automatic reformatting. Please note that the indentation
@@ -945,7 +945,7 @@ release: architectures:
 
        </sect1>
 
-       <sect1><heading>Prepare a safe environment for the upgrade</heading>
+       <sect1 id="upgrade_preparations"><heading>Prepare a safe environment for the upgrade</heading>
 
           <p>The distribution upgrade should be done either locally from a
           textmode virtual console (or a directly connected serial
@@ -1461,22 +1461,23 @@ You can list packages that take up most of the disk space with
 
         <sect1 id="minimal_upgrade"><heading>Minimal system upgrade</heading>
 
-        <p>Before you start the full upgrade you have to make a minimal system upgrade
-        to ensure you have the basic system libraries upgraded.</p>
+        <p>Because of certain necessary package conflicts between &oldreleasename;
+        and &releasename;, running <tt>aptitude dist-upgrade</tt> directly will
+        often remove large numbers of packages that you will want to keep.  We
+        therefore recommend a two-part upgrade process, first a minimal upgrade to
+        overcome these conflicts, then a full <tt>dist-upgrade</tt>.
+        </p>
 
-        <p>First run:
+        <p>First, run:
           <example>
 # aptitude upgrade
           </example>
         </p>
 
-        <p>This will upgrade a number of packages, including <package/base-files/,
-        <package/console-common/, and <package/debconf/. You will be asked information
-        about your console keymap as well as the default level and frontend for
-        package configuration questions.</p>
+        <p>This has the effect of upgrading those packages which can be upgraded
+        without requiring any other packages to be removed or installed.</p>
 
-        <p>You have to follow the minimal upgrade with:
-
+        <p>Follow the minimal upgrade with:
           <example>
 # aptitude install initrd-tools
           </example></p>
@@ -1487,18 +1488,31 @@ You can list packages that take up most of the disk space with
         restarted, including <prgn/xdm/, <prgn/gdm/ and <prgn/kdm/, as a
         consequence local X11 sessions will be disconnected.</p>
 
-        <p>The following step depends on your system configuration:
+        <p>The next step will vary depending on the set of packages that you have
+        installed.  These release notes give general advice about which method
+        should be used, but if in doubt, it is recommended that you examine the
+        package removals proposed by each method before proceeding.</p>
+        <p>Some common packages that are expected to be removed include
+        <package/base-config/, <package/hotplug/, <package/xlibs/,
+        <package/netkit-inetd/, <package/python2.3/, <package/xfree86-common/,
+        and <package/xserver-common/.  For a more complete list of packages
+        obsoleted in &releasename;, see <ref id="obsolete">.
+        </p>
 
-          <p><list>
-          <item><p>If you are running a system with a Desktop environment, you first
-          have to verify if you have <package/libfam0c102/ and <package/xlibmesa-glu/
-          installed. You have them installed if you have selected &oldreleasename;'s
-          Desktop task but if you have a custom-made environment you have to manually
-          verify it:
+         <sect2 id="minimal_upgrade_desktop"><heading>Upgrading a desktop system</heading>
+        <p>This upgrade path has been verified to work on systems with the sarge
+        <tt>desktop</tt> task installed.  It is probably the method that will give
+        the best results on systems with the <tt>desktop</tt> task installed, or
+        with the <tt>gnome</tt> or <tt>kde</tt> packages installed.
+
+        <p>It is probably <em>not</em> the correct method to use if you do not
+        already have the <package/libfam0c102/ and <package/xlibmesa-glu/ packages
+        installed:
           <example>
-# dpkg -l "libfam*" | grep ^ii
-# dpkg -l "xlibmesa-glu*" | grep ^ii
+# dpkg -l libfam0c102 | grep ^ii
+# dpkg -l xlibmesa-glu | grep ^ii
           </example>
+        </p>
 
           If you have them installed then you have to install the latest
           versions from &releasename;. The following command will install both,
@@ -1508,43 +1522,91 @@ You can list packages that take up most of the disk space with
 # aptitude install libfam0 xlibmesa-glu
           </example></p>
 
+         </sect2>
+
+         <sect2 id="minimal_upgrade_x_server"><heading>Upgrading a system with some X packages installed</heading>
+        <p>Systems with some X packages installed, but not the full
+        <tt>desktop</tt> task, require a different method.  This method applies in
+        general to systems with <package/xfree86-common/ installed, including some
+        server systems which have <package/tasksel/ server tasks installed as some
+        of these tasks include graphical management tools.  It is likely the
+        correct method to use on systems which run X, but do not have the full
+        <tt>desktop</tt> task installed.
+        <example>
+# dpkg -l xfree86-common | grep ^ii
+        </example>
+        </p>
+
+        <p>First, check whether you have the <package/libfam0c102/ and
+        <package/xlibmesa-glu/ packages installed.
+          <example>
+# dpkg -l libfam0c102 | grep ^ii
+# dpkg -l xlibmesa-glu | grep ^ii
+          </example>
+        </p>
+
+        <p>If you do not have <package/libfam0c102/ installed, do not include
+        <package/libfam0/ in the following commandline.  If you do not have
+        <package/xlibmesa-glu/ installed, do not include it in the following
+        commandline.
+          <footnote>This command will determine whether you need libfam0 and
+          xlibmesa-glu installed, and auto-select them for you:
+          <example>
+# aptitude install x11-common \
+  $(dpkg-query --showformat '${Package} ${Status}\n' -W libfam0c102 xlibmesa-glu \
+    | grep 'ok installed$' | sed -e's/ .*//; s/c102//')
+          </example>
+          </footnote>
+
+          <example>
+# aptitude install <var>libfam0</var> <var>xlibmesa-glu</var> x11-common
+          </example>
+        </p>
+
           <p>Note that doing this will also install the File Alteration Monitor
           (<package/fam/) as well as the RPC portmapper (<package/portmap/) if
           not already available in your system. Both packages will enable a new
           network service in the system although they can both be configured to
           be bound to the (internal) loopback network device.</p>
+         </sect2>
 
-          <item><p>For all other systems, verify if you have any
-          X Window System packages installed by running the following command:
+         <sect2 id="minimal_upgrade_server"><heading>Upgrading a system with no X support installed</heading>
+        <p>On a system with no X, no additional aptitude install command should be
+        required, and you can move on to the next step.
+        </p>
+
+         </sect2>
+
+        </sect1>
+
+        <sect1 id="upgrading_kernel"><heading>Upgrading the kernel</heading>
+
+          <p>If your system does not have the <tt>desktop</tt> task installed, or
+          other packages that would cause an unacceptable number of package
+          removals, it is recommended that you upgrade the kernel at this point.
+          The reason for this is that the next step will install the latest
+          <package/udev/ and remove <package/hotplug/, removing hotplug support for
+          Linux kernels before 2.6.15 at some point during the
+          <tt>dist-upgrade</tt>.  Although this should not remove any kernels you
+          currently have installed, in some cases your previous kernel will not
+          detect and load drivers for all hardware if booted without compatible
+          hotplug support. See <ref id="upgrade_preparations"> for recommendations
+          on preparing for this possibility if you are upgrading remotely.</p>
+
+          <p>To proceed with this kernel upgrade, run:
           <example>
-# dpkg -l "xfree86-common*" | grep ^ii
+# aptitude install linux-image-2.6-<var>flavor</var>
           </example>
 
-          Notice that if you selected some server tasks in &oldreleasename; you
-          might have parts of it installed. If you have the X Window System
-          installed you will need to upgrade to the latest version in
-          &releasename;:
+          See <ref id="newkernel"> for help in determining which flavor of kernel
+          package you should install.</p>
 
-          <example>
-# aptitude install x11-common
-          </example>
-
-          <p>If you are running a server system, with no X packages
-          installed, you do not need to do any additional installation steps.
-          </p>
-
-          </list></p>
-
-        <p>Note: After this minimal upgrade has finished you might want to
-        consider upgrading the kernel before upgrading the full system,
-        as described in <ref id="newkernel">.
-        Doing so reduces the timeframe in which the system will not
-        properly boot if rebooted accidentally.
-        This is because the full upgrade described in the next section will
-        install a new version of <prgn/udev/ and will remove <prgn/hotplug/.
-        This might not be an option for systems with a Desktop environment,
-        as large parts of the system will be removed if you do the kernel
-        upgrade here.</p>
+          <p>In the desktop case, it is unfortunately not possible to ensure the
+          new kernel package is installed immediately after the new <package/udev/
+          is installed, so there is a window of unknown length when your system
+          will have no kernel installed with full hotplug support.  See <ref
+          id="newkernel"> for information on configuring your system to not depend
+          on hotplug for booting.</p>
 
         </sect1>
 
