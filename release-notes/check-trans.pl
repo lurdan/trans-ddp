@@ -103,7 +103,7 @@ sub minor_version {
 
 sub check_po {
     my ($LANG) = @_;
-    # Return if o PO files for translation available
+    # Return if no PO files for translation available
     return -1 if ( ! -e "$LANG/release-notes.$LANG.po" );
     # or if LANG is not what we expected
     return -1 if ( $LANG !~ /^[\w\_]+$/ ) ;
