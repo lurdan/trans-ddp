@@ -67,11 +67,10 @@ else
 	  ln -sf index.en.html upgrade-$$arch/index.html; \
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
 	done
-	# Jens: where are ps and pdf versions?
 # XXX needs to be updated for each release that introduces new architectures!
-#	for newarch in mips mipsel ia64 hppa s390; do \
-#          mv upgrade-$$newarch disks-$$newarch; \
-#        done
+	for newarch in amd64; do \
+          mv upgrade-$$newarch disks-$$newarch; \
+        done
 	tar cjf relnotes.tar.bz2 upgrade-*
 	rm -rf upgrade-* disks-*
 endif
