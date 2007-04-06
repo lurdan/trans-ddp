@@ -1,5 +1,6 @@
 #
 # Makefile for the release notes, language subdirectory
 #
-include $(CURDIR)/../Makefile.common
+ENCODING := iso-8859-2
 
+include $(CURDIR)/../Makefile.common
