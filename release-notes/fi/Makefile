@@ -1,5 +1,6 @@
 #
 # Makefile for the release notes, language subdirectory
 #
-include $(CURDIR)/../Makefile.common
+ENCODING := latin1
 
+include $(CURDIR)/../Makefile.common
