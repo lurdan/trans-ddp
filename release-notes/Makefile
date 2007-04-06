@@ -15,7 +15,6 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# The following languages are currently disabled
 # vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
 LANGUAGES := en cs de fr pt
@@ -33,6 +32,7 @@ $(LANGUAGES):
 
 publish: clean
 ifneq "$(PUBLISHDIR)" ""
+	# This branch is used for official website builds
 	set -ex; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
@@ -54,6 +54,7 @@ ifneq "$(PUBLISHDIR)" ""
 	  if [ -n "$(PUBLISHTARBALL)" ]; then (cd release-notes-$$arch && tar czf $(PUBLISHDIR)/release-notes-$$arch.tar.gz *); fi \
 	done
 else
+	# This branch is probably no longer used (FJP 20060406)
 	set -e; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
@@ -68,9 +69,10 @@ else
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
 	done
 # XXX needs to be updated for each release that introduces new architectures!
-	for newarch in amd64; do \
-          mv upgrade-$$newarch disks-$$newarch; \
-        done
+	# Code is probably obsolete
+	#for newarch in amd64; do \
+        #  mv upgrade-$$newarch disks-$$newarch; \
+        #done
 	tar cjf relnotes.tar.bz2 upgrade-*
 	rm -rf upgrade-* disks-*
 endif
