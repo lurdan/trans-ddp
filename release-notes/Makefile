@@ -17,7 +17,7 @@ endif
 
 # vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
-LANGUAGES := en cs de fr pt ro
+LANGUAGES := en ca cs de fr pt ro
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
