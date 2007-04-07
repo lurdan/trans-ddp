@@ -63,18 +63,12 @@ else
 	    $(install_file) $$lang/release-notes.$$lang.html/* upgrade-$$arch; \
 	    $(install_file) $$lang/release-notes.$$lang.txt upgrade-$$arch; \
 	    $(install_file) $$lang/release-notes.$$lang.pdf upgrade-$$arch; \
-	    $(install_file) $$lang/release-notes.$$lang.ps upgrade-$$arch; \
 	  done; \
 	  ln -sf index.en.html upgrade-$$arch/index.html; \
 	  ln -sf release-notes.en.txt upgrade-$$arch/Release-Notes; \
 	done
-# XXX needs to be updated for each release that introduces new architectures!
-	# Code is probably obsolete
-	#for newarch in amd64; do \
-        #  mv upgrade-$$newarch disks-$$newarch; \
-        #done
 	tar cjf relnotes.tar.bz2 upgrade-*
-	rm -rf upgrade-* disks-*
+	rm -rf upgrade-*
 endif
 
 clean::
