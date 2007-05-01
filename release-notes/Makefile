@@ -15,7 +15,6 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# vi: Not supported by the Sarge build system (lets ask the webmaster for an upload?)
 # All translations disabled; will be enabled as updates for Etch come in
 LANGUAGES := en ca cs de es fi fr it ja pt pt_BR ro ru sv zh_TW
 
