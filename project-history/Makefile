@@ -20,14 +20,14 @@ sources_lessja := $(patsubst project-history.ja.sgml,,$(sources))
 sources_noncjk := $(patsubst project-history.ko.sgml,,$(sources_lessja))
 
 $(MANUAL).pot: $(MANUAL).sgml
-	debiandoc2pot $(MANUAL).sgml > $(MANUAL).pot
+	po4a-gettextize -f sgml -m $(MANUAL).sgml -p $(MANUAL).pot
 
 # Update PO files after each change of $(MANUAL).sgml to avoid possible build errors
 $(po-sources): $(MANUAL).%.po: $(MANUAL).sgml $(MANUAL).pot
 	msgmerge --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
 
 $(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).sgml
-	po2debiandoc $(MANUAL).sgml $(MANUAL).$*.po > $(MANUAL).$*.sgml
+	po4a-translate -f sgml -m $(MANUAL).sgml -p $(MANUAL).$*.po -l $(MANUAL).$*.sgml
 
 update-po:
 	$(MAKE) $(po-sources)
