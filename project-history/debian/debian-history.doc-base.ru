@@ -13,4 +13,3 @@ Files: /usr/share/doc/debian-history/ru/*.pdf.gz
 
 Format: PostScript
 Files: /usr/share/doc/debian-history/ru/*.ps.gz
-
