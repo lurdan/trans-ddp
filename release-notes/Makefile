@@ -15,8 +15,7 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# All translations disabled; will be enabled as updates for Etch come in
-LANGUAGES := en ca cs de es fi fr it ja pt pt_BR ro ru sv zh_TW
+LANGUAGES := en ca cs de es fi fr it ja pl pt pt_BR ro ru sv zh_TW
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
