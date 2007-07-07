@@ -1,4 +1,4 @@
-<!-- CVS revision of original english document "1.30" -->
+<!-- CVS revision of original english document "1.33" -->
 
 <chapt id="sec-services">Absichern von Diensten, die auf Ihrem System
 laufen
@@ -196,9 +196,20 @@ Sicherheitsgründen) zu akzeptieren.
 <p>Wenn Sie <em>nicht</em> möchten, das Benutzer Dateien zum und vom
 ssh-Server übertragen, müssen Sie den Zugang zu <prgn>sftp-server</prgn>
 <em>und</em> zu <prgn>scp</prgn> einschränken. Sie können dies für
-<prgn>sftp-server</prgn> tun, indem Sie den korrekten <tt>Subsystem</tt>
-Wert in <file>/etc/ssh/sshd_config</file> eintragen. Um jedoch den Zugang
-zu <prgn>scp</prgn> einzuschränken, müssen Sie entweder:
+<prgn>sftp-server</prgn> tun, indem Sie den korrekten <tt>Subsystem</tt>-Wert
+in <file>/etc/ssh/sshd_config</file> eintragen.
+
+<p>Sie können auch Benutzer mittels <package>libpam-chroot</package> in eine
+Chroot-Umgebung einsperren, so dass sie, selbst wenn Dateitransfers erlaubt
+sind, auf eine bestimmte Umgebung festgelegt sind, die keine Systemdateien
+enthält.
+
+
+<sect1 id="ssh-only-file">Beschränkung des Zugangs auf Dateitransfers
+
+<p>Sie können den Zugang von Benutzern der Gestalt beschränken, dass sie nur
+Dateien übertragen können, aber keine interaktive Shell erhalten. Dies können
+Sie mit den folgenden Methoden erreichen:
 
 <list>
 
@@ -206,11 +217,10 @@ zu <prgn>scp</prgn> einzuschränken, müssen Sie entweder:
 oben beschrieben entweder durch die Konfigurationsdatei oder die
 PAM-Konfiguration), oder
 
-<item>Benutzern, denen sichere Übertragungen verwehrt sind, richtige Shells
-vorenthalten. Die angebotenen Shells sollten dennoch Programme sein, die
-Verbindungen zum ssh-Server sinnvoll gestalten, wie z.B. Menü-Programme
-<!-- FIXME: What do you mean with "was useful at all"? -->
-(a la BBS). Andernfalls ist die vorherige Möglichkeit bevorzugt.
+<item>den Benutzern nur eine eingeschränkte Shell wie
+<package>scponly</package> oder <package>rssh</package> zuweisen. Diese Shells
+schränken die Befehle ein, die den Benutzern zur Verfügung stehen, so dass sie
+auf dem entfernten Rechner keine Befehle ausführen können.
 
 </list>
 
@@ -937,12 +947,19 @@ möglich ist. Wir werden die Schritte, die dazu nötig sind,
 detailliert aufführen. Wenn Sie dies automatisch machen lassen wollen,
 können Sie das Skript in <ref id="bind-chuser"> ausprobieren.
 
+<p>Beachten Sie, dass dies nur auf die BIND-Version 8 zutrifft. In den
+Debian-Paketen für die BIND-Version 9 wird der Benutzer <em>bind</em> erstellt
+(seit Version 9.2.1-5, ist in <em>Sarge</em> enthalten) und mit der Variable
+OPTIONS in <file>/etc/default/bind9</file> verwendet. Wenn Sie BIND 9 einsetzen
+und Ihr Nameserver nicht als Benutzer <em>bind</em> läuft, sollten Sie die
+Einstellungen in dieser Datei überprüfen.
+
 <p>Um BIND unter einem anderen Benutzer laufen zu lassen, müssen Sie
-zunächst einen separaten Benutzer und eine separate Gruppe dafür
+zunächst einen zusätzlichen Benutzer und eine zusätzlich Gruppe dafür
 erstellen (es ist <em>keine</em> gute Idee, für alle Dienste, die
-Sie nicht als root laufen lassen, den Benutzer nobody und die Gruppe nogroup
+Sie nicht als Root laufen lassen, den Benutzer nobody und die Gruppe nogroup
 zu benutzen). In diesem Beispiel wird der Benutzer und die Gruppe
-<tt>named</tt> benutzt. Sie können diese anlegen, indem Sie die
+<tt>named</tt> verwendet. Sie können diese anlegen, indem Sie die
 folgenden Kommandos eingeben:
 <example>
 addgroup named
@@ -965,12 +982,20 @@ start-stop-daemon --start
 
 anfängt zu<footnote>Beachten Sie, dass Sie abhängig von Ihrer
 Bind-Version die Option <tt>-g</tt> nicht haben, höchstwahrscheinlich
-wenn Sie bind9 von Woody (9.2.1-2.woody) oder Sarge (9.2.4) installiert haben.</footnote>:
+wenn Sie bind9 von Sarge (9.2.4) installiert haben.</footnote>:
 <example>
 start-stop-daemon --start --quiet --exec /usr/sbin/named -- -g named -u named
 </example>
 
-<P>Ändern Sie die Rechte der Dateien, die von Bind verwendet werden, inklusive
+<p>Alternativ dazu können Sie auch die Standardkonfigurationsdatei (bei BIND 8
+<file>/etc/default/bind</file>) bearbeiten (und erstellen, falls sie nicht
+vorhanden ist) und Folgendes einfügen:
+
+<example>
+OPTIONS="-u named -g named"
+</example>
+
+<p>Ändern Sie die Rechte der Dateien, die von Bind verwendet werden, inklusive
 <file>/etc/bind/rndc.key</file>:
 
 <example>
@@ -991,15 +1016,15 @@ options { ...
 [ ... ]
 </example>
 
-<p>Außerdem müssen Sie, um zu verhindern, dass irgendetwas als root
-läuft, die <tt>reload</tt>-Zeile auskommentieren:
+<p>Außerdem müssen Sie, um zu verhindern, dass irgendetwas als Root
+läuft, im Init.d-Skript die <tt>reload</tt>-Zeile von:
 
 <example>
 reload)
        /usr/sbin/ndc reload
 </example>
 
-<p>und in Folgendes ändern:<!--Jens: <p> überprüfen -->
+<p>in Folgendes ändern:
 <example>
 reload)
         $0 stop
@@ -1086,7 +1111,7 @@ id="http://web.archive.org/web/20011024064030/http://www.psionic.com/papers/dns/
 <p>Wenn Sie für Bind ein komplettes
 Chroot-Gefängnis aufsetzen (d.h. Sie benutzen nicht nur <tt>-t</tt>),
 stellen Sie sicher, dass Sie die folgenden Dateien darin haben:<footnote>
-Diese Einstellungen wurden für Bind 8.4.3 von Debian 2.2 (Potato) getestet.</footnote>
+Diese Einstellungen wurden für die neueren Veröffentlichung von Bind noch nicht getestet.</footnote>
 
 <!-- FIXME: This needs to be reviewed -->
 
@@ -1097,10 +1122,10 @@ etc/bind/named.conf
 etc/localtime
 etc/group - mit einer einzigen Zeile: "named:x:GID:"
 etc/ld.so.cache - mit ldconfig erstellt   
-lib/ld-2.1.3.so
-lib/libc-2.1.3.so
-lib/ld-linux.so.2 - symbolischer Link auf ld-2.1.3.so
-lib/libc.so.6 - symbolischer Link auf libc-2.1.3.so
+lib/ld-2.3.6.so
+lib/libc-2.3.6.so
+lib/ld-linux.so.2 - symbolischer Link auf ld-2.3.6.so
+lib/libc.so.6 - symbolischer Link auf libc-2.3.6.so
 sbin/ldconfig - kann gelöscht werden, nachdem Chroot aufgesetzt wurde
 sbin/named-xfer - wenn Sie Namen transferieren
 var/run/
@@ -1134,9 +1159,12 @@ verschieben müssen.<footnote>Es sei denn, Sie benutzen die
 könnte das chroot-Gefängnis etwas komplizierter werden.</footnote> Sie
 können die <tt>init.d</tt>-Skripte in <file>/etc/init.d</file>
 lassen, so dass das System automatisch den Name-Server starten wird, aber
-editieren Sie sie, indem Sie bei den <prgn>start-stop-daemon</prgn>
-Aufrufen in diesen Skripten <tt>--chroot /location_of_chroot</tt>
-hinzufügen.
+editieren Sie sie, indem Sie bei den <prgn>start-stop-daemon</prgn>-Aufrufen
+in diesen Skripten <tt>--chroot /location_of_chroot</tt>
+hinzufügen. Oder verwenden Sie für BIND die Option <em>-t</em>, indem Sie sie
+in das OPTION-Argument in der Konfigurationsdatei
+<file>/etc/default/bind</file> (für Version 8) oder
+<file>/etc/default/bind9</file> (für Version 9) eintragen.
 
 <p>Für weitere Informationen wie man Chroot-Gefängnisse aufsetzt,
 siehe <ref id="chroot">.
@@ -1228,22 +1256,6 @@ von Apache hinzufügen:
 <example>
 Userdir disabled
 </example>
-
-<p>Beachten Sie, dass <tt>disabled</tt> nur ab Version 1.3 von Apache verfügbar
-ist 
-<footnote>Falls Sie eine ältere Version von Apache einsetzen (wovon
-abgeraten wird, da sie seit der Veröffentlichung von Apache 1.3 in Woody nicht
-mehr unterstützt wird), müssen Sie der Konfigurationsdatei Folgendes
-hinzufügen:
-
-<example>
-&lt;Directory /home/*/public_html&gt;
-    AllowOverride None
-    Order deny,allow
-    Deny from all
-&lt;/Directory&gt;
-</example>
-</footnote>.
 
 <p>Ein Angreifer kann immer noch die Benutzer herausfinden, da die Antwort
 des Web-Servers <em>403 Permission Denied</em> und nicht
@@ -1525,22 +1537,19 @@ beschränken:
 <sect id="firewall-setup">Hinzufügen von Firewall-Fähigkeiten
 
 <p>Das Debian-GNU/Linux-Betriebssystem hat die eingebauten
-Fähigkeiten des Linux-Kernels.<footnote>Ältere
-Debian-Distributionen benötigen einen passenden
-Kernelpatch. Zum Beispiel verwendete Debian 2.1 den Kernel 2.0.34, der diese
-Funktionen nicht enthielt.</footnote>
-Dies heißt, dass Sie, wenn Sie ein
-Potato-System (Debian 2.2 mit dem standardmäßigen Kernel 2.2) installiert haben,
-<prgn>ipchains</prgn> Firewall-Unterstützung im Kernel
-haben. Das Paket <package>ipchains</package> sollte bereits (aufgrund seiner
-Priorität) installiert sein.
-Wenn Sie ein Debian 3.0 (oder 3.1) System installiert haben (der
-Standard-Kernel ist 2.4), so verfügen Sie auch über die
-<prgn>iptables</prgn> (netfilter) Firewall. Der Hauptunterschied zwischen
-<prgn>ipchains</prgn> und <prgn>iptables</prgn> ist, dass letzteres auf
-<em>stateful packet inspection</em> (zustandsbehaftete Paketuntersuchung)
-beruht, so dass Ihnen sicherere (und einfacher zu erstellende)
-Filterkonfigurationen zur Verfügung stehen.
+Fähigkeiten des Linux-Kernels. Wenn Sie eine aktuelle Veröffentlichung von
+Debian (mit dem Standardkernel 2.6) installiert haben, steht Ihnen als Firewall
+<prgn>iptables</prgn> (netfilter) zur Verfügung<footnote>Ist seit Kernel 2.4
+verfügbar (was der Standardkernel für Debian 3.0 war). Ältere Kernelversionen
+(wie 2.2, der in älteren Debian-Veröffentlichungen enthalten war) verwendeten
+<prgn>ipchains</prgn>. Der Hauptunterschied zwischen <prgn>ipchains</prgn> und
+<prgn>iptables</prgn> ist, dass letzteres auf <em>stateful packet
+inspection</em> (zustandsbehaftete Paketuntersuchung) beruht, so dass Ihnen
+sicherere (und einfacher zu erstellende) Filterkonfigurationen zur Verfügung
+stehen. Ältere (und nun nicht länger unterstützte) Debian-Veröffentlichungen,
+die den Kernel 2.0 einsetzen, benötigten einen geeigneten Kernel-Patch.
+</footnote>.
+
 
 <sect1>Firewallen des lokalen Systems
 
@@ -1959,8 +1968,13 @@ case "$1" in
 exit 0
 </example>
 
+<p>Um nicht alle Iptables-Regeln in das Init.d-Skript einfügen zu müssen,
+können Sie auch das Programm <prgn>iptables-restore</prgn> verwenden, um die
+Regeln zu laden, die zuvor mit <prgn>iptables-save</prgn> gespeichert
+wurden. Um dies zu tun, müssen Sie Ihre Regeln erstellen und das Regelwerk
+statisch speichern (z.B. in <file>/etc/default/firewall</file>).
 
-<sect2>Konfiguration von Firewall-Regeln mittels ifup
+<sect2>Konfiguration von Firewall-Regeln mittels <prgn>ifup</prgn>
 
 <p>Sie können auch die Netzwerkkonfiguration in
 <file>/etc/network/interfaces</file> verwenden, um Ihre Firewall-Regeln
@@ -1998,68 +2012,6 @@ Schnittstellenkonfiguration hinzu:
 verfügbaren Hooks (Einspringpunkte) wie in den
 <file>*.d/</file>-Verzeichnissen verwenden, die mit
 <prgn>run-parts</prgn> aufgerufen werden (vergleiche <manref name="run-parts" section="8">).
-
-
-<sect2>Machen Sie es auf die (alte) Debian-Art
-
-<P><strong>ACHTUNG</strong>: Diese Informationen gelten nur für iptables
-in <em>Woody</em>. Versionen nach 1.2.7-8 haben nicht mehr länger das
-init.d-Skript, das hier beschrieben wird. Benutzer von Debian 3.1 (<em>Sarge</em>) oder
-neueren Veröffentlichungen sollten entweder die Firewall-Regeln manuell
-aufbauen oder eines der Programme zur Erzeugung einer Firewall verwenden, die
-weiter oben beschrieben wurden.
-
-<p>Wenn Sie Debian 3.0 oder neuer benutzen, werden Sie feststellen, dass Sie
-das Paket <package>iptables</package> installiert haben. Dies ist die
-Unterstützung für die Netfilter-Implementation in 2.4.4+
-Kerneln. Da das System nach der Installation aber keine Firewall-Regeln
-kennen kann (Firewall-Regeln sind zu systemspezifisch), müssen Sie
-iptables einschalten. Wie auch immer: Die Skripte wurden so
-konfiguriert, dass der Administrator Firewall-Regeln aufsetzen kann und
-die init-Skripte sie dann <em>lernen</em> können und so immer als
-das Setup der Firewall fungieren.
-
-<p>Hierzu müssen Sie Folgendes tun:
-
-<list>
-
-<item>Konfigurieren Sie das Paket so, dass es mit dem System gestartet
-wird. Bei neueren Versionen (seit 1.2.6a-1) werden Sie während der
-Installation hiernach gefragt. Sie können es hinterher wieder mit
-<tt>dpkg-reconfigure -plow iptables</tt> ändern. <em>Wichtig</em>:
-Bei älteren Versionen geschah dies noch durch Editieren von
-<file>/etc/default/iptables</file>, so dass die Variable
-<tt>enable_iptables_initd</tt> auf <em>true</em> gesetzt wurde.
-
-<item>Erstellen Sie ein Firewall-Setup mit iptables, benutzen Sie
-dazu die Kommandozeile (siehe <manref name="iptables" section="8">) oder
-andere Werkzeuge aus Debians Firewall-Paketen (siehe <ref
-id="firewall-pack">). Sie müssen einen Satz von Firewall-Regeln
-erstellen, die benutzt werden sollen, wenn die Firewall <em>aktiv</em> ist,
-und einen anderen, wenn die Firewall <em>inaktiv</em> (dies können
-auch nur leere Regeln sein) ist.
-
-<item>Sichern Sie die erstellten Regeln mit den Skripten
-<tt>/etc/init.d/iptables save active</tt> und <tt>/etc/init.d/iptables
-save inactive</tt>.
-<!-- Jens: FIXME
-by running these scripts with the firewall rules you want enabled.
--->
-
-</list>
-
-<p>Sobald dies geschehen ist, ist Ihr Firewall-Setup im Verzeichnis
-<file>/var/lib/iptables/</file> gespeichert und wird beim System-Boot
-ausgeführt (oder wenn das initd-Skript mit <em>start</em>- oder
-<em>stop</em>-Argument gestartet wird). Beachten Sie, dass die standardmäßigen
-Einstellungen unter Debian vorsehen, den Firewall-Code in den Multiuser-Runleveln 
-(2 bis 5) sehr früh (10) zu starten. Außerdem wird er im singleuser-Runlevel
-(1) gestoppt. Ändern Sie dies, wenn es nicht Ihren lokalen
-Richtlinien entspricht.
-
-<p>Bitte lesen Sie die Kommentare in der
-<file>/etc/default/iptables</file>-Konfigurationsdatei für weitere
-Informationen zu den dieses Paket betreffenden Dingen.
 
 
 <sect2>Testen Ihrer Firewall-Konfiguration
