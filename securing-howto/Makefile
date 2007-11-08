@@ -152,6 +152,11 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 $(MANUAL).%.pdf: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
 	debiandoc2latexpdf -l $(locale) $<
 
+# DVI
+
+$(MANUAL).%.dvi: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
+	debiandoc2dvi $<
+
 
 # =================================================================== #
 #                 Build rule part: Web publish                        #
