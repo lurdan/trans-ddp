@@ -65,6 +65,7 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 
 # generating PostScript
 ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
+	echo "Tex problem prevents PS build" >$(MANUAL).ko.ps
 
 $(MANUAL).en.ps: $(MANUAL).sgml
 	debiandoc2latexps -l en $<
@@ -75,6 +76,7 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
+	echo "Tex problem prevents PDF build" >$(MANUAL).ko.pdf
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
 	debiandoc2latexpdf -l en $<
