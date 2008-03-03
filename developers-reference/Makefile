@@ -34,9 +34,9 @@ TRANSLATE=po4a-translate --format docbook --keep 0
 # note: the URL is used as identifier, no HTTP is used!
 DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 # for HTML output
-DBK2HTML=$(PWD)/html.xsl
+DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
-DBK2HTML1=$(PWD)/txt.xsl
+DBK2HTML1=$(CURDIR)/txt.xsl
 
 .PHONY:	all
 all:    $(filter-out $(BLACKLIST), $(TARGETS))
@@ -49,12 +49,12 @@ validate:			$(SOURCES)
 	cd $(@D) && $(XL) index.dbk
 
 .PHONY: developers-reference.html %/developers-reference.html
-developers-reference.html:	$(PWD)/index.html
+developers-reference.html:	$(CURDIR)/index.html
 %/developers-reference.html:	$(addprefix %/,index.html)
 	@true
 
 .PRECIOUS:			%/index.html
-index.html:			$(PWD)/developers-reference.html
+index.html:			$(CURDIR)/developers-reference.html
 %/index.html:			$(addprefix %/,$(SOURCES))
 	cd $(@D) && $(XP) $(DBK2HTML) index.dbk
 
@@ -62,7 +62,7 @@ index.html:			$(PWD)/developers-reference.html
 .PRECIOUS:		%.dbk %.ent
 ifndef LINGUA
 %.dbk %.ent: FORCE
-	$(MAKE) $@ LINGUA=$(@D)
+	$(MAKE) $@ LINGUA=`basename $(@D)`
 
 FORCE:
 else
@@ -73,12 +73,12 @@ $(LINGUA)/common.ent:	common.ent
 	cd $(@D) && ln -sf ../$(@F) .
 endif
 
-developers-reference.txt:	$(PWD)/developers-reference.txt
+developers-reference.txt:	$(CURDIR)/developers-reference.txt
 %/developers-reference.txt:	$(addprefix %/,$(SOURCES))
 	$(XP) $(DBK2HTML1) $(@D)/index.dbk \
 	    | w3m -cols 65 -dump -T text/html > $@
 
-developers-reference.pdf:       $(PWD)/developers-reference.pdf
+developers-reference.pdf:       $(CURDIR)/developers-reference.pdf
 %/developers-reference.pdf:     $(addprefix %/,$(SOURCES))
 	TOP=`pwd` && cd $(@D) && $(DBLATEX) index.dbk \
 	    && mv index.dbk.pdf $(@F)
