@@ -46,15 +46,16 @@ ALLFILES = $(foreach ext,$(FILEEXTS),\
 
 # maximum times we're willing to run TeX to get cross-references right, 
 # if you subtract by 3
+# CHECKME: Still used?
 MAX_TEX_RECURSION	:= 4
 
 # generate anything some dirs want version.ent to be built, some not
 
 DEBIAN=$(wildcard debian)
 ifeq ($(DEBIAN),"debian")
-all: version.ent $(TARGETS) publish
+all: version.ent $(TARGETS)
 else
-all: $(TARGETS) publish
+all: $(TARGETS)
 endif
 
 version.ent: debian/changelog
@@ -85,17 +86,17 @@ dynamic.%.ent:
 # I know.  But for now, I need to avoid circular dependence. (OA)
 #
 # Create starting SGML for each language from template
-# Actual contents are in language segrigated subdirectory
+# Actual contents are in language segregated subdirectory
 # generic rules for all the languages to each language
 $(MANUAL).%.sgml: $(SGMLMSTR)
 	sed -e "s/@@@@/$*/g" $< > $(MANUAL).$*.sgml
 
 #----[ generating HTML ]-------------------------------------------------------
 # FIXME: there is a trick because debiandoc2html does a sed 'y/.../...' 
-#        which should be reverted to have the content negociation working.
+#        which should be reverted to have the content negotiation working.
 #   This trick is bad. debiandoc2html should be corrected.
 $(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
-	debiandoc2html -t$(MANUAL) -l $* -c $< 2>_html.$*.error
+	debiandoc2html -t$(MANUAL) -l $* -c $<
 	@for file in `ls $(MANUAL).$*.html/*` ; do\
 	 newfile=`echo $$file|\
 	          sed 's/$(shell echo $*|\
@@ -104,12 +105,12 @@ $(MANUAL).%.html: $(MANUAL).%.sgml $(SGMLSRCS)
 	 if [ $$file != $$newfile ] ; then\
 	   mv $$file $$newfile;\
 	   echo "Rename $$file --> $$newfile";\
-	 fi\
-	done;   
+	 fi; \
+	done   
 
 #----[ generating plain text ]-------------------------------------------------
 $(MANUAL).%.txt: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
-	debiandoc2text -l $* $< 2>_txt.$*.error
+	debiandoc2text -l $* $<
 
 #----[ generating tov ]--------------------------------------------------------
 $(MANUAL).%.tov: $(MANUAL).%.sgml dynamic.%.ent date.ent $(SGMLSRCS)
@@ -208,7 +209,7 @@ $(MANUAL).tar.gz: $(TARSRCS)
 #====[ cleaning up ]===========================================================
 neat:
 	rm -f $(MANUAL)*.{dvi,log,tex,aux,toc,sasp*} *~
-	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent
+	rm -f $(MANUAL).??.sgml *.error dynamic.??.ent head.tmp body.tmp
 
 clean: neat
 	rm -f $(MANUAL)*.{txt,tov,texinfo,out,ps,pdf,info*,tar.gz} date.ent
