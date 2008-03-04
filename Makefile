@@ -1,5 +1,8 @@
 # Top-level makefile for the Debian Documentation Project manuals
 
+# parallel compiling is not possible, a lot of Makefiles do not support it
+MAKEFLAGS=j1
+
 # live documentation
 SUBDIRS	:=	\
 		apt-howto		\
