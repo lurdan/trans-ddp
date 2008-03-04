@@ -64,8 +64,8 @@ $(MANUAL).%.html: $(MANUAL).%.sgml
 	                  )\.html/$*\.html/'`;\
 	 if [ $$file != $$newfile ] ; then\
 	   mv $$file $$newfile;\
-	 fi\
-	done;   
+	 fi; \
+	done   
 
 
 #----[ generating plain text ]-------------------------------------------------
