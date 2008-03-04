@@ -46,6 +46,8 @@ EXTS := html txt pdf
 # if you subtract by 3 (taken from Adam di Carlo's boot-floppy trick)
 MAX_TEX_RECURSION	:= 4
 
+all: $(ALLFILES)
+
 # List of publish target for DDP
 publish: publish-html publish-files
 
@@ -104,8 +106,8 @@ $(MANUAL).%.html: $(MANUAL).%.sgml
 	                  )\.html/$*\.html/'`;\
 	 if [ $$file != $$newfile ] ; then\
 	   mv $$file $$newfile;\
-	 fi\
-	done;   
+	 fi;\
+	done   
 
 #----[ generating plain text ]-------------------------------------------------
 $(MANUAL).%.txt: $(MANUAL).%.sgml
@@ -131,57 +133,12 @@ $(MANUAL).%.tex: $(MANUAL).%.sgml
 	debiandoc2latex -l $* $<
 
 #----[ generating PostScript ]-------------------------------------------------
-$(MANUAL).%.ps: $(MANUAL).%.tex
-#	debiandoc2latexps -l $* $<
-# for now we avoid problem with above with followings
-# note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich latex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-latex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.ps=.log) for details
-	dvips -t `cat /etc/papersize` -o $(MANUAL).$*.ps $(MANUAL).$*
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
+$(MANUAL).%.ps: $(MANUAL).%.sgml
+	debiandoc2latexps -l $* $<
 
 #----[ generating PDF ]--------------------------------------------------------
-$(MANUAL).%.pdf: $(MANUAL).%.tex
-#	debiandoc2latexpdf -l $* $<
-# for now we avoid problem with above with followings
-# note that I have seen bi-stable .aux files, thus we check two levels deep
-	@-cp -pf prior.aux pprior.aux 2>/dev/null
-	@-cp -pf $(basename $<).aux prior.aux 2>/dev/null
-#	 fail if we don't have pdflatex correctly installed
-	@kpsewhich pdflatex.fmt >/dev/null
-#	 due to a bug in debiandoc2latex2e output, this might fail
-	@-pdflatex '\nonstopmode\input{$<}' >/dev/null 
-	# see $(@:.pdf=.log) for details
-	@set -e								;\
-	if ! cmp $(basename $<).aux prior.aux 2>/dev/null &&		\
-	   ! cmp $(basename $<).aux pprior.aux 2>/dev/null; then	\
-		if expr $(MAKELEVEL) '<' $(MAX_TEX_RECURSION) >/dev/null;\
-		then							\
-		   echo ">>> remaking $@ (take $(MAKELEVEL))"		;\
-		   rm -f $@						;\
-		   $(MAKE) $@						;\
-		else							\
-		   echo "E: $@ needs remaking, but we have reached max. level, $(MAX_TEX_RECURSION)" ;\
-		fi							\
-	fi
-	@rm -f prior.aux pprior.aux
+$(MANUAL).%.pdf: $(MANUAL).%.sgml
+	debiandoc2latexpdf -l $* $<
 
 #====[ publishing to the DDP web pages ]=======================================
 #----[ publish html ]----------------------------------------------------------
@@ -248,8 +205,8 @@ distclean: clean
 	rm -rf $(PUBLISHDIR)/$(MANUAL)
 
 clean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
-	rm -f *~ prior.aux pprior.aux $(MANUAL).en.sgml
+	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov,tpt}
+	rm -f *~ prior.aux pprior.aux head.tmp body.tmp $(MANUAL).en.sgml
 	rm -rf $(MANUAL)*.html 
 
 .PHONY: all publish\
