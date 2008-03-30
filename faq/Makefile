@@ -39,6 +39,7 @@ publish: all
 	@[ ! -d fr ] || $(MAKE) -C fr $@
 	@[ ! -d de ] || $(MAKE) -C de $@
 	@[ ! -d uk ] || $(MAKE) -C uk $@
+	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
 
 faqdynamic.ent:
 	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
@@ -60,6 +61,7 @@ html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 	@[ ! -d fr ] || $(MAKE) -C fr $@
 	@[ ! -d de ] || $(MAKE) -C de $@
 	@[ ! -d uk ] || $(MAKE) -C uk $@
+	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
@@ -75,6 +77,7 @@ text: $(manual).$(currentlang).txt
 	@[ ! -d fr ] || $(MAKE) -C fr $@
 	@[ ! -d de ] || $(MAKE) -C de $@
 	@[ ! -d uk ] || $(MAKE) -C uk $@
+	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
@@ -98,6 +101,7 @@ ps dvi pdf info: %: $(manual).$(currentlang).%
 	@[ ! -d fr ] || $(MAKE) -C fr $@
 	@[ ! -d de ] || $(MAKE) -C de $@
 	@[ ! -d uk ] || $(MAKE) -C uk $@
+	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
@@ -113,5 +117,6 @@ clean distclean:
 	@[ ! -d fr ] || $(MAKE) -C fr $@
 	@[ ! -d de ] || $(MAKE) -C de $@
 	@[ ! -d uk ] || $(MAKE) -C uk $@
+	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
 
 .PHONY: all publish clean distclean validate
