@@ -14,6 +14,8 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 sources := $(manual).sgml faqstatic.ent faqdynamic.ent $(wildcard *.sgml)
 
+langs ?= ru pt_BR it pl es fr de uk zh_CN
+
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
 
@@ -31,15 +33,7 @@ publish: all
 	ln -sf $(manual).en.txt $(PUBLISHDIR)/$(manual)/$(manual).txt
 	ln -sf $(manual).en.ps $(PUBLISHDIR)/$(manual)/$(manual).ps
 	ln -sf $(manual).en.pdf $(PUBLISHDIR)/$(manual)/$(manual).pdf
-	@[ ! -d ru ] || $(MAKE) -C ru $@
-	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
-	@[ ! -d it ] || $(MAKE) -C it $@
-	@[ ! -d pl ] || $(MAKE) -C pl $@
-	@[ ! -d es ] || $(MAKE) -C es $@
-	@[ ! -d fr ] || $(MAKE) -C fr $@
-	@[ ! -d de ] || $(MAKE) -C de $@
-	@[ ! -d uk ] || $(MAKE) -C uk $@
-	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
+	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
 faqdynamic.ent:
 	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
@@ -53,15 +47,7 @@ validate:
 	nsgmls -ges -wall $(manual).sgml
 
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
-	@[ ! -d ru ] || $(MAKE) -C ru $@
-	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
-	@[ ! -d it ] || $(MAKE) -C it $@
-	@[ ! -d pl ] || $(MAKE) -C pl $@
-	@[ ! -d es ] || $(MAKE) -C es $@
-	@[ ! -d fr ] || $(MAKE) -C fr $@
-	@[ ! -d de ] || $(MAKE) -C de $@
-	@[ ! -d uk ] || $(MAKE) -C uk $@
-	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
+	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
@@ -69,15 +55,7 @@ $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	mv $(manual).html $(manual).$(currentlang).html
 
 text: $(manual).$(currentlang).txt
-	@[ ! -d ru ] || $(MAKE) -C ru $@
-	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
-	@[ ! -d it ] || $(MAKE) -C it $@
-	@[ ! -d pl ] || $(MAKE) -C pl $@
-	@[ ! -d es ] || $(MAKE) -C es $@
-	@[ ! -d fr ] || $(MAKE) -C fr $@
-	@[ ! -d de ] || $(MAKE) -C de $@
-	@[ ! -d uk ] || $(MAKE) -C uk $@
-	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
+	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
 $(manual).$(currentlang).txt: $(sources)
 	debiandoc2text -l $(currentlang) $<
@@ -93,15 +71,7 @@ $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang
 	mv $(manual).$* $(manual).$(currentlang).$*
 
 ps dvi pdf info: %: $(manual).$(currentlang).%
-	@[ ! -d ru ] || $(MAKE) -C ru $@
-	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
-	@[ ! -d it ] || $(MAKE) -C it $@
-	@[ ! -d pl ] || $(MAKE) -C pl $@
-	@[ ! -d es ] || $(MAKE) -C es $@
-	@[ ! -d fr ] || $(MAKE) -C fr $@
-	@[ ! -d de ] || $(MAKE) -C de $@
-	@[ ! -d uk ] || $(MAKE) -C uk $@
-	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
+	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
@@ -109,14 +79,6 @@ clean distclean:
 	rm -f *.tmp
 	rm -f $(manual)*.{txt,ps,pdf}.gz
 	rm -f faqdynamic.ent *~ .*~ core tsa*
-	@[ ! -d ru ] || $(MAKE) -C ru $@
-	@[ ! -d pt_BR ] || $(MAKE) -C pt_BR $@
-	@[ ! -d it ] || $(MAKE) -C it $@
-	@[ ! -d pl ] || $(MAKE) -C pl $@
-	@[ ! -d es ] || $(MAKE) -C es $@
-	@[ ! -d fr ] || $(MAKE) -C fr $@
-	@[ ! -d de ] || $(MAKE) -C de $@
-	@[ ! -d uk ] || $(MAKE) -C uk $@
-	@[ ! -d zh_CN ] || $(MAKE) -C zh_CN $@
+	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
 .PHONY: all publish clean distclean validate
