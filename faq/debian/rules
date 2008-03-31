@@ -3,6 +3,8 @@
 
 tmp = $(CURDIR)/debian/tmp
 docdir = $(tmp)/usr/share/doc/debian
+basedir = $(CURDIR)/debian/debian-faq
+installdir = $(basedir)/usr/share/doc/debian
 
 langs = de fr it zh_CN
 
@@ -23,6 +25,7 @@ clean:
 	$(MAKE) clean
 	rm -rf $(tmp)
 	rm -f *.gz stamp-build debian/files `find . -name "*~"`
+	dh_clean
 
 binary: binary-indep binary-arch
 
@@ -33,10 +36,14 @@ binary-indep: build
 	test "`id -u`" -eq 0
 	rm -rf $(tmp)
 
+	dh_clean -k
+
 	install -m 755 -d $(tmp)/DEBIAN $(docdir)/FAQ \
-          $(tmp)/usr/share/doc-base $(tmp)/usr/share/doc/debian-faq
+          $(tmp)/usr/share/doc-base $(tmp)/usr/share/doc/debian-faq \
+          $(installdir)/FAQ $(basedir)/usr/share/doc-base \
+          $(basedir)/usr/share/doc/debian-faq
 	install -m 644 debian-faq.en.txt.gz debian-faq.en.ps.gz \
-                    debian-faq.en.pdf.gz debian-faq.en.html/* $(docdir)/FAQ
+                    debian-faq.en.pdf.gz debian-faq.en.html/* $(installdir)/FAQ
 
 	for l in $(langs); do \
           install -m 755 -d $(docdir)/FAQ/$$l; \
@@ -45,19 +52,23 @@ binary-indep: build
           install -m 644 $$l/debian-faq.$$l.html/* $(docdir)/FAQ/$$l/; \
         done
 
-	cd $(docdir)/FAQ && for file in *.en.html; do \
+	cd $(installdir)/FAQ && for file in *.en.html; do \
           ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
         done
 # Make links for the byhands
-	ln -sf debian-faq.en.txt.gz $(docdir)/FAQ/debian-faq.txt.gz
-	ln -sf debian-faq.en.ps.gz $(docdir)/FAQ/debian-faq.ps.gz
-	ln -sf debian-faq.en.pdf.gz $(docdir)/FAQ/debian-faq.pdf.gz
-	ln -sf debian-faq.en.pdf.gz $(docdir)/FAQ/debian-faq.pdf.gz
+	ln -sf debian-faq.en.txt.gz $(installdir)/FAQ/debian-faq.txt.gz
+	ln -sf debian-faq.en.ps.gz $(installdir)/FAQ/debian-faq.ps.gz
+	ln -sf debian-faq.en.pdf.gz $(installdir)/FAQ/debian-faq.pdf.gz
+	ln -sf debian-faq.en.pdf.gz $(installdir)/FAQ/debian-faq.pdf.gz
 
-	install -m 644 debian/doc-base $(tmp)/usr/share/doc-base/debian-faq
-	install -m 644 debian/copyright $(tmp)/usr/share/doc/debian-faq
-	gzip -c9 debian/changelog > $(tmp)/usr/share/doc/debian-faq/changelog.gz
-	chown -R root.root $(tmp) && chmod -R go=rX $(tmp)
+	# install -m 644 debian/doc-base $(basedir)/usr/share/doc-base/debian-faq
+	# install -m 644 debian/copyright $(basedir)/usr/share/doc/debian-faq
+	# gzip -c9 debian/changelog > $(basedir)/usr/share/doc/debian-faq/changelog.gz
+
+	dh_installdocs
+	dh_installchangelogs
+
+	chown -R root.root $(basedir) && chmod -R go=rX $(basedir)
 
 	dh_installdirs --all
 	dh_install --sourcedir=$(tmp)
@@ -67,11 +78,11 @@ binary-indep: build
 	dh_builddeb
 
 # The extra-package files:
-	mv $(docdir)/FAQ/debian-faq.*txt.gz \
-           $(docdir)/FAQ/debian-faq.*ps.gz \
-           $(docdir)/FAQ/debian-faq.*pdf.gz \
+	mv $(installdir)/FAQ/debian-faq.*txt.gz \
+           $(installdir)/FAQ/debian-faq.*ps.gz \
+           $(installdir)/FAQ/debian-faq.*pdf.gz \
              ../
-	cd $(docdir)/FAQ/ && GZIP=-9 tar czf $(CURDIR)/../debian-faq.en.html.tar.gz *
+	cd $(installdir)/FAQ/ && GZIP=-9 tar czf $(CURDIR)/../debian-faq.en.html.tar.gz *
 
 # list them in the .changes file, so that they'll get uploaded properly:
 	dpkg-distaddfile debian-faq.en.html.tar.gz byhand -
