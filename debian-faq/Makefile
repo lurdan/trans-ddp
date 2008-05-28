@@ -37,8 +37,8 @@ publish: all
 
 faqdynamic.ent:
 	echo "<!entity docdate \"$(shell LC_ALL=C date +'%-d %B %Y')\">" > faqdynamic.ent
-	if [ -f ../debian/changelog ]; then \
-          echo "<!entity docversion \"` LC_ALL=C cd .. && dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> faqdynamic.ent; \
+	if [ -f debian/changelog ]; then \
+          echo "<!entity docversion \"` LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//'`\">" >> faqdynamic.ent; \
         else \
           echo "<!entity docversion \"CVS\">" >> faqdynamic.ent; \
         fi
