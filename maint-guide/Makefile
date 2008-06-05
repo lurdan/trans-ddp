@@ -23,7 +23,7 @@ export TEXMFCNF=../quick-reference/texmf:
 endif
 
 # Basename for SGML
-MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-[\d.]+$$//')
+MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-\d[\d.]+.*$$//')
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
