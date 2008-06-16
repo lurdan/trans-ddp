@@ -52,8 +52,8 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 # generating Portable Document Format
 pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
 
-$(MANUAL).el.pdf: $(MANUAL).el.sgml
-	@echo Locale 'el' not yet supported
+$(MANUAL).el.pdf $(MANUAL).ta.pdf: $(MANUAL).%.pdf: $(MANUAL).%.sgml
+	@echo Locale '$*' not yet supported
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $(locale) $<
