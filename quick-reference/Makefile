@@ -329,7 +329,7 @@ publish-examples: $(EXAMPLES)
 	test -d $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE) \
 	   || install -d -m 755 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)
 	@install -p -m 644  --preserve-timestamps \
-	 `find $(EXAMPLE) -type f -maxdepth 1` $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/
+	 `find $(EXAMPLE) -maxdepth 1 -type f` $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/
 # these were for linda but lintian complains. so disabled
 #	chmod 700 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/go-woody
 #	chmod 700 $(PUBLISHDIR)/$(MANUAL1)/$(EXAMPLE)/fetchmail
