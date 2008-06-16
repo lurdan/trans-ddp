@@ -43,8 +43,8 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 texfriendly := $(wildcard *.??*.sgml)
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
-$(MANUAL).el.ps: $(MANUAL).el.sgml
-	@echo Locale 'el' not yet supported
+$(MANUAL).el.ps $(MANUAL).ta.ps: $(MANUAL).%.ps: $(MANUAL).%.sgml
+	@echo Locale '$*' not yet supported
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $(locale) $<
