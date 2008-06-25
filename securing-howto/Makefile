@@ -219,7 +219,7 @@ distclean: clean
 
 clean:
 	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
-	rm -f *~ prior.aux pprior.aux tar.gz.log
+	rm -f *~ prior.aux pprior.aux body.tmp head.tmp tar.gz.log
 	rm -f *.error $(MANUAL).*.ent $(MANUAL).*.sgml date.ent $(MANUAL).*.tpt
 	rm -rf $(MANUAL)*.html *stamp
 
