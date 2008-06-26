@@ -42,8 +42,7 @@ PUBLISHDIR := ~/public_html/manuals.html
 # List of languages built for "distclean" target for DDP:
 LANGSALL := en de fr es it ru ja zh-cn
 # List of languages built for "publish" target for DDP
-#LANGS    := en de fr pt-br
-LANGS    := es
+LANGS    := en de fr pt-br
 # This are all the languages, not all are compiled for DDP
 # due to them being out of dte
 #LANGS    := en de fr es it ru ja zh-cn pt-br
