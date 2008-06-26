@@ -9,12 +9,12 @@ SUBDIRS	:=	\
 		book-suggestions 	\
 		ddp-policy		\
 		debian-bugs	 	\
+		debian-faq	 	\
 		developers-reference	\
 		dictionary 		\
 		distribute-deb		\
 		dselect-beginner 	\
 		euro-support		\
-		faq			\
 		fr			\
 		intro-i18n		\
 		java-faq		\
