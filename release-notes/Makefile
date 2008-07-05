@@ -2,6 +2,9 @@
 # Makefile for the release notes, top-level
 #
 
+# TODO: Once #477458 is fixed in stable remove all committed sgml files
+# which are generated from a PO file (was a workaround for old po4a).
+
 # m68k port is included in the source, but should not be built by default
 # as the port is not supported for Etch but may yet be for Lenny.
 # It can still be built by explicitly specifying 'architecture=m68k'
