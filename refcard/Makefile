@@ -8,8 +8,7 @@ FOP=fop
 # The "--keep 0" should be removed as soon as the translations are ready
 TRANSLATE=po4a-translate --format docbook --keep 0
 XP=xsltproc --nonet --novalid
-XMLROFF_GP=xmlroff --backend gp
-XMLROFF_CAIRO=xmlroff --backend cairo
+XMLROFF=xmlroff --backend cairo
 
 # Not yet implemted in the FO version
 ifneq ($(AD),)
@@ -37,10 +36,6 @@ else
     XMLROFF_LANGS=$(A4_LANGS)
 endif
 
-# Some language lead to a segfault in the gp backend of xmlroff.
-# The cairo backend does not yet support graphics, however.
-XMLROFF_CAIRO_LANGS=de el nl pt_PT
-
 ENTRIES=$(patsubst %,entries-%.dbk,$(A4_LANGS))
 
 PDFS=$(patsubst %,refcard-%-a4.pdf,$(A4_LANGS)) \
@@ -60,12 +55,7 @@ refcard-%.s.pdf: refcard-%.fo
 	LANG=`echo $@ | sed 's/.*-\(.*\)-.*/\1/'`; \
 	USE_XR=`echo " $(XMLROFF_LANGS) " | grep " $$LANG "`; \
 	if [ -n "$$USE_XR" ]; then \
-	    USE_CAIRO=`echo " $(XMLROFF_CAIRO_LANGS) " | grep " $$LANG "`; \
-	    if [ -n "$$USE_CAIRO" ]; then \
-		$(XMLROFF_CAIRO) -o $@ $<; \
-	    else \
-		$(XMLROFF_GP) -o $@ $<; \
-	    fi \
+	    $(XMLROFF) -o $@ $<; \
 	else \
 	    $(FOP) $< $@; \
 	fi
