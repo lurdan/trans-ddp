@@ -4,9 +4,9 @@
 # You need to apt-get install
 # docbook-xsl pdfjam pdftk po4a xmlroff xpdf-utils xsltproc
 
-FOP=fop
 # The "--keep 0" should be removed as soon as the translations are ready
 TRANSLATE=po4a-translate --format docbook --keep 0
+UPDATEPO=po4a-updatepo --format docbook
 XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
 
@@ -26,11 +26,12 @@ LT_LANGS=en es fr
 # however, fails on non Western European languages and is not
 # yet in Debian/main. Call make with USE_FOP=1 (use FOP for some
 # languages) or USE_FOP=2 (use always FOP)
+FOP=fop
 ifdef USE_FOP
     ifeq ($(USE_FOP),2)
 	XMLROFF_LANGS=
     else
- 	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
+	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)
@@ -76,6 +77,10 @@ refcard-%.pdf: refcard-%.t.pdf metadata.xsl
 entries-%.dbk: po4a/%.po entries.dbk
 	$(TRANSLATE) -m entries.dbk -p $< -l $@
 
+updatepo: $(PO_FILES)
+$(PO_FILES): entries.dbk
+	$(UPDATEPO) --master $< --po $@
+
 .PHONY: all clean count mrproper
 
 all: index.html $(PDFS) check
@@ -85,6 +90,7 @@ entries-en.dbk: entries.dbk
 
 statistics.xml: $(PO_FILES) Makefile
 	( \
+	    LANG=C; export LANG; \
 	    echo '<?xml version="1.0" encoding="utf-8"?>'; \
 	    echo '<statistics>'; \
 	    for po in $(PO_FILES); do \
