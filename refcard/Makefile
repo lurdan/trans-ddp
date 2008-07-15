@@ -81,6 +81,11 @@ updatepo: $(PO_FILES)
 $(PO_FILES): entries.dbk
 	$(UPDATEPO) --master $< --po $@
 
+cleanpo:
+	for po in $(PO_FILES); do \
+	    msgcat $$po > $$po.tmp && mv $$po.tmp $$po; \
+	done
+
 .PHONY: all clean count mrproper
 
 all: index.html $(PDFS) check
@@ -103,6 +108,10 @@ statistics.xml: $(PO_FILES) Makefile
 	    done; \
 	    echo '</statistics>'; \
 	) > $@
+
+statistics.txt: statistics.xml
+	cat $< | grep '^<s ' | sed -e 's/<s l="//' -e 's/">/	/' \
+	    -e 's/&#x00A0;/ /g' -e 's/<\/s>//' > $@
 
 index.html: refcard.dbk $(ENTRIES) statistics.xml html.xsl
 	$(XP) --xinclude html.xsl $< > index.html
@@ -132,7 +141,7 @@ count:
 
 clean:
 	-rm -f *~ refcard-*.dbk refcard-*.fo refcard-*.[st].pdf \
-	    $(ENTRIES) statistics.xml
+	    $(ENTRIES) statistics.xml statistics.txt messages.mo
 
 mrproper: clean
 	-rm -f index.html $(PDFS)

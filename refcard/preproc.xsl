@@ -78,10 +78,18 @@
 
   <xsl:template match="section/title"/>
 
+  <!-- for the original English only one copyright note -->
+  <xsl:template match="copyright[position() != 1]">
+    <xsl:if test="/article/@lang != 'en-GB'">
+      <xsl:copy>
+	<xsl:apply-templates select="*|@*|text()"/>
+      </xsl:copy>
+    </xsl:if>
+  </xsl:template>
+
   <xsl:template match="*|@*|text()">
     <xsl:copy>
-      <xsl:apply-templates
-        select="*|@*|text()"/>
+      <xsl:apply-templates select="*|@*|text()"/>
     </xsl:copy>
   </xsl:template>
 </xsl:stylesheet>
