@@ -77,12 +77,12 @@ refcard-%.pdf: refcard-%.t.pdf metadata.xsl
 entries-%.dbk: po4a/%.po entries.dbk
 	$(TRANSLATE) -m entries.dbk -p $< -l $@
 
-updatepo: $(PO_FILES)
-$(PO_FILES): entries.dbk
+updatepo: $(PO_FILES) po4a/entries.pot
+$(PO_FILES) po4a/entries.pot: entries.dbk
 	$(UPDATEPO) --master $< --po $@
 
 cleanpo:
-	for po in $(PO_FILES); do \
+	for po in $(PO_FILES) po4a/entries.pot; do \
 	    msgcat $$po > $$po.tmp && mv $$po.tmp $$po; \
 	done
 
