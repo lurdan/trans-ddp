@@ -81,7 +81,7 @@ updatepo: $(PO_FILES) po4a/entries.pot
 $(PO_FILES) po4a/entries.pot: entries.dbk
 	$(UPDATEPO) --master $< --po $@
 
-cleanpo:
+tidypo:
 	for po in $(PO_FILES) po4a/entries.pot; do \
 	    msgcat $$po > $$po.tmp && mv $$po.tmp $$po; \
 	done
@@ -121,6 +121,12 @@ install:
 	    mkdir -p $$DESTDIR; \
 	    cp -fp index.html *.png $(PDFS) $(DESTDIR)/; \
 	fi
+
+checkpo:
+	@for p in $(PO_FILES); do \
+	    echo $$p; \
+	    msgfmt -cv $$p; \
+	done
 
 check:
 	@for p in $(PDFS); do \
