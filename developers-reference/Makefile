@@ -108,6 +108,17 @@ po4a/$(LINGUA)/%.po:		%.dbk
 	po4a-updatepo --format docbook --master $< --po $@
 endif
 
+tidypo:
+	for po in $(wildcard po4a/*/*.po po4a/*/*.pot); do \
+	    msgcat $$po > $$po.tmp && mv $$po.tmp $$po; \
+	done
+
+checkpo:
+	@for po in $(wildcard po4a/*/*.po po4a/*/*.pot); do \
+	    echo $$po; \
+	    msgfmt --check --verbose $$po; \
+	done
+
 %/version.ent:
 	echo '<!ENTITY version "$(VERSION)">' >  $@
 	echo '<!ENTITY pubdate "$(PUBDATE)">' >> $@
