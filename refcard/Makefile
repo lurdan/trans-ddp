@@ -123,9 +123,9 @@ install:
 	fi
 
 checkpo:
-	@for p in $(PO_FILES); do \
-	    echo $$p; \
-	    msgfmt -cv $$p; \
+	@for po in $(PO_FILES); do \
+	    echo $$po; \
+	    msgfmt --check --verbose $$po; \
 	done
 
 check:
