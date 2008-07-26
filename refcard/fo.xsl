@@ -48,10 +48,12 @@
 			 select="articleinfo/corpauthor"/>
     <xsl:apply-templates mode="article.titlepage.recto.auto.mode"
 			 select="title"/>
-    <xsl:text>Version </xsl:text>
+    <xsl:apply-templates mode="article.titlepage.recto.auto.mode"
+			 select="articleinfo/keywordset/keyword[@role='version']"/>
+    <xsl:text> </xsl:text>
     <xsl:apply-templates mode="article.titlepage.recto.auto.mode"
 			 select="articleinfo/revhistory/revision[1]/revnumber"/>
-    <xsl:text>, </xsl:text>
+    <xsl:text> </xsl:text>
     <xsl:apply-templates mode="article.titlepage.recto.auto.mode"
 			 select="articleinfo/revhistory/revision[1]/date"/>
     <fo:block font-family="courier"> <!-- "{$monospace.font.family}" -->
