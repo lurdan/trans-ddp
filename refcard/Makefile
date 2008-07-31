@@ -9,6 +9,9 @@ TRANSLATE=po4a-translate --format docbook --keep 0
 UPDATEPO=po4a-updatepo --format docbook
 XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
+# cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
+GPLIST=eu ja sv
+XMLROFF_GP=xmlroff --backend gnomeprint
 DIA=dia
 
 # Not yet implemted in the FO version
@@ -18,12 +21,9 @@ else
     ad=
 endif
 
-# xmlroff 0.6.0 crashes on some languages
-BLACKLIST=eu ja sv
-
 PO_FILES=$(wildcard po4a/*.po)
 # international standard format
-A4_LANGS=en $(filter-out $(BLACKLIST), $(patsubst po4a/%.po,%,$(PO_FILES)))
+A4_LANGS=en $(patsubst po4a/%.po,%,$(PO_FILES))
 # non-standard format for north america
 LT_LANGS=en es fr
 # xmlroff has some issues, so we can use FOP instead. FOP,
@@ -60,19 +60,24 @@ refcard-%.s.pdf: refcard-%.fo
 	L=`echo $@ | sed 's/.*-\(.*\)-.*/\1/'`; \
 	USE_XR=`echo " $(XMLROFF_LANGS) " | grep " $$L "`; \
 	if [ -n "$$USE_XR" ]; then \
-	    $(XMLROFF) -o $@ $<; \
+	    USE_GP=`echo " $(GPLIST) " | grep " $$L "`; \
+	    if [ -n "$$USE_GP" ]; then \
+		$(XMLROFF_GP) -o $@ $<; \
+	    else \
+		$(XMLROFF) -o $@ $<; \
+	    fi; \
 	else \
 	    $(FOP) $< $@; \
 	fi
 
 refcard-%-a4.t.pdf: refcard-%-a4.s.pdf empty.pdf
-	pdfjoin --fitpaper true --outfile $<.x.pdf $^
+	pdfjoin --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
 	pdfnup --nup 3x1 --outfile $@ --pages 5-6,1-4 \
 	    --paper a4paper $<.x.pdf
 	rm $<.x.pdf
 
 refcard-%-lt.t.pdf: refcard-%-lt.s.pdf empty.pdf
-	pdfjoin --fitpaper true --outfile $<.x.pdf $^
+	pdfjoin --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
 	pdfnup --nup 3x1 --outfile $@ --pages 5-6,1-4 \
 	    --paper letterpaper $<.x.pdf
 	rm $<.x.pdf
