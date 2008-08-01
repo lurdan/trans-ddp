@@ -6,6 +6,9 @@
     doctype-system="http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
     doctype-public="-//OASIS//DTD DocBook XML V4.2//EN"/>
 
+  <!-- disabled, not Debian-specific -->
+  <xsl:template match="section[@id='samba']"/>
+
   <xsl:template match="section/glosslist">
     <xsl:if
 	test="contains('dpkg apache2 configuration shell-commands apt', ../@id)">
@@ -14,6 +17,14 @@
     <informaltable pgwide="1" frame="none" colsep="1" rowsep="1">
       <xsl:attribute name="id"><xsl:value-of
       select="../@id"/></xsl:attribute>
+      <!-- role="small" is understood by dblatex -->
+      <xsl:attribute name="role">
+	<xsl:choose>
+	  <xsl:when test="contains('bg fr',
+			  /article/@lang)">footnotesize</xsl:when>
+	  <xsl:otherwise>small</xsl:otherwise>
+	</xsl:choose>
+      </xsl:attribute>
       <xsl:processing-instruction
 	  name="dbfo">keep-together="always"</xsl:processing-instruction>
       <tgroup cols="2">
@@ -35,6 +46,7 @@
     <article>
       <xsl:apply-templates select="*|@*|text()"/>
       <xsl:processing-instruction name="custom-notice"/>
+      <ackno/> <!-- until dblatex understands the custom-notice -->
     </article>
   </xsl:template>
 

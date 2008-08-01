@@ -11,21 +11,22 @@ XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=eu ja sv
-XMLROFF_GP=xmlroff --backend gnomeprint
+XMLROFF_GP=xmlroff --backend gp
 DIA=dia
 
-# Not yet implemted in the FO version
-ifneq ($(AD),)
-    ad=--stringparam ad $(AD)
-else
-    ad=
-endif
+# Not yet implemted in the new version (neither FO nor dblatex)
+#ifneq ($(AD),)
+#    ad=--stringparam ad $(AD)
+#else
+#    ad=
+#endif
 
 PO_FILES=$(wildcard po4a/*.po)
 # international standard format
 A4_LANGS=en $(patsubst po4a/%.po,%,$(PO_FILES))
 # non-standard format for north america
 LT_LANGS=en es fr
+
 # xmlroff has some issues, so we can use FOP instead. FOP,
 # however, fails on non Western European languages and is not
 # yet in Debian/main. Call make with USE_FOP=1 (use FOP for some
@@ -36,6 +37,21 @@ ifdef USE_FOP
 	XMLROFF_LANGS=
     else
 	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
+    endif
+else
+    XMLROFF_LANGS=$(A4_LANGS)
+endif
+
+# Because of current limitations of xmlroff in respect to layout, we
+# can also use dblatex. Like fop, we are limited to some languages.
+# See #492366 (el), #492304 (es, it), #492365 (he), #492350 (ja),
+# #482857 (zh_CN)
+DBLATEX=dblatex --backend=xetex --texstyle=refcard.sty --xsl-user=dblatex.xsl
+ifdef USE_DBLATEX
+    ifeq ($(USE_DBLATEX),2)
+	XMLROFF_LANGS=
+    else
+	XMLROFF_LANGS=el es he it ja zh_CN
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)
@@ -56,7 +72,8 @@ refcard-%-lt.fo: refcard-%.dbk fo.xsl
 	$(XP) --stringparam page.height 216mm \
 	    --stringparam page.width 93mm fo.xsl $< > $@
 
-refcard-%.s.pdf: refcard-%.fo
+# the .fo is not used for dblatex, but I don't care
+refcard-%.s.pdf: refcard-%.fo dblatex.xsl refcard.sty
 	L=`echo $@ | sed 's/.*-\(.*\)-.*/\1/'`; \
 	USE_XR=`echo " $(XMLROFF_LANGS) " | grep " $$L "`; \
 	if [ -n "$$USE_XR" ]; then \
@@ -67,7 +84,13 @@ refcard-%.s.pdf: refcard-%.fo
 		$(XMLROFF) -o $@ $<; \
 	    fi; \
 	else \
-	    $(FOP) $< $@; \
+	    if [ -n "$$USE_DBLATEX" ]; then \
+		SRC=`echo $<|sed 's/-\(a4\|lt\).fo/.dbk/'`; \
+		FMT=`echo $<|sed 's/.*-\(a4\|lt\).fo/\1/'`; \
+		$(DBLATEX) --output=$@ --param=format=$$FMT $$SRC; \
+	    else \
+		$(FOP) $< $@; \
+	    fi; \
 	fi
 
 refcard-%-a4.t.pdf: refcard-%-a4.s.pdf empty.pdf
@@ -146,7 +169,7 @@ refcard.png: refcard.dia
 install: index.html refcard.png
 	if [ -n "$$DESTDIR" ]; then \
 	    mkdir -p $$DESTDIR; \
-	    cp -fp *.png $(PDFS) $(DESTDIR)/; \
+	    cp -fp openlogo-nd-25.png $(PDFS) $(DESTDIR)/; \
 	    if [ -n "$$GZIPPED" ]; then \
 		cat index.html | \
 		sed 's/\(href="refcard-.*-\(a4\|lt\).pdf\)"/\1.gz"/g' \

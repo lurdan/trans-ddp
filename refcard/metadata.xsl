@@ -62,7 +62,7 @@ InfoValue: </xsl:text><xsl:apply-templates select="copyright"/>
     <xsl:text>InfoKey: Creator
 InfoValue: docbook-xsl, xsltproc
 InfoKey: Producer
-InfoValue: xmlroff
+InfoValue: DBLaTeX|xmlroff
 </xsl:text>
   </xsl:template>
 
