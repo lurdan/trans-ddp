@@ -79,7 +79,14 @@
   </xsl:template>
 
   <xsl:template match="glossdef">
-    <entry align="left">
+    <entry>
+      <xsl:attribute name="align">
+	<xsl:choose>
+	  <xsl:when test="contains('ar fa he',
+			  /article/@lang)">right</xsl:when>
+	  <xsl:otherwise>left</xsl:otherwise>
+	</xsl:choose>
+      </xsl:attribute>
       <xsl:apply-templates select="para/*|para/@*|para/text()"/>
     </entry>
   </xsl:template>
