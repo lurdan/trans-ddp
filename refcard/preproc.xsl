@@ -31,11 +31,13 @@
 	<colspec align="justify" colwidth="2*" colname="l"/>
 	<colspec align="justify" colwidth="3*" colname="r"/>
 	<spanspec spanname="a" namest="l" nameend="r"/>
-	<tbody>
-	  <row role="title">
+	<thead>
+	  <row>
 	    <entry spanname="a" align="center"><xsl:value-of
 	    select="../title"/></entry>
 	  </row>
+	</thead>
+	<tbody>
 	  <xsl:apply-templates select="*"/>
 	</tbody>
       </tgroup>

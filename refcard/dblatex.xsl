@@ -47,6 +47,15 @@
     <!--   \end{center} -->
     <!--   \vfill</xsl:text> -->
     <!-- </xsl:if> -->
+    <!-- visual layout - how I hate it! -->
+    <xsl:text>\newpages{</xsl:text>
+    <xsl:choose>
+        <xsl:when test="contains('bg', /article/@lang)">2</xsl:when>
+        <xsl:when test="contains('es fi hu pt_BR ru',
+            /article/@lang)">0</xsl:when>
+        <xsl:otherwise>1</xsl:otherwise>
+    </xsl:choose>
+    <xsl:text>}&#10;~&#10;</xsl:text>
     <xsl:text>\vfill&#10;</xsl:text>
     <xsl:text>\begin{minipage}{\linewidth}&#10;</xsl:text>
     <xsl:text>{\footnotesize&#10;</xsl:text>
@@ -63,7 +72,7 @@
     <xsl:text>\end{minipage}&#10;</xsl:text>
   </xsl:template>
 
-  <xsl:template match="informaltable">
+  <xsl:template match="x-informaltable">
     <xsl:text>\begin{minipage}{\linewidth}%&#10;</xsl:text>
     <xsl:apply-imports/>
     <xsl:text>\end{minipage}&#10;</xsl:text>

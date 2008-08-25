@@ -2,15 +2,15 @@
 # See COPYING for the license status of this software.
 
 # You need to apt-get install
-# docbook-xsl pdfjam pdftk po4a xmlroff xpdf-utils xsltproc
+# docbook-xsl pdfjam pdftk po4a xmlroff poppler-utils xsltproc
 
-# The "--keep 0" should be removed as soon as the translations are ready
+# The "--keep 0" can be removed when the translations are ready
 TRANSLATE=po4a-translate --format docbook --keep 0
 UPDATEPO=po4a-updatepo --format docbook
 XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
-GPLIST=eu ja sv
+GPLIST=eu he ja sv
 XMLROFF_GP=xmlroff --backend gp
 DIA=dia
 
@@ -44,14 +44,13 @@ endif
 
 # Because of current limitations of xmlroff in respect to layout, we
 # can also use dblatex. Like fop, we are limited to some languages.
-# See #492366 (el), #492304 (es, it), #492365 (he), #492350 (ja),
-# #482857 (zh_CN)
+# See #492365 (he), #492366 (el), #492350 (ja), # #482857 (zh_CN)
 DBLATEX=dblatex --backend=xetex --texstyle=refcard.sty --xsl-user=dblatex.xsl
 ifdef USE_DBLATEX
     ifeq ($(USE_DBLATEX),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=el es he ja zh_CN
+	XMLROFF_LANGS=el he ja zh_CN
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)

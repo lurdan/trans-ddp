@@ -91,7 +91,7 @@
     </fo:block>
   </xsl:template>
 
-  <xsl:template match="row[@role='title']/entry/text()">
+  <xsl:template match="thead/row/entry/text()">
     <fo:block font-variant="small-caps"
 	      font-weight="bold">
       <xsl:apply-imports/>
