@@ -165,10 +165,10 @@ index.html: refcard.dbk $(ENTRIES) statistics.xml html.xsl
 refcard.png: refcard.dia
 	$(DIA) --export=$@ $<
 
-install: index.html refcard.png
+install: index.html refcard.png $(PDFS)
 	if [ -n "$$DESTDIR" ]; then \
 	    mkdir -p $$DESTDIR; \
-	    cp -fp openlogo-nd-25.png $(PDFS) $(DESTDIR)/; \
+	    cp -fp openlogo-nd-25.png refcard.png $(PDFS) $(DESTDIR)/; \
 	    if [ -n "$$GZIPPED" ]; then \
 		cat index.html | \
 		sed 's/\(href="refcard-.*-\(a4\|lt\).pdf\)"/\1.gz"/g' \
