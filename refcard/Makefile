@@ -43,14 +43,14 @@ else
 endif
 
 # Because of current limitations of xmlroff in respect to layout, we
-# can also use dblatex. Like fop, we are limited to some languages.
-# See #492365 (he), #492366 (el), #492350 (ja), # #482857 (zh_CN)
+# can also use dblatex. Like with fop, some languages don't work well:
+# See #499500 (bg), #492365 (he), #492366 (el), #492350 (ja), # #482857 (zh_CN)
 DBLATEX=dblatex --backend=xetex --texstyle=refcard.sty --xsl-user=dblatex.xsl
 ifdef USE_DBLATEX
     ifeq ($(USE_DBLATEX),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=ar el he ja zh_CN
+	XMLROFF_LANGS=ar bg el he ja zh_CN
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)

@@ -97,4 +97,11 @@
       <xsl:apply-imports/>
     </fo:block>
   </xsl:template>
+
+  <xsl:attribute-set name="root.properties">
+    <xsl:attribute name="writing-mode"><xsl:choose>
+      <xsl:when test="contains('ar fa he', /article/@lang)">rl-tb</xsl:when>
+      <xsl:otherwise>lr-tb</xsl:otherwise>
+    </xsl:choose></xsl:attribute>
+  </xsl:attribute-set>
 </xsl:stylesheet>
