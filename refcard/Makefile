@@ -10,7 +10,7 @@ UPDATEPO=po4a-updatepo --format docbook
 XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
-GPLIST=ar eu he ja sv
+GPLIST=ar eu he hi ja sv
 XMLROFF_GP=xmlroff --backend gp
 DIA=dia
 
@@ -50,7 +50,7 @@ ifdef USE_DBLATEX
     ifeq ($(USE_DBLATEX),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=ar bg el he ja zh_CN
+	XMLROFF_LANGS=ar bg el he hi ja zh_CN
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)
