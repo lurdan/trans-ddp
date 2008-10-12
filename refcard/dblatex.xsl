@@ -51,7 +51,7 @@
     <xsl:text>\newpages{</xsl:text>
     <xsl:choose>
         <xsl:when test="contains('bg', /article/@lang)">2</xsl:when>
-        <xsl:when test="contains('eu fi gl hu nl pl pt pt_BR ru',
+        <xsl:when test="contains('eu fi gl hu nl pl pt pt_BR ru uk',
             /article/@lang)">0</xsl:when>
         <xsl:otherwise>1</xsl:otherwise>
     </xsl:choose>
