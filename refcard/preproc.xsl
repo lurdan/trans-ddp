@@ -20,7 +20,7 @@
       <!-- role="small" is understood by dblatex -->
       <xsl:attribute name="role">
 	<xsl:choose>
-	  <xsl:when test="contains('bg fr',
+	  <xsl:when test="contains('bg es fr',
 			  /article/@lang)">footnotesize</xsl:when>
 	  <xsl:otherwise>small</xsl:otherwise>
 	</xsl:choose>
