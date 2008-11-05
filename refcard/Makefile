@@ -30,17 +30,17 @@ LT_LANGS=en es fr
 # xmlroff has some issues, so we can use FOP instead. FOP,
 # however, fails on non Western European languages and is not
 # yet in Debian/main. Call make with USE_FOP=1 (use FOP for some
-# languages) or USE_FOP=2 (use always FOP). Currently disabled.
-FOP=echo
-#ifdef USE_FOP
-#    ifeq ($(USE_FOP),2)
-#	XMLROFF_LANGS=
-#    else
-#	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
-#    endif
-#else
-#    XMLROFF_LANGS=$(A4_LANGS)
-#endif
+# languages) or USE_FOP=2 (use always FOP)
+FOP=fop
+ifdef USE_FOP
+    ifeq ($(USE_FOP),2)
+	XMLROFF_LANGS=
+    else
+	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
+    endif
+else
+    XMLROFF_LANGS=$(A4_LANGS)
+endif
 
 # Because of current limitations of xmlroff in respect to layout, we
 # can also use dblatex. Like with fop, some languages don't work well:
