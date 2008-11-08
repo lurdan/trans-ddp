@@ -36,7 +36,7 @@ ifdef USE_FOP
     ifeq ($(USE_FOP),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN
+	XMLROFF_LANGS=bg cs el he hu ja nb pl ro ru sk tr uk vi zh_CN zh_TW
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)
@@ -50,7 +50,7 @@ ifdef USE_DBLATEX
     ifeq ($(USE_DBLATEX),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=ar bg el he hi ja zh_CN
+	XMLROFF_LANGS=ar bg el he hi ja zh_CN zh_TW
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)
