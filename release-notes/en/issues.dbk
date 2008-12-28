@@ -1,0 +1,662 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+  <!ENTITY % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
+]>
+
+<chapter id="ch-information" lang="en">
+<title>Issues to be aware of for &releasename;</title>
+<programlisting condition="fixme">
+TODO:
+- XEN support in lenny
+</programlisting>
+
+<section id="problems">
+<title>Potential problems</title>
+<para>
+Sometimes, changes have side-effects we cannot reasonably avoid, or we expose
+bugs somewhere else.  We document here the issues we are aware of.  Please also
+read the errata, the relevant packages' documentation, bug reports and other
+information mentioned in <xref linkend="morereading"/>.
+</para>
+<section id="udev">
+<title>Problems with devices related to udev</title>
+<para>
+Although <systemitem role="package">udev</systemitem> has been tested
+extensively, you may experience minor problems with some devices that will need
+to be fixed.  The most common problems are changed permission and/or ownership
+of a device.  In some cases a device may not be created by default (e.g.
+<filename>/dev/video</filename> and <filename>/dev/radio</filename>).
+</para>
+<para>
+<systemitem role="package">udev</systemitem> provides configuration mechanisms
+to deal with these issues.  See <citerefentry>
+<refentrytitle>udev</refentrytitle> <manvolnum>8</manvolnum> </citerefentry>
+and <filename>/etc/udev</filename> for further information.
+</para>
+</section>
+
+<section id="incompatible-2.4">
+<title>Some applications may no longer work with a 2.4 kernel</title>
+<para>
+Some applications in &releasename; may no longer work with a 2.4 kernel, for example
+because they require <literal>epoll()</literal> support, which is not available
+in 2.4 kernels.  Such applications may either not work at all or not work
+correctly until the system has been rebooted with a 2.6 kernel.
+</para>
+<para>
+One example is the HTTP proxy <systemitem role="package">squid</systemitem>.
+</para>
+</section>
+
+<section id="window-scaling">
+<title>Certain network sites cannot be reached by TCP</title>
+<para>
+Since 2.6.17, Linux aggressively uses TCP window scaling which is
+specified in RFC 1323.  Some servers have a broken behavior, and
+announce wrong window sizes for themselves.  For more details, please
+see the bug
+reports <ulink url="&url-bts;381262">#381262</ulink>, <ulink url="&url-bts;395066">#395066</ulink>, <ulink url="&url-bts;401435">#401435</ulink>.
+</para>
+<para>
+There are usually two workarounds to these problems: either revert the maximum
+allowed TCP window sizes to a smaller value (preferable) or turn off TCP window
+scaling altogether (deprecated).  See the example commands in the <ulink
+url="&url-installer-errata;">debian-installer
+errata page</ulink>.
+</para>
+</section>
+
+<section id="poweroff">
+<title>Automatic poweroff stops working</title>
+<para>
+On some older systems, <literal>shutdown -h</literal> may not power off the
+system anymore (but just stop it).  This happens because apm needs to be used
+there.  Adding <literal>acpi=off apm=power_off</literal> to the kernel's
+command line, e.g.  in <systemitem role="package">grub</systemitem> or
+<systemitem role="package">lilo</systemitem> configuration files should fix
+this issue.  Please see bug <ulink
+url="&url-bts;390547">#390547</ulink> for additional information.
+</para>
+</section>
+
+<section id="apt-pdiff">
+<title>Slower updates of APT package index files</title>
+<para>
+By default, the &releasename; version of <systemitem role="package">apt</systemitem> uses a new way to update
+APT package index files (when you run <literal>aptitude update</literal>) which
+downloads differences files (instead of the full package index file) called
+<literal>pdiff</literal>.  This new feature should use less bandwidth and be
+faster for most systems.  Unfortunately, it can also have the opposite effect
+of making the updates slower on systems with fast network connections (or a
+very nearby mirror) which are infrequently updated, as it might take more time
+for the system to merge the differences files than to download a full package
+index.  It is possible to disable this feature by adding
+<literal>Acquire::Pdiffs "false";</literal> to the
+<filename>/etc/apt/apt.conf</filename> configuration file.
+</para>
+<para>
+This change mostly affects users of the <emphasis>unstable</emphasis> and
+<emphasis>testing</emphasis> branch of &debian;, due to the changing
+nature of these archives.  Users of &releasename; will notice this feature mainly when
+updating their package status for the security archive.
+</para>
+</section>
+
+<section id="hp-acpi">
+<title>ACPI support disabled for some HP laptop models in &releasename; kernel</title>
+<para>
+Certain models of HP laptops have an ACPI BIOS that is incompatible with the
+Linux &kernelversion; kernel shipped in &releasename;, which would prevent the fans from spinning
+up leading to unnecessary heat stress.  Also, fans might not work after the
+system is suspended.  The kernel therefore disables ACPI support internally
+when it detects certain ACPI BIOS versions.  Models known to be affected by
+this change include the HP nx6125, nx6120, nx6325, nc6120 and nc6000 models.
+</para>
+<para>
+Users who require ACPI support on these systems may install a Linux 2.6.19 or
+later kernel.  Please see Debian bug <ulink
+url="&url-bts;404143">#404143</ulink> and <ulink
+url="&url-bts;400488">#400488</ulink>, and Linux Kernel's bugs
+<ulink url="http://bugzilla.kernel.org/show_bug.cgi?id=5534">#5534</ulink> and
+<ulink url="http://bugzilla.kernel.org/show_bug.cgi?id=7122">#7122</ulink> for
+additional information.
+</para>
+</section>
+
+<section id="asynchronous-network-start">
+<title>Asynchronous network initialization may cause unpredictable behavior</title>
+<para>
+On systems which use <systemitem role="package">udev</systemitem> to load
+drivers for network interfaces, it is possible due to the asynchronous nature
+of <systemitem role="package">udev</systemitem> that the network driver will
+not be loaded before <command>/etc/init.d/networking</command> runs on system
+boot.  Although including <literal>allow-hotplug</literal> to
+<filename>/etc/network/interfaces</filename> (in addition to
+<literal>auto</literal>) will ensure that the network interface is enabled once
+it becomes available, there is no guarantee that this will finish before the
+boot sequence begins to start network services, some of which may not behave
+correctly in the absence of the network interface.
+</para>
+</section>
+
+<section id="wpa">
+<title>Trouble when using WPA secured wireless networks</title>
+<para>
+In &oldreleasename;, the <systemitem role="package">wpasupplicant</systemitem> package was
+set up as a system service, configured via
+<filename>/etc/default/wpasupplicant</filename> and a user-provided
+<filename>/etc/wpasupplicant.conf</filename>.
+</para>
+<para>
+In &releasename;, <filename>/etc/init.d/wpasupplicant</filename> has been dropped and
+the Debian package now integrates with
+<filename>/etc/network/interfaces</filename>, similar to other packages such as
+<systemitem role="package">wireless-tools</systemitem>.  This means <systemitem
+role="package">wpasupplicant</systemitem> no longer provides a system service
+directly.
+</para>
+<para>
+For information on configuring wpasupplicant please refer to
+<filename>/usr/share/doc/wpasupplicant/README.modes.gz</filename>, which gives
+examples for <filename>/etc/network/interfaces</filename> files.  Updated
+information about the usage of the <systemitem
+role="package">wpasupplicant</systemitem> package in Debian can be found in the
+<ulink url="&url-wiki;WPA">Debian Wiki</ulink>.
+</para>
+</section>
+
+<section id="partitionenc">
+<title>Problems with non-ASCII characters in filenames</title>
+<para>
+Mounting vfat, ntfs or iso9660 file systems with files that include non-ASCII
+characters in their filenames will give failures when one tries to use the
+filenames unless mounting is done with the utf8 option.  An indication might be
+the following failure: <quote>Invalid or incomplete multibyte or wide character</quote>.  A
+possible solution is to use <literal>defaults,utf8</literal> as mount options
+for vfat, ntfs and iso9660 file systems when they contain filenames with
+non-ASCII characters.
+</para>
+<para>
+Note that the Linux kernel does not support case-insensitive filename handling
+for vfat when the <literal>utf8</literal> option is used.
+</para>
+</section>
+
+<section id="no-sound">
+<title>Sound stops working</title>
+<para>
+In rare cases the sound might stop working after the upgrade.  If this happens,
+go through the alsa checklist: run <command>alsaconf</command> as root user,
+add your user to the <literal>audio</literal> group, use alsamixer and make
+sure levels are up and it is unmuted, make sure arts or esound stopped, make
+sure OSS modules unloaded, make sure speakers are on, check whether the command
+<literal>cat /dev/urandom &gt; /dev/dsp</literal> works for root.
+</para>
+</section>
+
+</section>
+
+<section id="upgrade-to-2.6">
+<title>Upgrading to a 2.6 kernel</title>
+<para>
+The 2.6 kernel series contains major changes from the 2.4 series.  Modules have
+been renamed and a lot of drivers have been partially or sometimes almost
+completely rewritten.  Upgrading to a 2.6 kernel from an earlier version is
+therefore not a process to be undertaken lightly.  This section aims to make
+you aware of some of the issues you may face.
+</para>
+<para>
+If you compile your own kernel from source, make sure you install <systemitem
+role="package">module-init-tools</systemitem> before you reboot with the 2.6
+kernel.  This package replaces <systemitem role="package">modutils</systemitem>
+for 2.6 kernels.  If you install one of the Debian <systemitem
+role="package">linux-image</systemitem> packages, this package will be
+installed automatically because of dependencies.
+</para>
+<para>
+If you use <emphasis><acronym>LVM</acronym></emphasis>, you should also install <systemitem
+role="package">lvm2</systemitem> before you reboot as the 2.6 kernel does not
+directly support LVM1.  To access LVM1 volumes, the compatibility layer of
+<systemitem role="package">lvm2</systemitem> (the dm-mod module) is used.  You
+can leave <systemitem role="package">lvm10</systemitem> installed; the init
+scripts will detect which kernel is used and execute the appropriate version.
+</para>
+<para>
+If you have entries in the <filename>/etc/modules</filename> file (the list of
+modules to be loaded during system boot), be aware that some module names may
+have changed.  If this happens you will have to update this file with the new
+module names.
+</para>
+<para>
+For some SATA disk controllers, the device assigned to a drive and its
+partitions may change from <filename>/dev/hdX</filename> to
+<filename>/dev/sdX</filename>.  If this happens, you will have to modify your
+<filename>/etc/fstab</filename> and bootloader configuration accordingly.
+Unless these changes are made correctly, your system may not boot
+correctly<footnote><para> It will boot the kernel but will fail when trying to
+mount the root file system and will abort with an error <emphasis>waiting for
+root file system</emphasis> followed by <emphasis>unable to mount /dev/hdX
+..not found</emphasis>.  You can use the <literal>initramfs</literal> shell to
+fix this issue, after you identify the newly assigned device names in the
+kernel boot messages or by reviewing the contents of
+<filename>/dev/disk/</filename>.  </para> </footnote>.
+</para>
+<para>
+Once you have installed your 2.6 kernel, but before you reboot, make sure you
+have a recovery method.  First, make sure that the bootloader configuration has
+entries for both the new kernel and the old, working 2.4 kernel.  You should
+also ensure you have a <quote>rescue</quote> floppy or CD-ROM to hand, in case
+misconfiguration of the bootloader prevents you from booting the old kernel.
+</para>
+<section id="l2.6-keyboard">
+<title>Keyboard configuration</title>
+<para>
+The most invasive change in the 2.6 kernels is a fundamental change of the
+input layer.  This change makes all keyboards look like <quote>normal</quote> PC keyboards.
+This means that if you currently have a different type of keyboard selected
+(e.g.  a USB-MAC or Sun keyboard), you will very likely end up with a
+non-working keyboard after rebooting with the new 2.6 kernel.
+</para>
+<para>
+If you can SSH into the box from another system, you can resolve this issue by
+running <literal>dpkg-reconfigure console-data</literal>, choosing the option
+<quote>Select keymap from full list</quote> and selecting a <quote>pc</quote> keyboard.
+</para>
+<para>
+If your console keyboard is affected, you will probably also need to
+reconfigure your keyboard for the X Window System.  You can do this either by
+running <literal>dpkg-reconfigure xserver-xorg</literal> or by editing
+<filename>/etc/X11/xorg.conf</filename> directly.  Don't forget to read the
+documentation referred to in <xref linkend="nownownow"/>.
+</para>
+<para arch="i386">
+This issue is unlikely to affect the &arch-title; architecture as all
+PS/2 and most <acronym>USB</acronym> keyboards will already be configured as a <quote>normal</quote> PC
+keyboard.
+</para>
+<para arch="not-i386">Note that if you are using a <acronym>USB</acronym> keyboard, this
+may be configured as either a <quote>normal</quote> PC keyboard or as a USB-MAC
+keyboard. In the first case you will not be affected by this
+issue.</para>
+</section>
+
+<section id="l2.6-mouse">
+<title>Mouse configuration</title>
+<para>
+Again because of the changes in the input layer, you may have to reconfigure
+the X Window System and <systemitem role="package">gpm</systemitem> if your
+mouse is not working after upgrading to a 2.6 kernel.  The most likely cause is
+that the device which gets the data from the mouse has changed.  You may also
+need to load different modules.
+</para>
+</section>
+
+<section id="l2.6-sound">
+<title>Sound configuration</title>
+<para>
+For the 2.6 kernel series the <acronym>ALSA</acronym> sound drivers are recommended over the older
+OSS sound drivers.  <acronym>ALSA</acronym> sound drivers are provided as modules by default.  In
+order for sound to work, the <acronym>ALSA</acronym> modules appropriate for your sound hardware
+need to be loaded.  In general this will happen automatically if you have, in
+addition to the <systemitem role="package">alsa-base</systemitem> package,
+either the <systemitem role="package">hotplug</systemitem> package or the
+<systemitem role="package">discover</systemitem> package installed.  The
+<systemitem role="package">alsa-base</systemitem> package also <quote>blacklists</quote> OSS
+modules to prevent <command>hotplug</command> and <command>discover</command>
+from loading them.  If you have OSS modules listed in
+<filename>/etc/modules</filename>, you should remove them.
+</para>
+</section>
+
+</section>
+
+<section id="nfs-common">
+  <title><acronym>NFS</acronym> mounts now handled by nfs-common</title>
+
+  <para>
+    Since <systemitem role="package">util-linux</systemitem> 2.13
+    <acronym>NFS</acronym> mounts are no longer handled by <systemitem
+    role="package">util-linux</systemitem> itself, but by <systemitem
+    role="package">nfs-common</systemitem>. Since not all systems
+    mount <acronym>NFS</acronym> shares and to avoid a standard
+    portmapper installation <systemitem
+    role="package">util-linux</systemitem> only suggests <systemitem
+    role="package">nfs-common</systemitem>. If you need to mount
+    <acronym>NFS</acronym> shares, make sure <systemitem
+    role="package">nfs-common</systemitem> is installed on your
+    system. The preinstallation script of the <systemitem
+    role="package">mount</systemitem> package checks, whether
+    <acronym>NFS</acronym> mounts exist and aborts if
+    <filename>/usr/sbin/mount.nfs</filename> from <systemitem
+    role="package">nfs-common</systemitem> is not present or if
+    <systemitem role="package">nfs-common</systemitem> is
+    out-of-date. Either upgrade <systemitem
+    role="package">nfs-common</systemitem>, or unmount any
+    <acronym>NFS</acronym> mounts prior to upgrading mount.
+  </para>
+</section>
+
+<section id="romanian-keyboard">
+  <title>Change of Romanian (ro) keyboard layout</title>
+  <para>
+    Because of the upgrade to <systemitem
+    role="package">xkb-data</systemitem> version 1.3 in &releasename;
+    the default variant for Romanian (ro) layout is now producing the
+    correct șț characters (comma below) instead of şţ (cedilla
+    below). Also some of the variants have been renamed. The old
+    variant names still work, but users are encouraged to update their
+    <filename>/etc/X11/xorg.conf</filename>. More info as well as
+    possible side effects due to this change are available in the
+    <ulink url="http://wiki.debian.org/L10N/Romanian/Lenny/Notes">
+    wiki (Romanian language only)</ulink>.
+  </para>
+</section>
+
+<section id="apache2">
+  <title>Upgrading apache2</title>
+  <para>
+    The apache2 default configuration has changed in some ways that
+    may require manual changes to your configuration. The most
+    important changes are:
+  </para>
+
+  <para>
+    <literal>NameVirtualHost *</literal> has been changed to
+    <literal>NameVirtualHost *:80</literal>. If you have added more
+    name based virtual hosts, you need to change
+    <literal>&lt;VirtualHost *&gt;</literal> to
+    <literal>&lt;VirtualHost *:80&gt;</literal> for each of them.
+  </para>
+
+  <para>
+    The Apache User and Group and the PidFile path are now configured
+    in <filename>/etc/apache2/envvars</filename>. If you have changed
+    these settings from their default values, you need to change that
+    file.  This also means that starting apache2 with <command>apache2
+    -k start</command> is no longer possible, you have to use
+    <command>/etc/init.d/apache2</command> or
+    <command>apache2ctl</command>.
+  </para>
+
+  <para>
+    The suexec helper program needed for mod_suexec is now shipped in
+    a separate package, <systemitem
+    role="package">apache2-suexec</systemitem>, which is not installed
+    by default.
+  </para>
+
+  <para>
+    More module specific configuration has been moved from
+    <filename>/etc/apache2/apache2.conf</filename> to
+    <filename>/etc/apache2/mods-available/*.conf</filename>.
+  </para>
+
+  <para>
+    For more detailed information, see
+    <filename>/usr/share/doc/apache2.2-common/NEWS.Debian.gz</filename>
+    and
+    <filename>/usr/share/doc/apache2.2-common/README.Debian.gz</filename>.
+  </para>
+</section>
+
+<section id="zope">
+<title>Upgrading Zope and Plone</title>
+<para>
+Zope and all related products have been updated.  Many products were also
+dropped from the distribution (either because they were obsoleted, or because
+they are incompatible with the newer Zope, CMF or Plone).
+</para>
+<para>
+Unfortunately there is no easy and guaranteed way to upgrade a complex
+<systemitem role="package">zope</systemitem> or <systemitem role="package">plone</systemitem> server.  Even though Plone
+includes a migration tool, experience has shown that automatic migrations can
+easily fail.
+</para>
+<para>
+For this reason, users are recommended to set up their system so they can
+continue to run the &oldreleasename; installation of Zope/Plone alongside the new &releasename;
+versions while testing the migration.
+</para>
+<para>
+The easiest and safest way to achieve this, is to make a copy of your &oldreleasename;
+system to another hard disk or partition, and then upgrade only one of the two
+copies.  You can then use <command>chroot</command> to run the &oldreleasename; version in
+parallel to the &releasename; version.
+</para>
+<para>
+It is not possible to have the old and new versions of Zope/Plone installed
+together on a &releasename; system, partly because the old packages depend on
+<systemitem role="package">python2.3</systemitem> which cannot be installed
+together with <systemitem role="package">python2.4</systemitem>.
+</para>
+</section>
+
+<section id="tar">
+<title>Wildcard expansion (globbing) with <acronym>GNU</acronym> tar</title>
+<para>
+Previous versions of <acronym>GNU</acronym> <command>tar</command> assumed shell-style globbing
+when extracting files from or listing an archive.  For example:
+</para>
+<screen>
+tar xf foo.tar '*.c'
+</screen>
+<para>
+would extract all files whose names end in '.c'.  This behavior was not
+documented and was incompatible with traditional <command>tar</command>
+implementations.  Therefore, starting from version 1.15.91, <acronym>GNU</acronym>
+<command>tar</command> no longer uses globbing by default.  For example, the
+above invocation is now interpreted as a request to extract from the archive
+the file named '*.c'.
+</para>
+<para>
+See <filename>/usr/share/doc/tar/NEWS.gz</filename> for further information.
+</para>
+</section>
+
+<section id="nis">
+<title>NIS and Network Manager</title>
+<para>
+The version of <command>ypbind</command> included with <systemitem
+role="package">nis</systemitem> for &releasename; contains support for Network Manager.
+This support causes <command>ypbind</command> to disable NIS client
+functionality when Network Manager reports that the computer is disconnected
+from the network.  Since Network Manager will usually report that the computer
+is disconnected when it is not in use, NIS users with NIS client systems should
+ensure that Network Manager support is disabled on those systems.
+</para>
+<para>
+This can be done by either uninstalling the <systemitem
+role="package">network-manager</systemitem> package, or editing
+<filename>/etc/default/nis</filename> to add <literal>-no-dbus</literal> to
+<literal>YPBINDARGS</literal>.
+</para>
+<para>
+The use of <literal>-no-dbus</literal> is the default for new installs of
+Debian, but was not the default in previous releases.
+</para>
+</section>
+
+<section id="php-globals">
+<title>Deprecated insecure php configurations</title>
+<para>
+For many years, turning on the <literal>register_globals</literal> settings in
+PHP has been known to be insecure and dangerous, and this option has defaulted
+to off for some time now.  This configuration is now finally deprecated on
+Debian systems as too dangerous.  The same applies to flaws in
+<literal>safe_mode</literal> and <literal>open_basedir</literal>, which have
+also been unmaintained for some time.
+</para>
+<para>
+Starting with this release, the Debian security team does not provide security
+support for a number of PHP configurations which are known to be insecure.
+Most importantly, issues resulting from <literal>register_globals</literal>
+being turned on will no longer be addressed.
+</para>
+<para>
+If you run legacy applications that require
+<literal>register_globals</literal>, enable it for the respective paths only,
+e.g.  through the Apache configuration file.  More information is available in
+the <filename>README.Debian.security</filename> file in the PHP documentation
+directory (<filename>/usr/share/doc/php4</filename>,
+<filename>/usr/share/doc/php5</filename>).
+</para>
+</section>
+
+<section id="mozilla-security">
+<title>Security status of Mozilla products</title>
+<para>
+The Mozilla programs <systemitem role="package">firefox</systemitem>, 
+<systemitem role="package">thunderbird</systemitem>,
+<systemitem role="package">sunbird</systemitem> and
+<systemitem role="package">seamonkey</systemitem> (rebranded in Debian to
+<systemitem role="package">iceweasel</systemitem>, <systemitem
+role="package">icedove</systemitem>, <systemitem 
+role="package">iceowl</systemitem> and <systemitem 
+role="package">iceape</systemitem>, respectively), are important tools for
+many users.  Unfortunately the upstream security policy is to urge users to
+update to new upstream versions, which conflicts with Debian's policy of not
+shipping large functional changes in security updates.  We cannot predict it
+today, but during the lifetime of &releasename; the Debian Security Team may come to a
+point where supporting Mozilla products is no longer feasible and announce the
+end of security support for Mozilla products.  You should take this into
+account when deploying Mozilla and consider alternatives available in Debian if
+the absence of security support would pose a problem for you.
+</para>
+</section>
+
+<section id="kde-desktop-changes">
+<title>KDE desktop</title>
+<para>
+KDE media handling has changed in the version available in &releasename; from using
+<filename>device:/</filename> to <filename>media:/</filename>.  Some user
+configuration files might have stored <filename>device:/</filename> links in
+them which should be adapted.  Notably,
+<filename>~/.kde/share/apps/konqsidebartng/virtual_folders/services</filename>
+contains this reference and can be safely deleted as it will not be created
+when setting up new users.
+</para>
+<para>
+There have been many changes in the KDE desktop environment from the version
+shipped in &oldreleasename; to the version in &releasename;, you can find more information in the
+<ulink url="http://www.kde.org/announcements/announce-3.5.php">KDE 3.5 Release
+Notes</ulink>.
+</para>
+</section>
+
+<section id="gnome-desktop-changes">
+<title>GNOME desktop changes and support</title>
+<para>
+If you used the GNOME desktop in &oldreleasename; you will not benefit from some of the
+changes introduced in the default configuration in Debian for &releasename;.  In some
+extreme cases the GNOME desktop might not properly handle your old
+configuration and might not behave properly.
+</para>
+<para>
+If you have not heavily invested in configuring your GNOME desktop you might
+want to move the <filename>.gconf</filename> directory in user's home
+directories to a different name (such as <filename>.gconf.old</filename>) so
+that it gets recreated, with the default configuration for &releasename;, upon starting
+a new session.
+</para>
+<para>
+With the release of &releasename;, Debian no longer contains packages for most of the
+obsolete version 1 release of GNOME, although some packages remain in order to
+support some Debian packages which have not yet been updated to GNOME 2.
+Packages for GTK1.2 remain fully maintained.
+</para>
+<para>
+There have been many changes in the GNOME desktop environment from the version
+shipped in &oldreleasename; to the version in &releasename;, you can find more information in the
+<ulink url="http://library.gnome.org/misc/release-notes/2.22/">GNOME 2.22 Release
+Notes</ulink>.
+</para>
+</section>
+
+<section id="default-editor">
+<title>Default editor</title>
+<para>
+If you were using <command>vim</command> as your default editor, this may be
+changed to <command>nano</command> during the upgrade.
+</para>
+<para>
+Administrators who wish to change the default editor for all users will have to
+update the alternatives system using:
+</para>
+<screen>
+# update-alternatives --config editor
+</screen>
+<para>
+Users wishing to change the default editor can define the environment variable
+<emphasis>EDITOR</emphasis> by introducing the following lines in their own
+profiles:
+</para>
+<screen>
+EDITOR=vi
+export EDITOR
+alias editor=$EDITOR
+</screen>
+</section>
+
+<section id="motd">
+<title>Message of the day</title>
+<para>
+<filename>/etc/motd</filename> is now a symlink to
+<filename>/var/run/motd</filename> which is rebuilt by
+<command>/etc/init.d/bootmisc.sh</command> from a template,
+<filename>/etc/motd.tail</filename>, at each reboot.  It means that changes made
+to <filename>/etc/motd</filename> will be lost.  Changes made into
+<filename>/etc/motd.tail</filename> are not automatically applied to
+<filename>/etc/motd</filename> other than at reboot.
+</para>
+<para>
+Also, the EDITMOTD variable at <filename>/etc/default/rcS</filename> no longer
+has any effect.  If you wish to disable updating of the motd, or want to
+maintain your own content for the message of the day you just have to point the
+<filename>/etc/motd</filename> symlink to a different file such as
+<filename>/etc/motd.static</filename> and make your changes there.
+</para>
+</section>
+
+<section id="no-unicode">
+<title>Not default support for unicode in emacs21*</title>
+<para>
+Emacs21 and emacs21-nox are not configured to use Unicode by default.  For more
+information and a workaround please see <ulink
+url="&url-bts;419490">Bug #419490</ulink>.
+</para>
+</section>
+
+<section id="openldapreplica">
+  <title>slurpd/replica will no longer work</title>
+  <para>
+    OpenLDAP has dropped support for <acronym>LDAP</acronym>
+    replication via the slurpd service in release 2.4.7. Existing
+    configurations need to be reconfigured for the
+    <acronym>LDAP</acronym> Sync Replication engine (syncrepl). More
+    verbose documentation can be found at <ulink
+    url="http://www.openldap.org/doc/admin24/replication.html">http://www.openldap.org/doc/admin24/replication.html</ulink>.
+  </para>
+</section>
+
+<section id="vga-output-bug">
+  <title>Desktop not using full screen</title>
+  <para>
+    The driver for Intel Mobile GM965 may wrongly detect a
+    <acronym>VGA</acronym> output and set the size of the screen to a
+    lower value to accomodate it. The symptom of this bug is that the
+    desktop manager will only use a fraction of the screen.  Correct
+    behaviour can be forced by adding the following lines to the
+    <filename>/etc/X11/xorg.conf</filename> configuration file.
+    <programlisting>
+Section "Monitor"
+  Identifier "VGA"
+  Option "Ignore" "true"
+EndSection
+    </programlisting>
+    Please refer to the bug <ulink
+    url="&url-bts;/496169">#496169</ulink> for more informations.
+  </para>
+</section>
+
+</chapter>
