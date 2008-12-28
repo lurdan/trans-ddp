@@ -27,6 +27,7 @@ LANGUAGES := en ca cs de es fi fr it ja pl pt_BR pt ro ru sv zh_TW
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
 XMLROFF_LANGS=cs ja pl ro ru vi zh_CN zh_TW
+DISABLED_PDF=zh_TW
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=zh_TW
 
@@ -150,6 +151,10 @@ $(LINGUA)/$(manual).$(architecture).ps: \
 		$(LINGUA)/$(manual).$(architecture).xml
 endif
 
+ifneq "$(filter $(DISABLED_PDF),$(LINGUA))" ""
+%.pdf: %.xml
+	echo "PDF for $$LINGUA currently disabled." > $@
+else
 ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 %.fo: %.xml
 	$(XP) -o $@ --stringparam draft.mode $(draftmode) fo.xsl $<
@@ -165,6 +170,7 @@ else
 %.pdf: %.xml
 	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
 	$(DBLATEX) --output=$@ --param=draft.mode=$(draftmode) $<
+endif
 endif
 
 ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
