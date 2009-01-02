@@ -272,7 +272,8 @@ clean:: $(LANGUAGES-clean)
 $(LANGUAGES-clean):
 	cd $(subst -clean,,$@); \
 	rm -rf *~ .*~ $(manual).*.html $(manual).*.txt $(manual).*.pdf \
-	    $(manual).*.ps $(manual).*.xml ifxetex.sty
+	    $(manual).*.ps $(manual).*.xml ifxetex.sty body.tmp head.tmp \
+	    release-notes.*.tpt
 
 printarches:
 	@echo $(arches)
