@@ -92,21 +92,21 @@ publish: clean
 	  $(makedir) $(manual)-$$arch; \
 	  for lang in $(LANGUAGES); do \
 	    $(makedir) $(manual)-$$arch/$$lang; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.html/* \
+	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(PUBLISHDIR)/$$arch/$(manual)/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.txt; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.pdf \
+	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.pdf; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.ps \
+	    $(install_file) $$lang/$(manual).$$arch.ps \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.ps; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.html/* \
+	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(manual)-$$arch/$$lang/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.txt; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.pdf \
+	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.pdf ; \
-	    $(install_file) $$lang/$(manual).$$lang.$$arch.ps \
+	    $(install_file) $$lang/$(manual).$$arch.ps \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.ps ; \
 	  done; \
 	  for i in $(PUBLISHDIR)/$$arch/$(manual)/*.en.html; do \
