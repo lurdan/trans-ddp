@@ -18,7 +18,7 @@ ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file	:= install -m 2664 -p
   makedir	:= mkdir -p -m 2775
 else
-  install_file	:= install -m 644 -p
+  install_file	:= cp -r 
   makedir	:= mkdir -p -m 0755
 endif
 
@@ -84,7 +84,7 @@ else
 	-$(MAKE) LINGUA=$@ architecture=$$a $(FORMATS)
 endif
 
-publish: clean
+publish:
 	set -ex; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
@@ -92,7 +92,7 @@ publish: clean
 	  $(makedir) $(manual)-$$arch; \
 	  for lang in $(LANGUAGES); do \
 	    $(makedir) $(manual)-$$arch/$$lang; \
-	    $(install_file) $$lang/$(manual).$$arch.html/* \
+	    $(install_file) $$lang/$(manual).$$arch.html/*.html \
 		$(PUBLISHDIR)/$$arch/$(manual)/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.txt; \
@@ -100,7 +100,7 @@ publish: clean
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.pdf; \
 	    $(install_file) $$lang/$(manual).$$arch.ps \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.ps; \
-	    $(install_file) $$lang/$(manual).$$arch.html/* \
+	    $(install_file) $$lang/$(manual).$$arch.html/*.html \
 		$(manual)-$$arch/$$lang/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.txt; \
