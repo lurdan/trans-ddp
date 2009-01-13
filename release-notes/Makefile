@@ -231,11 +231,10 @@ ifdef LINGUA
 updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po,$(wildcard en/*.dbk))
 $(LINGUA)/%.po:		en/%.dbk
 	echo " $(DBK_LANGUAGES) " | grep -q " $$LINGUA " || \
-	$(UPDATEPO) --master $< --po $@
+	( $(UPDATEPO) --master $< --po $@ && touch $@ )
 	@# po4a-updatepo doesn't update the timestamp of the target if nothing
-	@# is to do. This requires that this make rule is always restarted which
-	@# slows down the build a lot. Workaround:
-	@touch $@
+	@# is to do. That's why this make rule would always be restarted without
+	@# touch which slows down the build a lot.
 
 validate:	$(patsubst en/%,$(LINGUA)/%,$(SOURCES))
 	$(XL) $(LINGUA)/$(manual).dbk
