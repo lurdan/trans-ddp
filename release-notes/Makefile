@@ -67,7 +67,7 @@ UPDATEPO=PERLLIB=lib/ po4a-updatepo --format docbook
 TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 
 .SUFFIXES: 
-.PHONY: publish all clean $(LANGUAGES) $(LANGUAGES-publish)
+.PHONY: publish all clean $(LANGUAGES-publish)
 
 all:
 	for l in $(LANGUAGES); do \
@@ -220,9 +220,8 @@ ifndef LINGUA
 
 FORCE:
 else
-ifneq "$(LINGUA)" "en"
+ifeq "$(findstring $(LINGUA),$(DBK_LANGUAGES))" ""
 $(LINGUA)/%.dbk:	en/%.dbk $(LINGUA)/%.po
-	echo " $(DBK_LANGUAGES) " | grep -q " $$LINGUA " || \
 	$(TRANSLATE) --master $< --po $(@:.dbk=.po) --localized $@
 endif
 endif
