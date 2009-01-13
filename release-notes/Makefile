@@ -23,7 +23,7 @@ else
 endif
 
 LANGUAGES := en ca cs de es fi fr it ja pl pt_BR pt ro ru sv zh_TW
-# languages w/o .po files
+# languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
 XMLROFF_LANGS=cs ja pl ro ru vi zh_CN zh_TW
@@ -241,6 +241,10 @@ updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po,$(wildcard en/*.dbk))
 $(LINGUA)/%.po:		en/%.dbk
 	echo " $(DBK_LANGUAGES) " | grep -q " $$LINGUA " || \
 	$(UPDATEPO) --master $< --po $@
+	@# po4a-updatepo doesn't update the timestamp of the target if nothing
+	@# is to do. This requires that this make rule is always restarted which
+	@# slows down the build a lot. Workaround:
+	@touch $@
 
 validate:	$(patsubst en/%,$(LINGUA)/%,$(SOURCES))
 	$(XL) $(LINGUA)/$(manual).dbk
