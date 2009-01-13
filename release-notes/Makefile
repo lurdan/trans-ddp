@@ -206,16 +206,16 @@ else
 endif
 
 $(LINGUA)/$(manual).$(architecture).xml: \
-		$(patsubst en/%,$(LINGUA)/%,$(SOURCES))
+		$(patsubst en/%,$(LINGUA)/%,$(SOURCES)) $(manual).ent
 	$(XP) --stringparam profile.arch "$(architecture)$(otherarchs)" \
 	      --stringparam profile.condition "$(condition)" \
 	    $(PROFILE) $(@D)/$(manual).dbk > $@
 endif
 
 # There must be an easier way than recursive make!
-.PRECIOUS:		%.dbk %.ent
+.PRECIOUS:		%.dbk
 ifndef LINGUA
-%.dbk %.ent: FORCE
+%.dbk: FORCE
 	$(MAKE) $@ LINGUA=`basename $(@D)`
 
 FORCE:
