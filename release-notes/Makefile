@@ -115,8 +115,8 @@ $(FORMATS)::
 endif
 
 ifdef LINGUA
-html::	$(LINGUA)/$(manual).$(architecture).html/index.html
-$(LINGUA)/$(manual).$(architecture).html/index.html: \
+html::	$(LINGUA)/$(manual).$(architecture).html/index.$(LINGUA).html
+$(LINGUA)/$(manual).$(architecture).html/index.$(LINGUA).html: \
 		$(LINGUA)/$(manual).$(architecture).xml html.xsl
 	mkdir -p $(LINGUA)/$(manual).$(architecture).html/images
 	cp debian.css $(LINGUA)/$(manual).$(architecture).html
