@@ -76,14 +76,6 @@ all:
 	    done; \
 	done
 
-$(LANGUAGES):
-ifeq "$(architecture)" ""
-	@echo "architecture variable must be set, try one of: $(arches)"
-	exit 1
-else
-	-$(MAKE) LINGUA=$@ architecture=$$a $(FORMATS)
-endif
-
 publish:
 	set -ex; \
 	for arch in $(arches); do \
