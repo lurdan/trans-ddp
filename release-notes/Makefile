@@ -92,7 +92,7 @@ publish:
 	  $(makedir) $(manual)-$$arch; \
 	  for lang in $(LANGUAGES); do \
 	    $(makedir) $(manual)-$$arch/$$lang; \
-	    $(install_file) $$lang/$(manual).$$arch.html/*.html \
+	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(PUBLISHDIR)/$$arch/$(manual)/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.txt; \
@@ -100,7 +100,7 @@ publish:
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.pdf; \
 	    $(install_file) $$lang/$(manual).$$arch.ps \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.ps; \
-	    $(install_file) $$lang/$(manual).$$arch.html/*.html \
+	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(manual)-$$arch/$$lang/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.txt; \
