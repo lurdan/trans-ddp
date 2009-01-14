@@ -184,7 +184,7 @@ txt::	$(LINGUA)/$(manual).$(architecture).txt
 $(LINGUA)/$(manual).$(architecture).txt: \
 		$(LINGUA)/$(manual).$(architecture).xml txt.xsl
 	$(XP) --stringparam draft.mode $(draftmode) $(DBK2HTML1) $< \
-	    | w3m -cols 70 -dump -no-graph -T text/html > $@
+	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 # profiling for architecture, needed by all output formats
 condition := ;
