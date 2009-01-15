@@ -26,6 +26,7 @@ LANGUAGES := en ca cs de es fi fr it ja pl pt_BR pt ro ru sv zh_TW
 # languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
+PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=cs ja pl ro ru vi zh_CN zh_TW
 DISABLED_PDF=zh_TW
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
@@ -212,13 +213,14 @@ $(LINGUA)/$(manual).$(architecture).xml: \
 	    $(PROFILE) $(@D)/$(manual).dbk > $@
 endif
 
+FORCE:
+
 # There must be an easier way than recursive make!
 .PRECIOUS:		%.dbk
 ifndef LINGUA
 %.dbk: FORCE
 	$(MAKE) $@ LINGUA=`basename $(@D)`
 
-FORCE:
 else
 ifeq "$(findstring $(LINGUA),$(DBK_LANGUAGES))" ""
 $(LINGUA)/%.dbk:	en/%.dbk $(LINGUA)/%.po
@@ -228,13 +230,10 @@ endif
 
 ifdef LINGUA
 .PHONY:	updatepo
-updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po,$(wildcard en/*.dbk))
-$(LINGUA)/%.po:		en/%.dbk
-	echo " $(DBK_LANGUAGES) " | grep -q " $$LINGUA " || \
-	( $(UPDATEPO) --master $< --po $@ && touch $@ )
-	@# po4a-updatepo doesn't update the timestamp of the target if nothing
-	@# is to do. That's why this make rule would always be restarted without
-	@# touch which slows down the build a lot.
+updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po-force,$(wildcard en/*.dbk))
+# The next is just a PHONY target and forcible updates the PO files
+$(LINGUA)/%.po-force: FORCE
+	$(UPDATEPO) --master en/$*.dbk --po $(LINGUA)/$*.po
 
 validate:	$(patsubst en/%,$(LINGUA)/%,$(SOURCES))
 	$(XL) $(LINGUA)/$(manual).dbk
@@ -252,6 +251,13 @@ else
 endif
 
 ifndef LINGUA
+
+# Iterate over all PO based languages only
+updatepo:
+	for l in $(PO_LANGUAGES); do \
+	    $(MAKE) $@ LINGUA=$$l; \
+	done
+
 %:
 	for l in $(LANGUAGES); do \
 	    $(MAKE) $@ LINGUA=$$l; \
