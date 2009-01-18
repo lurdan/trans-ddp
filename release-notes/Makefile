@@ -265,7 +265,7 @@ updatepo:
 endif
 
 clean::
-	rm -f relnotes.tar.bz2
+	rm -f relnotes.tar.bz2 statistics 
 	find -maxdepth 1 -name '$(manual)-*' -type d -exec rm -fr {} \;
 clean:: $(LANGUAGES-clean)
 
@@ -279,3 +279,13 @@ $(LANGUAGES-clean):
 
 printarches:
 	@echo $(arches)
+
+.PHONY: statistics.txt
+statistics.txt:
+	( \
+	    LANG=C; export LANG; \
+	    for l in $(PO_LANGUAGES); do \
+		echo -n "$$l: "; \
+	        msgcat $$l/*.po | msgfmt --statistics - 2>&1 ; \
+	    done; \
+	) > $@
