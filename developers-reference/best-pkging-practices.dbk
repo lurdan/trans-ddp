@@ -755,29 +755,48 @@ documentation (<literal>man po-debconf</literal> is a good start).
 </para>
 <para>
 Avoid changing templates too often.  Changing templates text induces more work
-to translators which will get their translation fuzzied.  If you plan changes
-to your original templates, please contact translators.  Most active
-translators are very responsive and getting their work included along with your
-modified templates will save you additional uploads.  If you use gettext-based
-templates, the translator's name and e-mail addresses are mentioned in the po
-files headers.
+to translators which will get their translation fuzzied.  A fuzzy translation is
+a string for which the original changed since it was translated, therefore
+requiring some update by a translator to be usable.  When changes are small
+enough, the original translation is kept in PO files but marked as
+<literal>fuzzy</literal>.
 </para>
 <para>
-The use of the <command>podebconf-report-po</command> from the <systemitem
-role="package">po-debconf</systemitem> package is highly recommended to warn
-translators which have incomplete translations and request them for updates.
+If you plan to do changes
+to your original templates, please use the notification system provided with
+the <systemitem
+role="package">po-debconf</systemitem> package, namely the <command>
+podebconf-report-po</command>, to contact translators.  Most active
+translators are very responsive and getting their work included along with your
+modified templates will save you additional uploads.  If you use gettext-based
+templates, the translator's name and e-mail addresses are mentioned in the PO
+files headers and will be used by <command>
+podebconf-report-po</command>.
+</para>
+<para>
+A recommended use of that utility is:
+</para>
+<programlisting>cd debian/po &amp;&amp; podebconf-report-po --languageteam --withtranslators --call --deadline="+10 days"</programlisting>
+<para>
+This command will first synchronize the PO and POT files in debian/po with
+the templates files listed in <filename>debian/po/POTFILES.in</filename>.
+Then, it will send a call for translation updates to the language team
+(mentioned in the <literal>Language-Team</literal> field of each PO file)
+as well as the last translator (mentioned in
+<literal>Last-translator</literal>). Finally, it will also send a call for
+new translations, in the &email-debian-i18n; mailing list.
+</para>
+<para>
+Giving a deadline to translators is always appreciated, so that they can
+organize their work. Please remember that some translation teams have a
+formalized translate/review process and a delay lower than 10 days is
+considered as unreasonable. A shorter delay puts too much pressure on translation
+teams and should be kept for very minor changes.
 </para>
 <para>
 If in doubt, you may also contact the translation team for a given language
 (debian-l10n-xxxxx@&lists-host;), or the
 &email-debian-i18n; mailing list.
-</para>
-<para>
-Calls for translations posted to &email-debian-i18n; with the
-<filename>debian/po/templates.pot</filename> file attached or referenced in a
-URL are encouraged.  Be sure to mentions in these calls for new translations
-which languages you have existing translations for, in order to avoid duplicate
-work.
 </para>
 </section>
 
@@ -787,15 +806,89 @@ work.
 When the text of a debconf template is corrected and you are <emphasis
 role="strong">sure</emphasis> that the change does <emphasis
 role="strong">not</emphasis> affect translations, please be kind to translators
-and unfuzzy their translations.
+and <emphasis>unfuzzy</emphasis> their translations.
 </para>
 <para>
 If you don't do so, the whole template will not be translated as long as a
 translator will send you an update.
 </para>
 <para>
-To <literal>unfuzzy</literal> translations, you can proceed the
-following way:
+To <emphasis>unfuzzy</emphasis> translations, you can use two methods. The first
+method does <emphasis>preventive</emphasis> search and replace actions in the
+PO files. The latter uses <command>gettext</command> utilities to <emphasis>unfuzzy</emphasis>
+strings.
+</para>
+<para>
+<emphasis>Preventive unfuzzy</emphasis> method:
+</para>
+<orderedlist numeration="arabic">
+<listitem>
+<para>
+Try finding a complete translation file <emphasis role="strong"> before</emphasis>
+the change:
+</para>
+<programlisting>for i in debian/po/*po; do echo -n $i: ; msgfmt -o /dev/null
+--statistics $i; done</programlisting>
+<para>
+The file only showing <emphasis>translated</emphasis> items will be used
+as the reference file. If there is none (which should not happen if you take
+care to properly interact with translators), you should use the file
+with the most translated strings.
+</para>
+</listitem>
+<listitem>
+<para>
+Identify the needed change. In this example, let's assume the change is about
+fixing a typo in the word <literal>typo</literal> which was inadvertently
+written as <literal>tpyo</literal>. Therefore, the change is
+<command>s/tpyo/typo</command>.
+</para>
+</listitem>
+<listitem>
+<para>
+Check that this change is only applied to the place where you really intend
+to make it and <emphasis role="strong">not</emphasis> in any other place
+where the original string is appropriate. This specifically applies to
+change in punctuation, for instance.
+</para>
+</listitem>
+<listitem>
+<para>
+Modify all PO files by using <command>sed</command>. The use of that command
+is recommended over any text editor to guarantee that the files encoding will
+not be broken by the edit action.
+</para>
+<programlisting>
+cd debian/po
+for i in *.po; do sed -i 's/tpyo/typo/g' $i; done
+</programlisting>
+</listitem>
+<listitem>
+<para>
+Change the debconf template file to fix the typo.
+</para>
+</listitem>
+<listitem>
+<para>
+Run <command>debconf-updatepo</command>
+</para>
+</listitem>
+<listitem>
+<para>
+Check the <filename>foo.po</filename> reference file. Its statistics should
+not be changed:
+</para>
+<programlisting>
+msgfmt -o /dev/null --statistics debian/po/foo.po
+</programlisting>
+</listitem>
+<listitem>
+If the file's statistics changed, you did something wrong. Try again
+or ask for help on the &email-debian-i18n; mailing list.
+</listitem>
+</orderedlist>
+<para>
+Gettext utilities method:
 </para>
 <orderedlist numeration="arabic">
 <listitem>
@@ -850,7 +943,7 @@ run <command>debconf-updatepo</command> again
 <title>Do not make assumptions about interfaces</title>
 <para>
 Templates text should not make reference to widgets belonging to some debconf
-interfaces.  Sentences like If you answer Yes...  have no meaning for users of
+interfaces.  Sentences like <emphasis>If you answer Yes...</emphasis> have no meaning for users of
 graphical interfaces which use checkboxes for boolean questions.
 </para>
 <para>
@@ -868,12 +961,12 @@ facts.
 <section id="s6.5.2.5">
 <title>Do not use first person</title>
 <para>
-You should avoid the use of first person (I will do this...  or We
-recommend...).  The computer is not a person and the Debconf templates do not
+You should avoid the use of first person (<emphasis>I will do this...</emphasis> or <emphasis>We
+recommend...</emphasis>).  The computer is not a person and the Debconf templates do not
 speak for the Debian developers.  You should use neutral construction.  Those
 of you who already wrote scientific publications, just write your templates
-like you would write a scientific paper.  However, try using action voice if
-still possible, like Enable this if ...  instead of This can be enabled if ....
+like you would write a scientific paper.  However, try using active voice if
+still possible, like <emphasis>Enable this if ...</emphasis> instead of <emphasis>This can be enabled if...</emphasis>.
 </para>
 </section>
 
@@ -925,7 +1018,36 @@ yes/no</emphasis>...
 <para>
 A choice between one of a number of values.  The choices must be specified in a
 field named 'Choices'.  Separate the possible values with commas and spaces,
-like this: Choices: yes, no, maybe
+like this: <literal>Choices: yes, no, maybe</literal>.
+</para>
+<para>
+If choices are translatable strings, the 'Choices' field may be marked as
+translatable by using <literal>__Choices</literal>. The double underscore will split out
+each choice in a separate string.
+</para>
+<para>
+The <command>po-debconf</command> system also offers interesting possibilities
+to only mark <emphasis role="strong">some</emphasis> choices as translatable.
+Example:
+</para>
+<programlisting>
+Template: foo/bar
+Type: Select
+#flag:translate:3
+__Choices: PAL, SECAM, Other
+_Description: TV standard:
+ Please choose the TV standard used in your country.
+</programlisting>
+<para>
+In that example, only the 'Other' string is translatable while others
+are acronyms that should not be translated. The above allows only
+'Other' to be included in PO and POT files.
+</para>
+<para>
+The debconf templates flag system offers many such possibilities. The
+<citerefentry>
+<refentrytitle>po-debconf</refentrytitle> <manvolnum>7</manvolnum>
+</citerefentry> manual page lists all these possibilities.
 </para>
 </section>
 
@@ -1168,7 +1290,7 @@ the _DefaultChoice trick.
 <para>
 This special field allow translators to put the most appropriate choice
 according to their own language.  It will become the default choice when their
-language is used while your own mentioned Default Choice will be used chan
+language is used while your own mentioned Default Choice will be used when
 using English.
 </para>
 <para>
