@@ -231,6 +231,7 @@ endif
 
 ifdef LINGUA
 .PHONY:	updatepo
+update-po: updatepo
 updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po-force,$(wildcard en/*.dbk))
 # The next is just a PHONY target and forcible updates the PO files
 $(LINGUA)/%.po-force: FORCE
