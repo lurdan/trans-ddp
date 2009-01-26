@@ -291,3 +291,4 @@ statistics.txt:
 	        msgcat $$l/*.po | msgfmt --statistics - 2>&1 ; \
 	    done; \
 	) > $@
+	./transcount $(DBK_LANGUAGES) >> $@
