@@ -1,1717 +1,2103 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
   "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
   <!ENTITY % shareddata   SYSTEM "../release-notes.ent" > %shareddata;
 ]>
 
-<chapter id="ch-upgrading" lang="en">
-<title>Upgrades from previous releases</title>
-<section id="backup">
-<title>Preparing for the upgrade</title>
-<para>
-We suggest that before upgrading you also read the information in <xref
-linkend="ch-information"/>.  That chapter covers potential issues not
-directly related to the upgrade process but which could still be important
-to know about before you begin.
-</para>
-<section id="data-backup">
-<title>Back up any data or configuration information</title>
-<para>
-Before upgrading your system, it is strongly recommended that you make a
-full backup, or at least back up any data or configuration information you
-can't afford to lose.  The upgrade tools and process are quite reliable, but
-a hardware failure in the middle of an upgrade could result in a severely
-damaged system.
-</para>
-<para>
-The main things you'll want to back up are the contents of
-<filename>/etc</filename>, <filename>/var/lib/dpkg</filename>,
-<filename>/var/lib/aptitude/pkgstates</filename> and the output of
-<literal>dpkg --get-selections "*"</literal> (the quotes are important).
-</para>
-<para>
-The upgrade process itself does not modify anything in the
-<filename>/home</filename> directory.  However, some applications (e.g.
-parts of the Mozilla suite, and the GNOME and KDE desktop environments) are
-known to overwrite existing user settings with new defaults when a new
-version of the application is first started by a user.  As a precaution, you
-may want to make a backup of the hidden files and directories
-(<quote>dotfiles</quote>) in users' home directories.  This backup may help
-to restore or recreate the old settings.  You may also want to inform users
-about this.
-</para>
-<para>
-Any package installation operation must be run with superuser privileges, so
-either login as root or use <command>su</command> or <command>sudo</command>
-to gain the necessary access rights.
-</para>
-<para>
-The upgrade has a few preconditions; you should check them before actually
-executing the upgrade.
-</para>
-</section>
-
-<section id="inform-users">
-<title>Inform users in advance</title>
-<para>
-It's wise to inform all users in advance of any upgrades you're planning,
-although users accessing your system via an <command>ssh</command>
-connection should notice little during the upgrade, and should be able to
-continue working.
-</para>
-<para>
-If you wish to take extra precautions, back up or unmount users' partitions
-(<filename>/home</filename>) before upgrading.
-</para>
-<para>
-You will probably have to do a kernel upgrade when upgrading to
-&releasename;, so a reboot will normally be necessary.  Typically, this will
-be done after the upgrade is finished.
-</para>
-</section>
-
-<section id="recovery">
-<title>Prepare for recovery</title>
-<para>
-Because of the many changes in the kernel between &oldreleasename; and
-&releasename; regarding drivers, hardware discovery and the naming and
-ordering of device files, there is a real risk that you may experience
-problems rebooting your system after the upgrade.  A lot of known potential
-issues are documented in this and the next chapters of these Release Notes.
-</para>
-<para>
-For that reason it makes sense to ensure that you will be able to recover if
-your system should fail to reboot or, for remotely managed systems, fail to
-bring up networking.
-</para>
-<para>
-If you are upgrading remotely via an <command>ssh</command> link it is
-highly recommended that you take the necessary precautions to be able to
-access the server through a remote serial terminal.  There is a chance that,
-after upgrading the kernel and rebooting, some devices will be renamed (as
-described in <xref linkend="device-reorder"/> ) and you will have to fix the
-system configuration through a local console.  Also, if the system is
-rebooted accidentally in the middle of an upgrade there is a chance you will
-need to recover using a local console.
-</para>
-<para>
-The most obvious thing to try first is to reboot with your old kernel.
-However, for various reasons documented elsewhere in this document, this is
-not guaranteed to work.
-</para>
-<para>
-If that fails, you will need an alternative way to boot your system so you
-can access and repair it.  One option is to use a special rescue image or a
-Linux live CD.  After booting from that, you should be able to mount your
-root file system and <literal>chroot</literal> into it to investigate and
-fix the problem.
-</para>
-<para>
-Another option we'd like to recommend is to use the <emphasis>rescue
-mode</emphasis> of the &releasename; Debian Installer.  The advantage of
-using the installer is that you can choose between its many installation
-methods for one that best suits your situation.  For more information,
-please consult the section <quote>Recovering a Broken System</quote> in
-chapter 8 of the <ulink url="&url-install-manual;">Installation
-Guide</ulink> and the <ulink url="&url-wiki;DebianInstaller/FAQ">Debian
-Installer FAQ</ulink>.
-</para>
-<section id="recovery-initrd">
-<title>Debug shell during boot using initrd</title>
-<para>
-The <systemitem role="package">initramfs-tools</systemitem> includes a debug
-shell<footnote><para> This feature can be disabled by adding the parameter
-<literal>panic=0</literal> to your boot parameters.  </para> </footnote> in the initrds it generates.  If for example the initrd is
-unable to mount your root file system, you will be dropped into this debug
-shell which has basic commands available to help trace the problem and
-possibly fix it.
-</para>
-<para>
-Basic things to check are: presence of correct device files in
-<filename>/dev</filename>; what modules are loaded (<literal>cat
-/proc/modules</literal>); output of <command>dmesg</command> for errors
-loading drivers.  The output of <command>dmesg</command> will also show what
-device files have been assigned to which disks; you should check that
-against the output of <literal>echo $ROOT</literal> to make sure that the
-root file system is on the expected device.
-</para>
-<para>
-If you do manage to fix the problem, typing <literal>exit</literal> will
-quit the debug shell and continue the boot process at the point it failed.
-Of course you will also need to fix the underlying problem and regenerate
-the initrd so the next boot won't fail again.
-</para>
-</section>
-
-</section>
-
-<section id="upgrade-preparations">
-<title>Prepare a safe environment for the upgrade</title>
-<para>
-The distribution upgrade should be done either locally from a textmode
-virtual console (or a directly connected serial terminal), or remotely via
-an <command>ssh</command> link.
-</para>
-<para>
-In order to gain extra safety margin when upgrading remotely, we suggest
-that you run upgrade processes in the virtual console provided by the
-<command>screen</command> program, which enables safe reconnection and
-ensures the upgrade process is not interrupted even if the remote connection
-process fails.
-</para>
-<important>
-  <para>
-    You should <emphasis>not</emphasis> upgrade using <command>telnet</command>,
-<command>rlogin</command>, <command>rsh</command>, or from an X session
-managed by <command>xdm</command>, <command>gdm</command> or
-<command>kdm</command> etc on the machine you are upgrading.  That is
-because each of those services may well be terminated during the upgrade,
-which can result in an <emphasis>inaccessible</emphasis> system that is only
-half-upgraded.
-  </para>
-</important>
-
-<programlisting condition="fixme">
-TODO: surely gdm/kdm are sane?
-(vorlon) haha, no, gdm is not; I had that thought, and tested a gdm
-         restart on my live session ;)
-</programlisting>
-
-</section>
-
-<section arch="i386;amd64" id="prepare-initramfs">
-  <title>Prepare initramfs for
-<acronym>LILO</acronym><indexterm><primary>LILO</primary></indexterm></title>
-  <para>
-    Users using the <acronym>LILO</acronym> bootloader should note that the
-default settings for <systemitem role="package">initramfs-tools</systemitem>
-now generate an initramfs that is too large for <acronym>LILO</acronym> to
-load. Such users should either switch to <systemitem
-role="package">grub</systemitem>, or edit the file
-<filename>/etc/initramfs-tools/initramfs.conf</filename>, changing the line <programlisting>MODULES=most</programlisting> to read
-    <programlisting>MODULES=dep</programlisting></para>
-
-  <para>
-    Note, however, that doing this will cause <systemitem
-role="package">initramfs-tools</systemitem> to install only those modules
-that are required for the particular hardware that it is run on, onto the
-initramfs; as such, if you want to generate a boot medium that will work on
-more hardware than just the one you're generating it on, you should leave
-the setting to
-    <programlisting>MODULES=most</programlisting> and make sure you do not use <acronym>LILO</acronym>.
-  </para>
-</section>
-
-</section>
-
-<section id="system-status">
-<title>Checking system status</title>
-<para>
-The upgrade process described in this chapter has been designed for upgrades
-from <quote>pure</quote> &oldreleasename; systems without third-party
-packages.
-For the greatest reliability of the upgrade process, you
-may wish to remove third-party packages from your system before you begin
-upgrading.
-</para>
-<para>
-This procedure also assumes your system has been updated to the latest point
-release of &oldreleasename;.  If you have not done this or are unsure,
-follow the instructions in <xref linkend="old-upgrade"/>.
-</para>
-<section id="review-actions">
-<title>Review actions pending in package manager</title>
-<para>
-In some cases, the use of <command>apt-get</command> for installing packages
-instead of <command>aptitude</command> might make
-<command>aptitude</command> consider a package as <quote>unused</quote> and
-schedule it for removal.  In general, you should make sure the system is
-fully up-to-date and <quote>clean</quote> before proceeding with the
-upgrade.
-</para>
-<para>
-Because of this you should review if there are any pending actions in the
-package manager <command>aptitude</command>.  If a package is scheduled for
-removal or update in the package manager, it might negatively impact the
-upgrade procedure.  Note that correcting this is only possible if your
-<filename>sources.list</filename> still points to
-<emphasis>&oldreleasename;</emphasis>; and not to
-<emphasis>stable</emphasis> or <emphasis>&releasename;</emphasis>; see <xref
-linkend="old-sources"/>.
-</para>
-<para>
-To do this, you have to run <command>aptitude</command> in <quote>visual
-mode</quote> and press <keycap>g</keycap> (<quote>Go</quote>).  If it shows
-any actions, you should review them and either fix them or implement the
-suggested actions.  If no actions are suggested you will be presented with a
-message saying <quote>No packages are scheduled to be installed, removed, or
-upgraded</quote>.
-</para>
-</section>
-
-<section id="disable-apt-pinning">
-<title>Disabling APT pinning</title>
-<para>
-If you have configured APT to install certain packages from a distribution
-other than stable (e.g.  from testing), you may have to change your APT
-pinning configuration (stored in <filename>/etc/apt/preferences</filename>)
-to allow the upgrade of packages to the versions in the new stable release.
-Further information on APT pinning can be found in <citerefentry>
-<refentrytitle>apt_preferences</refentrytitle> <manvolnum>5</manvolnum>
-</citerefentry>.
-</para>
-</section>
-
-<section id="package-status">
-<title>Checking packages status</title>
-<para>
-Regardless of the method used for upgrading, it is recommended that you
-check the status of all packages first, and verify that all packages are in
-an upgradable state.  The following command will show any packages which
-have a status of Half-Installed or Failed-Config, and those with any error
-status.
-</para>
-<screen>
-# dpkg --audit
-</screen>
-<para>
-You could also inspect the state of all packages on your system using
-<command>dselect</command>, <command>aptitude</command>, or with commands
-such as
-</para>
-<screen>
-# dpkg -l | pager
-</screen>
-<para>
-or
-</para>
-<screen>
-# dpkg --get-selections "*" &gt; ~/curr-pkgs.txt
-</screen>
-<para>
-It is desirable to remove any holds before upgrading.  If any package that
-is essential for the upgrade is on hold, the upgrade will fail.
-</para>
-<para>
-Note that <command>aptitude</command> uses a different method for
-registering packages that are on hold than <command>apt-get</command> and
-<command>dselect</command>.  You can identify packages on hold for
-<command>aptitude</command> with
-</para>
-<screen>
-# aptitude search "~ahold" | grep "^.h"
-</screen>
-<para>
-If you want to check which packages you had on hold for
-<command>apt-get</command>, you should use
-</para>
-<screen>
-# dpkg --get-selections | grep hold
-</screen>
-<para>
-If you changed and recompiled a package locally, and didn't rename it or put
-an epoch in the version, you must put it on hold to prevent it from being
-upgraded.
-</para>
-<para>
-The <quote>hold</quote> package state for <command>aptitude</command> can be
-changed using:
-</para>
-<screen>
-# aptitude hold <replaceable>package_name</replaceable>
-</screen>
-<para>
-Replace <literal>hold</literal> with <literal>unhold</literal> to unset the
-<quote>hold</quote> state.
-</para>
-<para>
-If there is anything you need to fix, it is best to make sure your
-<filename>sources.list</filename> still refers to &oldreleasename; as
-explained in <xref linkend="old-sources"/>.
-</para>
-</section>
-
-<section id="userbackports">
-<title>Unofficial sources and backports</title>
-<para>
-If you have any non-Debian packages on your system, you should be aware that
-these may be removed during the upgrade because of conflicting
-dependencies.  If these packages were installed by adding an extra package
-archive in your <filename>/etc/apt/sources.list</filename>, you should check
-if that archive also offers packages compiled for &releasename; and change
-the source line accordingly at the same time as your source lines for Debian
-packages.
-</para>
-<para>
-Some users may have unofficial backported <quote>newer</quote> versions of
-packages that <emphasis>are</emphasis> in Debian installed on their
-&oldreleasename; system.  Such packages are most likely to cause problems
-during an upgrade as they may result in file conflicts<footnote><para> Debian's package management system normally does not allow a package to
-remove or replace a file owned by another package unless it has been defined
-to replace that package.  </para> </footnote>.  <xref linkend="trouble"/> has some information on how to deal
-with file conflicts if they should occur.
-</para>
-</section>
-
-</section>
-
-<section id="handle-conflict">
-<title>Manually unmarking packages</title>
-<para>
-To prevent <command>aptitude</command> from removing some packages that were
-pulled in through dependencies, you need to manually unmark them as
-<emphasis>auto</emphasis> packages.  This includes OpenOffice and Vim for
-desktop installs:
-</para>
-<screen>
-# aptitude unmarkauto openoffice.org vim
-</screen>
-<para>
-And 2.6 kernel images if you have installed them using a kernel metapackage:
-</para>
-<screen>
-# aptitude unmarkauto $(dpkg-query -W 'kernel-image-2.6.*' | cut -f1)
-</screen>
-<note>
-  <para>
-    You can review which packages are marked as <emphasis>auto</emphasis> in
-aptitude by running:
-  </para>
-  <screen># aptitude search 'i~M <replaceable>package_name</replaceable>'</screen>
-</note>
-</section>
-
-<section id="upgrade-process">
-<title>Preparing sources for APT</title>
-<para>
-Before starting the upgrade you must set up <systemitem
-role="package">apt</systemitem>'s configuration file for package lists,
-<filename>/etc/apt/sources.list</filename>.
-</para>
-<para>
-<systemitem role="package">apt</systemitem> will consider all packages that
-can be found via any <quote><literal>deb</literal></quote> line, and install
-the package with the highest version number, giving priority to the first
-mentioned lines (that way, in case of multiple mirror locations, you'd
-typically first name a local harddisk, then CD-ROMs, and then HTTP/FTP
-mirrors).
-</para>
-<para>
-A release can often be referred to by both its codename (e.g.
-<literal>&oldreleasename;</literal>, <literal>&releasename;</literal>) and
-by its status name (i.e.  <literal>oldstable</literal>,
-<literal>stable</literal>, <literal>testing</literal>,
-<literal>unstable</literal>).  Referring to a release by its codename has
-the advantage that you will never be surprised by a new release and for this
-reason is the approach taken here.  It does of course mean that you will
-have to watch out for release announcements yourself.  If you use the status
-name instead, you will just see loads of updates for packages available as
-soon as a release has happened.
-</para>
-<section id="network">
-<title>Adding APT Internet sources</title>
-<para>
-The default configuration is set up for installation from main Debian
-Internet servers, but you may wish to modify
-<filename>/etc/apt/sources.list</filename> to use other mirrors, preferably
-a mirror that is network-wise closest to you.
-</para>
-<para>
-Debian HTTP or FTP mirror addresses can be found at <ulink
-url="&url-debian-mirrors;"></ulink> (look at the <quote>list of Debian
-mirrors</quote> section).  HTTP mirrors are generally speedier than FTP
-mirrors.
-</para>
-<para>
-For example, suppose your closest Debian mirror is
-<literal>&url-debian-mirror-eg;</literal>.  When inspecting that mirror with
-a web browser or FTP program, you will notice that the main directories are
-organized like this:
-</para>
-<screen>
-&url-debian-mirror-eg;/dists/&releasename;/main/binary-i386/...
-&url-debian-mirror-eg;/dists/&releasename;/contrib/binary-i386/...
-</screen>
-<para>
-To use this mirror with <systemitem role="package">apt</systemitem>, you add
-this line to your <filename>sources.list</filename> file:
-</para>
-<screen>
-deb &url-debian-mirror-eg;/debian &releasename; main contrib
-</screen>
-<para>
-Note that the `<literal>dists</literal>' is added implicitly, and the
-arguments after the release name are used to expand the path into multiple
-directories.
-</para>
-<para>
-After adding your new sources, disable the previously existing
-<quote><literal>deb</literal></quote> lines in
-<filename>sources.list</filename> by placing a hash sign
-(<literal>#</literal>) in front of them.
-</para>
-</section>
-
-<section id="localmirror">
-<title>Adding APT sources for a local mirror</title>
-<para>
-Instead of using HTTP or FTP packages mirrors, you may wish to modify
-<filename>/etc/apt/sources.list</filename> to use a mirror on a local disk
-(possibly mounted over <acronym>NFS</acronym>).
-</para>
-<para>
-For example, your packages mirror may be under
-<filename>/var/ftp/debian/</filename>, and have main directories like this:
-</para>
-<screen>
-/var/ftp/debian/dists/&releasename;/main/binary-i386/...
-/var/ftp/debian/dists/&releasename;/contrib/binary-i386/...
-</screen>
-<para>
-To use this with <systemitem role="package">apt</systemitem>, add this line
-to your <filename>sources.list</filename> file:
-</para>
-<screen>
-deb file:/var/ftp/debian &releasename; main contrib
-</screen>
-<para>
-Note that the `<literal>dists</literal>' is added implicitly, and the
-arguments after the release name are used to expand the path into multiple
-directories.
-</para>
-<para>
-After adding your new sources, disable the previously existing
-<quote><literal>deb</literal></quote> lines in
-<filename>sources.list</filename> by placing a hash sign
-(<literal>#</literal>) in front of them.
-</para>
-</section>
-
-<section id="cdroms">
-<title>Adding APT source from CD-ROM or DVD</title>
-<para>
-If you want to use CDs <emphasis>only</emphasis>, comment out the existing
-<quote><literal>deb</literal></quote> lines in
-<filename>/etc/apt/sources.list</filename> by placing a hash sign
-(<literal>#</literal>) in front of them.
-</para>
-<para>
-Make sure there is a line in <filename>/etc/fstab</filename> that enables
-mounting your CD-ROM drive at the <filename>/cdrom</filename> mount point
-(the exact <filename>/cdrom</filename> mount point is required for
-<command>apt-cdrom</command>).  For example, if
-<filename>/dev/hdc</filename> is your CD-ROM drive,
-<filename>/etc/fstab</filename> should contain a line like:
-</para>
-<screen>
-/dev/hdc /cdrom auto defaults,noauto,ro 0 0
-</screen>
-<para>
-Note that there must be <emphasis>no spaces</emphasis> between the words
-<literal>defaults,noauto,ro</literal> in the fourth field.
-</para>
-<para>
-To verify it works, insert a CD and try running
-</para>
-<screen>
-# mount /cdrom    # this will mount the CD to the mount point
-# ls -alF /cdrom  # this should show the CD's root directory
-# umount /cdrom   # this will unmount the CD
-</screen>
-<para>
-Next, run:
-</para>
-<screen>
-# apt-cdrom add
-</screen>
-<para>
-for each Debian Binary CD-ROM you have, to add the data about each CD to
-APT's database.
-</para>
-</section>
-
-</section>
-
-<section id="upgradingpackages">
-<title>Upgrading packages</title>
-<para>
-The recommended way to upgrade from previous &debian; releases is to use the
-package management tool <command>aptitude</command>.  This program makes
-safer decisions about package installations than running
-<command>apt-get</command> directly.
-</para>
-<para>
-Don't forget to mount all needed partitions (notably the root and
-<filename>/usr</filename> partitions) read-write, with a command like:
-</para>
-<screen>
-# mount -o remount,rw /<replaceable>mountpoint</replaceable>
-</screen>
-<para>
-Next you should double-check that the APT source entries (in
-<filename>/etc/apt/sources.list</filename>) refer either to
-<quote><literal>&releasename;</literal></quote> or to
-<quote><literal>stable</literal></quote>.  There should not be any sources
-entries pointing to &oldreleasename;.
-<note>
-  <para>
-    Source lines for a CD-ROM will often refer to
-<quote><literal>unstable</literal></quote>; although this may be confusing,
-you should <emphasis>not</emphasis> change it.
-  </para>
-</note>
-</para>
-<section id="record-session">
-<title>Recording the session</title>
-<para>
-It is strongly recommended that you use the
-<command>/usr/bin/script</command> program to record a transcript of the
-upgrade session.  Then if a problem occurs, you will have a log of what
-happened, and if needed, can provide exact information in a bug report.  To
-start the recording, type:
-</para>
-<screen>
-# script -t 2&gt;~/upgrade-&releasename;.time -a ~/upgrade-&releasename;.script
-</screen>
-<para>
-or similar.  Do not put the typescript file in a temporary directory such as
-<filename>/tmp</filename> or <filename>/var/tmp</filename> (files in those
-directories may be deleted during the upgrade or during any restart).
-</para>
-<para>
-The typescript will also allow you to review information that has scrolled
-off-screen.  Just switch to VT2 (using <keycombo
-action='simul'><keycap>Alt</keycap><keycap>F2</keycap></keycombo>)  and,
-after logging in, use <literal>less -R
-~root/upgrade-&releasename;.script</literal> to view the file.
-</para>
-<para>
-After you have completed the upgrade, you can stop <command>script</command>
-by typing <literal>exit</literal> at the prompt.
-</para>
-
-<programlisting condition="fixme">
-TODO: Could mention the script I provided in 400725 which is useful if you 
-have not dumped the timing file
-</programlisting>
-
-<para>
-If you have used the <emphasis>-t</emphasis> switch for
-<command>script</command> you can use the <command>scriptreplay</command>
-program to replay the whole session:
-</para>
-<screen>
-# scriptreplay ~/upgrade-&releasename;.time ~/upgrade-&releasename;.script
-</screen>
-</section>
-
-<section id="updating-lists">
-<title>Updating the package list</title>
-<para>
-First the list of available packages for the new release needs to be
-fetched.  This is done by executing:
-</para>
-<screen>
-# aptitude update
-</screen>
-<para>
-Running this the first time new sources are updated will print out some
-warnings related to the availability of the sources.  These warnings are
-harmless and will not appear if you rerun the command again.
-</para>
-</section>
-
-<section id="sufficient-space">
-<title>Make sure you have sufficient space for the upgrade</title>
-<para>
-You have to make sure before upgrading your system that you have sufficient
-hard disk space when you start the full system upgrade described in <xref
-linkend="upgrading-other"/>.  First, any package needed for installation
-that is fetched from the network is stored in
-<filename>/var/cache/apt/archives</filename> (and the
-<filename>partial/</filename> subdirectory, during download), so you must
-make sure you have enough space on the file system partition that holds
-<filename>/var/</filename> to temporarily download the packages that will be
-installed in your system.  After the download, you will probably need more
-space in other file system partitions in order to both install upgraded
-packages (which might contain bigger binaries or more data) and new packages
-that will be pulled in for the upgrade.  If your system does not have
-sufficient space you might end up with an incomplete upgrade that might be
-difficult to recover from.
-</para>
-<para>
-Both <command>aptitude</command> and <systemitem
-role="package">apt</systemitem> will show you detailed information of the
-disk space needed for the installation.  Before executing the upgrade, you
-can see this estimate by running:
-</para>
-<screen>
-# aptitude -y -s -f --with-recommends dist-upgrade
-[ ... ]
-XXX upgraded, XXX newly installed, XXX to remove and XXX not upgraded.
-Need to get xx.xMB/yyyMB of archives. After unpacking AAAMB will be used.
-Would download/install/remove packages.
-</screen>
-<para>
-<footnote><para> Running this command at the beginning of the upgrade process may give an
-error, for the reasons described in the next sections.  In that case you
-will need to wait until you've done the minimal system upgrade as in <xref
-linkend="minimal-upgrade"/> and upgraded your kernel as in <xref
-linkend="upgrading-kernel"/> before running this command to estimate the
-disk space.  </para> </footnote>
-</para>
-<para>
-If you do not have enough space for the upgrade, make sure you free up space
-beforehand.  You can:
-</para>
-<itemizedlist>
-<listitem>
-<para>
-Remove packages that have been previously downloaded for installation (at
-<filename>/var/cache/apt/archive</filename>).  Cleaning up the package cache
-by running <command>apt-get clean</command> or <command>aptitude
-clean</command> will remove all previously downloaded package files.
-</para>
-</listitem>
-<listitem>
-<para>
-Remove old packages you no longer use.  If you have <systemitem
-role="package">popularity-contest</systemitem> installed, you can use
-<command>popcon-largest-unused</command> to list the packages you do not use
-in the system that occupy the most space.  You can also use
-<command>deborphan</command> or <command>debfoster</command> to find
-obsolete packages (see <xref linkend="obsolete"/> ).  Alternatively you can
-start <command>aptitude</command> in <quote>visual mode</quote> and find
-obsolete packages under <quote>Obsolete and Locally Created
-Packages</quote>.
-</para>
-</listitem>
-<listitem>
-<para>
-Remove packages taking up too much space, which are not currently needed
-(you can always reinstall them after the upgrade).  You can list the
-packages that take up most of the disk space with <command>dpigs</command>
-(available in the <systemitem role="package">debian-goodies</systemitem>
-package) or with <command>wajig</command> (running <literal>wajig
-size</literal>).
-</para>
-<programlisting condition="fixme">
-TODO: consider this for lenny
-You can list packages that take up most of the disk space with
-       /aptitude/.  Start /aptitude/ into "visual mode", select
-       "Views" and "New Flat Package List" (this menu entry is available only
-       after etch version), press "l" and enter "~i", press "S" and enter
-       "~installsize", then it will give you nice list to work with.  Doing
-       this after partial upgrade described in ref id="upgrading_aptitude"
-       should give you access to this new feature.
-</programlisting>
-
-</listitem>
-<listitem>
-<para>
-Temporarily move to another system, or permanently remove, system logs
-residing under <filename>/var/log/</filename>.
-</para>
-</listitem>
-</itemizedlist>
-<para>
-Note that in order to safely remove packages, it is advisable to switch your
-<filename>sources.list</filename> back to &oldreleasename; as described in
-<xref linkend="old-sources"/>.
-</para>
-</section>
-
-<section id="aptupgrade1st">
-  <title>Upgrade apt and/or aptitude first</title>
-  <para>
-    Several bug reports have shown that the versions of the <systemitem
-role="package">aptitude</systemitem> and <systemitem
-role="package">apt</systemitem> packages in etch are often unable to handle
-the upgrade to &releasename;. In &releasename;, <systemitem
-role="package">apt</systemitem> better deals with complex chains of packages
-requiring immediate configuration and <systemitem
-role="package">aptitude</systemitem> is smarter in searching solutions for
-satisfying the dependencies. As these two features are heavily involved
-during the dist-upgrade to &releasename;, it is then required to upgrade
-those two packages before upgrading anything else. For <systemitem
-role="package">apt</systemitem>, run:
-    <programlisting># apt-get install apt</programlisting>
-    and for <systemitem role="package">aptitude</systemitem> (if you have it
-installed) run:
-    <programlisting># aptitude install aptitude</programlisting>
-  </para>
-  <para>
-    This step will automatically upgrade <systemitem
-role="package">libc6</systemitem> and <systemitem
-role="package">locales</systemitem> and will pull in SELinux support
-libraries (<systemitem role="package">libselinux1</systemitem>).  At this
-point, some running services will be restarted, including
-<command>xdm</command>, <command>gdm</command> and <command>kdm</command>.
-As a consequence, local X11 sessions might be disconnected.
-  </para>
-</section>
-<section id="aptconvert">
-  <title>Using aptitude's list of automatically-installed packages with apt</title>
-  <para>
-    <systemitem role="package">aptitude</systemitem> maintains a list of
-packages that were installed automatically (for instance, as dependencies of
-another package). In &releasename;, <systemitem
-role="package">apt</systemitem> now has this feature as well.
-  </para>
-  <para>
-    The first time the &releasename; version of <systemitem
-role="package">aptitude</systemitem> is run, it will read in its list of
-automatically installed packages and convert it for use with the
-&releasename; version of <systemitem role="package">apt</systemitem>. If you
-have <systemitem role="package">aptitude</systemitem> installed, you should
-at least issue one <systemitem role="package">aptitude</systemitem> command
-to do the conversion. One way to do this is by searching for a non-existent
-package:
-    <programlisting># aptitude search "?false"</programlisting>
-</para>
-</section>
-
-<section id="minimal-upgrade">
-<title>Minimal system upgrade</title>
-<para>
-Because of certain necessary package conflicts between &oldreleasename; and
-&releasename;, running <literal>aptitude dist-upgrade</literal> directly
-will often remove large numbers of packages that you will want to keep.  We
-therefore recommend a two-part upgrade process, first a minimal upgrade to
-overcome these conflicts, then a full <literal>dist-upgrade</literal>.
-</para>
-<para>
-First, run:
-</para>
-<screen>
-# aptitude upgrade
-</screen>
-<para>
-This has the effect of upgrading those packages which can be upgraded
-without requiring any other packages to be removed or installed.
-</para>
-<para>
-The next step will vary depending on the set of packages that you have
-installed.  These release notes give general advice about which method
-should be used, but if in doubt, it is recommended that you examine the
-package removals proposed by each method before proceeding.
-</para>
-<para>
-Some common packages that are expected to be removed include <systemitem
-role="package">base-config</systemitem>, <systemitem
-role="package">hotplug</systemitem>, <systemitem
-role="package">xlibs</systemitem>, <systemitem
-role="package">netkit-inetd</systemitem>, <systemitem
-role="package">python2.3</systemitem>, <systemitem
-role="package">xfree86-common</systemitem>, and <systemitem
-role="package">xserver-common</systemitem>.  For a more complete list of
-packages obsoleted in &releasename;, see <xref linkend="obsolete"/>.
-</para>
-<section id="minimal-upgrade-desktop">
-<title>Upgrading a desktop system</title>
-<para>
-This upgrade path has been verified to work on systems with the
-&oldreleasename; <literal>desktop</literal> task installed.  It is probably
-the method that will give the best results on systems with the
-<literal>desktop</literal> task installed, or with the
-<literal>gnome</literal> or <literal>kde</literal> packages installed.
-</para>
-<para>
-It is probably <emphasis>not</emphasis> the correct method to use if you do
-not already have the <systemitem role="package">libfam0c102</systemitem> and
-<systemitem role="package">xlibmesa-glu</systemitem> packages installed:
-</para>
-<screen>
-# dpkg -l libfam0c102 | grep ^ii
-# dpkg -l xlibmesa-glu | grep ^ii
-</screen>
-<para>
-If you do have a full desktop system installed, run:
-</para>
-<screen>
-# aptitude install libfam0 xlibmesa-glu
-</screen>
-</section>
-
-<section id="minimal-upgrade-x-server">
-<title>Upgrading a system with some X packages installed</title>
-<para>
-Systems with some X packages installed, but not the full
-<literal>desktop</literal> task, require a different method.  This method
-applies in general to systems with <systemitem
-role="package">xfree86-common</systemitem> installed, including some server
-systems which have <systemitem role="package">tasksel</systemitem> server
-tasks installed as some of these tasks include graphical management tools.
-It is likely the correct method to use on systems which run X, but do not
-have the full <literal>desktop</literal> task installed.
-</para>
-<screen>
-# dpkg -l xfree86-common | grep ^ii
-</screen>
-<para>
-First, check whether you have the <systemitem
-role="package">libfam0c102</systemitem> and <systemitem
-role="package">xlibmesa-glu</systemitem> packages installed.
-</para>
-<screen>
-# dpkg -l libfam0c102 | grep ^ii
-# dpkg -l xlibmesa-glu | grep ^ii
-</screen>
-<para>
-If you do not have <systemitem role="package">libfam0c102</systemitem>
-installed, do not include <systemitem role="package">libfam0</systemitem> in
-the following commandline.  If you do not have <systemitem
-role="package">xlibmesa-glu</systemitem> installed, do not include it in the
-following commandline.  <footnote><para> This command will determine whether you need libfam0 and xlibmesa-glu
-installed, and auto-select them for you:
-</para> <screen> # aptitude install x11-common \ $(dpkg-query --showformat
-'${Package} ${Status}\n' -W libfam0c102 xlibmesa-glu \ | grep 'ok installed$' |
-sed -e's/ .*//; s/c102//') </screen> </footnote>
-</para>
-<screen>
-# aptitude install x11-common <replaceable>libfam0</replaceable> <replaceable>xlibmesa-glu</replaceable>
-</screen>
-<para>
-Note that installing <systemitem role="package">libfam0</systemitem> will
-also install the File Alteration Monitor (<systemitem
-role="package">fam</systemitem>) as well as the RPC portmapper (<systemitem
-role="package">portmap</systemitem>) if not already available in your
-system.  Both packages will enable a new network service in the system
-although they can both be configured to be bound to the (internal) loopback
-network device.
-</para>
-</section>
-
-<section id="minimal-upgrade-server">
-<title>Upgrading a system with no X support installed</title>
-<para>
-On a system with no X, no additional <literal>aptitude install</literal>
-command should be required, and you can move on to the next step.
-</para>
-</section>
-
-</section>
-
-<section id="upgrading-kernel">
-<title>Upgrading the kernel</title>
-<para>
-The <systemitem role="package">udev</systemitem> version in &releasename;
-does not support kernel versions earlier than 2.6.15 (which includes
-&oldreleasename; 2.6.8 kernels), and the <systemitem
-role="package">udev</systemitem> version in &oldreleasename; will not work
-properly with the latest kernels.  In addition, installing the &releasename;
-version of <systemitem role="package">udev</systemitem> will force the
-removal of <systemitem role="package">hotplug</systemitem>, used by Linux
-2.4 kernels.
-</para>
-<para>
-As a consequence, the previous kernel package will probably not boot
-properly after this upgrade.  Similarly, there is a time window during the
-upgrade in which <systemitem role="package">udev</systemitem> has been
-upgraded but the latest kernel has not been installed.  If the system were
-to be rebooted at this point, in the middle of the upgrade, it might not be
-bootable because of drivers not being properly detected and loaded.  (See
-<xref linkend="upgrade-preparations"/> for recommendations on preparing for
-this possibility if you are upgrading remotely.)
-</para>
-<para>
-Unless your system has the <literal>desktop</literal> task installed, or
-other packages that would cause an unacceptable number of package removals,
-it is therefore recommended that you upgrade the kernel on its own at this
-point.
-</para>
-<para>
-To proceed with this kernel upgrade, run:
-</para>
-<screen>
-# aptitude install linux-image-2.6-<replaceable>flavor</replaceable>
-</screen>
-<para>
-See <xref linkend="kernel-metapackage"/> for help in determining which
-flavor of kernel package you should install.
-</para>
-<para>
-In the desktop case, it is unfortunately not possible to ensure the new
-kernel package is installed immediately after the new <systemitem
-role="package">udev</systemitem> is installed, so there is a window of
-unknown length when your system will have no kernel installed with full
-hotplug support.  See <xref linkend="newkernel"/> for information on
-configuring your system to not depend on hotplug for booting.
-</para>
-</section>
-
-<section id="upgrading-other">
-<title>Upgrading the rest of the system</title>
-<para>
-You are now ready to continue with the main part of the upgrade.  Execute:
-</para>
-<screen>
-# aptitude dist-upgrade
-</screen>
-<para>
-This will perform a complete upgrade of the system, i.e.  install the newest
-available versions of all packages, and resolve all possible dependency
-changes between packages in different releases.  If necessary, it will
-install some new packages (usually new library versions, or renamed
-packages), and remove any conflicting obsoleted packages.
-</para>
-<para>
-When upgrading from a set of CD-ROMs, you will be asked to insert specific
-CDs at several points during the upgrade.  You might have to insert the same
-CD multiple times; this is due to inter-related packages that have been
-spread out over the CDs.
-</para>
-<para>
-New versions of currently installed packages that cannot be upgraded without
-changing the install status of another package will be left at their current
-version (displayed as <quote>held back</quote>).  This can be resolved by
-either using <command>aptitude</command> to choose these packages for
-installation or by trying <literal>aptitude -f install
-<replaceable>package</replaceable></literal>.
-</para>
-</section>
-
-<section id="get-signatures">
-<title>Getting package signatures</title>
-<para>
-After the upgrade, with the new version of <systemitem
-role="package">apt</systemitem> you can now update your package information,
-which will include the new package signature checking mechanism:
-</para>
-<screen>
-# aptitude update
-</screen>
-<para>
-The upgrade will have already retrieved and enabled the signing keys for
-Debian's package archives.  If you add other (unofficial) package sources,
-<systemitem role="package">apt</systemitem> will print warnings related to
-its inability to confirm that packages downloaded from them are legitimate
-and have not been tampered with.  For more information please see <xref
-linkend="pkgmgmt"/>.
-</para>
-<para>
-You will notice that, since you are using the new version of <systemitem
-role="package">apt</systemitem>, it will download package differences files
-(<literal>pdiff</literal>) instead of the full package index list.  For more
-information on this feature please read <xref linkend="apt-pdiff"/>.
-</para>
-</section>
-
-<section id="trouble">
-<title>Possible issues during upgrade</title>
-<para>
-If an operation using <command>aptitude</command>,
-<command>apt-get</command>, or <command>dpkg</command> fails with the error
-</para>
-<screen>
-E: Dynamic MMap ran out of room
-</screen>
-<para>
-the default cache space is insufficient.  You can solve this by either
-removing or commenting lines you don't need in
-<filename>/etc/apt/sources.list</filename> or by increasing the cache size.
-The cache size can be increased by setting
-<literal>APT::Cache-Limit</literal> in
-<filename>/etc/apt/apt.conf</filename>.  The following command will set it
-to a value that should be sufficient for the upgrade:
-</para>
-<screen>
-# echo 'APT::Cache-Limit "12500000";' &gt;&gt; /etc/apt/apt.conf
-</screen>
-<para>
-This assumes that you do not yet have this variable set in that file.
-</para>
-<para>
-Sometimes it's necessary to enable the
-<literal>APT::Force-LoopBreak</literal> option in APT to be able to
-temporarily remove an essential package due to a Conflicts/Pre-Depends
-loop.  <command>aptitude</command> will alert you of this and abort the
-upgrade.  You can work around that by specifying <literal>-o
-APT::Force-LoopBreak=1</literal> option on <command>aptitude</command>
-command line.
-</para>
-<para>
-It is possible that a system's dependency structure can be so corrupt as to
-require manual intervention.  Usually this means using
-<command>aptitude</command> or
-</para>
-<screen>
-# dpkg --remove <replaceable>package_name</replaceable>
-</screen>
-<para>
-to eliminate some of the offending packages, or
-</para>
-<screen>
-# aptitude -f install
-# dpkg --configure --pending
-</screen>
-<para>
-In extreme cases you might have to force re-installation with a command like
-</para>
-<screen>
-# dpkg --install <replaceable>/path/to/package_name.deb</replaceable>
-</screen>
-<para>
-File conflicts should not occur if you upgrade from a <quote>pure</quote>
-&oldreleasename; system, but can occur if you have unofficial backports
-installed.  A file conflict will result in an error like:
-</para>
-<screen>
-Unpacking <replaceable>&lt;package-foo&gt;</replaceable> (from <replaceable>&lt;package-foo-file&gt;</replaceable>) ...
-dpkg: error processing <replaceable>&lt;package-foo&gt;</replaceable> (--install):
- trying to overwrite `<replaceable>&lt;some-file-name&gt;</replaceable>',
- which is also in package <replaceable>&lt;package-bar&gt;</replaceable>
-dpkg-deb: subprocess paste killed by signal (Broken pipe)
- Errors were encountered while processing:
- <replaceable>&lt;package-foo&gt;</replaceable>
-</screen>
-<para>
-You can try to solve a file conflict by forcibly removing the package
-mentioned on the <emphasis>last</emphasis> line of the error message:
-</para>
-<screen>
-# dpkg -r --force-depends <replaceable>package_name</replaceable>
-</screen>
-<para>
-After fixing things up, you should be able to resume the upgrade by
-repeating the previously described <literal>aptitude</literal> commands.
-</para>
-<para>
-During the upgrade, you will be asked questions regarding the configuration
-or re-configuration of several packages.  When you are asked if any file in
-the <filename>/etc/init.d</filename> or <filename>/etc/terminfo</filename>
-directories, or the <filename>/etc/manpath.config</filename> file should be
-replaced by the package maintainer's version, it's usually necessary to
-answer `yes' to ensure system consistency.  You can always revert to the old
-versions, since they will be saved with a <literal>.dpkg-old</literal>
-extension.
-</para>
-<para>
-If you're not sure what to do, write down the name of the package or file
-and sort things out at a later time.  You can search in the typescript file
-to review the information that was on the screen during the upgrade.
-</para>
-</section>
-
-</section>
-
-<section id="newkernel">
-<title>Upgrading your kernel and related packages</title>
-<para>
-This section explains how to upgrade your kernel and identifies potential
-issues related to this upgrade.  You can either install one of the
-<systemitem role="package">linux-image-*</systemitem> packages provided by
-Debian, or compile a customized kernel from source.
-</para>
-<para>
-Note that a lot of information in this section is based on the assumption
-that you will be using one of the modular Debian kernels, together with
-<systemitem role="package">initramfs-tools</systemitem> and <systemitem
-role="package">udev</systemitem>.  If you choose to use a custom kernel that
-does not require an initrd or if you use a different initrd generator, some
-of the information may not be relevant for you.
-</para>
-<para>
-Note also that if <systemitem role="package">udev</systemitem> is
-<emphasis>not</emphasis> installed on your system, it is still possible to
-use <systemitem role="package">hotplug</systemitem> for hardware discovery.
-</para>
-<para>
-If you are currently using a 2.4 kernel, you should also read <xref
-linkend="upgrade-to-2.6"/> carefully.
-</para>
-<section id="kernel-metapackage">
-<title>Installing the kernel metapackage</title>
-<para>
-When you dist-upgrade from &oldreleasename; to &releasename;, it is strongly
-recommended that you install a new linux-image-2.6-* metapackage.  This
-package may be installed automatically by the dist-upgrade process.  You can
-verify this by running:
-</para>
-<screen>
-# dpkg -l "linux-image*" | grep ^ii
-</screen>
-<para>
-If you do not see any output, then you will need to install a new
-linux-image package by hand.  To see a list of available linux-image-2.6
-metapackages, run:
-</para>
-<screen>
-# apt-cache search linux-image-2.6- | grep -v transition
-</screen>
-<para>
-If you are unsure about which package to select, run <literal>uname
--r</literal> and look for a package with a similar name.  For example, if
-you see '<literal>2.4.27-3-686</literal>', it is recommended that you
-install <systemitem role="package">linux-image-2.6-686</systemitem>.  (Note
-that the 386 flavor no longer exists; if you are currently using the 386
-kernel flavor, you should install the 486 flavor instead.) You may also use
-<command>apt-cache</command> to see a long description of each package in
-order to help choose the best one available.  For example:
-</para>
-<screen>
-# apt-cache show linux-image-2.6-686
-</screen>
-<para>
-You should then use <literal>aptitude install</literal> to install it.  Once
-this new kernel is installed you should reboot at the next available
-opportunity to get the benefits provided by the new kernel version.
-</para>
-<para>
-For the more adventurous there is an easy way to compile your own custom
-kernel on &debian;.  Install the <systemitem
-role="package">kernel-package</systemitem> tool and read the documentation
-in <filename>/usr/share/doc/kernel-package</filename>.
-</para>
-</section>
-
-<section id="upgrade-from-2.6">
-<title>Upgrading from a 2.6 kernel</title>
-<para>
-If you are currently running a 2.6 series kernel from &oldreleasename; this
-upgrade will take place automatically after you do a full upgrade of the
-system packages (as described in <xref linkend="upgradingpackages"/> ).
-</para>
-<para>
-If possible, it is to your advantage to upgrade the kernel package
-separately from the main <literal>dist-upgrade</literal> to reduce the
-chances of a temporarily non-bootable system.  See <xref
-linkend="upgrading-kernel"/> for a description of this process.  Note that
-this should only be done after the minimal upgrade process described in
-<xref linkend="minimal-upgrade"/>.
-</para>
-<para>
-You can also take this step if you are using your own custom kernel and want
-to use the kernel available in &releasename;.  If your kernel version is not
-supported by <systemitem role="package">udev</systemitem> then it is
-recommended that you upgrade after the minimal upgrade.  If your version is
-supported by <systemitem role="package">udev</systemitem> you can safely
-wait until after the full system upgrade.
-</para>
-</section>
-
-<section id="upgrade-from-2.4">
-<title>Upgrading from a 2.4 kernel</title>
-<para>
-If you have a 2.4 kernel installed, and your system relies on <systemitem
-role="package">hotplug</systemitem> for its hardware detection you should
-first upgrade to a 2.6 series kernel from &oldreleasename; before attempting
-the upgrade.  Make sure that the 2.6 series kernel boots your system and all
-your hardware is properly detected before you perform the upgrade.  The
-<systemitem role="package">hotplug</systemitem> package is removed from the
-system (in favor of <systemitem role="package">udev</systemitem>) when you
-do a full system upgrade.  If you do not do the kernel upgrade before this
-your system might not boot up properly from this point on.  Once you have
-done an upgrade to a 2.6 series kernel in &oldreleasename; you can do a
-kernel upgrade as described in <xref linkend="upgrade-from-2.6"/>.
-</para>
-<para>
-If your system does not rely on <systemitem
-role="package">hotplug</systemitem><footnote><para> You can have the kernel modules needed by your system loaded statically
-through proper configuration of <filename>/etc/modules</filename>.</para> </footnote> you can delay the kernel upgrade to after you have done a full
-system upgrade, as described in <xref linkend="upgrading-other"/>.  Once
-your system has been upgraded you can then do the following (changing the
-kernel package name to the one most suited to your system by substituting
-<varname>flavor</varname>):
-</para>
-<screen>
-# aptitude install linux-image-2.6-<replaceable>flavor</replaceable>
-</screen>
-</section>
-
-<section id="device-reorder">
-<title>Device enumeration reordering</title>
-<para>
-&releasename; features a more robust mechanism for hardware discovery than
-previous releases.  However, this may cause changes in the order devices are
-discovered on your system, affecting the order in which device names are
-assigned.  For example, if you have two network adapters that are associated
-with two different drivers, the devices eth0 and eth1 refer to may be
-swapped.  Please note that the new mechanism means that if you e.g.
-exchange ethernet adapters in a running &releasename; system, the new
-adapter will also get a new interface name.
-</para>
-<para>
-For network devices, you can avoid this reordering by using <systemitem
-role="package">udev</systemitem> rules, more specifically, through the
-definitions at
-<filename>/etc/udev/rules.d/z25_persistent-net.rules</filename><footnote><para>
-The rules there are automatically generated by the script
-<filename>/etc/udev/rules.d/z45_persistent-net-generator.rules</filename> to
-have persistent names for network interfaces.  Delete this symlink to
-disable persistent device naming for NICs by <systemitem
-role="package">udev</systemitem>.  </para> </footnote>.  Alternatively you can use the <command>ifrename</command>
-utility to bind physical devices to specific names at boot time.  See
-<citerefentry> <refentrytitle>ifrename</refentrytitle>
-<manvolnum>8</manvolnum> </citerefentry> and <citerefentry>
-<refentrytitle>iftab</refentrytitle> <manvolnum>5</manvolnum>
-</citerefentry> for more information.  The two alternatives (<systemitem
-role="package">udev</systemitem> and <command>ifrename</command>) should not
-be used at the same time.
-</para>
-<para>
-For storage devices, you can avoid this reordering by using <systemitem
-role="package">initramfs-tools</systemitem> and configuring it to load
-storage device driver modules in the same order they are currently loaded.
-To do this, identify the order the storage modules on your system were
-loaded by looking at the output of <command>lsmod</command>.
-<command>lsmod</command> lists modules in the reverse order that they were
-loaded in, i.e., the first module in the list was the last one loaded.  Note
-that this will only work for devices which the kernel enumerates in a stable
-order (like PCI devices).
-</para>
-<para>
-However, removing and reloading modules after initial boot will affect this
-order.  Also, your kernel may have some drivers linked statically, and these
-names will not appear in the output of <command>lsmod</command>.  You may be
-able to decipher these driver names and load order from looking at
-<filename>/var/log/kern.log</filename>, or the output of
-<command>dmesg</command>.
-</para>
-<para>
-Add these module names to <filename>/etc/initramfs-tools/modules</filename>
-in the order they should be loaded at boot time.  Some module names may have
-changed between &oldreleasename; and &releasename;.  For example,
-sym53c8xx_2 has become sym53c8xx.
-</para>
-<para>
-You will then need to regenerate your initramfs image(s) by executing
-<literal>update-initramfs -u -k all</literal>.
-</para>
-<para>
-Once you are running a &releasename; kernel and <systemitem
-role="package">udev</systemitem>, you may reconfigure your system to access
-disks by an alias that is not dependent upon driver load order.  These
-aliases reside in the <filename>/dev/disk/</filename> hierarchy.
-</para>
-</section>
-
-<section id="boot-timing">
-<title>Boot timing issues</title>
-<para>
-If an initrd created with <systemitem
-role="package">initramfs-tools</systemitem> is used to boot the system, in
-some cases the creation of device files by <systemitem
-role="package">udev</systemitem> can happen too late for the boot scripts to
-act on.
-</para>
-<para>
-The usual symptoms are that the boot will fail because the root file system
-cannot be mounted and you are dropped into a debug shell, but that when you
-check afterwards, all devices that are needed are present in
-<filename>/dev</filename>.  This has been observed in cases where the root
-file system is on a <acronym>USB</acronym> disk or on
-<acronym>RAID</acronym>, especially if lilo is used.
-</para>
-<para>
-A workaround for this issue is to use the boot parameter
-<literal>rootdelay=<replaceable>9</replaceable></literal>.  The value for
-the timeout (in seconds) may need to be adjusted.
-</para>
-</section>
-
-</section>
-
-<section id="nownownow">
-<title>Things to do before rebooting</title>
-<para>
-When <literal>aptitude dist-upgrade</literal> has finished, the
-<quote>formal</quote> upgrade is complete, but there are some other things
-that should be taken care of <emphasis>before</emphasis> the next reboot.
-</para>
-<section id="convert-devfs">
-<title>Converting from devfs</title>
-<para>
-Debian kernels no longer include support for <literal>devfs</literal>, so
-<literal>devfs</literal> users will need to convert their systems manually
-before booting an &releasename; kernel.
-</para>
-<para>
-If you see the string '<literal>devfs</literal>' in
-<filename>/proc/mounts</filename>, you are most likely using
-<literal>devfs</literal>.  Any configuration files that reference
-<literal>devfs</literal>-style names will need to be adjusted to use
-<systemitem role="package">udev</systemitem>-style names.  Files that are
-likely to refer to <literal>devfs</literal>-style device names include
-<filename>/etc/fstab</filename>, <filename>/etc/lilo.conf</filename>,
-<filename>/boot/grub/menu.lst</filename>, and
-<filename>/etc/inittab</filename>.
-</para>
-<para>
-More information about potential issues is available in bug report <ulink
-url="&url-bts;341152">#341152</ulink>.
-</para>
-</section>
-
-<section id="rerunlilo">
-<title>Rerun lilo</title>
-<para>
-If you are using <systemitem role="package">lilo</systemitem> as your
-bootloader (it is the default bootloader for some installations of
-&oldreleasename;) it is strongly recommended that you rerun
-<command>lilo</command> after the upgrade:
-</para>
-<screen>
-# /sbin/lilo
-</screen>
-<para>
-Notice this is needed even if you did not upgrade your system's kernel, as
-<command>lilo</command>'s second stage will change due to the package
-upgrade.
-</para>
-<para>
-Also, review the contents of your <filename>/etc/kernel-img.conf</filename>
-and make sure that you have <literal>do_bootloader = Yes</literal> in it.
-That way the bootloader will always be rerun after a kernel upgrade.
-</para>
-<para>
-If you encounter any issues when running <command>lilo</command>, review the
-symbolic links in <filename>/</filename> to <filename>vmlinuz</filename> and
-<filename>initrd</filename> and the contents of your
-<filename>/etc/lilo.conf</filename> for discrepancies.
-</para>
-<para>
-If you forgot to rerun <command>lilo</command> before the reboot or the
-system is accidentally rebooted before you could do this manually, your
-system might fail to boot.  Instead of the lilo prompt, you will only see
-<literal>LI</literal> when booting the system<footnote><para> For more information on <command>lilo</command>'s boot error codes please
-see <ulink url="http://tldp.org/HOWTO/Bootdisk-HOWTO/a1483.html">The Linux
-Bootdisk HOWTO</ulink>.  </para> </footnote>.  See <xref linkend="recovery"/> for information on how to
-recover from this.
-</para>
-</section>
-
-<section id="mdadm">
-<title>Upgrading mdadm</title>
-<para>
-mdadm now needs a configuration file to assemble MD arrays
-(<acronym>RAID</acronym>) from the initial ramdisk and during the system
-initialisation sequence.  Please make sure to read and act upon the
-instructions in
-<filename>/usr/share/doc/mdadm/README.upgrading-2.5.3.gz</filename> after
-the package has been upgraded <emphasis role="strong">and before you
-reboot</emphasis>.  The latest version of this file is available at <ulink
-url="http://svn.debian.org/wsvn/pkg-mdadm/mdadm/trunk/debian/README.upgrading-2.5.3?op=file"></ulink>;
-please consult it in case of problems.
-</para>
-</section>
-
-</section>
-
-<section id="boot-hangs">
-  <title>System boot hangs on <literal>Waiting for root file system</literal></title>
-  <subtitle>Procedure to recover from <filename>/dev/hda</filename> became
-<filename>/dev/sda</filename></subtitle>
-
-  <para>
-    Some users have reported that an upgrade could cause the kernel not finding
-the system root partition after a system reboot.
-  </para>
-
-  <para>
-    In such case, the system boot will hang on the following message:
-    <screen>Waiting for root file system ...</screen>
-    and after a few seconds a bare busybox prompt will show.
-  </para>
-
-  <para>
-    This problem can occur when the upgrade of the kernel introduces the use of
-the new generation of <acronym>IDE</acronym> drivers. The
-<acronym>IDE</acronym> disk naming convention for the old drivers was
-<literal>hda</literal>, <literal>hdb</literal>, <literal>hdc</literal>,
-<literal>hdd</literal>. The new drivers will name the same disks
-respectively <literal>sda</literal>, <literal>sdb</literal>,
-<literal>sdc</literal>, <literal>sdd</literal>. The problem appears when the
-upgrade does not generate a new <filename>/boot/grub/menu.lst</filename>
-file to take the new naming convention into account. During the boot, Grub
-will pass a system root partition to the kernel that the kernel doesn't
-find.
-  </para>
-
-  <para>
-    If you have encountered this problem after upgrading, jump to <xref
-linkend="how-to-recover"/>. To avoid the problem before upgrading, read
-ahead.
-  </para>
-
-  <section id="avoid-problems-before-upgrading">
-    <title>How to avoid the problem before upgrading</title>
-
+<chapter id="ch-upgrading" lang="cs">
+  <title>Aktualizace předchozích verzí systému</title>
+  <section id="backup">
+    <title>Příprava na aktualizaci systému</title>
     <para>
-      One can avoid this problem entirely by using an identifier for the root
-filesystem that does not change from one boot to the next. There are two
-possible methods for doing this - labelling the filesystem, or using the
-filesystem's universal unique identifier (<acronym>UUID</acronym>). These
-methods are supported in Debian since the 'etch' release.
+
+Před aktualizací systému je velmi vhodné vytvořit úplnou záložní kopii
+dat, nebo přinejmenším zálohovat data a konfigurační soubory, které
+byste jen neradi ztratili. Nástroje pro aktualizaci systému jsou zcela
+spolehlivé, ale například selhání hardware během aktualizace by mohlo
+mít nedozírné důsledky a mohlo by vést až k poškození systému.
+
+    </para><para>
+    
+Doporučujeme se podívat také na problémy explicitně vypsané v kapitole
+<xref linkend="ch-information"/>. Kapitola se sice přímo nezabývá
+procesem aktualizace, ale některé body mohou být i přesto relevantní a
+je dobré je vědět předem.
+  
     </para>
 
-    <para>
-      The two approaches have advantages and disadvantages. The labelling approach
-is more readable, but there may be problems if another filesystem on your
-machine has the same label. The uuid approach is uglier, but having two
-clashing uuids is highly unlikely.
-    </para>
-
-    <para>
-      For the examples below we assume the root filesystem is on
-<filename>/dev/hda6</filename>. We also assume your system has a working
-udev installation and ext2 or ext3 filesystems.
-    </para>
-
-    <para>
-      To implement the labelling approach:
-      <orderedlist>
-	<listitem>
-	  <para>
-	    Label the filesystem (the name must be &lt; 16 characters)  by running the
-command:
-	    <programlisting>e2label /dev/hda6 rootfilesys</programlisting>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Edit <filename>/boot/grub/menu.lst</filename> and change the line:
-	    <programlisting># kopt=root=/dev/hda6 ro</programlisting>
-	    to
-	    <programlisting># kopt=root=LABEL=rootfilesys ro</programlisting>
-	    <note>
-	      <para>
-		Do not remove the <literal>#</literal> at the start of the line, it needs to
-be there.
-	      </para>
-	    </note>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Update the <literal>kernel</literal> lines in <filename>menu.lst</filename>
-by running the command <command>update-grub</command>.
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Edit <filename>/etc/fstab</filename> and change the line that mounts the
-<filename>/</filename> partition, eg.:
-
-	    <programlisting>/dev/hda6     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
-
-	    to
-
-	    <programlisting>LABEL=rootfilesys     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
-
-	    The change that matters here is the first column, you don't need to modify
-the other columns of this line.
-	  </para>
-	</listitem>
-      </orderedlist>
-    </para>
-
-    <para>
-      To implement the uuid approach:
-      <orderedlist>
-	<listitem>
-	  <para>
-	    Find out the universal unique identifier of your filesystem by issuing:
-<command>ls -l /dev/disk/by-uuid | grep hda6</command>
-	  </para>
-	  <para>
-	    You should get a line similar to this one:
-	    <screen>lrwxrwxrwx 1 root root 24 2008-09-25 08:16 d0dfcc8a-417a-41e3-ad2e-9736317f2d8a -> ../../hda6</screen>
-
-	    The <acronym>UUID</acronym> is the name of the symbolic link pointing to
-<filename>/dev/hda6</filename> ie.:
-<literal>d0dfcc8a-417a-41e3-ad2e-9736317f2d8a</literal>.
-	    <note>
-	      <para>
-		Your filesystem <acronym>UUID</acronym> will be a different string.
-	      </para>
-	    </note>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Edit <filename>/boot/grub/menu.lst</filename> and change the line
-
-	    <programlisting># kopt=root=/dev/hda6 ro</programlisting>
-
-	    to
-
-	    <programlisting># kopt=root=UUID=d0dfcc8a-417a-41e3-ad2e-9736317f2d8 ro</programlisting>
-
-	    <note>
-	      <para>
-		Do not remove the <literal>#</literal> at the start of the line, it needs to
-be there.
-	      </para>
-	    </note>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Update the <literal>kernel</literal> lines in <filename>menu.lst</filename>
-by running the command <command>update-grub</command>.
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Edit <filename>/etc/fstab</filename> and change the line that mounts the
-<filename>/</filename> partition, eg.:
-
-	    <programlisting>/dev/hda6     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
-
-	    to
-
-	    <programlisting>UUID=d0dfcc8a-417a-41e3-ad2e-9736317f2d8  /  ext3  defaults,errors=remount-ro 0 1</programlisting>
-
-	    The change that matters here is the first column, you don't need to modify
-the other columns of this line.
-	  </para>
-	</listitem>
-      </orderedlist>
-    </para>
-  </section>
-
-  <section id="how-to-recover">
-    <title>How to recover from the problem after the upgrade</title>
-
-    <section id="solution1">
-      <title>Solution 1</title>
+    <section id="data-backup">
+      <title>Záloha dat a konfigurace</title>
       <para>
-	This is applicable when Grub shows you the menu interface for selecting the
-entry you want to boot from. If such menu does not appear, try pressing
-<keycap>Esc</keycap> key before the kernel boots in order to make it
-appear.  If you can't get into this menu, try <xref linkend="solution2"/> or
-<xref linkend="solution3"/>.
+
+Nejdůležitější pro vás zřejmě bude zazálohovat obsah adresářů
+<filename>/etc</filename>, <filename>/var/lib/dpkg</filename>,
+<filename>/var/lib/aptitude/pkgstates</filename> a rovněž výstup
+z <literal>dpkg --get-selections "*"</literal> (uvozovky jsou
+důležité).
+
+      </para><para>
+
+Aktualizace samotná v domovských adresářích uživatelů nic nemění,
+avšak existují aplikace (např. části balíku Mozilla a desktopových
+prostředí KDE a GNOME), které při spuštění nové verze přepisují stará
+nastavení novými výchozími hodnotami. Jako prevenci můžete zkusit
+zazálohovat všechny skryté soubory a adresáře (tzv. tečkové soubory) z
+uživatelských adresářů, což pomůže při případné obnově.
+
+      </para><para>
+
+Instalační procedura musí být vykonána s privilegii superuživatele. Je
+tedy nutné buďto se přihlásit jako uživatel <literal>root</literal>,
+nebo nabýt jeho práv prostřednictvím programů <command>su</command>
+nebo <command>sudo</command>.
+
       </para>
-
-      <orderedlist>
-	<listitem>
-	  <para>
-	    In the Grub menu, highlight the entry you want to boot from. Press
-<keycap>e</keycap> key to edit the options related to this entry. You will
-see something like:
-
-	    <screen>root (hd0,0)
-kernel /vmlinuz-2.6.26-1-686 root=/dev/hda6 ro
-initrd /initrd.img-2.6.26-1-686</screen>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Highlight the line
-
-	    <screen>kernel /vmlinuz-2.6.26-1-686 root=/dev/hda6 ro</screen>
-
-	    press <keycap>e</keycap> key and replace <literal>hdX</literal> with
-<literal>sd<replaceable>X</replaceable></literal> (<varname>X</varname>
-being the letter <literal>a</literal>, <literal>b</literal>,
-<literal>c</literal> or <literal>d</literal> depending of your system), In
-my example the line becomes:
-
-	    <screen>kernel /vmlinuz-2.6.26-1-686 root=/dev/sda6 ro</screen>
-
-	    Then press <keycap>Enter</keycap> to save the modification. If other lines
-show <literal>hd<replaceable>X</replaceable></literal>, change these line
-too. Don't modify the entry similar to <literal>root (hd0,0)</literal>.
-Once all modifications are done, press <keycap>b</keycap> key. And your
-system should now boot as usual.
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Now that your system has booted, you need to fix this issue permanently.
-Jump to <xref linkend="avoid-problems-before-upgrading"/> and apply one of
-the two proposed procedures.
-	  </para>
-	</listitem>
-      </orderedlist>
     </section>
 
-    <section id="solution2">
-      <title>Solution 2</title>
+    <section id="inform-users">
+      <title>Informujete uživatele s předstihem</title>
+      <para>
+
+Je dobré informovat uživatele o změnách, které v sytému vlivem
+aktualizace nastanou. Je to vhodné i v případě, že se uživatelé na váš
+systém přihlašují vzdáleně (pomocí <command>ssh</command>) a vůbec
+nemusí změny během aktualizace systému postřehnout.
+
+      </para><para>
+
+Pokud chcete systém aktualizovat obzvlášť bezpečně, zazálohujte nebo
+odpojte před aktualizací oblast pro domovské adresáře
+(<filename>/home</filename>).
+
+      </para><para>
+
+Při přechodu na &Releasename;ho se nejspíše aktualizuje jádro, takže
+bude vyžadován restart systému. Ten se typicky provádí po skončení
+přechodu.
+
+      </para>
+    </section>
+
+    <section id="recovery">
+      <title>Připravte si plán B</title>
+      <para>
+
+Kvůli mnoha změnám, které se v jádře udály mezi &Oldreleasename;em a
+&Releasename;ym v oblasti ovladačů, rozpoznávání hardwaru a
+pojmenování a uspořádání zařízení, zde existuje opravdové riziko, že
+po aktualizaci při restartu systému zaznamenáte problémy. Mnoho
+potenciálních změn je zachyceno v této a následujících kapitolách.
+
+      </para><para>
+
+Z tohoto pohledu dává smysl připravit záchrannou cestu, pomocí které
+budete moci systém obnovit v případě, že se nepodaří následný restart,
+resp. že se u vzdálených systémů nepodaří nahodit síťování.
+
+      </para><para>
+
+Při vzdálené aktualizaci přes <command>ssh</command> se doporučuje mít
+záložní plán (alias konzoli na sériové lince) pro případ, že se něco
+nepovede. Je totiž jistá šance, že se po aktualizaci jádra a následném
+restartu změní jména některých zařízení (viz část
+<xref linkend="device-reorder"/>) a bude nutné opravit konfiguraci přes
+lokální konzoli. To stejné platí pro případ, že počítač omylem během
+aktualizace restartujete.
+
+      </para><para>
+
+Snad každého napadne zkusit znovu restartovat s původním jádrem.
+Z mnoha důvodů, které jsou porůznu roztroušeny v těchto poznámkách,
+není zaručeno, že se to povede.
+
+      </para><para>
+
+Pokud staré jádro selže, musíte nalézt alternativní způsob, jak zavést
+svůj systém, abyste jej mohli následně opravit. Jednou z možností je
+použití speciálního záchranného obrazu, nebo nějakého linuxového live
+CD. Po zavedení náhradního systému byste měli být schopni připojit
+svůj kořenový souborový systém a <literal>chroot</literal>ovat se do
+něj, což vám umožní prozkoumání a opravení problému.
+
+      </para><para>
+
+Jinou možností je použití <emphasis>záchranného režimu</emphasis>
+instalačního systému &Releasename;ho. Výhodou použití instalačního
+systému je to, že si z mnoha různých instalačních metod můžete vybrat
+tu, která se pro vaši situaci hodí nejvíce. Více informací naleznete v
+osmé kapitole <ulink url="&url-install-manual;">instalační
+příručky</ulink> a v <ulink url="&url-wiki;DebianInstaller/FAQ">Debian
+Installer FAQ</ulink>.
+
+      </para>
+
+      <section id="recovery-initrd">
+	<title>Ladicí shell při zavádění pomocí initrd</title>
+	<para>
+
+<systemitem role="package">initramfs-tools</systemitem>přidávají do
+vytvářeného initrd malý shell<footnote><para>Tato vlastnost se dá
+vypnout přidáním parametru <literal>panic=0</literal> k ostatním
+zaváděcím parametrům.</para></footnote>, který se dá použít pro
+ladění. Jestliže se například nepovede připojit kořenový souborový
+systém, budete vhozeni do tohoto ladicího shellu, který obsahuje
+základní příkazy, které umožní vysledovat problém a v lepším případě
+jej i opravit.
+
+	</para><para>
+
+Základní věci, které byste měli zkontrolovat, patří: přítomnost
+správných souborů zařízení v <filename>/dev</filename>; které moduly
+jsou zavedeny (<literal>cat /proc/modules</literal>); výstup
+<command>dmesg</command> ohledně chyb při nahrávání ovladačů. Výstup
+<command>dmesg</command> také prozradí, které soubory zařízení byly
+přiřazeny kterým diskům; to byste měli porovnat proti výstupu příkazu
+<literal>echo $ROOT</literal>, čímž se ujistíte, zda se kořenový
+souborový systém nachází na očekávaném zařízení.
+
+	</para><para>
+
+Podaří-li se vám problém opravit, příkazem <literal>exit</literal>
+ukončíte ladicí shell a zavádění bude pokračovat v místě, kde bylo
+přerušeno. Následně byste měli opravit příčinu problému a znovu
+vygenerovat initrd, aby již příští zavádění neselhalo.
+
+	</para>
+      </section>
+    </section>
+
+    <section id="upgrade-preparations">
+      <title>Příprava záchranné sítě</title>
+      <para>
+
+Aktualizaci distribuce je možné provést lokálně z textové virtuální
+konzoly (nebo z přímo napojeného sériového terminálu), nebo vzdáleně
+pomocí <command>ssh</command> spojení.
+
+      </para><para>
+
+Jako další pojistku doporučujeme instalovat ve virtuální konzoli
+programu <command>screen</command>, který umožňuje bezpečné odpojení a
+nové připojení ke stávajícímu sezení. Díky domu zajistí nepřerušený
+proces aktualizace i v případech, kde se vám rozpadne spojení.
+
+      </para><important><para>
+
+Během aktualizace systému byste <emphasis>neměli</emphasis> používat
+služby <command>telnet</command>, <command>rlogin</command>, ani
+<command>rsh</command>. Rovněž byste systém neměli aktualizovat ze
+sezení spravovaného programem <command>xdm</command> běžícím na témže
+systému. To platí i pro varianty <command>wdm</command>,
+<command>gdm</command> a <command>kdm</command>, protože tyto služby
+mohou být během aktualizace přerušeny. Přerušení během aktualizace
+systému je samozřejmě problematické. V horším případě může vyústit až
+do nedostupného a nekonzistentně nainstalovaného systému.
+
+      </para></important>
+    </section>
+
+    <section arch="i386;amd64" id="prepare-initramfs">
+      <title>Příprava initramfs pro <acronym>LILO</acronym><indexterm><primary>LILO</primary></indexterm></title>
+      <para>
+
+Uživatelé používající zavaděč <acronym>LILO</acronym> by měli vědět,
+že <systemitem role="package">initramfs-tools</systemitem> nyní ve
+výchozím nastavení vytváří initramfs větší, než <acronym>LILO</acronym>
+dokáže zpracovat. Těmto uživatelům doporučujeme přejít na zavaděč
+<systemitem role="package">grub</systemitem>, nebo upravit soubor
+<filename>/etc/initramfs-tools/initramfs.conf</filename> a změnit
+řádku <programlisting>MODULES=most</programlisting> na
+<programlisting>MODULES=dep</programlisting>.
+
+      </para><para>
+
+Nevýhoda druhého přístupu je v tom, že
+<systemitem role="package">initramfs-tools</systemitem> do initramfs
+nahraje pouze moduly, které jsou vyžadovány pro konkrétní hardware, na
+kterém je <systemitem role="package">initramfs-tools</systemitem>
+spuštěn. Pokud potřebujete pomocí tohoto initramfs zavádět i stroje s
+jinou hardwarovou konfigurací, měli byste ponechat nastavení na
+<programlisting>MODULES=most</programlisting> a přejít na jiný
+zavaděč, než je <acronym>LILO</acronym>.
+
+      </para>
+    </section>
+
+  </section>
+
+  <section id="system-status">
+    <title>Kontrola stavu systému</title>
+    <para>
+
+Aktualizační proces popsaný v této kapitole byl navržen pro přechod
+z <quote>čistého</quote> systému &Oldreleasename; bez balíků třetích
+stran. Jestliže máte takové balíky nainstalovány, je rozumné je
+dočasně odinstalovat, což zvýší spolehlivost aktualizace.
+
+    </para><para>
+
+Také se předpokládá, že byl systém aktualizován na poslední verzi
+&Oldreleasename;e. Pokud si nejste jisti, následujte pokynů v
+<xref linkend="old-upgrade"/>.
+
+    </para>
+
+    <section id="review-actions">
+      <title>Kontrola naplánovaných akcí ve správci balíků</title>
+      <para>
+
+V některých případech se může stát, že pokud byly balíky instalovány
+pomocí <command>apt-get</command> místo <command>aptitude</command>,
+<command>aptitude</command> to občas zmate a označí je k odstranění,
+protože si myslí, že je nikdo nepoužívá. Obecně byste se měli
+přesvědčit, že je systém před velkou aktualizací plně aktualizovaný a
+<quote>čistý</quote>.
+
+      </para><para>
+
+Proto je potřeba ověřit, zda se ve správci balíků
+<command>aptitude</command> nevyskytují nějaké naplánované akce. Pokud
+totiž existují balíky naplánované k odstranění, může to negativně
+ovlivnit průběh aktualizace. Mějte prosím na paměti, že tento postup
+je možný pouze v případě, pokud váš <filename>sources.list</filename>
+ukazuje stále na <emphasis>&oldreleasename;</emphasis> a ne na
+<emphasis>stable</emphasis> nebo <emphasis>&releasename;</emphasis>;
+více viz <xref linkend="old-sources"/>.
+
+      </para><para>
+
+Spusťte tedy <command>aptitude</command> v interaktivním režimu a
+stiskněte <keycap>g</keycap>. Pokud se zobrazí nějaké naplánované
+akce, měli byste je zkontrolovat a buď je provést, nebo vrátit
+zpět. Jestliže žádné akce naplánovány nebyly, zobrazí se hláška
+<quote>Žádné balíky nejsou označeny k instalaci, aktualizaci nebo
+odstranění</quote>.
+
+      </para>
+    </section>
+
+    <section id="disable-apt-pinning">
+      <title>Zákaz vypichování balíků</title>
+      <para>
+
+>Pokud máte nastaven APT, aby instaloval vybrané (vypíchnuté) balíky z
+jiné, než stabilní distribuce (např.  testovací), budete možná muset
+změnit pravidla pro vypichování (v souboru
+<filename>/etc/apt/preferences</filename>) tak, abyste povolili
+aktualizace balíků na nové verze balíků ve stabilní verzi. Podrobnosti
+o vypichování balíků naleznete v <citerefentry>
+<refentrytitle>apt_preferences</refentrytitle> <manvolnum>5</manvolnum>
+</citerefentry>.
+
+      </para>
+    </section>
+
+    <section id="package-status">
+      <title>Kontrola stavu balíků</title>
+      <para>
+
+Nehledě na metodu aktualizace systému se nejdříve doporučuje
+zkontrolovat stav všech balíků a prověřit, jestli jsou všechny balíky
+schopny aktualizace. Pomocí následujícího příkazu je možné vypsat
+seznam balíků, jenž mají buďto status Half-Installed, Failed-Config,
+nebo jsou v jiném chybovém stavu.
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg --audit</userinput>
+      </screen>
 
       <para>
-	Boot from a debian installation media
-(<acronym>CD</acronym>/<acronym>DVD</acronym>) and when prompt, type
-<literal>rescue</literal> to launch the rescue mode. Select your language,
-location, keyboard mapping, let it configure the network no matter if it
-success or not. After a while, you should be asked for selecting a partition
-you want to use as root file system. The proposed choices will look
-something like:
 
-	<screen>/dev/ide/host0/bus0/target0/lun0/part1
+Stav všech balíků lze prohlédnout rovněž pomocí programu
+<command>dselect</command>, <command>aptitude</command>, nebo příkazem
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg -l | pager</userinput>
+      </screen>
+
+      <para>
+
+nebo
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg --get-selections "*" &gt; ~/curr-pkgs.txt</userinput>
+      </screen>
+
+      <para>
+
+Doporučuje se, abyste před aktualizací odstranili u balíků status
+podržení v aktuálním stavu (<quote>on hold</quote>). Pokud bude mít
+kterýkoliv z významných balíků nastaven tento příznak, nebude jej
+možné aktualizovat a tím pádem celý proces skončí neúspěchem.
+
+      </para><para>
+
+<command>aptitude</command> používá pro označení balíků v podrženém
+stavu odlišný způsob než <command>apt-get</command>
+a <command>dselect</command>. Balíky s příznakem <quote>on
+hold</quote> lze pro <command>aptitude</command> zobrazit příkazem
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude search "~ahold" | grep "^.h"</userinput>
+      </screen>
+
+      <para>
+
+Chcete-li vypsat podržené balíky pro <command>apt-get</command>,
+použijte
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg --get-selections | grep hold</userinput>
+      </screen>
+
+      <para>
+
+Pokud v systému udržujete vlastní změněné balíky, to jest balíky
+vzniklé změnou a překladem standardního balíku z distribuce, měli
+byste jej označit příznakem <quote>on hold</quote>. Tímto preventivním
+opatřením zajistíte jeho setrvání v aktuálním stavu -- novější balík z
+distribuce jej nenahradí.
+
+      </para><para>
+
+Příznak <quote>on hold</quote> můžete nastavit pro
+<command>aptitude</command> příkazem
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude hold <replaceable>balík</replaceable></userinput>
+      </screen>
+
+      <para>
+
+Příznak odeberete analogicky, stačí nahradit <literal>hold</literal>
+za <literal>unhold</literal>.
+
+      </para><para>
+
+V této fázi je lepší se přesvědčit, že
+<filename>sources.list</filename> stále ukazuje na předchozí stabilní
+verzi pro případ, že byste potřebovali něco spravit. Viz část
+<xref linkend="old-sources"/>.
+
+      </para>
+    </section>
+
+    <section id="userbackports">
+      <title>Neoficiální zdroje a backporty</title>
+      <para>
+
+Máte-li v systému nainstalované balíky odjinud než z Debianu, může se
+stát, že budou kvůli konfliktům během aktualizace odstraněny. Pokud
+jste je nainstalovali ze zdroje balíků
+v <filename>/etc/apt/sources.list</filename>, podívejte se, zda daný
+archiv nabízí balíky sestavené pro &Releasename;ho, a poté se změnou
+zdrojů oficiálních balíků příslušně změňte i tyto zdrojové řádky.
+
+      </para><para>
+
+Někteří uživatelé mohou mít neoficiální verze <quote>novějších</quote>
+balíků, které <emphasis>jsou</emphasis> v Debianu obsaženy ve verzích
+běžně dostupných v distribuci &Oldreleasename;. Tyto balíky
+pravděpodobně způsobí konflikty mezi soubory<footnote><para>Debianí
+systém správy balíků běžně neumožňuje, aby balík přepsal nebo
+odstranil soubor vlastněný jiným balíkem; minimálně pokud balík
+explicitně nenahrazuje původní balík.</para></footnote>. Část
+<xref linkend="trouble"/> obsahuje některé informace o řešení těchto
+problémů.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="handle-conflict">
+    <title>Ruční odznačení balíků</title>
+    <para>
+
+Abyste <command>aptitude</command> zabránili v odstranění některých
+balíků, které byly nainstalovány kvůli závislostem, musíte u nich
+zrušit příznak, že byly instalované <emphasis>automaticky</emphasis>.
+U desktopových instalací to zahrnuje OpenOffice.org a Vim:
+
+    </para>
+
+    <screen>
+<prompt>#</prompt> <userinput>aptitude unmarkauto openoffice.org vim</userinput>
+    </screen>
+
+    <para>
+
+a také jádro 2.6, pokud jste jej instalovali pomocí metabalíku:
+
+    </para>
+
+    <screen>
+<prompt>#</prompt> <userinput> aptitude unmarkauto $(dpkg-query -W 'kernel-image-2.6.*' | cut -f1)</userinput>
+    </screen>
+
+    <note><para>
+
+Seznam balíků, které jsou v <command>aptitude</command> označené jako
+instalované <emphasis>automaticky</emphasis>, můžete zjistit příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput> aptitude search 'i~M <replaceable>balík</replaceable>'</userinput>
+      </screen>
+
+    </note>
+  </section>
+
+  <section id="upgrade-process">
+    <title>Příprava zdrojů pro APT</title>
+    <para>
+
+Před zahájením aktualizace systému musíte nastavit konfigurační soubor
+se zdroji pro <systemitem role="package">apt</systemitem>
+(<filename>/etc/apt/sources.list</filename>).
+
+    </para><para>
+
+<systemitem role="package">apt</systemitem> při aktualizaci či
+instalaci uvažuje pouze balíky, které může nalézt prostřednictvím
+zdrojů uvedených v konfiguračním souboru a začínajících
+na <quote><literal>deb</literal></quote>. Instalován je balík s
+nejvyšší dostupnou verzí, přitom zdroje uvedené na předcházejících
+řádcích mají vždy vyšší prioritu než jejich následníci. (Prakticky lze
+v souboru uvést nejdříve například zdroje z lokálního pevného disku,
+dále CD-ROM a na poslední místo uvést zdroje z vnější počítačové
+sítě.)
+
+    </para><para>
+
+Vydání může být odkazováno svým kódovým jménem (např.
+<literal>&oldreleasename;</literal>, <literal>&releasename;</literal>)
+nebo svým stavovým jménem (tj. <literal>oldstable</literal>,
+<literal>stable</literal>, <literal>testing</literal>,
+<literal>unstable</literal>). Odkazování na vydání jeho kódovým jménem
+má tu výhodu, že nikdy nebudete překvapeni novou verzí a proto je to
+doporučený postup. To ovšem také znamená, že budete muset sledovat
+ohlášení o nové verzi sami. Použijete-li stavové jméno, poznáte novu
+verzi podle toho, že okamžitě po vydání vám najednou bude k dispozici
+spousty aktualizací.
+
+    </para>
+
+    <section id="network">
+      <title>Nastavení APT pro aktualizaci přes Internet</title>
+      <para>
+
+Výchozí nastavení obsahuje údaje pro instalaci z našich hlavních
+archivů v Internetu, to však můžete lehce změnit. Po úpravě souboru
+<filename>/etc/apt/sources.list</filename> je možné používat i jiné
+zdroje, především archivy, které jsou k vám na síti blíže a budou mít
+rychlejší odezvu a větší přenosové rychlosti.
+
+      </para><para>
+
+Adresy FTP a HTTP archivů Debianu je možné najít na
+<ulink url="&url-debian-mirrors;"></ulink> (hledejte část
+<quote>list of Debian mirrors</quote>). HTTP zrcadla bývají obvykle
+rychlejší než FTP zrcadla.
+
+      </para><para>
+
+Předpokládejme například, že váš nejbližší archiv je
+<literal>&url-debian-mirror-eg;</literal>. Při jeho prohledávání
+pomocí WWW prohlížeče nebo pomocí FTP klienta jste zjistili, že hlavní
+adresáře jsou:
+
+      </para>
+
+<programlisting>
+&url-debian-mirror-eg;/dists/&releasename;/main/binary-i386/...
+&url-debian-mirror-eg;/dists/&releasename;/contrib/binary-i386/...
+</programlisting>
+
+      <para>
+
+Pokud se rozhodnete používat tento archiv, přidejte do souboru
+<filename>sources.list</filename> následující řádek:
+
+      </para>
+
+<programlisting>
+deb &url-debian-mirror-eg; &releasename; main contrib
+</programlisting>
+
+      <para>
+
+Podadresář <quote><literal>dists</literal></quote> je do cesty přidán
+implicitně a argumenty za názvem distribuce jsou určeny pro rozšíření
+takto specifikované cesty do několika adresářů.
+
+      </para><para>
+
+Poté, co do souboru <filename>sources.list</filename> přidáte nové
+zdroje balíků, zakomentujte předchozí údaje. To jest na začátek všech
+řádků začínajících <quote><literal>deb</literal></quote> vložte symbol
+hash (<literal>#</literal>).
+
+      </para>
+    </section>
+
+    <section id="localmirror">
+      <title>Nastavení APT pro aktualizaci z lokálního archivu</title>
+      <para>
+
+Místo používání FTP nebo HTTP zrcadel budete možná chtít použít
+lokální archiv, a upravit soubor
+<filename>/etc/apt/sources.list</filename> pro použití zrcadla na
+lokálním disku (nebo třeba na souborovém systému exportovanému pomocí
+<acronym>NFS</acronym>).
+
+      </para><para>
+
+Předpokládejme, že vaše balíky jsou například v adresáři
+<filename>/var/ftp/debian/</filename> a mají následující hlavní
+adresáře:
+
+      </para>
+
+<programlisting>
+/var/ftp/debian/dists/&releasename;/main/binary-i386/...
+/var/ftp/debian/dists/&releasename;/contrib/binary-i386/...
+</programlisting>
+
+      <para>
+
+Do souboru <filename>sources.list</filename> je nutné přidat
+následující řádek:
+
+      </para>
+
+<programlisting>
+deb file:/var/ftp/debian &releasename; main contrib
+</programlisting>
+
+      <para>
+
+Podadresář <literal>dists</literal> je do cesty přidán implicitně a
+argumenty za názvem distribuce jsou určeny pro rozšíření takto
+specifikované cesty do několika adresářů.
+
+      </para><para>
+
+Poté co do souboru <filename>sources.list</filename> přidáte nové
+zdroje balíků, zakomentujte předchozí údaje. To jest na začátek všech
+řádků začínajících <quote><literal>deb</literal></quote> vložte symbol
+hash (<literal>#</literal>).
+
+      </para>
+    </section>
+
+    <section id="cdroms">
+      <title>Nastavení APT pro aktualizaci z CD nebo DVD</title>
+      <para>
+
+Pokud chcete používat <emphasis>výhradně</emphasis> sadu CD,
+zakomentujte v souboru <filename>/etc/apt/sources.list</filename>
+existující řádky začínající <quote><literal>deb</literal></quote> tím,
+že na jejich začátek vložíte znak hash (<literal>#</literal>).
+
+      </para><para>
+
+Přesvědčte se, že je ve vašem souboru <filename>/etc/fstab</filename>
+řádek umožňující připojit CD-ROM mechaniku na adresář
+<filename>/cdrom</filename> (pro metodu <command>apt-cdrom</command>
+je nutné mít adresář pro připojení CD-ROM právě
+<filename>/cdrom</filename>). Pokud je vaše CD-ROM mechanika například
+<filename>/dev/hdc</filename>, měl by soubor
+<filename>/etc/fstab</filename> obsahovat obdobný řádek:
+
+      </para>
+
+<programlisting>
+/dev/hdc /cdrom auto defaults,noauto,ro 0 0
+</programlisting>
+
+      <para>
+
+Ve čtvrtém sloupci <emphasis>nesmí</emphasis> být mezi slovy
+<literal>defaults,noauto,ro</literal> žádné mezery.
+
+      </para><para>
+
+Pokud chcete ověřit funkčnost, vložte do mechaniky CD a spusťte
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>mount /cdrom</userinput>    # připojí CD do adresáře
+<prompt>#</prompt> <userinput>ls -alF /cdrom</userinput>  # vypíše obsah CD
+<prompt>#</prompt> <userinput>umount /cdrom</userinput>   # odpojí CD
+      </screen>
+
+      <para>
+
+Dále spusťte:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>apt-cdrom add</userinput>
+
+      </screen>
+
+      <para>
+
+pro každé binární CD z vaší sady debianích CD. Tím se přidají data
+o každém médiu do vaší APT databáze.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="upgradingpackages">
+    <title>Aktualizace balíků</title>
+    <para>
+
+Doporučený nástroj pro přechod na vyšší verzi &debian;u se
+nazývá <command>aptitude</command>. Její výhoda oproti přímému
+použití <command>apt-get</command> spočívá v lepším algoritmu řešení
+závislostí mezi balíky.
+
+    </para><para>
+
+Nezapomeňte připojit všechny potřebné diskové oblasti (zejména oblasti
+s kořenovým souborovým systémem a adresářem <filename>/usr</filename>)
+pro čtení i zápis (read-write) příkazem:
+
+    </para>
+
+    <screen>
+<prompt>#</prompt> <userinput>mount -o remount,rw /<replaceable>adresář</replaceable></userinput>
+    </screen>
+
+    <para>
+
+Dále byste se měli (raději dvakrát) přesvědčit, že zdroje
+v <filename>/etc/apt/sources.list</filename> ukazují na
+<quote><literal>&releasename;</literal></quote> nebo na
+<quote><literal>stable</literal></quote>. Neměl by tam být žádný
+záznam ukazující na &oldreleasename;.
+
+    </para><note><para>
+
+Záznamy pro CD většinou ukazují na
+<quote><literal>unstable</literal></quote>, ale nenechte se tím zmást
+a <emphasis>neměňte</emphasis> je, je to v pořádku.
+
+    </para></note>
+
+    <section id="record-session">
+      <title>Nahrávání sezení</title>
+      <para>
+
+Důrazně doporučujeme zaznamenat průběh aktualizace systému pomocí
+programu <command>/usr/bin/script</command>. Jestliže se objeví nějaký
+problém, minimálně budete mít záznam o tom, co se stalo. Navíc po
+dokončení instalace můžete podat přesné hlášení chyby (bug
+report). Záznam je možné zahájit příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>script -t 2&gt;~/upgrade-&releasename;.time -a ~/upgrade-&releasename;.script</userinput>
+      </screen>
+
+      <para>
+
+nebo podobným. Poznamenejme, že není vhodné umísťovat soubor se
+záznamem do dočasného adresáře jako je <filename>/tmp</filename>
+nebo <filename>/var/tmp</filename>. Obsah těchto adresářů může být
+během aktualizace nebo restartu systému smazán.
+
+      </para><para>
+
+Typescript vám také pomůže najít informaci, která už z obrazovky dávno
+zmizela. Přepněte se na druhou konzoli (klávesami
+<keycombo action="simul"><keycap>Alt</keycap><keycap>F2</keycap></keycombo>)
+a po přihlášení si můžete soubor prohlížet příkazem <literal>less -R
+~root/upgrade-&releasename;.script</literal>.
+
+      </para><para>
+
+Po dokončení aktualizace je rozumné <command>script</command> zastavit
+příkazem <literal>exit</literal> na příkazovém řádku.
+
+      </para><para>
+
+Jestliže jste při zaznamenávání použili přepínač
+<emphasis>-t</emphasis>, můžete celé sezení přehrát programem
+<command>scriptreplay</command>:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>scriptreplay ~/upgrade-&releasename;.time ~/upgrade-&releasename;.script</userinput>
+      </screen>
+    </section>
+
+    <section id="updating-lists">
+      <title>Aktualizace seznamu balíků</title>
+      <para>
+
+Nejprve je nutno stáhnout soubor, který obsahuje výčet balíků
+patřících do nové verze Debianu. To provedete příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude update</userinput>
+      </screen>
+
+      <para>
+
+První spuštění příkazu může vypsat nějaká varování ohledně dostupnosti
+některých zdrojů. Tato varování jsou neškodná a při příštím spuštění
+se již nezobrazí.
+
+      </para>
+    </section>
+
+    <section id="sufficient-space">
+      <title>Ujistěte se, že máte pro aktualizaci dostatek místa</title>
+      <para>
+
+Před kompletní aktualizací svého systému podle kapitoly
+<xref linkend="upgrading-other"/> se ujistěte, že máte na disku
+dostatek volného místa. Nejprve budete potřebovat dostatek volného
+místa na oblasti, která hostí <filename>/var/</filename>, protože sem
+se dočasně stáhnou balíky, které se pak budou instalovat. (Balíky se
+stahují do <filename>/var/cache/apt/archives/partial</filename> a po
+úspěšném stažení se přesunou o adresář výš.) Poté budete potřebovat
+další místo v oblastech, do kterých se budou aktualizované a nové
+balíky instalovat. Aktualizované balíky mohou obsahovat větší programy
+nebo více dat, nové balíky mohou být vyžadovány kvůli splnění nových
+závislostí. Pokud váš systém nemá dostatek volného místa, může
+aktualizace skončit někde v půli cesty a nemusí být snadné se dostat
+zpět do použitelného stavu.
+
+      </para><para>
+
+<command>aptitude</command> i
+<systemitem role="package">apt</systemitem> poskytují podrobné
+informace o místu nutném k instalaci. Ještě před instalací můžete
+získat odhad vyžadovaného místa spuštěním:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude -y -s -f --with-recommends dist-upgrade</userinput>
+[ ... ]
+<computeroutput>XXX aktualizováno, XXX nově instalováno, XXX k odstranění a XXX neaktualizováno.
+Potřebuji stáhnout xx.xB/yyyMB archivů. Po rozbalení bude použito zzzMB.
+Teoreticky by stáhl/nainstaloval/odstranil balíky.</computeroutput>
+      </screen>
+
+      <para><footnote><para>
+
+Jak je popsáno v následujících sekcích, spuštění tohoto příkazu na
+začátku aktualizace může skončit chybou. V takovém případě musíte s
+příkazem pro zjištění potřebného místa počkat až provedete minimální
+aktualizaci (<xref linkend="minimal-upgrade"/>) a aktualizujete jádro
+(<xref linkend="minimal-upgrade"/>).
+
+      </para></footnote></para><para>
+
+Nemáte-li k aktualizaci dostatek místa, nejprve nějaké uvolněte.
+Můžete:
+
+      </para>
+
+      <itemizedlist>
+	<listitem><para>
+
+Odstranit soubory s balíky, které byly staženy do vyrovnávací paměti
+(<filename>/var/cache/apt/archive</filename>) příkazem
+<command>apt-get clean</command> nebo <command>aptitude clean</command>.
+
+	</para></listitem>
+	<listitem><para>
+
+Odstranit staré balíky, které již nepoužíváte. Máte-li nainstalován
+<systemitem role="package">popularity-contest</systemitem>, můžete
+vypsat největší nepoužívané balíky příkazem
+<command>popcon-largest-unused</command>. S vyhledáním nepotřebných
+balíků pomohou i programy <command>deborphan</command> nebo
+<command>debfoster</command> (viz <xref linkend="obsolete"/>). Jinou
+možností je spustit <command>aptitude</command> v celoobrazovkovém
+režimu, kde naleznete staré balíky ve větvi <quote>Zastaralé a lokálně
+vytvořené balíky</quote>.
+
+	</para></listitem>
+	<listitem><para>
+
+Odstranit balíky, které zabírají zbytečně mnoho místa a pro které
+nemáte momentální uplatnění (vždycky si je můžete znovu
+doinstalovat). Seznam nejobjemnějších balíků můžete získat programem
+<command>dpigs</command> (součástí balíku
+<systemitem role="package">debian-goodies</systemitem>)
+nebo <command>wajig</command> (spuštěním <literal>wajig size</literal>).
+
+	  </para><para condition="fixme">
+
+Velké nepoužívané balíky vám může pomoci odhalit
+<systemitem role="package">aptitude</systemitem>. Spusťte ji v
+celoobrazovkovém režimu a zvolte nabídku <guimenu>Pohledy</guimenu>,
+<guimenu>Nový plochý seznam balíků</guimenu> (tato nabídka existuje
+pouze ve verzi pro Etch a novější), stiskněte <keycap>l</keycap> a
+zadejte <literal>~i</literal>, potvrďte klávesou
+<keycap>Enter</keycap>, stiskněte <keycap>S</keycap> a zadejte
+<literal>~installsize</literal>. Tímto získáte seznam instalovaných
+balíků řazený podle velikosti.
+
+	</para></listitem>
+	<listitem><para>
+
+Odstranit nebo dočasně přesunout na jiný systém systémové logy
+ve <filename>/var/log/</filename>
+
+	</para></listitem>
+	<listitem><para>
+
+Použijte dočasný <filename>/var/cache/apt/archives</filename>: Protože
+tento adresář slouží jako dočasná vyrovnávací paměť, která je skutečně
+potřeba jen po čas instalace, můžete dočasně využít kapacitu odjinud
+(<acronym>USB</acronym> klíčenka, dočasný pevný disk, souborový systém
+obvykle používaný pro něco jiného, ...)
+
+	  </para><note><para>
+
+Nepoužívejte souborový systém připojený přes <acronym>NFS</acronym>,
+protože se může stát, že se během instalace spojení přeruší.
+
+	  </para></note><para>
+
+Například pokud máte <acronym>USB</acronym> zařízení (disk, klíčenku)
+přípojené na <filename>/media/usbkey</filename>, pak:
+
+	  </para>
+
+	  <orderedlist>
+	    <listitem><para>
+
+Odstraňte balíky stažené při dřívějších instalacích:
+<screen><prompt>#</prompt> <userinput>apt-get clean</userinput></screen>
+
+	    </para></listitem>
+	    <listitem><para>
+
+Zkopírujte adresář <filename>/var/cache/apt/archives</filename> na
+<acronym>USB</acronym> zařízení:
+<screen><prompt>#</prompt> <userinput>cp -ax /var/cache/apt/archives /media/usbkey/</userinput></screen>
+
+	    </para></listitem>
+	    <listitem><para>
+
+Připojte dočasný adresář z <acronym>USB</acronym> zařízení namísto 
+stávající vyrovnávací paměti balíků:
+<screen><prompt>#</prompt> <userinput>mount --bind /media/usbkey/archives /var/cache/apt/archives</userinput></screen>
+
+	    </para></listitem>
+	    <listitem><para>
+
+Po přechodu na &Releasename;ho obnovte původní adresář
+<filename>/var/cache/apt/archives</filename>:
+<screen><prompt>#</prompt> <userinput>umount /media/usbkey/archives</userinput></screen>
+
+	    </para></listitem>
+	    <listitem><para>
+
+Odstraňte dočasné balíky z <filename>/media/usbkey/archives</filename>.
+
+	    </para></listitem>
+	  </orderedlist>
+
+	  <para>
+
+Obdobný trik můžete provést s libovolným souborovým systémem, který
+máte v počítači k dispozici.
+
+	</para></listitem>
+      </itemizedlist>
+
+      <para>
+
+Pro bezpečné odstranění balíků se doporučuje přepnout
+<filename>sources.list</filename> zpátky na &oldreleasename;, jak
+popisuje část <xref linkend="old-sources"/>.
+
+      </para>
+    </section>
+
+    <section id="aptupgrade1st">
+      <title>Nejprve aktualizujte apt a aptitude</title>
+      <para>
+
+Několik hlášení o přechodu na &Releasename;ho ukázalo, že verze
+<systemitem role="package">apt</systemitem> a
+<systemitem role="package">aptitude</systemitem> dostupné v
+&Oldreleasename;i často nezvládají přechod na &Releasename;. V
+&Releasename;m se <systemitem role="package">apt</systemitem> mnohem
+lépe vypořádá s komplexními řetězy balíků vyžadujících okamžitou
+konfiguraci a <systemitem role="package">aptitude</systemitem> je zase
+o něco chytřejší při hledání řešení pro porušené závislosti. Protože
+se obě vlastnosti během přechodu na &Releasename;ho využívají velice
+intenzivně, je nutno nejprve aktualizovat tyto dva balíky. Pro
+aktualizaci <systemitem role="package">apt</systemitem> spusťte:
+
+<screen><prompt>#</prompt> <userinput>apt-get install apt</userinput></screen>
+
+a následně pro <systemitem role="package">aptitude</systemitem> (pokud
+ji máte nainstalovanou):
+
+<screen><prompt>#</prompt> <userinput>aptitude install aptitude</userinput></screen>
+
+      </para><para>
+
+Tento krok automaticky aktualizuje balíky
+<systemitem role="package">libc6</systemitem> a
+<systemitem role="package">locales</systemitem> a doinstaluje podpůrné
+knihovny pro SELinux
+(<systemitem role="package">libselinux1</systemitem>). V tento okamžik
+budou restartovány některé běžící služby, mimo jiné
+i <command>xdm</command>, <command>gdm</command>
+a <command>kdm</command>, takže probíhající X sezení budou odpojena.
+
+      </para>
+    </section>
+
+    <section id="aptconvert">
+      <title>Použití seznamu automaticky instalovaných balíků aptitude v apt</title>
+      <para>
+
+<systemitem role="package">aptitude</systemitem> si udržuje seznam
+balíků, které byly nainstalovány automaticky (například jako
+závislosti jiného balíku). V &Releasename;ym má tuto schopnost
+i <systemitem role="package">apt</systemitem>.
+
+      </para><para>
+
+Při prvním spuštění <systemitem role="package">aptitude</systemitem> z
+&Releasename;ho si <systemitem role="package">aptitude</systemitem>
+automaticky načte seznam automaticky instalovaných balíků a převede ho
+do formátu vhodného pro <systemitem role="package">apt</systemitem>.
+Doporučujeme tedy v tento okamžik spustit novou 
+<systemitem role="package">aptitude</systemitem> například příkazem
+
+<screen><prompt>#</prompt> <userinput>aptitude search "?false"</userinput></screen>
+
+který hledá neexistující balík.
+
+      </para>
+    </section>
+
+    <section id="minimal-upgrade">
+      <title>Minimální aktualizace systému</title>
+      <para>
+
+Protože některé klíčové balíky mezi sebou ve verzích pro
+&Oldreleasename; a &Releasename; kolidují, jednoduché spuštění
+<literal>aptitude dist-upgrade</literal> by často odstranilo mnoho
+balíků, které si nejspíš chcete ponechat. Doporučujeme přechod
+uskutečnit dvoufázově. V první fázi se provede minimální aktualizace,
+při které se vyřeší zmíněné konflikty a ve druhé fázi potom následuje
+plný <literal>dist-upgrade</literal>.
+
+      </para><para>
+
+Nejprve spusťte
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude upgrade</userinput>
+      </screen>
+
+      <para>
+
+Tím se aktualizují ty balíky, které mohou být aktualizovány bez
+instalace nebo odstranění jiných balíků.
+
+      </para><para>
+
+Další krok závisí na typu nainstalovaných balíků. Tyto poznámky se
+snaží poradit, kterou metodu byste měli použít, ale v případě
+pochybností vám doporučujeme u každé metody před pokračováním podrobně
+prozkoumat, které balíky jsou naplánovány k odstranění.
+
+      </para><para>
+
+Mezi balíky, u kterých se očekává odstranění, patří
+<systemitem role="package">base-config</systemitem>,
+<systemitem role="package">hotplug</systemitem>,
+<systemitem role="package">xlibs</systemitem>,
+<systemitem role="package">netkit-inetd</systemitem>,
+<systemitem role="package">python2.3</systemitem>,
+<systemitem role="package">xfree86-common</systemitem> a
+<systemitem role="package">xserver-common</systemitem>.
+
+Úplnější seznam balíků zastaralých v &Releasename;m obsahuje kapitola
+<xref linkend="obsolete"/>.
+
+      </para>
+
+      <section id="minimal-upgrade-desktop">
+	<title>Aktualizace desktopového systému</title>
+	<para>
+
+Tento způsob aktualizace byl ověřen na systémech &Oldreleasename; s
+nainstalovanou úlohou <literal>Desktopové prostředí</literal>. Na
+těchto systémech, resp. na systémech s nainstalovanými balíky
+<literal>gnome</literal> nebo <literal>kde</literal> dává tento postup
+pravděpodobně nejlepší výsledky.
+
+	</para><para>
+
+Pokud ještě namáte nainstalované balíky
+<systemitem role="package">libfam0c102</systemitem> a
+<systemitem role="package">xlibmesa-glu</systemitem>, pak toto
+nejspíš <emphasis>není</emphasis> ta nejlepší metoda:
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>dpkg -l libfam0c102 | grep ^ii</userinput>
+<prompt>#</prompt> <userinput>dpkg -l xlibmesa-glu | grep ^ii</userinput>
+	</screen>
+
+	<para>
+
+Jestliže tedy máte plně nainstalovaný desktopový systém, spusťte:
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>aptitude install libfam0 xlibmesa-glu</userinput>
+	</screen>
+      </section>
+
+      <section id="minimal-upgrade-x-server">
+	<title>Aktualizace systému pouze s některými X balíky</title>
+	<para>
+
+Systémy s nainstalovanými X balíky, ale ne s celou úlohou
+<literal>Stolní počítač</literal>, vyžadují mírně jiný postup. Tento
+postup obecně funguje na systémech s nainstalovaným balíkem
+<systemitem role="package">xfree86-common</systemitem>, kam patří i
+některé serverové systémy, protože některé serverové úlohy instalují
+grafické nástroje pro správu. Toto je pravděpodobně nejlepší metoda
+pro počítače s nainstalovaným systémem X, ale bez úlohy
+<literal>Desktopové prostředí</literal>.
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>dpkg -l xfree86-common | grep ^ii</userinput>
+	</screen>
+
+	<para>
+
+Nejprve ověřte, zda jsou nainstalovány balíky
+<systemitem role="package">libfam0c102</systemitem> a
+<systemitem role="package">xlibmesa-glu</systemitem>.
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>dpkg -l libfam0c102 | grep ^ii</userinput>
+<prompt>#</prompt> <userinput>dpkg -l xlibmesa-glu | grep ^ii</userinput>
+	</screen>
+
+	<para>
+
+Jestliže nemáte nainstalovaný balík
+<systemitem role="package">libfam0c102</systemitem>, vynechte z
+následujícího příkazu <systemitem role="package">libfam0</systemitem>.
+Podobně pokud nemáte nainstalovaný balík
+<systemitem role="package">xlibmesa-glu</systemitem>, vynechte z
+následujícího příkazu
+<systemitem role="package">xlibmesa-glu</systemitem>.<footnote><para>
+
+Tento složitější příkaz automaticky určí, zda potřebujete nainstalovat
+<systemitem role="package">libfam0</systemitem> a
+<systemitem role="package">xlibmesa-glu</systemitem> a případně vám je
+označí k instalaci:
+
+  </para>
+  <screen>
+<prompt>#</prompt> <userinput>aptitude install x11-common \ $(dpkg-query --showformat
+'${Package} ${Status}\n' -W libfam0c102 xlibmesa-glu \ | grep 'ok installed$' |
+sed -e's/ .*//; s/c102//')</userinput>
+</screen></footnote>
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>aptitude install x11-common <replaceable>libfam0</replaceable> <replaceable>xlibmesa-glu</replaceable></userinput>
+	</screen>
+
+	<para>
+
+Instalací <systemitem role="package">libfam0</systemitem> se
+nainstaluje také daemon sledující změny v souborech
+<systemitem role="package">fam</systemitem> (File Alteration Monitor)
+a RPC mapovač portů <systemitem role="package">portmap</systemitem>
+(pokud již v systému nejsou). Oba balíky v systému otevřou nové síťové
+služby, ale oba se dají nastavit tak, aby poslouchaly pouze na lokální
+smyčce (loopback).
+
+	</para>
+      </section>
+
+      <section id="minimal-upgrade-server">
+	<title>Aktualizace systému bez X</title>
+	<para>
+
+Na systému bez X nemusíte provádět žádné další příkazy
+<literal>aptitude install</literal> a můžete pokračovat dalším krokem.
+
+	</para>
+      </section>
+    </section>
+
+    <section id="upgrading-kernel">
+      <title>Aktualizace jádra</title>
+      <para>
+
+Verze <systemitem role="package">udev</systemitem> v &Releasename;ym
+nepodporuje jádra dřívější než 2.6.15 (kam spadá i jádro 2.6.8 z
+&Oldreleasename;e) a naopak
+<systemitem role="package">udev</systemitem> v &Oldreleasename;i
+nefunguje správně s novějšími jádry. Kromě toho se instalací
+<systemitem role="package">udev</systemitem> z &Releasename;yho
+odstraní <systemitem role="package">hotplug</systemitem> používaný
+linuxovými jádry řady 2.4.
+
+      </para><para>
+
+Jako důsledek je pravděpodobné, že se vám po této aktualizaci nepodaří
+zavést původní jádro z &Oldreleasename;e. Z popsaného také vyplývá, že
+během aktualizace nastane časové okno, během kterého již budete mít
+novější <systemitem role="package">udev</systemitem>, ale stále ještě
+původní jádro. Pokud byste restartovali systém uprostřed aktualizace,
+může se stát že se systém nepodaří zavést, protože nebudou rozpoznány
+a zavedeny potřebné ovladače. (Přípravu na tuto situaci
+popisuje <xref linkend="upgrade-preparations"/>.)
+
+      </para><para>
+
+Pokud na svém systému nepoužíváte úlohu <literal>Desktopové
+prostředí</literal>, resp. nemáte nainstalované jiné balíky, které by
+způsobovaly odstranění neakceptovatelného množství balíků, je
+doporučeno v tento okamžik aktualizovat jádro.
+
+      </para><para>
+
+Jádro aktualizujete příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude install linux-image-2.6-<replaceable>varianta</replaceable></userinput>
+      </screen>
+
+      <para>
+
+S rozhodováním, kterou variantu jádra si máte nainstalovat, vám pomůže
+<xref linkend="kernel-metapackage"/>.
+
+      </para><para>
+
+V případě nainstalovaného desktopového prostředí bohužel není možné
+zajistit, aby se nové jádro nainstalovalo ihned po instalaci
+<systemitem role="package">udev</systemitem>, takže nastane okno blíže
+nedefinované délky, kdy budete mít jádro bez podpory automatického
+zavádění ovladačů. Více informací o nastavení systému tak, aby při
+zavádění nevyžadoval hotplug, naleznete v <xref linkend="newkernel"/>.
+
+      </para>
+    </section>
+
+    <section id="upgrading-other">
+      <title>Aktualizace zbytku systému</title>
+      <para>
+
+Nyní byste měli být plně připraveni aktualizovat systém na
+novější verzi. Příkaz
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude dist-upgrade</userinput>
+      </screen>
+
+      <para>
+
+zahájí kompletní aktualizaci systému, to jest nainstaluje nejnovější
+verze dostupných balíků a vyřeší všechny možné problémy mezi balíky z
+rozdílných distribucí. Pokud to bude nezbytné, nainstalují se další
+nové balíky (zpravidla nové verze knihoven nebo přejmenované balíky),
+a odstraní se konfliktní starší balíky.
+
+      </para><para>
+
+Pokud aktualizujete systém ze sady CD, budete během aktualizace na
+různých místech vybídnuti ke vložení konkrétního CD. Je možné, že
+budete muset vložit jedno CD i několikrát, protože některé balíky
+závisejí na jiných, jenž jsou uloženy na jiném médiu.
+
+      </para><para>
+
+Nové balíky, které nemohou být instalovány beze změny instalačního
+stavu jiných balíků budou ponechány ve svých původních verzích
+(zobrazováno jako <quote>přidržení</quote>). To můžete vyřešit
+programem <command>aptitude</command>, kde tyto balíky vyberete k
+instalaci, nebo můžete zkusit příkaz
+<literal>aptitude -f install <replaceable>balík</replaceable></literal>.
+
+      </para>
+    </section>
+
+    <section id="get-signatures">
+      <title>Získání podpisů balíků</title>
+      <para>
+
+Během aktualizace získáte novější
+<systemitem role="package">apt</systemitem> a proto je doporučeno
+aktualizovat informace o balících, čímž se použije nový mechanismus
+ověřování podpisů balíků:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude update</userinput>
+      </screen>
+
+      <para>
+
+Během aktualizace se již stáhly a aktivovaly podepisovací klíče
+debianích archivů s balíky. Přidáte-li jiné (neoficiální) zdroje
+balíků, <systemitem role="package">apt</systemitem> vás bude varovat,
+že nemůže ověřit pravost stahovaných balíků. Více informací
+zmiňuje část <xref linkend="pkgmgmt"/>.
+
+      </para>
+    </section>
+
+    <section id="trouble">
+      <title>Možné problémy během aktualizace</title>
+      <para>
+
+Pokud <command>aptitude</command>, <command>apt-get</command>
+nebo <command>dpkg</command> selže s chybou
+
+      </para>
+
+      <screen>
+E: Dynamic MMap ran out of room
+      </screen>
+
+      <para>
+
+znamená to, že máte malou cache paměť. Problém můžete obejít tak, že
+v <filename>/etc/apt/sources.list</filename> zakomentujete řádky které
+nepoužíváte, nebo zvýšíte velikost vyrovnávací paměti. Velikost
+vyrovnávací paměti můžete zvýšit volbou
+<literal>APT::Cache-Limit</literal> v souboru
+<filename>/etc/apt/apt.conf</filename>. Následující příklad nastaví
+dostatečně velkou hodnotu:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>echo 'APT::Cache-Limit "12500000";' &gt;&gt; /etc/apt/apt.conf</userinput>
+      </screen>
+
+      <para>
+
+To ovšem předpokládá, že jste tuto proměnnou v daném souboru ještě
+nenastavovali.
+
+      </para><para>
+
+Někdy je potřebné pro APT nastavit parametr
+<literal>APT::Force-LoopBreak</literal>. Tím se umožní dočasné smazání
+nezbytného balíku způsobené cyklem Koliduje/Předzávisí.
+<command>aptitude</command> vás o podobné situaci informuje a přeruší
+aktualizaci celého systému. V takovém případě spusťte
+<command>aptitude</command> s parametrem
+<literal>-o APT::Force-LoopBreak=1</literal>.
+
+      </para><para>
+
+Je možné, že systém závislostí mezi balíky bude natolik poškozen, že
+si situace vyžádá ruční opravu. To obvykle znamená spustit
+<command>aptitude</command> nebo spustit příkaz
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg --remove <replaceable>jméno_balíku</replaceable></userinput>
+      </screen>
+
+      <para>
+
+pro odstranění pochybných balíků, nebo
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude -f install</userinput>
+<prompt>#</prompt> <userinput>dpkg --configure --pending</userinput>
+      </screen>
+
+      <para>
+
+V extrémním případě možná budete muset znovu vynutit reinstalaci
+balíku příkazem
+
+      </para>
+
+      <screen>
+
+<prompt>#</prompt> <userinput>dpkg --install <replaceable>/cesta/k/balíku.deb</replaceable></userinput>
+      </screen>
+
+      <para>
+
+Jestliže jste instalovali neoficiální backportované verze balíků, může
+nastat konflikt souborů:
+
+      </para>
+
+      <screen>
+Rozbaluji <replaceable>&lt;balík-foo&gt;</replaceable> (z <replaceable>&lt;balík-foo-soubor&gt;</replaceable>) ...
+dpkg: chyba při zpracování <replaceable>&lt;balík-foo&gt;</replaceable> (--install):
+ zkouším přepsat soubor <replaceable>&lt;název-souboru&gt;</replaceable>,
+ který je také v balíku <replaceable>&lt;balík-bar&gt;</replaceable>
+dpkg-deb: podproces paste byl zabit signálem (Broken pipe)
+ Při zpracování nastaly chyby:
+ <replaceable>&lt;balík-foo&gt;</replaceable>
+      </screen>
+
+      <para>
+
+Konflikt můžete zkusit vyřešit tak, že násilně odstraníte balík
+zmíněný na posledním řádku chybové hlášky:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg -r --force-depends <replaceable>balík</replaceable></userinput>
+      </screen>
+
+      <para>
+
+Po těchto krocích byste měli být opět schopni pokračovat v aktualizaci
+systému pomocí dříve popsané metody pomocí <command>aptitude</command>.
+
+      </para><para>
+
+Během aktualizace budete vyzváni ke konfiguraci nebo opětovnému
+nastavení některých balíků. Pokud budete vyzváni, zdali nahradit
+nějaký soubor v adresářích <filename>/etc/init.d</filename>,
+<filename>/etc/terminfo</filename> nebo soubor
+<filename>/etc/manpath.config</filename>, měli byste odpovědět kladně,
+abyste zaručili konzistenci systému. Ke starším verzím souborů se vždy
+můžete vrátit, jelikož budou uloženy s příponou
+<literal>.dpkg-old</literal>.
+
+      </para><para>
+
+Pokud si nevíte rady, poznamenejte si jméno balíku nebo souboru a
+nechte jeho konfiguraci na později. Můžete si pak prohlédnout výstup z
+programu <command>script</command> a podívat se na údaje, které byly
+na obrazovce během aktualizace systému.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="newkernel">
+    <title>Aktualizace jádra a okolních balíků</title>
+    <para>
+
+Tato část vysvětluje, jak aktualizovat jádro a upozorňuje na
+potenciální problémy s tím spojené. Jádro můžete nainstalovat buď
+pomocí jednoho z připravených balíků
+<systemitem role="package">linux-image-*</systemitem>, nebo kompilací
+upraveného jádra ze zdrojových textů.
+
+    </para><para>
+
+Mnoho informací v této části je založeno na předpokladu, že použijete
+jedno z modulárních jader dodávaných s Debianem společně s balíky
+<systemitem role="package">initramfs-tools</systemitem> a
+<systemitem role="package">udev</systemitem>. Použijete-li vlastní
+jádro, které nevyžaduje initrd, nebo pokud zvolíte jiný generátor
+initrd, je možné, že některé informace nebudou relevantní.
+
+    </para><para>
+
+Poznamenejme, že pokud na svém systému <emphasis>nemáte</emphasis>
+nainstalovaný <systemitem role="package">udev</systemitem>, můžete
+nechat rozpoznávat hardware pomocí balíku
+<systemitem role="package">hotplug</systemitem>.
+
+    </para><para>
+
+Pokud momentálně používáte jádro ze starší řady 2.4, měli byste si
+podrobně prostudovat <xref linkend="upgrade-to-2.6"/>.
+
+    </para>
+
+    <section id="kernel-metapackage">
+      <title>Instalace metabalíku jádra</title>
+      <para>
+
+Při přechodu z &Oldreleasename;e na &Releasename;ho, je důrazně
+doporučeno nainstalovat nový metabalík
+<systemitem role="package">linux-image-2.6-*</systemitem>. Je možné,
+že se tento balík nainstaluje rovnou během dist-upgrade, což můžete
+ověřit příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>dpkg -l "linux-image*" | grep ^ii</userinput>
+      </screen>
+
+      <para>
+
+Nevidíte-li žádný výstup, znamená to, že musíte
+nainstalovat balík <systemitem role="package">linux-image</systemitem>
+ručně. Seznam dostupných metabalíků získáte příkazem:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>apt-cache search linux-image-2.6- | grep -v transition</userinput>
+      </screen>
+
+      <para>
+
+Nejste-li si jisti, který balík vybrat, zavolejte
+<literal>uname -r</literal> a hledejte balík s podobným
+jménem. Například pokud se vypíše
+<quote><literal>2.4.27-3-686</literal></quote>, doporučujeme
+nainstalovat <systemitem role="package">linux-image-2.6-686</systemitem>.
+
+(Varianta jádra <quote>386</quote> již neexistuje. Pokud ji nyní
+používáte, měli byste přejít na variantu <quote>486</quote>.)  Ve
+výběru nejlepšího jádra vám může pomoci i dlouhý popis každého
+balíku. Například:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>apt-cache show linux-image-2.6-686</userinput>
+      </screen>
+
+      <para>
+
+Zvolené jádro pak nainstalujete jako každý jiný balík
+příkazem <command>aptitude install</command>. Aby se jádro zavedlo,
+musíte při nejbližší vhodné příležitosti restartovat počítač.
+
+      </para><para>
+
+Dobrodružnějším uživatelům nabízíme možnost přeložit si vlastní jádro
+přímo ze zdrojových balíků v distribuci &debian;. K tomu je potřeba
+nainstalovat balík
+<systemitem role="package">kernel-package</systemitem> a přečíst si
+dokumentaci v souboru
+<filename>/usr/share/doc/kernel-package</filename>.
+
+      </para>
+    </section>
+
+    <section id="upgrade-from-2.6">
+      <title>Aktualizace z jádra 2.6</title>
+      <para>
+
+Používáte-li jádro řady 2.6, které bylo součástí &Oldreleasename;,
+provede se přechod na novější jádro automaticky při celkové
+aktualizaci (popsané v <xref linkend="upgradingpackages"/>).
+
+      </para><para>
+
+Pokud je to možné, bývá lepší aktualizovat jádro odděleně od hlavního
+<literal>dist-upgrade</literal>, protože se minimalizuje doba, kdy se
+systém nachází v dočasně nezaveditelném stavu. Proces je popsán v
+<xref linkend="upgrading-kernel"/>. Pamatujte, že aktualizace jádra by
+měla následovat až po minimální aktualizaci popsané v
+<xref linkend="minimal-upgrade"/>.
+
+      </para><para>
+
+Tento krok můžete použít také v případě, že používáte své vlastní
+jádro a chcete přejít na distribuční jádro z &Releasename;ho. Jestliže
+verze vašeho jádra není podporována systémem
+<systemitem role="package">udev</systemitem>, je doporučeno
+aktualizovat jádro až po minimální aktualizaci systému. Pokud
+podporována je, můžete bezpečně počkat až po aktualizaci celého
+systému.
+
+      </para>
+    </section>
+
+    <section id="upgrade-from-2.4">
+      <title>Přechod z jader 2.4</title>
+      <para>
+
+Používáte-li jádro řady 2.4 a váš systém spoléhá na rozpoznání
+hardwaru <systemitem role="package">hotplug</systemitem>em, měli byste
+před aktualizací systému přejít na jádro řady 2.6 z
+&Oldreleasename;e. Po změně jádra ověřte, že se jádro zavede a že
+správně rozpozná všechen váš hardware. V aktualizaci systému
+pokračujte teprve poté, až budete mít jistotu, že jádro funguje. Při
+aktualizaci totiž bude odstraněn
+<systemitem role="package">hotplug</systemitem> (ve prospěch
+<systemitem role="package">udev</systemitem>) a kdybyste stále
+používali staré jádro, systém by nemusel nastartovat.  Po přechodu na
+jádro řady 2.6 v &Oldreleasename;i můžete aktualizovat jádro podle
+<xref linkend="upgrade-from-2.6"/>.
+
+      </para><para>
+
+Jestliže váš systém nespoléhá na
+<systemitem role="package">hotplug</systemitem><footnote><para>
+Moduly vyžadované systémem se mohou nahrávat staticky skrze soubor
+<filename>/etc/modules</filename>.</para></footnote>, můžete odložit
+aktualizaci jádra až po aktualizaci celého systému, jak
+popisuje <xref linkend="upgrading-other"/>. Poté můžete nainstalovat
+novější jádro následujícím příkazem (místo
+<varname>varianta</varname> zadejte nejvhodnější variantu jádra pro
+váš systém):
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>aptitude install linux-image-2.6-<replaceable>varianta</replaceable></userinput>
+      </screen>
+    </section>
+
+    <section id="device-reorder">
+      <title>Změna ve výčtu zařízení</title>
+      <para>
+
+Na rozdíl od předchozích vydání obsahuje &Releasename; robustnější
+mechanismus pro rozpoznávání hardwaru. Protože to může ovlivnit
+pořadí, ve kterém jsou zařízení v systému objevena, ovlivní se pořadí,
+ve kterém jsou zařízením přiřazeny názvy. Například pokud používáte
+dvě síťové karty, které jsou obsluhovány různými ovladači, mohou být
+názvy karet (eth0 a eth1) prohozeny. Nový systém také znamená, že
+pokud například vyměníte síťové karty v běžícím systému &Releasename;,
+nová karta dostane nový název.
+
+      </para><para>
+
+U síťových zařízení se můžete vyhnout změnám názvů použitím pravidel
+systému <systemitem role="package">udev</systemitem> v souboru
+<filename>/etc/udev/rules.d/z25_persistent-net.rules</filename><footnote>
+<para>Pravidla v tomto souboru jsou vytvářena automaticky skriptem
+<filename>/etc/udev/rules.d/z45_persistent-net-generator.rules</filename>.
+Chcete-li zakázat perzistentní pojmenování síťových karet pomocí
+systému <systemitem role="package">udev</systemitem>, můžete tento
+symbolický odkaz smazat.</para></footnote>. Jinou možností je použití
+nástroje <command>ifrename</command>, který během zavádění sváže
+fyzická zařízení s konkrétními názvy. Více informací naleznete
+v <citerefentry> <refentrytitle>ifrename</refentrytitle>
+<manvolnum>8</manvolnum> </citerefentry> a <citerefentry>
+<refentrytitle>iftab</refentrytitle> <manvolnum>5</manvolnum>
+</citerefentry>. Nástroje <command>ifrename</command> a
+<systemitem role="package">udev</systemitem> by se neměly používat
+současně.
+
+      </para><para>
+
+U úložných zařízení můžete předejít přejmenování tím, že použijete
+<systemitem role="package">initramfs-tools</systemitem> a nastavíte je
+tak, aby nahrávaly moduly k úložným zařízením ve stejném pořadí, v
+jakém se moduly nahrávaly dosud. Současné pořadí zjistíte pohledem do
+výpisu programu <command>lsmod</command>. <command>lsmod</command>
+vypisuje moduly v obráceném pořadí, než byly nahrány. To znamená, že
+modul úplně nahoře byl nahrán jako poslední. Fungovat to ovšem bude
+jen pro zařízení, která jsou vždy iterována ve stabilním pořadí
+(např. PCI zařízení). Pořadí je též ovlivněno, pokud odstraňujete a
+nahráváte moduly ručně.
+
+      </para><para>
+
+Mějte na paměti, že vaše jádro může mít některé ovladače zakompilované
+staticky, a ty se ve výpisu <command>lsmod</command> neobjevují. Názvy
+některých ovladačů byste mohli vypátrat
+ve <filename>/var/log/kern.log</filename>, nebo ve výpisu programu
+<command>dmesg</command>.
+
+      </para><para>
+
+Zjištěné názvy modulů pak přidejte
+do <filename>/etc/initramfs-tools/modules</filename> v pořadí, ve
+kterém chcete, aby se moduly při zavádění nahrály.
+
+      </para><para>
+
+Poté budete muset přegenerovat obraz(y) initramfs spuštěním
+příkazu <literal>update-initramfs -u -k all</literal>.
+
+      </para><para>
+
+Až kompletně přejdete na jádro a
+<systemitem role="package">udev</systemitem> z &Releasename;ho, můžete
+nastavit svůj systém tak, aby k diskům přistupoval přes aliasy, které
+nezávisí na pořadí nahrávání ovladačů. Tyto aliasy naleznete v
+adresářové struktuře <filename>/dev/disk/</filename>.
+
+      </para>
+    </section>
+
+    <section id="boot-timing">
+      <title>Problémy s časováním při zavádění</title>
+      <para>
+
+Jestliže je pro zavádění systému použit initrd vytvořený pomocí
+<systemitem role="package">initramfs-tools</systemitem>, mohou se v
+některých případech vytvořit soubory zařízení příliš pozdě na to, aby
+na ně mohly zaváděcí skripty zareagovat.
+
+      </para><para>
+
+Obvyklé příznaky jsou, že se kořenový souborový systém nepodaří
+připojit, že jste následně vhozeni do ladicího shellu a když zpětně
+zkoumáte adresář <filename>/dev</filename>, vidíte v něm všechna
+potřebná zařízení. Takové chování bylo pozorováno na systémech, kde
+byl kořenový souborový systém na <acronym>USB</acronym> disku nebo
+na <acronym>RAID</acronym> (obzvláště při použití zavaděče
+<acronym>LILO</acronym>).
+
+      </para><para>
+
+Problém se dá obejít zaváděcím parametrem
+<literal>rootdelay=<replaceable>9</replaceable></literal>. Je možné,
+že hodnotu v sekundách bude třeba upravit.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="nownownow">
+    <title>Co je třeba provést před restartem</title>
+    <para>
+
+Jakmile je <literal>aptitude dist-upgrade</literal> hotova, formální
+aktualizace systému je ukončena. Stále však existuje řada věcí, které
+byste měli vyřešit ještě <emphasis>před</emphasis> příštím restartem.
+
+    </para>
+
+    <section id="rerunlilo">
+      <title>Znovu spusťte lilo</title>
+      <para>
+
+Používáte-li jako svůj zavaděč
+<systemitem role="package">lilo</systemitem> (což byl výchozí zavaděč
+předchozích verzí), doporučujeme ho po aktualizaci znovu
+spustit/nainstalovat:
+
+      </para>
+
+      <screen>
+<prompt>#</prompt> <userinput>/sbin/lilo</userinput>
+      </screen>
+
+      <para>
+
+Toto je potřeba i v případě, že jste neaktualizovali jádro, protože
+během instalace nové verze lila se změní umístění druhé části zavaděče
+a tímto zajistíte načtení správné adresy.
+
+      </para><para>
+
+Také si prohlédněte obsah souboru
+<filename>/etc/kernel-img.conf</filename> a ujistěte se, že v něm máte
+volbu <literal>do_bootloader = Yes</literal>. To zabezpečí, aby se
+zavaděč nainstaloval po každé aktualizaci jádra.
+
+      </para><para>
+
+Zaznamenáte-li při spuštění <command>lilo</command> nějaké problémy,
+zkontrolujte symbolické odkazy <filename>vmlinuz</filename>
+a <filename>initrd</filename> v <filename>/</filename> a také možné
+nesrovnalosti v souboru <filename>/etc/lilo.conf</filename>.
+
+      </para><para>
+
+Zapomenete-li spustit <command>lilo</command> před restartem, je
+možné, že zavádění selže a místo tradiční výzvy lila se při zavádění
+zobrazí pouze písmena <literal>LI</literal><footnote><para>Více se o
+chybových kódech <command>lila</command> dozvíte
+v <ulink url="http://tldp.org/HOWTO/Bootdisk-HOWTO/a1483.html">The
+Linux Bootdisk HOWTO</ulink>.</para></footnote>.
+<xref linkend="recovery"/> naznačuje několik způsobů, jak to napravit.
+
+      </para>
+    </section>
+
+    <section id="mdadm">
+      <title>Aktualizace mdadm</title>
+      <para>
+
+Aby mohl mdadm sestavit MD pole (<acronym>RAID</acronym>) během
+zavádění systému, je nyní vyžadován konfigurační soubor. Po
+aktualizaci balíku <emphasis>ovšem ještě před restartem</emphasis> si
+rozhodně přečtěte pokyny v
+<filename>/usr/share/doc/mdadm/README.upgrading-2.5.3.gz</filename> a
+proveďte příslušné změny. Pro případ jakýchkoliv problémů naleznete
+poslední verzi zmíněného souboru na
+<ulink url="http://svn.debian.org/wsvn/pkg-mdadm/mdadm/trunk/debian/README.upgrading-2.5.3?op=file"></ulink>.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="boot-hangs">
+    <title>Systém se zasekne na <literal>Waiting for root file system</literal></title>
+    <subtitle>Jak přežít změnu <filename>/dev/hda</filename> na <filename>/dev/sda</filename></subtitle>
+    <para>
+
+Někteří uživatelé hlásili, že po přechodu na &Releasename;ho a
+následném restartu systému nemohlo jádro najít kořenový souborový
+systém. Zavádění systému se zastavilo na hlášce
+<screen>Waiting for root file system ...</screen>
+a po několika sekundách se objevil prompt busyboxu.
+
+    </para><para>
+
+Tento problém se může projevit v případech, kdy jádro uvede novou
+generaci ovladačů pro <acronym>IDE</acronym> zařízení. Původní
+konvence pojmenování <acronym>IDE</acronym> disků byla 
+<literal>hda</literal>, <literal>hdb</literal>,
+<literal>hdc</literal>, <literal>hdd</literal>. Nové ovladače tyto
+disky přejmenují na <literal>sda</literal>, <literal>sdb</literal>,
+<literal>sdc</literal>, <literal>sdd</literal>. Problém se objeví v
+okamžiku, kdy se při aktualizaci nevytvoří nový soubor
+<filename>/boot/grub/menu.lst</filename>, který by bral do úvahy toto
+přejmenování. Během zavádění totiž předává Grub jádru název oblasti s
+kořenovým souborovým systémem a kvůli jinému jménu ji jádro nenajde.
+
+    </para><para>
+
+Pokud jste během přechodu na &Releasename;ho na tento problém narazili,
+přeskočte na část <xref linkend="how-to-recover"/>. Chcete-li se
+tomuto problému vyhnout předem, čtěte dále.
+
+    </para>
+
+    <section id="avoid-problems-before-upgrading">
+      <title>Jak se vyhnout problému dříve, než nastane</title>
+      <para>
+
+Jak se vyhnout problému použitím neměnného identifikátoru. Existují
+dva základní postupy, jak označit kořenový souborový systém tak, aby
+se značka mezi restarty nezměnila. První pojmenuje souborový systém,
+druhý použije univerzální unikátní identifikátor
+(<acronym>UUID</acronym>). Oba způsoby jsou v Debianu dostupné od
+vydání Etche.
+
+      </para><para>
+
+Každý způsob má svá pro a proti. Pojmenování souborového systému je
+čitelnější, ale může způsobit problémy, pokud se v počítači potkají
+více souborových systémů se stejným jménem. Použití
+<acronym>UUID</acronym> nevypadá nijak pěkně, ale je robustnější a
+pravděpodobnost, že se potkají dva stejné <acronym>UUID</acronym>, je
+téměř nulová.
+
+      </para><para>
+
+V příkladech níže předpokládáme, že se kořenový souborový systém
+nachází na oblasti <filename>/dev/hda6</filename>, je naformátován
+jako ext2 nebo ext3 a že v systému funguje
+<systemitem role="package">udev</systemitem>.
+
+      </para><para>
+
+Postup pro pojmenování souborového systému:
+
+      <orderedlist>
+	<listitem><para>
+
+Pojmenujte kořenový souborový systém (jméno musí být kratší než 16
+znaků) příkazem
+<command>e2label /dev/hda6 <replaceable>rootfilesys</replaceable></command>
+
+	</para></listitem>
+	<listitem><para>
+
+Upravte soubor <filename>/boot/grub/menu.lst</filename> a změňte řádek
+<programlisting># kopt=root=/dev/hda6 ro</programlisting> na
+<programlisting># kopt=root=LABEL=<replaceable>rootfilesys</replaceable> ro</programlisting>
+
+	    <note><para>
+
+Neodstraňujte znak <literal>#</literal> na začátku řádku, je to tak v
+pořádku.
+
+	    </para></note>
+
+	</para></listitem>
+	<listitem><para>
+
+Nechte aktualizovat řádky začínající na <literal>kernel</literal> v
+souboru <filename>menu.lst</filename> spuštěním příkazu
+<command>update-grub</command>.
+
+	</para></listitem>
+	<listitem><para>
+
+Upravte soubor <filename>/etc/fstab</filename> a změňte řádek, který
+definuje připojení kořenového souborového systému
+(<filename>/</filename>), např:
+
+<programlisting>/dev/hda6     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
+na
+<programlisting>LABEL=<replaceable>rootfilesys</replaceable>     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
+
+Stačí upravit první sloupec, zbytek řádku není pro tuto chvíli
+relevantní.
+
+	</para></listitem>
+      </orderedlist>
+      </para>
+
+      <para>
+
+Postup pro použití <acronym>UUID</acronym>:
+
+      <orderedlist>
+	<listitem><para>
+
+Nejprve zjistěte univerzální unikátní identifikátor kořenového
+souborového systému příkazem
+<command>ls -l /dev/disk/by-uuid | grep hda6</command>
+
+	  </para><para>
+
+Měli byste získat řádek podobný tomuto:
+
+<screen>lrwxrwxrwx 1 root root 24 2008-09-25 08:16 d0dfcc8a-417a-41e3-ad2e-9736317f2d8a -> ../../hda6</screen>
+
+<acronym>UUID</acronym> je jméno symbolického odkazu ukazujícího na
+<filename>/dev/hda6</filename>, tj. v tomto případě
+<literal>d0dfcc8a-417a-41e3-ad2e-9736317f2d8a</literal>.
+
+	    <note><para>
+
+<acronym>UUID</acronym> vaší oblasti bude odlišné.
+
+	    </para></note>
+
+	</para></listitem>
+	<listitem><para>
+
+Upravte soubor <filename>/boot/grub/menu.lst</filename> a změňte řádek
+<programlisting># kopt=root=/dev/hda6 ro</programlisting>
+na
+<programlisting># kopt=root=UUID=<replaceable>d0dfcc8a-417a-41e3-ad2e-9736317f2d8</replaceable> ro</programlisting>
+
+	    <note><para>
+
+Neodstraňujte znak <literal>#</literal> na začátku řádku, je to tak v
+pořádku.
+
+	    </para></note>
+	</para></listitem>
+	<listitem><para>
+
+Nechte aktualizovat řádky začínající na <literal>kernel</literal> v
+souboru <filename>menu.lst</filename> spuštěním příkazu
+<command>update-grub</command>.
+
+	</para></listitem>
+	<listitem><para>
+
+Upravte soubor <filename>/etc/fstab</filename> a změňte řádek, který
+definuje připojení kořenového souborového systému
+(<filename>/</filename>), např:
+
+<programlisting>/dev/hda6     /     ext3  defaults,errors=remount-ro 0 1</programlisting>
+na
+<programlisting>UUID=<replaceable>d0dfcc8a-417a-41e3-ad2e-9736317f2d8</replaceable>  /  ext3  defaults,errors=remount-ro 0 1</programlisting>
+
+Stačí upravit první sloupec, zbytek řádku není pro tuto chvíli
+relevantní.
+
+	</para></listitem>
+      </orderedlist>
+      </para>
+    </section>
+
+    <section id="how-to-recover">
+      <title>Jak se vypořádat s problémem po aktualizaci</title>
+
+      <section id="solution1">
+	<title>Řešení 1</title>
+	<para>
+
+Tento postup se dá použít v případě, že vám Grub nabídne menu pro
+výběr operačního systému, který chcete spustit. Pokud se takové menu
+neobjeví, zkuste ho zobrazit stisknutím klávesy <keycap>Esc</keycap>
+chvíli před zavedením jádra. Jestliže se menu nezobrazí, zkuste řešení
+popsaná v <xref linkend="solution2"/> nebo
+<xref linkend="solution3"/>.
+
+	</para>
+
+	<orderedlist>
+	  <listitem><para>
+
+Menu Grubu označte záznam, který chcete zavést a stiskněte klávesu
+<keycap>e</keycap> pro úpravu záznamu. Zobrazí se něco jako
+
+<screen>root (hd0,0)
+kernel /vmlinuz-2.6.26-1-686 root=/dev/hda6 ro
+initrd /initrd.img-2.6.26-1-686</screen>
+
+	  </para></listitem>
+	  <listitem><para>
+
+Označte řádek začínající <literal>kernel</literal>
+
+<screen>kernel /vmlinuz-2.6.26-1-686 root=/dev/hda6 ro</screen>
+
+a opět stiskněte <keycap>e</keycap>. Nahraďte
+<literal>hd<replaceable>X</replaceable></literal> za
+<literal>sd<replaceable>X</replaceable></literal>
+(kde <varname>X</varname> je písmeno, typicky <literal>a</literal>,
+<literal>b</literal>, <literal>c</literal> nebo <literal>d</literal>,
+závisí na vašem systému). v našem příkladu tedy:
+
+<screen>kernel /vmlinuz-2.6.26-1-686 root=/dev/sda6 ro</screen>
+
+Potvrďte úpravu klávesou <keycap>Enter</keycap>. Pokud vidíte ještě
+nějaké řádky obsahující řetězec
+<literal>hd<replaceable>X</replaceable></literal>, změňte je dle
+stejné logiky. <emphasis>Neměňte</emphasis> řádky
+<literal>root (hd0,0)</literal>. Po skončení všech úprav stiskněte
+klávesu <keycap>b</keycap> a systém by měl nastartovat jako obvykle.
+
+	  </para></listitem>
+	  <listitem><para>
+
+Po přihlášení do systému byste měli tento problém opravit trvale,
+takže přeskočte na <xref linkend="avoid-problems-before-upgrading"/>
+a vyberte si některý z popsaných postupů.
+
+	  </para></listitem>
+	</orderedlist>
+      </section>
+
+      <section id="solution2">
+	<title>Řešení 2</title>
+
+	<para>
+
+Zaveďte &debian; z instalačního média
+(<acronym>CD</acronym>/<acronym>DVD</acronym>) a na zaváděcí výzvě
+vyberte záchranný režim. Postupujte stejně, jako byste instalovali
+nový systém (vyberte jazyk, umístění, klávesové rozložení, síť - je
+celkem jedno, jestli se nastavení povede, nebo ne, ...) a po chvíli
+byste měli být dotázáni, kterou oblast chcete použít jako kořenový
+souborový systém. Možnosti budou vypadat nějak takto:
+
+<screen>/dev/ide/host0/bus0/target0/lun0/part1
 /dev/ide/host0/bus0/target0/lun0/part2
 /dev/ide/host0/bus0/target0/lun0/part5
 /dev/ide/host0/bus0/target0/lun0/part6</screen>
-      </para>
 
-      <para>
-	If you know which partition is your root file system, choose the right
-one. If you don't, just try with the first. If it complains about an invalid
-root file system partition, try the next one, and so on. Trying one after
-the other shouldn't arm your partitions and if you have only one system
-installed on your disks, you should easily find the right root file system
-partition. If you have many systems installed on your disks, it would be
-better to know exactly which is the right partition.
-      </para>
+	</para><para>
 
-      <para>
-	Once you have choosen a partition, you will be proposed among several
-actions.  Make the choice of executing a shell in the selected partition. If
-it complains that it cannot do that then try with another partition.
-      </para>
+Pokud víte, která oblast obsahuje váš kořenový souborový systém,
+prostě ji vyberte. Jestliže si nejste jistí, jednoduše zkuste první z
+nich. Pokud se záchrannému režimu bude zdát, že tato oblast neobsahuje
+kořenový souborový systém, bude si stěžovat a nechá vás vybrat
+znovu. Pokračujte tak dlouho, až narazíte na tu správnou.
 
-      <para>
-	Now you should have shell access as user root on your root file system
-mounted on <filename>/</filename>. You need access to the
-<filename>/boot</filename>, <filename>/sbin</filename> and
-<filename>/usr</filename> directories content. If these directories need to
-be mounted from other partitions, do it.  (see
-<filename>/etc/fstab</filename> if you have no idea of which partition to
-mount).
-      </para>
+	</para><para>
 
-      <para>
-	Jump to <xref linkend="avoid-problems-before-upgrading"/> and apply one of
-the two proposed procedures to fix the problem parmanently. Then type
-<literal>exit</literal> to leave the rescue shell and select
-<literal>reboot</literal> for rebooting the system as usual. (Don't forget
-to remove the bootable media)
-      </para>
-    </section>
+Po výběru oblasti si můžete vybrat z několika navrhovaných akcí.
+Zvolte spuštění shellu. Jestliže se zobrazí chybová hláška, možná jste
+nevybrali tu správnou oblast - vraťte se zpět a zkuste vybrat jinou.
 
-    <section id="solution3">
-      <title>Solution 3</title>
+	</para><para>
 
-      <orderedlist>
-	<listitem>
-	  <para>
-	    Boot from your favorite LiveCD distribution (Debian Live, Knoppix, Ubuntu
-Live and many other).
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Mount the partition where your <filename>/boot</filename> directory is. If
-you don't know which one it is, use the output of the command
-<command>dmesg</command> to find whether your disk is known as
-<literal>hda</literal>, <literal>hdb</literal>, <literal>hdc</literal>,
-<literal>hdd</literal> or <literal>sda</literal>, <literal>sdb</literal>,
-<literal>sdc</literal>, <literal>sdd</literal>. Once you know which disk to
-work on, for example <literal>sdb</literal>, issue the following command to
-see the partition table of the disk and to find the right partition
-<command>fdisk -l /dev/sdb</command>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Assuming that you have mounted the right partition under
-<filename>/mnt</filename> and that this partition contains the
-<filename>/boot</filename> directory and its content, edit the
-<filename>/mnt/boot/grub/menu.lst</filename> file.
-	  </para>
-	  <para>
-	    Find the section similar to:
+Nyní byste měli mít přístup do vašeho kořenového souborového systému
+jako uživatel <literal>root</literal>. Budete potřebovat přístup k
+adresářům <filename>/boot</filename>, <filename>/sbin</filename>
+a <filename>/usr</filename>. Jestliže některé z těchto adresářů
+připojujete z jiných oblastí, připojte je. (Jestliže nemáte tušení,
+které oblasti použít, podívejte se do <filename>/etc/fstab</filename>.)
+
+	</para><para>
+
+Přeskočte na <xref linkend="avoid-problems-before-upgrading"/> a
+použijte jedno z popisovaných řešení problému. Poté opusťte záchranný
+shell příkazem <literal>exit</literal> a z menu instalátoru zvolte
+<literal>reboot</literal>, aby nastartoval váš nový systém
+(nezapomeňte vyjmout médium s instalačním systémem).
+
+	</para>
+      </section>
+
+      <section id="solution3">
+	<title>Řešení 3</title>
+
+	<orderedlist>
+	  <listitem><para>
+
+Zaveďte svou oblíbenou LiveCD distribuci (Debian Live, grml, Knoppix,
+Ubuntu Live a spousta dalších).
+	
+	  </para></listitem>
+	  <listitem><para>
+
+Připojte oblast, která obsahuje adresář <filename>/boot</filename>.
+Pokud nevíte, která to je, podívejte se nejprve do výpisu programu
+<command>dmesg</command> a zjistěte, pod jakým názvem je znám váš disk
+(<literal>hda</literal>, <literal>hdb</literal>, <literal>hdc</literal>,
+<literal>hdd</literal> nebo <literal>sda</literal>,
+<literal>sdb</literal>, <literal>sdc</literal>, <literal>sdd</literal>,
+...). Až to zjistíte, (předpokládejme nyní, že to je
+<literal>sdb</literal>), nechte si vypsat tabulku rozdělení disku
+příkazem <command>fdisk -l /dev/<replaceable>sdb</replaceable></command>
+
+	  </para></listitem>
+	  <listitem><para>
+
+Nyní předpokládejme, že jste připojili správnou oblast (obsahující
+adresář <filename>/boot</filename>, resp. jeho obsah) do
+<filename>/mnt</filename>. Upravte soubor
+<filename>/mnt/boot/grub/menu.lst</filename>.
+
+	  </para><para>
+
+Najděte sekci podobnou této
+
 	    <programlisting>## ## End Default Options ##
 
 title           Debian GNU/Linux, kernel 2.6.26-1-686
@@ -1726,227 +2112,204 @@ initrd          /initrd.img-2.6.26-1-686
 
 ### END DEBIAN AUTOMAGIC KERNELS LIST</programlisting>
 
-	    and replace every <literal>hda</literal>, <literal>hdb</literal>,
-<literal>hdc</literal>, <literal>hdd</literal> respectively with
-<literal>sda</literal>, <literal>sdb</literal>, <literal>sdc</literal>,
-<literal>sdd</literal>.  Don't modify the line similar to:
+a nahraďte každý výskyt <literal>hda</literal>, <literal>hdb</literal>,
+<literal>hdc</literal> nebo <literal>hdd</literal> odpovídajícím
+<literal>sda</literal>, <literal>sdb</literal>,
+<literal>sdc</literal> nebo <literal>sdd</literal>.
 
-	    <screen>root            (hd0,0)</screen>
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    Reboot the system, remove the LiveCD and your system should boot correctly.
-	  </para>
-	</listitem>
-	<listitem>
-	  <para>
-	    When it has booted, apply one of the two proposed procedures under <xref
-linkend="avoid-problems-before-upgrading"/> to fix the problem permanently.
-	  </para>
-	</listitem>
-      </orderedlist>
+<emphasis>Neměňte</emphasis> řádky
+
+<programlisting>root            (hd0,0)</programlisting>
+
+	  </para></listitem>
+	  <listitem><para>
+
+Restartujte systém, vyjměte LiveCD z mechaniky a by měl naběhnout nový
+systém.
+
+	</para></listitem>
+	  <listitem><para>
+
+Po přihlášení do systému byste měli tento problém opravit trvale,
+takže přeskočte na <xref linkend="avoid-problems-before-upgrading"/> a
+vyberte si některý z popsaných postupů.
+
+	  </para></listitem>
+	</orderedlist>
+      </section>
     </section>
   </section>
-</section>
 
-<section id="for-next">
-<title>Preparing for the next release</title>
-<para>
-After the upgrade there are several things you can do to prepare for the
-next release.
-</para>
-<itemizedlist>
-<listitem>
-<para>
-If using <systemitem role="package">grub</systemitem>, edit
-<filename>/etc/kernel-img.conf</filename> and adjust the location of the
-<command>update-grub</command> program changing
-<filename>/sbin/update-grub</filename> to
-<filename>/usr/sbin/update-grub</filename>.
-</para>
-</listitem>
-<listitem>
-<para>
-If the new kernel image metapackage was pulled in as a dependency of the old
-one, it will be marked as automatically installed, which should be
-corrected:
-</para>
-<screen>
-# aptitude unmarkauto $(dpkg-query -W 'linux-image-2.6-*' | cut -f1)
-</screen>
-</listitem>
-<listitem>
-<para>
-Remove &oldreleasename;'s kernel metapackages by running:
-</para>
-<screen>
-# aptitude purge kernel-image-2.6-<replaceable>flavor</replaceable>
-</screen>
-</listitem>
-<listitem>
-<para>
-Move any configuration options from
-<filename>/etc/network/options</filename> to
-<filename>/etc/sysctl.conf</filename>.  Please see
-<filename>/usr/share/doc/netbase/README.Debian</filename> for details.
-</para>
-</listitem>
-<listitem>
-<para>
-Remove obsolete and unused packages as described in <xref
-linkend="obsolete"/>.  You should review which configuration files they use
-and consider purging the packages to remove their configuration files.
-</para>
-</listitem>
-</itemizedlist>
-</section>
-
-<section id="deprecated">
-<title>Deprecated packages</title>
-<para>
-With the release of <literal>Lenny</literal> a bigger number of server
-packages will be deprecated, thus updating to newer versions of those now
-will save you from trouble when updating to <literal>Lenny</literal>.
-</para>
-<para>
-This includes the following packages:
-</para>
-<itemizedlist>
-<listitem>
-<para>
-apache (1.x), successor is apache2
-</para>
-</listitem>
-<listitem>
-<para>
-bind8, successor is bind9
-</para>
-</listitem>
-<listitem>
-<para>
-php4, successor is php5
-</para>
-</listitem>
-<listitem>
-<para>
-postgresql-7.4, successor is postgresql-8.1
-</para>
-</listitem>
-<listitem>
-<para>
-exim 3, successor is exim4
-</para>
-</listitem>
-</itemizedlist>
-</section>
-
-<section id="obsolete">
-<title>Obsolete packages</title>
-<para>
-Introducing several thousand new packages, &releasename; also retires and
-omits more than two thousand old packages that were in &oldreleasename;.  It
-provides no upgrade path for these obsolete packages.  While nothing
-prevents you from continuing to use an obsolete package where desired, the
-Debian project will usually discontinue security support for it a year after
-&releasename;'s release<footnote><para> Or for as long as there is not another release in that time frame.
-Typically only two stable releases are supported at any given time.  </para> </footnote>, and will not normally provide other support in the meantime.
-Replacing them with available alternatives, if any, is recommended.
-</para>
-<para>
-There are many reasons why packages might have been removed from the
-distribution: they are no longer maintained upstream; there is no longer a
-Debian Developer interested in maintaining the packages; the functionality
-they provide has been superseded by different software (or a new version);
-or they are no longer considered suitable for &releasename; due to bugs in
-them.  In the latter case, packages might still be present in the
-<quote>unstable</quote> distribution.
-</para>
-<para>
-Detecting which packages in an updated system are <quote>obsolete</quote> is
-easy since the package management front-ends will mark them as such.  If you
-are using <command>aptitude</command>, you will see a listing of these
-packages in the <quote>Obsolete and Locally Created Packages</quote> entry.
-<command>dselect</command> provides a similar section but the listing it
-presents might differ.  Also, if you have used <command>aptitude</command>
-to manually install packages in &oldreleasename; it will have kept track of
-those packages you manually installed and will be able to mark as obsolete
-those packages pulled in by dependencies alone which are no longer needed if
-a package has been removed.  Also, <command>aptitude</command>, unlike
-<command>deborphan</command> will not mark as obsolete packages that you
-manually installed, as opposed to those that were automatically installed
-through dependencies.
-</para>
-<para>
-There are additional tools you can use to find obsolete packages such as
-<command>deborphan</command>, <command>debfoster</command> or
-<command>cruft</command>.  <command>deborphan</command> is highly
-recommended, although it will (in default mode) only report obsolete
-libraries: packages in the <quote><literal>libs</literal></quote> or
-<quote><literal>oldlibs</literal></quote> sections that are not used by any
-other packages.  Do not blindly remove the packages these tools present,
-especially if you are using aggressive non-default options that are prone to
-produce false positives.  It is highly recommended that you manually review
-the packages suggested for removal (i.e.  their contents, size and
-description) before you remove them.
-</para>
-<para>
-The <ulink url="&url-bts;">Debian Bug Tracking System</ulink> often provides
-additional information on why the package was removed.  You should review
-both the archived bug reports for the package itself and the archived bug
-reports for the <ulink
-url="&url-bts;cgi-bin/pkgreport.cgi?pkg=ftp.debian.org&amp;archive=yes">ftp.debian.org
-pseudo-package</ulink>.
-</para>
-<section id="dummy">
-<title>Dummy packages</title>
-<para>
-Some packages from &oldreleasename; have been split into several packages in
-&releasename;, often to improve system maintainability.  To ease the upgrade
-path in such cases, &releasename; often provides <quote>dummy</quote>
-packages: empty packages that have the same name as the old package in
-&oldreleasename; with dependencies that cause the new packages to be
-installed.  These <quote>dummy</quote> packages are considered obsolete
-packages after the upgrade and can be safely removed.
-</para>
-<para>
-Most (but not all) dummy packages' descriptions indicate their purpose.
-Package descriptions for dummy packages are not uniform, however, so you
-might also find <command>deborphan</command> with the
-<literal>--guess</literal> options useful to detect them in your system.
-Note that some dummy packages are not intended to be removed after an
-upgrade but are, instead, used to keep track of the current available
-version of a program over time.
-</para>
-</section>
-
-</section>
-
-<section id="plans-for-nigel">
-  <title>Plans for the next Debian release</title>
-
-  <section arch="arm;armel">
-    <title>Drop of the ARM port, in favour of the ARM EABI port</title>
-
+  <section id="for-next">
+    <title>Příprava na příští vydání</title>
     <para>
-      Debian lenny has two different and incompatible ARM ports: the old ABI port
-(arm) and the new EABI port (armel).  Debian lenny is the last release with
-support for the ARM port and future releases will only support the ARM EABI
-or armel port.  It's therefore recommended to use armel for new
-installations of lenny.
+
+Po aktualizaci ještě zbývá, provést několik drobností, které vám
+později usnadní přechod na příští vydání.
+
     </para>
 
-    <para>
-      With the exception of Netwinder, installer images for supported ARM machines
-are available for both arm and armel in lenny.  Netwinder support is only
-available for arm and it will be dropped after lenny along with the arm
-port.
-    </para>
+    <itemizedlist>
+      <listitem><para>
 
-    <para>
-      Please visit <ulink url="http://wiki.debian.org/ArmEabiPort">this
-page</ulink> to learn more about the ARM EABI (armel) port.
-    </para>
+Pokud byl nový jaderný metabalík přivlečen do systému jako závislost
+toho starého, bude mít příznak, že byl nainstalován automaticky. To
+byste měli napravit, aby náhodou <command>aptitude</command>
+nenapadlo, že se balík nepoužívá a že může být odstraněn:
+
+	</para>
+
+	<screen>
+<prompt>#</prompt> <userinput>aptitude unmarkauto $(dpkg-query -W 'linux-image-2.6-*' | cut -f1)</userinput>
+	</screen>
+
+      </listitem>
+      <listitem><para>
+
+Odstraňte zastaralé a nepoužívané balíky, jak popisuje
+<xref linkend="obsolete"/>. Také byste se měli podívat, které
+konfigurační soubory patří k těmto zastaralým balíkům a pokud je
+nepotřebujete, tak je ze systému odstraňte.
+
+	</para></listitem>
+    </itemizedlist>
   </section>
-</section>
-</chapter>
+
+  <section id="deprecated">
+    <title>Zapovězené balíky</title>
+    <para>
+
+S budoucím vydáním Debianu (<literal>&Nextreleasename;</literal>) bude
+odstraněno větší množství serverových balíků, takže přechodem na
+novější verze těchto balíků již nyní si ušetříte problémy při
+aktualizaci na <literal>&Nextreleasename;</literal>.
+    
+    </para><para>
+
+Jedná se o následující balíky:
+
+    </para>
+
+    <itemizedlist>
+      <listitem><para>
+
+<systemitem role="package">uw-imapd</systemitem>, žádný náhradník
+zatím nebyl vybrán.
+
+	</para></listitem>
+    </itemizedlist>
+  </section>
+
+  <section id="obsolete">
+    <title>Zastaralé balíky</title>
+    <para>
+
+Se zahrnutím tisíců nových balíků bylo také vypuštěno více než dva
+tisíce starých balíků, jež byly součástí &Oldreleasename;e. Přestože
+vám nic nebrání v používání těchto starých balíků, projekt Debian je
+již nebude podporovat a obvykle po jednom roce od vydání
+&Releasename;ho<footnote><para>Pokud mezitím vyjde další stabilní
+verze Debianu tak i dříve. Typicky jsou současně podporovány maximálně
+dvě stabilní verze.</para></footnote> pro ně ukončí i vydávání
+bezpečnostních oprav. Zastaralé balíky doporučujeme co nejdříve
+nahradit vhodnými alternativami.
+
+    </para><para>
+
+Důvodů, proč byly balíky z distribuce odstraněny, je několik. Buď byl
+vývoj programu svými autory ukončen, žádný vývojář Debianu již o
+správu balíku nejeví zájem, funkčnost programu byla překonána jiným
+softwarem (nebo novou verzí), nebo byl program shledán nevhodným pro
+vydání &Releasename;ho, protože obsahuje závažné chyby. V posledním
+případě je možné, že balík stále naleznete v <quote>nestabilní</quote>
+distribuci.
+
+    </para><para>
+
+Zjištění, které balíky v aktuálním systému jsou zastaralé je velmi
+jednoduché, protože nástroje pro správu balíků se o vše postarají
+automaticky. V <command>aptitude</command> uvidíte tyto balíky v sekci
+<quote>Zastaralé a lokálně vytvořené balíky</quote>.
+<command>dselect</command> má podobnou schopnost, ale výpis se může
+lišit. Do kategorie zastaralých patří i balíky, které jste
+nainstalovali ručně, ovšem různé nástroje na to mají různý názor.
+
+    </para><para>
+
+Pro hledání zastaralých balíků můžete použít i další nástroje
+typu <command>deborphan</command>, <command>debfoster</command>
+nebo <command>cruft</command>. Doporučujeme použít první
+jmenovaný. Pozor na to, že ve výchozím nastavení hlásí
+<command>deborphan</command> pouze nepoužívané balíky ze sekcí
+<quote><literal>libs</literal></quote> a
+<quote><literal>oldlibs</literal></quote>. Před odstraněním balíků se
+ještě podrobně podívejte na jejich popis a ujistěte se, že balík
+opravdu nepotřebujete, protože při použití některých agresivních
+parametrů může <command>deborphan</command> chybně označit i používané
+balíky.
+
+    </para><para>
+
+Další informace o tom, proč byl balík odstraněn, obvykle naleznete i
+v <ulink url="&url-bts;">debianím systému sledování chyb</ulink>.
+Kromě hlášení o chybách ke konkrétním balíku se podívejte i na archiv
+chyb pseudobalíku
+<ulink url="&url-bts;cgi-bin/pkgreport.cgi?pkg=ftp.debian.org&amp;archive=yes">ftp.debian.org</ulink>.
+
+    </para>
+
+    <section id="dummy">
+      <title>Falešné balíky</title>
+      <para>
+
+Při přechodu od verze 4.0 (&Oldreleasename;) k verzi &release;
+(&Releasename;) bylo několik balíků rozděleno na větší počet menších
+balíků. V takových případech &Releasename; většinou poskytuje
+<quote>falešné</quote> balíky, které se jmenují stejně jako balík v
+předchozí verzi Debianu, ovšem kromě závislostí na nově vzniklých
+balících nic užitečného neobsahují. <quote>Falešné</quote> balíky se
+po úspěšném přechodu považují za zbytečné a většinou je můžete
+odstranit.
+
+      </para><para>
+
+Většina (ale ne všechny) falešné balíky mají ve svém popisu jasně
+napsáno, že se jedná o falešné balíky. S hledáním těchto balíků může
+pomoci program <command>deborphan</command> s parametry
+<literal>--guess</literal>. Pamatujte, že některé falešné balíky je
+lepší neodstraňovat, protože slouží ke sledování aktuálních verzí
+programů.
+
+      </para>
+    </section>
+  </section>
+
+  <section id="plans-for-nigel">
+    <title>Plány pro příští vydání Debianu</title>
+
+    <section arch="arm;armel">
+      <title>Zahození portu ARM ABI ve prospěch portu ARM EABI</title>
+      <para>
+
+Debian Lenny má dva různé a nekompatibilní porty na ARM: starý ABI
+(arm) a nový EABI (armel). Debian Lenny je posledním vydáním Debianu,
+které podporuje port ARM ABI. Příští vydání již budou podporovat pouze
+ARM EABI (armel). Pro nové instalace Lennyho je doporučeno použít
+právě armel.
+
+      </para><para>
+
+S výjimkou Netwinderu jsou instalační obrazy Lennyho dostupné jak pro
+architekturu arm, tak pro architekturu armel.
+Podpora pro Netwinder je dostupná pouze pro arm a po vydání Lennyho
+bude zahozena zároveň s podporou portu arm.
+
+      </para><para>
+
+Více o portu ARM EABI (armel) se dozvíte na
+<ulink url="http://wiki.debian.org/ArmEabiPort">této stránce</ulink>.
+
+      </para>
+    </section>
+  </section>
+    </chapter>
