@@ -277,7 +277,7 @@ $(LANGUAGES-clean):
 	echo $(DBK_LANGUAGES) | grep -q "$$LINGUA" || rm -f *.dbk; \
 	rm -rf *~ .*~ $(manual).*.html $(manual).*.txt $(manual).*.pdf \
 	    $(manual).*.ps $(manual).*.xml ifxetex.sty body.tmp head.tmp \
-	    release-notes.*.tpt
+	    release-notes.*.tpt release-notes.*.fo
 
 printarches:
 	@echo $(arches)
