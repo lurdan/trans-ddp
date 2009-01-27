@@ -272,7 +272,7 @@ updatepo:
 endif
 
 clean::
-	rm -f relnotes.tar.bz2 statistics 
+	rm -f relnotes.tar.bz2 statistics.txt messages.mo
 	find -maxdepth 1 -name '$(manual)-*' -type d -exec rm -fr {} \;
 clean:: $(LANGUAGES-clean)
 
