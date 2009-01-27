@@ -206,6 +206,11 @@ ifneq "$(filter $(architecture),mips mipsel)" ""
 else
     initrd := $(condition);uses-initrd
 endif
+# pseudo-arch "all" to include all text, e.g. for proof-reading
+ifeq "$(architecture)" "all"
+    otherarchs := ;$(subst  $(space),$(semic),$(arches))$(otherarchs)
+    condition := $(condition);g-i;no-initrd;
+endif
 
 $(LINGUA)/$(manual).$(architecture).xml: \
 		$(patsubst en/%,$(LINGUA)/%,$(SOURCES)) $(manual).ent
