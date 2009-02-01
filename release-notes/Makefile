@@ -55,6 +55,7 @@ DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
 DBLATEX=dblatex --style=db2latex \
+    --xsl-user=hyphenation.xsl --param=lingua=$(LINGUA) \
     --param=draft.mode=$(draftmode)
 PROFILE=$(DOCBOOK_XSL)/profiling/profile.xsl
 PREPROC=$(CURDIR)/preproc.xsl
