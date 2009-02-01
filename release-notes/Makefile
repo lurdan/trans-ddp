@@ -6,6 +6,12 @@
 # production mode
 DRAFT := 1
 
+ifeq "$(DRAFT)" "1"
+    draftmode := yes
+else
+    draftmode := maybe
+endif
+
 # TODO: Once #477458 is fixed in stable remove all committed sgml files
 # which are generated from a PO file (was a workaround for old po4a).
 
@@ -38,7 +44,8 @@ LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
 SOURCES := $(wildcard en/*.dbk)
 
 # DocBook stuff
-XP=xsltproc --nonet --novalid --xinclude
+XP=xsltproc --nonet --novalid --xinclude \
+    --stringparam draft.mode $(draftmode)
 XL=xmllint --nonet --noout --postvalid --xinclude
 # XSL files and parameters
 # note: the URL is used as identifier, no HTTP is used!
@@ -47,19 +54,15 @@ DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
-DBLATEX=dblatex --style=db2latex
+DBLATEX=dblatex --style=db2latex \
+    --param=draft.mode=$(draftmode)
 PROFILE=$(DOCBOOK_XSL)/profiling/profile.xsl
 PREPROC=$(CURDIR)/preproc.xsl
+DBLATEXXSL=$(CURDIR)/dblatex.xsl
 XMLROFF=xmlroff --backend cairo
 XMLROFF_GP=xmlroff --backend gp
 
 FORMATS=html txt pdf ps
-
-ifeq "$(DRAFT)" "1"
-    draftmode := yes
-else
-    draftmode := maybe
-endif
 
 # po4a stuff
 # The etch version of po4a does not have the --previous option
@@ -126,7 +129,6 @@ $(LINGUA)/$(manual).$(architecture).html/index.$(LINGUA).html: \
 	    $(LINGUA)/$(manual).$(architecture).html/images
 	cd $(LINGUA) && $(XP) -o $(manual).$(architecture).html/ \
 	    --stringparam html.ext .$(LINGUA).html \
-	    --stringparam draft.mode $(draftmode) \
 	    $(DBK2HTML) $(manual).$(architecture).xml
 
 pdf::	$(LINGUA)/$(manual).$(architecture).pdf
@@ -151,7 +153,7 @@ ifneq "$(filter $(DISABLED_PDF),$(LINGUA))" ""
 else
 ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 %.fo: %.xml
-	$(XP) -o $@ --stringparam draft.mode $(draftmode) fo.xsl $<
+	$(XP) -o $@ fo.xsl $<
 
 %.pdf: %.fo
 	USE_GP=`echo " $(GPLIST) " | grep " $$LINGUA "`; \
@@ -163,7 +165,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 else
 %.pdf: %.xml
 	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
-	$(DBLATEX) --output=$@ --param=draft.mode=$(draftmode) $<
+	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ -
 endif
 endif
 
@@ -179,13 +181,13 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 else
 %.ps: %.xml
 	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
-	$(DBLATEX) --output=$@ --ps --param=draft.mode=$(draftmode) $<
+	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ --ps -
 endif
 
 txt::	$(LINGUA)/$(manual).$(architecture).txt
 $(LINGUA)/$(manual).$(architecture).txt: \
 		$(LINGUA)/$(manual).$(architecture).xml txt.xsl
-	$(XP) --stringparam draft.mode $(draftmode) $(DBK2HTML1) $< \
+	$(XP) $(DBK2HTML1) $< \
 	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 # profiling for architecture, needed by all output formats
