@@ -28,9 +28,9 @@ LANGUAGES := en ca cs da de es fi fr it ja ko ml nl pl pt_BR pt ro ru sk sv vi z
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=cs ja pl ro ru vi zh_CN zh_TW
-DISABLED_PDF=zh_TW
+DISABLED_PDF=
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
-GPLIST=zh_TW
+GPLIST=
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
