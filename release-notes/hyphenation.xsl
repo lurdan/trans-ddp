@@ -3,6 +3,7 @@
 
   <xsl:param name="latex.encoding">utf8</xsl:param>
   <xsl:param name="format">a4</xsl:param>
+  <xsl:param name="monoseq.hyphenation">">nohyphen</xsl:param>
 
   <xsl:template match="book|article" mode="docinfo">
     <!-- Apply default settings -->
