@@ -231,7 +231,7 @@ ifndef LINGUA
 	$(MAKE) $@ LINGUA=`basename $(@D)`
 
 else
-ifeq "$(findstring $(LINGUA),$(DBK_LANGUAGES))" ""
+ifeq "$(findstring  $(LINGUA) , $(DBK_LANGUAGES) )" ""
 $(LINGUA)/%.dbk:	en/%.dbk $(LINGUA)/%.po
 	$(TRANSLATE) --master $< --po $(@:.dbk=.po) --localized $@
 endif
@@ -282,7 +282,7 @@ clean:: $(LANGUAGES-clean)
 $(LANGUAGES-clean):
 	LINGUA=$(subst -clean,,$@); \
 	cd $$LINGUA; \
-	echo $(DBK_LANGUAGES) | grep -q "$$LINGUA" || rm -f *.dbk; \
+	echo " $(DBK_LANGUAGES) " | grep -q " $$LINGUA " || rm -f *.dbk; \
 	rm -rf *~ .*~ $(manual).*.html $(manual).*.txt $(manual).*.pdf \
 	    $(manual).*.ps $(manual).*.xml ifxetex.sty body.tmp head.tmp \
 	    release-notes.*.tpt release-notes.*.fo
