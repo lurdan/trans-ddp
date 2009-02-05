@@ -67,8 +67,7 @@ FORMATS=html txt pdf ps
 
 # po4a stuff
 # The etch version of po4a does not have the --previous option
-#UPDATEPO=PERLLIB=lib/ po4a-updatepo --previous --format docbook
-UPDATEPO=PERLLIB=lib/ po4a-updatepo --format docbook
+UPDATEPO=PERLLIB=lib/ po4a-updatepo --previous --format docbook
 # The "--keep 0" should be removed as soon as the translations are ready
 TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 
