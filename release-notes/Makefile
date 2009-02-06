@@ -33,7 +33,7 @@ LANGUAGES := en ca cs da de es fi fr it ja ko lt ml nl pl pt_BR pt ro ru sk sv v
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
-XMLROFF_LANGS=cs ja ml pl ro ru vi zh_CN zh_TW
+XMLROFF_LANGS=cs ja ml pl ru vi zh_CN zh_TW
 DISABLED_PDF=
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=
