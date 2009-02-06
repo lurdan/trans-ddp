@@ -66,8 +66,12 @@ XMLROFF_GP=xmlroff --backend gp
 FORMATS=html txt pdf ps
 
 # po4a stuff
-# The etch version of po4a does not have the --previous option
-UPDATEPO=PERLLIB=lib/ po4a-updatepo --previous --format docbook
+# The etch version of po4a, 0.29, does not have the --previous option
+# while the lenny version, 0.34, has.
+PO4A_VERSION=$(shell LANG=C po4a --version | head -1 \
+	| sed 's/.*version \([0-9].*[0-9a-z]\)\.*/\1/')
+PREVIOUS=$(shell LANG=C dpkg --compare-versions "$(PO4A_VERSION)" ge 0.34 && echo --previous)
+UPDATEPO=PERLLIB=lib/ po4a-updatepo $(PREVIOUS) --format docbook
 # The "--keep 0" should be removed as soon as the translations are ready
 TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 
