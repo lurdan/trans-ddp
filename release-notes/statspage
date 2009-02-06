@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+
+import glob
+import os.path
+import sys
+
+def make_html(data):
+    langs = data.keys()
+    langs.sort()
+    print """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Release Notes Translations Statistics</title>
+</head>
+<body>
+<h1>Release Notes Translations Statistics</h1>
+<table width="100%" border="1">
+<colgroup><col/><col/></colgroup>
+<thead>
+<tr><th align="justify">Language</th><th align="justify">Status</th></tr>
+</thead>
+<tbody>"""
+    for lng in langs:
+        value = data[lng]
+        colour = "#%.2x%.2x00" % (255 - value * 2.55, value * 2.55)
+        print "<tr style='background: %s'>" % colour
+        print "<td>%s</td><td align='right'>%.2f</td>" % (lng, value)
+        print "</tr>"
+    print """</tbody>
+</table>
+</body>
+</html>"""
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print >>sys.stderr, \
+            "call with the statistics.txt file"
+        sys.exit(-1)
+    data = {}                   # structure: {"lang": float}
+    for stat in open(sys.argv[1]).readlines():
+        lng, txt = stat.split(":", 1)
+        if txt.find("translat") >= 0:
+# format is:
+# de: 778 translated messages, 12 fuzzy translations, 20 untranslated messages.
+            translated = fuzzy = untranslated = 0
+            for value in txt.split(","):
+                count, status = value.strip().split(" ", 1)
+                if status.startswith("translated"):
+                    translated = int(count)
+                elif status.startswith("fuzzy"):
+                    fuzzy = int(count)
+                elif status.startswith("untranslated"):
+                    untranslated = int(count)
+            total = translated + fuzzy + untranslated
+            value = float(translated + fuzzy/2.)/(total/100.)
+            data[lng] = value
+        else:
+# format is:
+# pt_BR: ~13% (~12.846042%).
+            _, value = txt.strip().split(" ", 1)
+            data[lng] = float(value.strip("~%.()"))
+    make_html(data)

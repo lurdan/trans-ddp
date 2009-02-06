@@ -78,7 +78,7 @@ TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 .SUFFIXES: 
 .PHONY: publish all clean $(LANGUAGES-publish)
 
-all:
+all: statistics.html
 	for l in $(LANGUAGES); do \
 	    for a in $(arches); do \
 		$(MAKE) LINGUA=$$l architecture=$$a $(FORMATS); \
@@ -87,6 +87,7 @@ all:
 
 publish:
 	set -ex; \
+	$(install_file) statistics.html $(PUBLISHDIR)/; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
 	  $(makedir) $(PUBLISHDIR)/$$arch/$(manual); \
@@ -278,7 +279,7 @@ updatepo:
 endif
 
 clean::
-	rm -f relnotes.tar.bz2 statistics.txt messages.mo
+	rm -f relnotes.tar.bz2 statistics.txt statistics.html messages.mo
 	find -maxdepth 1 -name '$(manual)-*' -type d -exec rm -fr {} \;
 clean:: $(LANGUAGES-clean)
 
@@ -303,3 +304,6 @@ statistics.txt:
 	    done; \
 	) > $@
 	./transcount $(DBK_LANGUAGES) >> $@
+
+statistics.html: statistics.txt
+	./statspage $< > $@
