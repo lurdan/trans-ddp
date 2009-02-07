@@ -309,7 +309,7 @@ statistics.txt:
 	        msgcat $$l/*.po | msgfmt --statistics - 2>&1 ; \
 	    done; \
 	) > $@
-	./transcount $(DBK_LANGUAGES) >> $@
+	LANG=C ./transcount $(DBK_LANGUAGES) >> $@
 
 statistics.html: statistics.txt
 	./statspage $< > $@

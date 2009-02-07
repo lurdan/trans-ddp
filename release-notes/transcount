@@ -2,6 +2,7 @@
 
 import glob
 import os.path
+import re
 import sys
 
 if __name__ == "__main__":
@@ -18,12 +19,26 @@ if __name__ == "__main__":
     for fn in filenames:
         sizes[fn] = len(open("%s/%s" % (origlang, fn), "r").readlines())
     total = sum(sizes.values())
+    revisions = {}
+    for fn in filenames:
+        for attr in os.popen("svn info %s/%s" % (origlang, fn)).readlines():
+            if attr.startswith("Last Changed Rev:"):
+                _, revision = attr.split(":", 1)
+                revisions[fn] = int(revision)
+    # looking for marker: "^<!-- English version: 1234 -->$"
+    rev_re = re.compile("^\s*<!--\s+English version:\s+([0-9]+)\s+-->\s*$")
     for lng in targetlangs:
         stats = 0
         for fn in filenames:
-            dbk = open("%s/%s" % (lng, fn), "r").read(2000)
-            if dbk.find("\n<!-- English version:") > 0 and \
-                    dbk.find("\n<!-- Last translator:"):
-                stats += sizes[fn]
+            for line in open("%s/%s" % (lng, fn), "r").readlines(10):
+                match = rev_re.match(line)
+                if match:
+                    revision = int(rev_re.match(line).group(1))
+                    if revision >= revisions[fn]:
+                        # Current! Count 100%.
+                        stats += sizes[fn]
+                    else:
+                        # SVN revision not current. Count 50%.
+                        stats += sizes[fn]/2.
         value = float(stats)/(total/100.)
-        print "%s: ~%d%% (~%f%%)." % (lng, int(round(value)), value)
+        print "%s: ~%d%% (~%.2f%%)." % (lng, int(round(value)), value)
