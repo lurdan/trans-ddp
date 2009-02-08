@@ -4,7 +4,7 @@
 
 # comment out this line when the release notes should go into
 # production mode
-DRAFT := 1
+#DRAFT := 1
 
 ifeq "$(DRAFT)" "1"
     draftmode := yes
