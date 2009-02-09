@@ -93,7 +93,7 @@ all: statistics.html
 	    done; \
 	done
 
-publish:
+publish: statistics.html
 	set -ex; \
 	$(install_file) statistics.html $(PUBLISHDIR)/; \
 	for arch in $(arches); do \
