@@ -71,7 +71,7 @@ DBLATEXXSL=$(CURDIR)/dblatex.xsl
 XMLROFF=xmlroff --backend cairo
 XMLROFF_GP=xmlroff --backend gp
 
-FORMATS=html txt pdf ps
+FORMATS=html txt pdf
 
 # po4a stuff
 # The etch version of po4a, 0.29, does not have the --previous option
@@ -108,16 +108,12 @@ publish: statistics.html
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.txt; \
 	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.pdf; \
-	    $(install_file) $$lang/$(manual).$$arch.ps \
-		$(PUBLISHDIR)/$$arch/$(manual).$$lang.ps; \
 	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(manual)-$$arch/$$lang/; \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.txt; \
 	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.pdf ; \
-	    $(install_file) $$lang/$(manual).$$arch.ps \
-		$(manual)-$$arch/$$lang/$(manual).$$lang.ps ; \
 	  done; \
 	  for i in $(PUBLISHDIR)/$$arch/$(manual)/*.en.html; do \
 	    ln -sf `basename $$i` $${i%.en.html}.html; \
