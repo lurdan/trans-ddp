@@ -95,6 +95,7 @@ all: statistics.html
 publish: statistics.html
 	set -ex; \
 	$(install_file) statistics.html $(PUBLISHDIR)/; \
+	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/.htaccess; \
 	for arch in $(arches); do \
 	  $(MAKE) architecture=$$arch; \
 	  $(makedir) $(PUBLISHDIR)/$$arch/$(manual); \
