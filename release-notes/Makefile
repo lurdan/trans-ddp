@@ -57,6 +57,7 @@ DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
 DBLATEX=dblatex --style=db2latex \
+    --xslt-opts=--nonet \
     --xsl-user=hyphenation.xsl \
     --param=draft.mode=$(draftmode) \
     --param=format=a4 \
