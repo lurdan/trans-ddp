@@ -28,8 +28,6 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# disable, because translation is missing: da fi ko nl pl
-#LANGUAGES := en ca cs da de es fi fr it ja ko lt ml nl pl pt_BR pt ro ru sk sv vi zh_CN zh_TW
 LANGUAGES := en ca cs de es fr it ja lt ml pt_BR pt ro ru sk sv vi zh_CN zh_TW
 # languages without .po files
 # (either original English or translators don't like .po)
