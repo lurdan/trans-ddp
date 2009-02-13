@@ -28,14 +28,12 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-# ml disabled
-LANGUAGES := en ca cs de es fr it ja lt pt_BR pt ro ru sk sv vi zh_CN zh_TW
+LANGUAGES := en ca cs de es fr it ja lt ml pt_BR pt ro ru sk sv vi zh_CN zh_TW
 # languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
-# ml disabled
-XMLROFF_LANGS=ja XmlX pl vi zh_CN zh_TW
+XMLROFF_LANGS=ja ml pl vi zh_CN zh_TW
 DISABLED_PDF=es
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=
