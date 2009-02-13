@@ -34,7 +34,7 @@ LANGUAGES := en ca cs de es fr it ja lt ml pt_BR pt ro ru sk sv vi zh_CN zh_TW
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=ja ml pl vi zh_CN zh_TW
-DISABLED_PDF=es
+DISABLED_PDF=
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=
 
@@ -174,7 +174,8 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 else
 %.pdf: %.xml
 	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
-	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ -
+	[ $(@D) = es ] && export TEXINPUTS="$$(pwd)/$(@D):"; \
+	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) -d --output=$@ -
 endif
 endif
 
