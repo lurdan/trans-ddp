@@ -175,7 +175,7 @@ else
 %.pdf: %.xml
 	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
 	[ $(@D) = es ] && export TEXINPUTS="$$(pwd)/$(@D):"; \
-	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) -d --output=$@ -
+	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ -
 endif
 endif
 
