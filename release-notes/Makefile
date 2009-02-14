@@ -88,7 +88,8 @@ TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 all: statistics.html
 	for l in $(LANGUAGES); do \
 	    for a in $(arches); do \
-		$(MAKE) LINGUA=$$l architecture=$$a $(FORMATS); \
+	        echo "Creating documents for $$a, language: $$l"; \
+	        $(MAKE) LINGUA=$$l architecture=$$a $(FORMATS); \
 	    done; \
 	done
 
