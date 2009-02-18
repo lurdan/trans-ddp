@@ -306,7 +306,7 @@ statistics.txt:
 	    LANG=C; export LANG; \
 	    for l in $(PO_LANGUAGES); do \
 		echo -n "$$l: "; \
-	        msgcat $$l/*.po | msgfmt --statistics - 2>&1 ; \
+	        msgcat --use-first $$l/*.po | msgfmt --statistics - 2>&1 ; \
 	    done; \
 	) > $@
 	LANG=C ./transcount $(DBK_LANGUAGES) >> $@
