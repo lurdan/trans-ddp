@@ -174,8 +174,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 	fi
 else
 %.pdf: %.xml
-	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
-	[ $(@D) = es ] && export TEXINPUTS="$$(pwd)/$(@D):"; \
+	export TEXINPUTS="$$(pwd)/$(@D):"; \
 	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ -
 endif
 endif
@@ -191,7 +190,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 	fi
 else
 %.ps: %.xml
-	[ -f $(@D)/ifxetex.sty ] || cp ifxetex.sty $(@D)/
+	export TEXINPUTS="$$(pwd)/$(@D):"; \
 	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ --ps -
 endif
 
