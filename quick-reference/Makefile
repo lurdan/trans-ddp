@@ -219,7 +219,8 @@ rsync:
 	-rm -rf $(PUBLISHDIR)/images
 	mkdir -p $(PUBLISHDIR)/images
 	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
-	rsync -rpt --delete-after . $(REMOTE)
+	rsync --exclude=all-popcon-results.txt --exclude=packages.txt --exclude=pkg.lst --exclude="debian-reference.*.xml" \
+		-rpt --delete-after . $(REMOTE)
 	# somehow rsync does 700, fixit
 	ssh people.debian.org "chmod ugo+rX public_html/pub/po4a"
 
@@ -252,7 +253,7 @@ guide-line.en.html: guide-line.xml
 update:
 	$(MAKE) distclean
 	$(MAKE) $(ENTSRCS)
-	$(MAKE) clean
+	endif$(MAKE) clean
 
 #######################################################################
 # Build html for web (DDP or alioth)
@@ -263,34 +264,32 @@ all:
 	$(MAKE) html txt
 	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
 	$(MAKE) -C sgml all HTML_ROOT=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
 	# skip if DDP
 ifneq ($PDIR,doc)
-	$(MAKE) htmlonly
 	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
 	$(MAKE) rsync
 endif
 
-# all but no clean for for local debug activity
-.PHONY: almost
-almost:
-	$(MAKE) html txt
-	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
-	$(MAKE) -C sgml all HTML_ROOT=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #######################################################################
 # Clean targets
 #######################################################################
-.PHONY: htmlonly clean distclean
-htmlonly:
+.PHONY: clean distclean
+
+clean:
+	-rm -f *.swp *~ *.tmp
+	-rm -rf $(PUBLISHDIR)
+ifneq ($PDIR,doc)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
-	-rm -f *.swp *~ *.tmp
-
-clean:	htmlonly
-	-rm -rf $(PUBLISHDIR)
+endif
 
 distclean: clean
 	-rm -f *.html
 	-rm -f $(ENTSRCS)
+ifeq ($PDIR,doc)
+	-rm -f all-popcon-results.txt packages.txt pkg.lst
+	-rm -f $(DOCNAME).*.xml
+	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
+endif
 
