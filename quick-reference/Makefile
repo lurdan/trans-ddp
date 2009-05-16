@@ -4,11 +4,11 @@
 #######################################################################
 ### basic parameters
 #######################################################################
-# parent dir name of the source tree location (DDP=manuals)
-PDIR	:=	$(notdir $(realpath $(CURDIR)/..))
+# parent dir name of the SVN source checkout location (DDP=doc)
+PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
 # Publish directory
 # This can and will be overridden by a higher level makefile
-ifeq ($(PDIR),manuals)
+ifeq ($(PDIR),doc)
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals/reference
 else
 PUBLISHDIR := $(CURDIR)/html
@@ -172,7 +172,7 @@ newpo: $(DOCNAME).en.xml
 # Update PO files and translate English XML file
 #########################################################################
 .PHONY: updatepo
-updatepo: 
+updatepo: $(DOCNAME).en.xml 
 	$(UPDATEPO)  -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).ja.po
 
 # create translated XML file while updating PO file
@@ -264,12 +264,12 @@ all:
 	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
 	$(MAKE) -C sgml all HTML_ROOT=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
-	ifneq $($PDIR,manuals)
-		# this is not DDP
-		$(MAKE) htmlonly
-		export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
-		$(MAKE) rsync
-	endif
+	# skip if DDP
+ifneq ($PDIR,doc)
+	$(MAKE) htmlonly
+	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
+	$(MAKE) rsync
+endif
 
 # all but no clean for for local debug activity
 .PHONY: almost
