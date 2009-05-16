@@ -1,0 +1,55 @@
+#!/bin/sh
+# Copyright (C) 2007 Osamu Aoki <osamu@debian.org>
+#
+# This is free software with ABSOLUTELY NO WARRANTY.
+#
+# You can redistribute it and/or modify it under the terms of
+# the GNU General Public License version 2 or later.
+#
+#
+set -e
+#set -x
+
+calcpercent()
+{
+# Currently 0.014% is 10 vote
+if [ $1 = 0 ] || [ $2 = 0 ]; then
+  echo 0
+  return
+fi
+point=$((10000*${1}/${2}))
+if [ $point -ge 200 ]; then
+  echo $((point/100))
+elif [ $point -ge 100 ]; then
+  echo "$(echo "scale=1; ${point}/100"|bc)"
+elif [ $point -ge 20 ]; then
+  echo "0$(echo "scale=1; ${point}/100"|bc)"
+elif [ $point -gt 0 ]; then
+  echo "0$(echo "scale=2; ${point}/100"|bc)"
+else
+  echo "0.00"
+fi
+}
+
+submission=$1
+
+while read dummy package vote old new nofile
+  do
+    installed=$(( $vote + $old + $new + $nofile ))
+#    echo  "$package = V:$vote I:$installed"
+    entityname=pop-$(echo $package |tr "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" "abcdefghijklmnopqrstuvwxyzabcdefghij"| \
+               tr -d " \!#\$%()=\-~^|\\/+*,.?;:@\`\"'&><")
+    if [ $installed -lt 1 ]; then
+      echo "<!ENTITY $entityname \"I:none\">"
+    elif [ $(($vote*10)) -gt $nofile ]; then
+      pvote=$(calcpercent $vote      $submission)
+      pinst=$(calcpercent $installed $submission)
+      echo "<!ENTITY $entityname \"V:$pvote, I:$pinst\">"
+    else
+      pinst=$(calcpercent $installed $submission)
+      echo "<!ENTITY $entityname \"I:$pinst\">"
+    fi
+done
+#
+#
+# vim: set sts=2 ai expandtab:

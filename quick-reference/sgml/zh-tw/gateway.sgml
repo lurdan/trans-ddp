@@ -1,0 +1,1164 @@
+<!-- CVS revision of this document "# Revision is not used here.#"  -->
+<!-- CVS revision of original english document "1.249"  -->
+
+<chapt id="gateway">網路設定
+<p>
+<!-- I keep above id as gateway to have the same html file name. -->
+<!-- Once all translations are in sync, I may change it to network. -->
+這一章的重點在 &debian; 的網路管理。請閱讀<url id="&net-howto;" name="Net-HOWTO">了解一般 GNU/Linux 的網路設定。
+<p>
+為了讓 &debian; 的主機能夠成功連上網路，必須先設定好網路卡。
+<p>
+首重就是要確認核心支援的裝置，例如乙太網路卡，無線網路卡和數據機。您可能需要重新編譯核心並加入驅動程式模組<ref id="kernel">來支援這些硬體。
+<p>
+以下說明如何設定網路裝置。這一章的內容主要是針對 Debian Sarge。大部分的內容不一定能相容早期的版本。
+<!--
+I move these to comment, Thomas, please remove once you are ready
+<p>
+<list compact>
+<item>XXX FIXME XXX: Update HW config, Ethernet kernel module
+<item>XXX FIXME XXX: Add section to reconfigure network on initial install.
+</list>
+-->
+
+<sect id="net-basic">IP 網路基礎
+<p>
+一台 &debian;主機會有多個 IP 位置。其硬體裝置有許多種，比如：
+<list compact>
+<item>Loopback:  <tt>lo</tt>
+<item>Ethernet:  <tt>eth0</tt>, <tt>eth1</tt>, ...
+<item>Wi-Fi:  <tt>wlan0</tt>, <tt>wlan1</tt>, <tt>wifi0</tt>, ...
+<footnote>
+注意，有些Wi-Fi裝置是抓用乙太網路裝置的名稱，只是參數的設定是針對 Wi-Fi。這些參數是由<prgn>iwconfig</prgn>控制。
+</footnote>
+<item>Token Ring:  <tt>tr0</tt>, <tt>tr1</tt>, ...
+<item>PPP:  <tt>ppp0</tt>, <tt>ppp1</tt>, ...
+</list>
+還有其他不同的網路裝置，包含 SLIP、PLIP(串列和並列 IP)、控制網路流量的"shaper"裝置、frame 傳送、AX.25、X.25、ARCnet 以及 LocalTalk。
+<p>
+每一個連線到網路的裝置(或任何 IP 基礎的網路)將以唯一一個 32 bit 的 IP 位置來辨識。
+<footnote>
+這是針對 IPV4 而言。IPV6是採用 128bit 定址，請參閱<url id="&ipv6home;">。
+</footnote>
+IP 位置可以分成網域位置和主機位置兩部份。將您的 IP 位置的網域位元全部設成1，而主機位元全部設成0，則您會得到該網路遮罩。
+<p>
+以傳統上來說，IP 網路分成 8、16、24 bits 長度的三個組別。
+<footnote>
+這樣的系統缺乏彈性並會浪費許多網路位置，所以現在的 IPV4 網路是採用可變的長度來分組。
+</footnote>
+<example>
+          IP addresses                   net mask      length
+Class A   1.0.0.0     - 126.255.255.255  255.0.0.0     =  /8
+Class B   128.0.0.0   - 191.255.255.255  255.255.0.0   = /16
+Class C   192.0.0.0   - 223.255.255.255  255.255.255.0 = /24
+</example>
+IP 位置不在這個範圍之內的是用在特殊環境上。
+<p>
+每一個類別的位置都給保留給本地網路(LANs)。這些位置保證不會影響到網路上的IP位置。(同理，如果主機被分配到這些地址的話，則該主機就無法直接存取網路，除非透過支援 proxy或是 Network Address Translation(NAT)功能才能夠連上網路。)底下的表格列出每個類別的 IP 位置：
+<example>
+          network addresses            length  how many
+Class A   10.x.x.x                     /8      1
+Class B   172.16.x.x -  172.31.x.x     /16     16
+Class C   192.168.0.x - 192.168.255.x  /24     256
+</example>
+IP 網路的第一個位置就是該網路本身，最後一個位置是這個網路的廣播位置。
+<footnote>
+網域的計算方式是將 IP 位置與網路遮罩進行 AND 運算。而廣播位置的計算是先網路遮罩經過一補數計算再與網域進行 OR 運算。
+</footnote>
+其餘的的 IP 位置就可以分配給其他該網域上的主機。通常IP位置的第一個與最後一個是用來當作網路通訊閘。
+<p>
+路由表記載了核心如何傳送 IP 封包到目的端。底下說明一台位於本地端網路(LAN) IP 位置為 192.168.50.x/24 的 &debian; 主機的路由表。另一台 192.168.50.1(也在 LAN 裡面) 的主機是 172.20.x.x/16 共用網路的路由器以及 192.168.50.254(也在 LAN 裡面)負責網際網路的路由器。
+<!-- I shrunk shell output within 72 characters                       -->
+<example>
+# route
+Kernel IP routing table
+Destination   Gateway        Genmask       Flags Metric Ref Use Iface
+127.0.0.0     *              255.0.0.0     U     0      0     2 lo
+192.168.50.0  *              255.255.255.0 U     0      0   137 eth0
+172.20.0.0    192.168.50.1   255.255.0.0   UG    1      0     7 eth0
+default       192.168.50.254 0.0.0.0       UG    1      0    36 eth0
+</example>
+<list compact>
+<item>
+第一行說明傳遞的目的位置如果是 <tt>127.x.x.x</tt>，則會透過 <tt>lo</tt>(loopback)裝置路由。
+<item>
+第二行說明傳遞的目的位置如果是 LAN，則會透過 <tt>eth0</tt> 裝置路由。
+<item>
+第三行說明傳遞的目的位置如果是共用網路，則會透過 <tt>eth0</tt> 裝置路由，最後傳送到 <tt>192.168.50.1</tt> 通訊閘。
+<item>
+第四行說明傳遞的目的位置如果是網際網路，則會透過 <tt>eth0</tt> 裝置路由，最後傳送到 <tt>192.168.50.254</tt> 通訊閘。
+</list>
+路由表的 IP 位置也以名稱表示，這些名稱由<file>/etc/networks</file>或 resolver C函式來取得。
+<p>
+除了路由支外，核心也能實現 network address translation(NAT)、流量控制以及封包過濾。
+<p>
+請閱讀 <url id="&net-howto;" name="Net-HOWTO"> 以及 <url id="&net-howto-over;" name="other networking HOWTOs"> 了解背後的運作原理。
+
+<sect id="net-low">低階網路設定
+<p>
+傳統的 GNU/Linux 系統設定網路的工具是 <prgn>ifconfig</prgn> and <prgn>route</prgn>，這兩個程式可以從 <package>net-tools</package> 套件取得。目前有新的工具：<prgn>ip</prgn> 可以取代這兩個程式的功能，您可以從 <package>iproute</package> 套件取得。<prgn>ip</prgn> 程式需搭配 Linux 2.2 或更新的核心且比舊有的程式功能更強。即使如此，這些傳統的設定工具還是相當實用且大家也比較熟悉。
+
+<sect1 id="low-ifconfig">低階網路設定 &ndash; 使用 <prgn>ifconfig</prgn> 和 <prgn>route</prgn>
+<p>
+以下的說明示範如何改變<tt>eth0</tt>的 IP 從 <tt>192.168.0.3</tt> 到 <tt>192.168.0.111</tt> 以及透過<tt> 192.168.0.1</tt> 路由到 <tt>10.0.0.0</tt> 這個網域。
+執行 <prgn>ifconfig</prgn> 和 <prgn>route</prgn> 時不加入網路裝置會顯示目前的網路裝置和路由表狀態。
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.3  Bcast:192.168.255.255  Mask:255.255.0.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     RX packets:23363 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:21798 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:100
+     RX bytes:13479541 (12.8 MiB)  TX bytes:20262643 (19.3 MiB)
+     Interrupt:9
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     UP LOOPBACK RUNNING  MTU:16436  Metric:1
+     RX packets:230172 errors:0 dropped:0 overruns:0 frame:0
+     TX packets:230172 errors:0 dropped:0 overruns:0 carrier:0
+     collisions:0 txqueuelen:0
+     RX bytes:22685256 (21.6 MiB)  TX bytes:22685256 (21.6 MiB)
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask          Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.0.0      U     0      0     0 eth0
+default      192.168.0.1  255.255.255.255  UG    0      0     0 eth0
+</example>
+首先，我們先關閉 eth0。
+<example>
+# ifconfig eth0 inet down
+# ifconfig
+lo   Link encap:Local Loopback
+  ... (no more eth0 entry)
+# route
+  ... (no more routing table entries)
+</example>
+接下來我們啟動 eth0 並給予新 IP 位置和路由。
+<example>
+# ifconfig eth0 inet up 192.168.0.111 \
+           netmask 255.255.255.0 broadcast 192.168.0.255
+# route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.1 dev eth0
+</example>
+結果是：
+<example>
+# ifconfig
+eth0 Link encap:Ethernet  HWaddr 08:00:46:7A:02:B0
+     inet addr:192.168.0.111  Bcast:192.168.0.255  Mask:255.255.255.0
+     UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+     ...
+
+lo   Link encap:Local Loopback
+     inet addr:127.0.0.1  Mask:255.0.0.0
+     ...
+# route
+Kernel IP routing table
+Destination  Gateway      Genmask        Flags Metric Ref Use Iface
+192.168.0.0  *            255.255.255.0  U     0      0     0 eth0
+10.0.0.0     192.168.0.1  255.0.0.0      UG    0      0     0 eth0
+</example>
+<p>
+請參閱 <manref name="ifconfig" section="8"> 和 <manref name="route" section="8"> 取得更多資訊。
+
+<sect1 id="low-ip">低階網路設定 &ndash; <prgn>ip</prgn>
+<p>
+<prgn>ip</prgn> 與 <prgn>ifconfig</prgn>和 <prgn>route</prgn> 有同樣功能的指令如下：
+<list compact>
+<item><tt>ip link show</tt>
+<item><tt>ip route list</tt>
+<item><tt>ip link set eth0 down</tt>
+<item><tt>ip addr del dev eth0 local 192.168.0.3</tt>
+<item><tt>ip addr add dev eth0 local 192.168.0.111/24 broadcast 192.168.0.255</tt>
+<item><tt>ip link set eth0 up</tt>
+<item><tt>ip route add dev eth0 to 10.0.0.0/8 src 192.168.0.111 via 192.168.0.1</tt>
+</list>
+<p>
+執行 <prgn>ip</prgn> 指令時加入 <tt>help</tt> 參數會顯示指令的用法。
+例如，<tt>ip link help</tt> 代表：
+<example>
+Usage: ip link set DEVICE { up | down | arp { on | off } |
+                     dynamic { on | off } |
+                     multicast { on | off } | txqueuelen PACKETS |
+                     name NEWNAME |
+                     address LLADDR | broadcast LLADDR |
+                     mtu MTU }
+       ip link show [ DEVICE ]
+</example>
+請參閱 <manref name="ip" section="8">。
+
+<sect1 id="low-wifi">設定 Wi-Fi 裝置
+<p>
+想要設定 Wi-Fi 裝置，除了<prgn>ifconfig</prgn> 或 <prgn>ip</prgn>之外，您還需要安裝<package>wireless-tools</package>並使用內附的<prgn>iwconfig</prgn>程式。
+<p>
+請參閱 <manref name="iwconfig" section="8">。
+
+<sect1 id="low-ppp">設定 PPP 裝置
+<p>
+如果您透過 modem 來撥接上網的話，這樣的連線被稱為 Point-to-Point (PPP) 協定。
+這樣連線作業的網路裝置為 <tt>ppp0</tt>, <tt>ppp1</tt> 等等。
+<p>
+一個 PPP 裝置是由 <prgn>pppd</prgn> 這個 PPP 服務所管理，您可以在 <package>ppp</package> 套件中找到該程式。
+因此，設定 PPP 裝置也就是設定 <prgn>pppd</prgn> 的意思。
+
+<sect2 id="ppp-pppd">手動設定 <prgn>pppd</prgn>
+<p>
+一個網路連線的建立需要完成以下一連串的手續：開啟通訊埠(通常是串列埠)，透過通訊裝置送出指令(通常是數據機)，撥出電話號碼，發送端的身分必須給外界的 PPP 服務認證，由核心建立 PPP 裝置並設定路由表，使得資料可以透過該線路傳遞。<prgn>pppd</prgn> 能完成以上所有的動作，所以會有一堆設定參數。關於參數的說明請參閱 <manref name="pppd" section="8">。
+<p>
+在&debian;系統中，全域選項是設定在<file>/etc/ppp/options</file>。使用者格式選項是設定在<file>~/.ppprc</file>。必需依賴通訊埠來使用的選項放置在<file>/etc/ppp/options.<var>portname</var></file>。舉例來說，假設你有兩台數據機 &mdash;一固定式的 Lucent LT modem 從/dev/LT-modem來存取資料和一外部的 modem 從/dev/ttyS0來存取資料。建立下列這兩個選項檔案。
+<example>
+# cat &gt; /etc/ppp/options.LT-modem &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-LT-modem"
+EOF
+# cat &gt; /etc/ppp/options.ttyS0 &lt;&lt;EOF
+115200
+init "/usr/sbin/chat -f /etc/chatscripts/setup-ttyS0"
+EOF
+</example>
+這些涉及到下列多人線上交談系統的指令碼。首先，<file>/etc/chatscripts/setup-LT-modem</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATW2X2 S7=70 S11=55'
+OK AT
+</example>
+第二，<file>/etc/chatscripts/setup-ttyS0</file>.
+<example>
+ABORT ERROR
+'' ATZ
+OK 'ATL1M1Q0V1W2X4&amp;C1&amp;D2 S6=4 S7=70 S11=55 S95=63 S109=1 +FCLASS=0'
+OK AT
+</example>
+當然，這一些檔案的內容必需依賴你的硬體。
+<p>
+選項也可以跟參數一樣傳遞給 <prgn>pppd</prgn>。
+<p>
+在&debian; <prgn>pppd</prgn> 通常使用<prgn>pon</prgn>此命令來啟動。當 <prgn>pon</prgn> 被它的第一個參數名字來使用時，在 <file>/etc/ppp/peers/</file> 的一個選項檔案也同時被<prgn>pppd</prgn>讀取。
+<footnote>
+這一個設定檔案包括使用這一個 <tt>call</tt> 選項。
+</footnote>
+該檔是您針對特定的網點服務所設定的地方，舉例來說，一個特定的網路服務提供者(ISP).
+<p>
+假設，舉例來說你從Amsterdam和Den Haag之間來溝通。在每一個城市你使用了兩個 ISP services&mdash;Planet 和 KPN.首先對每一個ISP建立一個基本的設定檔案。
+<example>
+# cat &gt; /etc/ppp/peers/KPN &lt;&lt;EOF
+remotename KPN
+noauth
+user kpn
+noipdefault
+ipparam KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet &lt;&lt;EOF
+remotename Planet
+auth
+user user3579@planet.nl
+noipdefault 
+mru 1000
+mtu 1000
+ipparam Planet
+EOF
+</example>
+這一些檔案從兩個不同的ISP來設定選項。對這兩個ISP來說常見的選項可以被放置在<file>/etc/ppp/options</file> 或當一種特殊介面的選項檔案被佔用時。
+<p>
+現在對每一個城市的ISP建立選項文件。在我們的例子中連結到不同地區ISP的差別只在於對話script是否需要。(對話script的不同，因為區域接收資料的電話號碼是不同的。)
+<example>
+# cat &gt; /etc/ppp/peers/KPN-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-Amsterdam"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/KPN-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/KPN-DenHaag"
+file /etc/ppp/peers/KPN
+EOF
+# cat &gt; /etc/ppp/peers/Planet-Amsterdam &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-Amsterdam"
+file /etc/ppp/peers/Planet
+EOF
+# cat &gt; /etc/ppp/peers/Planet-DenHaag &lt;&lt;EOF
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Planet-DenHaag"
+file /etc/ppp/peers/Planet
+EOF
+</example>
+<tt>file</tt> 指令顯示之前各包含了一個選項檔案。<tt>connect</tt> 指令詳細地說明了用來建立連線的<prgn>pppd</prgn> 命令。通常使用這一個 <prgn>chat</prgn> 程式來做，使對話script來適應ISP。這裡是給Den Haag的對話script；和給Amsterdam的對話script除了電話號碼以外可能極為相似或者當ISP從一個公司到另外一個公司所提供的服務有可能是不同的。
+<example>
+# cat &gt; /etc/chatscripts/KPN-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676012321</var>
+CONNECT \d\c
+EOF
+# cat &gt; /etc/chatscripts/Planet-DenHaag &lt;&lt;EOF
+ABORT BUSY
+ABORT 'NO CARRIER'
+ABORT VOICE
+ABORT 'NO DIALTONE'
+ABORT 'NO DIAL TONE'
+ABORT 'NO ANSWER'
+ABORT ERROR
+OK-AT-OK ATDT <var>0676002505</var>
+CONNECT \d\c
+EOF
+</example>
+為了能連接上這些 ISP，你需要的用戶名稱和密碼在被要求時以便讓 <prgn>pppd</prgn> 可以提供資料。這一資訊不是被儲存在<file>/etc/ppp/pap-secrets</file> (假使 PAP 規則使用中) 就是在 <file>/etc/ppp/chap-secrets</file> (假使 CHAP 規則使用中)。雖然 CHAP 是相當安全的， PAP 依然是相當廣泛地被使用。因為這一些檔案包含了"secret"，所以群組和其他用戶並不被允許讀取或是寫入。這些檔案的格式請參閱<manref name="pppd" section="8"> 的說明。"secret"(第三格)是由用戶端名稱(第一格)和/或伺服器名稱(第二格)來搜尋。當連線到一個ISP時通常是不知道那一個伺服器的名稱，所以提供一個用戶端名稱來取代；這在 <file>peers/KPN</file> 和 <file>peers/Planet</file> 檔案中的 <tt>user</tt> 行就能完成。
+<example>
+# client name       server name  secret
+kpn                 *            kpn
+user3579@planet.nl  *            myfavoritepet
+</example>
+See <file>&f-ppp-readme;</file> for more information.
+
+<sect2 id="ppp-pppconfig">使用 <package>pppconfig</package> 來設定 <prgn>pppd</prgn> 
+<p>
+一個快速的方法來設定 <prgn>pppd</prgn> 是使用<prgn>pppconfig</prgn> 這一個用相同名稱的套件。<prgn>pppconfig</prgn> 會透過選單介面來詢問用戶問題，之後設定檔案的方式就如同上述。
+
+<sect2 id="ppp-wvdial">使用<package>wvdial</package>來設定 PPP 裝置介面
+<p>
+另一個使用 <prgn>pppd</prgn> 不同的方式是從<prgn>wvdial</prgn> 來執行它，<prgn>wvdial</prgn>包裝在 <package>wvdial</package> 套件裡。取代了 <prgn>pppd</prgn> 用 <prgn>chat</prgn> 來撥接和協調連線的動作，<prgn>wvdial</prgn>完成了撥接和初始協調的動作，剩下的就交給<prgn>pppd</prgn>。只要給予電話號碼，使用者名稱和密碼，<prgn>wvdial</prgn> 大部份都能成功地完成連線動作。
+
+<sect id="net-name">對主機命名
+<p>
+
+<sect1 id="name-host">主機名稱
+<p>
+<strong>hostname</strong>-系統主機名稱是由核心所維護的。初始的script <file>/etc/init.d/hostname.sh</file> 會在開機時設定系統主機名稱(使用 <prgn>hostname</prgn> 這個命令)，名稱儲存在 <file>/etc/hostname</file>。這個檔案應該 <strong>只</strong> 包含系統主機名稱，而不是一個FQDN。
+<p>
+執行 <prgn>hostname</prgn> (不帶任何參數)來顯示目前的主機名稱。
+
+<sect1 id="name-mail">郵件名稱
+<p>
+一個主機的<strong>郵件名稱</strong>是郵件相關的程式用來確認主機的。 <file>/etc/mailname</file> 包含了該名稱並以新空行結尾。郵件名稱通常是一個可解折主機IP位置的FQDN。參閱 <manref name="mailname" section="5">。
+<p>
+電郵的收件者發現郵件標頭的 <tt>From:</tt> 時，它的值是依據您的 &debian; 主機的郵件用戶代理(MUA)和郵件傳送代理(MTA)的設定。假設一本地端用戶 <tt><var>foo</var></tt> 從郵件名稱為 <tt><var>myhost.dom</var></tt> 的主機傳送郵件時。送出的電郵標頭 <tt>From:</tt> 會變成：
+<list compact>
+<item>"<tt>From: <var>foo</var>@<var>myhost.dom</var></tt>"
+if the MUA has no <tt>From:</tt> header set;
+<item>"<tt>From: <var>bar</var>@<var>myhost.dom</var></tt>"
+if the MUA has "<tt>From: <var>bar</var></tt>" set;
+<item>"<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>"
+if the MUA has "<tt>From: <var>bar</var>@<var>bogus.dom</var></tt>" set.
+</list>
+就算 MUA 有 <tt>From:</tt> 標頭，MTA 還是會加入 "<tt>Sender:<var>foo</var>@<var>herman.dom</var></tt>" 標頭來指定真實的來源。
+<p>
+當然，任何複雜的 MTA 在執行位址重寫時，如同 <ref id="addr-catchall"> 和 <ref id="addr-rewrite"> 的討論，收件者顯示的郵件地址可以任意更改。
+
+<sect id="net-dns">網域名稱服務 (DNS)
+<p>
+主機由網域名稱和IP地址所查詢。DNS用途是把網域名稱和IP位址以及主機的其他特性聯繫起來的一個客服端-伺服器系統。GNU C Library <manref name="resolver" section="3">也可從檔案中查詢IP位址或查閱 Network Information Services (NIS)。
+<p>
+有些軟體(像是GNOME)希望系統主機名稱是一個可解折IP位置的FQDN。然而，這並不洽當，因為系統主機名稱和網域名稱兩者是截然不同的。為了支援這樣的軟體，必須確定系統主機名稱是可被解折的。常見的解法是加入系統主機名稱和IP位置的敘述到<file>/etc/hosts</file>。如果您的系統有固定IP，就使用那一組IP位置，否組請用127.0.1.1這個IP位置。
+<example>
+   127.0.0.1 localhost
+   127.0.1.1 uranus
+</example>
+執行<tt>hostname --fqdn</tt>來檢查您的FQDN是解折成那一個IP位置。
+<p>
+
+<sect1 id="dns-resolver">resolver
+<p>
+查明IP位址和一特殊網域名稱的聯繫就是 resolver 的工作。大部份常用的 resolver 是 GNU C Library 中的 resolver 所提供的功能(<manref name="resolver" section="3">)。另一個是由<package>libfiredns</package>套件所提供的 FireDNS resolver。除了這兩個外，還有其它同功能的套件喔。
+<p>
+GNU LIBC 的 resolver 如何控制 <file>/etc/nsswitch.conf</file> 設定檔中含有 <tt>hosts</tt> 那一行來解決名稱查詢呢？該行列出查詢名稱的服務：例如 <tt>dns</tt>, <tt>files</tt>, <tt>nis</tt>, <tt>nisplus</tt>。
+參閱 <manref name="nsswitch.conf" section="5">。在使用 <tt>files</tt> 的情況下，resolver 也是由 <file>/etc/hosts</file> 設定檔控制。參閱 <manref name="hosts" section="5">。
+<p>
+上述的檔案是固定的且可用您喜愛的編輯器修改。
+<p>
+在使用 <tt>dns</tt> 的情況下，resolver 也是由 <file>/etc/resolv.conf</file> 設定檔控制。參閱 <manref name="resolv.conf" section="5">。<file>resolv.conf</file> 其中一項重要功能是列出名稱服務器的 IP 位址以便查詢名稱。該列表必須依賴網路環境，然而在您的電腦運行中，網路環境時隨時變動的。<prgn>pppd</prgn> 和 <prgn>dhclient</prgn> 等程式用來加入或移除<file>resolv.conf</file>中的資料，但這些功能並不一定能正常運作且兩者互斥。<package>resolvconf</package> 套件採用更好的方式來解決了這個問題，並提供一個標準框架來更新 <file>resolv.conf</file>。參閱<ref id="dns-resolvconf">。
+<p>
+
+<sect1 id="dns-resolvconf">管理名稱伺服器的資訊 &ndash; <package>resolvconf</package>
+<p>
+<package>resolvconf</package>提供一個框架來動態管理可使用的名稱伺服器資訊。它解決了長久以來維護 resolver 和 DNS 快取使用的動態名稱伺服器的列表問題。Resolvconf 扮演著各個控制網路裝置介面，提供名稱伺服器資訊的程式或需要名稱伺服器資訊的軟體的媒介。
+<p>
+<package>resolvconf</package>被設計成無須任何手動設定就能工作。但該套件還相當新，可能需要部份的手動調整才能正常工作。如果您曾改造過套件使它會更新<file>/etc/resolv.conf</file>的話，您將需要取消修改的部份。更多訊息請參閱 <url id="&f-resolvconf;">。
+
+<sect1 id="dns-dnsmasq">快取已查閱的名稱 &ndash; <package>nscd</package>, <package>dnsmasq</package>, <package>pdnsd</package>, <package>bind9</package>
+<p>
+如果你的名稱伺服器反應緩慢你可能想要使用<prgn>nscd</prgn> 來快取使用<package>libc6</package> resolver 所查詢的結果。
+<p>
+如果你想要在你的區域網路快取其他主機名稱，你可能要執行一個快取前置名稱伺服器，就像 <package>dnsmasq</package> 或 <package>pdnsd</package>。
+<p>
+如果你希望也可以使用 <package>bind9</package> 套件的 <prgn>named</prgn>程式當一個快取前置名稱伺服器。雖然這是一個重量級的程式，除非你需要他先進的功能，否則你使用先前提及的套件是比較好的。
+<p>
+所有這些的套件皆與 <package>resolvconf</package> 運作良好。
+
+<sect1 id="dns-bind-server">提供網路名稱服務 &ndash; <package>bind</package>
+<p>
+如果你需要提供可靠的名稱服務給一個網域，你需要一個完全成熟的名稱伺服器，例如套件 <package>bind9</package>中的 <prgn>named</prgn> 。
+<p>
+如果你安裝 <package>bind9</package>
+你也應該安裝
+<package>dnsutils</package>.
+你可能也需要安裝這一些公用的套件：
+<package>bind9-host</package>;
+<package>dns-browse</package>;
+<package>dnscvsutil</package>;
+<package>nslint</package>.
+你可能也需要安裝這個使用說明套件：
+<package>bind9-doc</package>.
+你可能也需要安裝這一些開發套件：
+<package>libbind-dev</package>;
+<package>libnet-dns-perl</package>.
+<p>
+安裝 <package>bind9</package> 或 <prgn>dpkg-reconfigure</prgn> 它來作基本的設定。設定包含編輯 <file>named.conf</file>。在 &debian; 裡，該檔案在 <file>/etc/bind/</file> 找到且主要被使用來定義基本的 DNS 區域；它<tt>包含</tt>了兩個其他文件：<file>named.conf.local</file>，用來定義區域地區，和<file>named.conf.options</file>，用來設定選項。(後者是靠著 <package>resolvconf</package> 來產生 <file>/var/run/bind/named.options</file>，除了 <tt>forwarders</tt> 說明是目前可得到的非區域的名稱伺服器的目錄之外，其餘的都是和原來的相同。要利用這功能，改變<file>named.conf</file> 中的 <tt>include</tt> 這一行，使得它包含了 <file>/var/run/bind/named.options</file>。參閱 <ref id="dns-resolvconf">。)
+<p>
+在 <file>named.conf*</file> 目錄下的沒有全部路徑名稱的資料庫檔案會被儲存在 <file>/var/cache/bind/</file>。這是最合適儲存由<prgn>named</prgn> 產生檔案的位置：舉例來說，zone 的資料庫檔案為第一，而 daemon為第二。在<file>named.conf</file>的資料必須依靠完整路徑才能找到<file>/etc/bind/</file>目錄下的固定資料庫檔案。詳細訊息請參閱 <url id="&f-bind9;">。
+
+<sect id="net-dhcp">安裝網路界面使用 DHCP
+<p>
+低階的網路安裝界面靠著 Dynamic Host Configuration Protocol (DHCP)可以被自動安裝。你的防火牆或路由器或寬頻的 ISP 可能用此方法來配置IP位址和其他參數。
+<p>
+要做到這項工作你必順安裝下列的套件之一：
+<list compact>
+<item><package>dhcp3-client</package> (version 3, Internet Software Consortium)
+<item><package>dhcpcd</package> (Yoichi Hariguchi and Sergei Viznyuk)
+<item><package>pump</package> (Red Hat)
+</list>
+
+<package>pump</package> 是一套簡單且廣泛使用的套件。
+<package>dhcp3-client</package> 是複雜的但常安裝的。
+<footnote>
+在 2004 年四月也有一個套件 <package>dhcp-client</package> 可以利用。這包含了 ISC DHCP 用戶端的第二個版本。這已經被目前套件 <package>dhcp3-client</package> 的第三版本所取代。維護人員計劃在 Sarge 釋放之後將 <package>dhcp3-client</package> 重新命名為 <package>dhcp-client</package> 。
+<p>
+確認你沒有安裝 <package>dhcp-client</package> 的測試版本。<package>ifupdown</package> 並不和他們一起運作。
+</footnote>
+
+<sect id="net-high">&debian; 的高階網路設定
+<sect1 id="net-ifupdown">高階網路設定--使用<package>ifupdown</package>
+<p>
+為了要使網路安裝更加容易，&debian; 提供了一個標準的高階網路工具由 <prgn>ifup</prgn> 和and <prgn>ifdown</prgn> 程式和<file>/etc/network/interfaces</file> 檔案所組成。
+<footnote>
+<file>/etc/network/interfaces</file> 的格式與現行的 <package>ifupdown</package> 版本和早先的 Potato 版本的套件是不能並存的。這 <package>ifupdown</package> 在後安裝的 script 在必要時應該自動的升級檔案。無論如何，去檢查有改變的檔案這是一個好主意。
+</footnote>
+如果你選擇去使用 <package>ifupdown</package> 來做你的網路設定，那麼你應該<strong>不</strong>使用低階的命令。 
+這也表示你不應該使用其它高階結構工具，例如會呼叫低階結構工具的<package>whereami</package>, <package>divine</package>, <package>intuitively</package>等等。
+這 <package>ifupdown</package> 程式被設計的目地是要被獨立地使用來安裝和反安裝網路界面。
+<p>
+要更新介面設定請執行：
+<example>
+# ifdown eth0
+# editor /etc/network/interfaces  # 依您的需要調整
+# ifup eth0
+</example>
+<p>
+更多資訊請參閱 <manref name="interfaces" section="5">, <url id="&f-ifupdown;">和<manref name="ifup" section="8">。
+
+<sect2 id="high-static">以固定IP位址來安裝一個界面
+<p>
+假設你要安裝一乙太網路界面以致它有一固定的 <tt>192.168.0.111</tt> IP位址。這位址從 <tt>192.168.0</tt> 開始，所以它一定在 LAN 上。更深一步地假設， <tt>192.168.0.1</tt> 是 LAN 連上網際網路的通訊閘位址。編輯 <file>/etc/network/interfaces</file> 以致於它包含了像這樣的資料：
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+</example>
+你可以設定介面的其他部份或是執行其他動作，在界面被帶起之後或在它被帶下之前，靠著是 "up" 和 "down" 那一行適當的命令說明。
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        up route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        down route del -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.0.2 dev $IFACE
+        up echo Interface $IFACE going up | /usr/bin/logger -t ifup
+        down echo Interface $IFACE Going down | /usr/bin/logger -t ifdown
+</example>
+二者擇一地，命令可以在 <file>/etc/network/if-up.d</file> 和 <file>/etc/network/if-down.d</file> 資料夾被插入在scripts之內。這樣的 scripts 也可以執行延伸的選項。參閱 <manref name="interfaces" section="5"> 來了解細節。舉例來說，<package>resolvconf</package> 套件納入的 script 在界面帶起時允許你增加選項來說明被包含在 <file>/etc/resolv.conf</file> 的DNS資訊：
+<example>
+iface eth0 inet static
+        address 192.168.0.111
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+        dns-search somedomain.org
+        dns-nameservers 195.238.2.21 195.238.2.22
+</example>
+在 <tt>dns-search</tt> 的 <tt>somedomain.org</tt> 參數選項符合在 <manref name="resolv.conf" section="5"> 的 <tt>search</tt> 參數選項。
+在 <tt>dns-nameservers</tt> 的 <tt>195.238.2.21</tt> 和 <tt>195.238.2.22</tt> 參數選項符合這 <tt>nameserver</tt> 參數選項。
+其他識別的選項是 <tt>dns-domain</tt> 和 <tt>dns-sortlist</tt>。參閱 <ref id="dns-resolvconf">。
+
+<sect2 id="high-dhcp">使用DHCP來安裝裝置界面
+<p>
+使用DHCP來安裝一個界面裝置介面，請編輯
+<file>/etc/network/interfaces</file>，包含了像這樣的敘述：
+<example>
+iface eth0 inet dhcp
+</example>
+為了要使這功能運作你必須安裝一個在 <ref id="net-dhcp"> 所提及的DHCP用戶端程式。
+
+<sect2 id="high-wifi">安裝 Wi-Fi 裝置介面
+<p>
+<package>wireless-tools</package> 這個套件包含了一個 hook script <file>/etc/network/if-pre-up.d/wireless-tools</file> 使得界面被帶起之前順利安裝 Wi-Fi (802.11a/b/g) 硬體變成可能。
+使用 <prgn>iwconfig</prgn> 這一程式來完成設定；參閱 <manref name="iwconfig" section="8">。
+對 <prgn>iwconfig</prgn> 的每一可能命令參數，您可以在 <file>/etc/network/interfaces</file> 包含一個選項，像是 "wireless-" 前綴參數一樣來命名。舉例來說，在使用 DHCP 帶起 <tt>eth0</tt> 之前，設定 <tt>eth0</tt> 的 ESSID 到<tt>myessid</tt> 和加密金鑰到 <tt>123456789e</tt> ，編輯<file>/etc/network/interfaces</file> 以致於它包含了像這樣的敘述：
+<example>
+iface eth0 inet dhcp
+        wireless-essid myessid
+        wireless-key 123456789e
+</example>
+注意！如果你執行 <prgn>waproamd</prgn> 來設定這裝置介面，你不應該使用這個方法來設定 ESSID 和金鑰。在 <prgn>ifup</prgn> 執行時，<prgn>waproamd</prgn> 已經設定了 ESSID 和金鑰。參閱 <ref id="trigger-waproamd"> 。
+
+<sect2 id="high-ppp">設定 PPP 介面
+<p>
+<prgn>ifup</prgn> 和 <prgn>ifdown</prgn> 程式使用 <prgn>pon</prgn> 和 <prgn>poff</prgn>來增加和移除 PPP 界面，所以首先閱讀 <ref id="low-ppp"> 。
+<p>
+假設你已經設定了 PPP 和 <tt>myisp</tt> 一起運作。編輯 <file>/etc/network/interfaces</file> 以致於它包含了像這樣的敘述：
+<example>
+iface ppp0 inet ppp
+        provider myisp
+</example>
+如同這樣的敘述，<prgn>ifup ppp0</prgn> 會完成
+<example>
+pon myisp
+</example>
+遺憾的是目前無法提供額外的 <prgn>pppd</prgn> 選項到 <file>/etc/network/interfaces</file> 中的 <tt>ppp</tt> 敘述。
+<footnote>
+參閱 bug <url id="&bug-iud-pon-args;" name="#196877">。
+</footnote>
+<p>
+目前使用 <package>ifupdown</package> 來執行 PPP 界面的輔助設定是不可能的。因為 <prgn>pon</prgn> 在 <prgn>pppd</prgn> 完成連結之前就存在了，在 PPP 界面準備使用之前，<prgn>ifup</prgn> 會預先執行 <tt>up</tt> scripts。
+直到這個 bug
+<footnote>
+參閱 bug <url id="&bug-iud-ppp-wait;" name="#127786">。
+</footnote>
+被修正前，還是要額外設定 <file>/etc/ppp/ip-up</file> 或 <file>/etc/ppp/ip-up.d/</file>。
+
+<sect2 id="high-pppoe">設定 PPPoE 裝置界面
+<p>
+許多寬頻網路供應商 (ISPs) 使用 PPP 協調連線，即使用者的機器透過 Ethernet 和/或 ATM 網路來連接他們。完成這樣的功能需依靠封裝乙太網路的 frame 的 PPP 串流技術，也就是 PPP over Ethernet (PPPoE)。
+假設你的 ISP 是叫做 <tt><var>myisp</var></tt>。首先對 <tt><var>myisp</var></tt> 設定 PPP 和 PPPoE。最容易做到這的方法是從主控台安裝 <package>pppoeconf</package> 套件且執行 <prgn>pppoeconf</prgn>。然後編輯 <file>/etc/network/interfaces</file> 以致於它包含了像這樣的敘述：
+<example>
+iface eth0 inet ppp
+        provider <var>myisp</var>
+</example>
+<!--
+The better one is following but need verification
+<example>
+mapping eth0
+        script /root/bin/echo-ppp0
+
+iface ppp0 inet ppp
+        provider <var>myisp</var>
+</example>
+where,
+<example>
+# cat &gt; /root/bin/echo-ppp0 &lt;&lt;EOF
+# /bin/sh
+echo ppp0
+EOF
+# chmod 755 /root/bin/echo-ppp0
+</example>
+-->
+<p>
+有時候最大傳輸單位 Maximum Transmit Unit (MTU) 決定於 Digital Subscriber Line (DSL) 之上的 PPPoE。參閱 <url id="&dsl-howto;" name="DSL-HOWTO"> 來了解細節。
+<p>
+注意！如果你的寬頻數據機包含路由器功能，那麼數據機/路由器本身處理 PPPoE 連線並當作一條簡單的乙太網路通訊閘連向網際網路的路徑出現在 LAN 周邊。
+
+<sect2 id="high-dual">為通訊閘設定多個乙太網路裝置介面
+<p>
+假設 <file>eth0</file> 用一個 DHCP-configured IP 位址連接到網際網路且 <file>eth1</file> 用一個固定的 IP 位址 <tt>192.168.1.1</tt> 連接到 LAN 。編輯 <file>/etc/network/interfaces</file> 以致於它包含了像這樣的敘述：
+<example>
+iface eth0 inet dhcp
+
+iface eth1 inet static
+        address 192.168.1.1
+        netmask 255.255.255.0
+</example>
+如果你如 <ref id="net-router"> 所描述的去啟動在主機上的 NAT，那麼你可以分享網際網路連接在 LAN 上的所有主機。
+
+<sect2 id="high-virtual">設定虛擬裝置介面
+<p>
+使用虛擬裝置介面，你可以安裝一張乙太網路卡去成為好幾個 IP 子網面的介面。舉例來說，假設你的主機是在 LAN 網路上 192.168.0.x/24。你想要讓主機連線到網際網路，並用原本的網路卡透過 DHCP 機制取得真實 IP 位址。編輯 <file>/etc/network/interfaces</file> 以致於它包含了像這一些敘述：
+<example>
+iface eth0 inet static
+        address 192.168.0.1
+        netmask 255.255.255.0
+        network 192.168.0.0
+        broadcast 192.168.0.255
+
+iface eth0:0 inet dhcp
+</example>
+這 <tt>eth0:0</tt> 界面是一個虛擬的界面。當它被帶起時，它的根源就是 <tt>eth0</tt>。
+
+<sect1 id="net-reconf">高階網路設定--<package>ifupdow</package>邏輯裝置定義
+<p>
+對讀者而言，了解下列文章中的<strong>physical interface</strong> 和 <strong>logical interface</strong> 之間的差異是很重要的。
+<footnote>
+這專門術語是使用在 <package>ifupdown</package> 套件中的使用說明。
+</footnote>
+一個 <strong>physical</strong> 裝置界面是我們稱呼為 "裝置界面"，核心命名為 <tt>eth0</tt>, <tt>eth1</tt>, <tt>ppp0</tt> ，諸如此類的。一 <strong>logical</strong> 裝置界面是一套可以指定 physical 裝置界面的可變參數值。
+當妳在閱讀的同時，如果發現有困惑，用這個述敘 "configured with interface profile <var>X</var>" 來取代 "configured as logical interface <var>X</var>"。
+<p>
+那些定義在 <file>/etc/network/interfaces</file>的<tt>iface</tt>，實際上是定義邏輯裝置界面而不是 physical 裝置界面。
+<footnote>
+注意，命名含有 <tt>auto</tt> 字串的那一行上的裝置界面必須是 physical 裝置界面，而不是邏輯裝置界面。
+</footnote>
+如果你從不想要去重安裝你的界面，那麼你可以忽略這個細節，因為 physical 裝置介面 <var>foo</var> 預設會被設定成邏輯裝置介面 <var>foo</var>。
+<p>
+然而，假設你的電腦是你在家裡和工作之間運輸的筆記型電腦。當你的電腦連線到公司的網路或是到你的家用 LAN 時，相應地你需要設定 <tt>eth0</tt>。
+<p>
+首先定義兩個邏輯裝置界面 <tt>home</tt> 和 <tt>work</tt>(取代 <tt>eth0</tt>，就像我們先前做的)，針對家用網路和公司網路各別地設定裝置介面。
+<example>
+iface home inet static
+        address 192.168.0.123
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+
+iface work inet static
+        address 81.201.3.123
+        netmask 255.255.0.0
+        gateway 81.201.1.1
+</example>
+透過適當的設定後，只要在命令列上指定後，physical 裝置界面 <tt>eth0</tt> 就能在家庭網路上被帶起：
+<example>
+# ifup eth0=home
+</example>
+<p>
+針對公司網路重新設定 <tt>eth0</tt> 只要執行這些命令：
+<example>
+# ifdown eth0
+# ifup eth0=work
+</example>
+<p>
+注意，如果<file>interfaces</file>設定檔內容如上面寫所的，即使單獨執行 <tt>ifup eth0</tt> 也不會帶起 <tt>eth0</tt>。
+這理由是因為，<prgn>ifup</prgn> 使用 physical 裝置界面名稱來當作預設的邏輯裝置介面名稱，然而我們的例子中沒有定義 <tt>eth0</tt> 這個邏輯裝置介面。
+
+<sect1 id="net-magic-reconf">神奇的網路設定方式
+<p>
+裝置介面名稱可以在執行 <prgn>ifup</prgn> 時對應成其他名稱。至於對應成什麼名稱則是依照情況判定。因此<prgn>ifup</prgn>能設定在帶起實體裝置介面時能對應成多個預定義的邏輯裝置。
+<p>
+邏輯裝置介面名稱發生對應的情況如下：
+<list compact>
+<item>如果執行<prgn>ifup</prgn>時沒指定邏輯裝置介面，則實體裝置介面名稱為初始的邏輯裝置介面。
+<item>如果邏輯裝置介面符合 <tt>mapping</tt> 敘述的 glob-pattern，則對應到新產生的邏輯裝置介面。這些動作在順序的 mapping 敘述就已經完成了。
+<item>如果最終的的邏輯裝置介面名稱是<file>/etc/network/interfaces</file>檔案中的一個邏輯裝置介面定義的標誌，則實體裝置介面被帶起成邏輯裝置介面。不然 <prgn>ifup</prgn> 會印出 "Ignoring unknown interface" 的訊息並離開。
+</list>
+<tt>mapping</tt> 敘述的文法是：
+<example>
+mapping <var>glob-pattern</var>
+        script <var>script-name</var>
+        [map <var>script input</var>]
+</example>
+<tt>mapping</tt> 敘述命名的 script 會加入 <strong>physical</strong> 裝置介面為參數執行，而剩下的敘述中的 "map"(不包含 "map" 字串) 行的內容會導入到它的標準輸入。該 script 在離開前會印出對應到他的標準輸出的結果。
+<p>
+舉例來說，底下的 <tt>mapping</tt> 敘述會促使 <prgn>ifup</prgn> 帶起 <tt>eth0</tt> 裝置介面並當成 <tt>home</tt> 邏輯裝置介面。
+<example>
+mapping eth0
+        script /usr/local/sbin/echo-home
+</example>
+<prgn>/usr/local/sbin/echo-home</prgn> 的內容是：
+<example>
+#!/bin/sh
+echo home
+</example>
+<p>
+因為對使用 script 完成對應，所以自動選擇邏輯裝置介面是可能的 &mdash; 基於幾個測試的結果。參閱 <ref id="high-guessnet"> 中的範例。
+
+<sect2 id="high-guessnet">使用 guessnet 選擇邏輯裝置介面
+<p>
+安裝 <package>guessnet</package> 套件並加入以下的敘述到 <file>/etc/network/interfaces</file>：
+<example>
+mapping eth0
+        script guessnet-ifupdown
+        map home
+        map work
+</example>
+現在起，當妳執行 <prgn>ifup eth0</prgn> 時， <prgn>guessnet</prgn> 會檢查 <tt>eth0</tt> 是否被帶起成 <tt>home</tt> 或 <tt>work</tt>。它使用儲存在邏輯裝置介面的定義來完成檢查的動作。
+
+<sect1 id="high-laptop-net">利用 <package>laptop-net</package> 自動設定網路
+<p>
+<package>laptop-net</package>套件使用不同的方法來自動設定網路。Laptop-net 不採用 <package>ifupdown</package> 的邏輯裝置反而改用它內建的系統設定 的 "方案" 以及系統 "偏好"。但是，Laptop-net 仍然使用 <prgn>ifup</prgn> 和 <prgn>ifdown</prgn> 來設定硬體裝置。安裝 <package>laptop-net-doc</package> 套件來閱讀詳盡說明的文件。
+
+<sect1 id="high-network-manager">利用<package>network-manager</package>自動設定網路
+<p>
+<package>network-manager</package>是由Fedora開發者所發明的並包裝到Ubuntu上。它未來可能會納入Debian中，而同時也表示ifupdown及其它軟體就廢棄不用了。
+
+<sect id="high-rename">處理核心的非一致性裝置命名規則
+<p>
+<tt>eth0</tt>, <tt>eth1</tt> 等裝置名稱是由核心指定的，而核心建立裝置的順序是依照這些名稱。在開機時偵測到介面卡後，通常是以同樣的順序來偵測，所以指定的裝置名稱也是依照同樣的順序，然而，該規則無法套用在可熱插拔的裝置上。在不同的情況下，這些裝置被偵測到後，核心可以用任何順序或規則來指定裝置節點。
+<p>
+因為這樣的關係，系統上使用可熱插拔的網路卡將不會採用 <file>/etc/network/interfaces</file>定義好的邏輯裝置，如 <tt>eth0</tt>, <tt>eth1</tt> 等預設的裝置對映。取而代之的是您必須針對這邏輯裝置給定一個別的名稱並使用下列兩者其一的方式來控制那一個介面卡指定成那一個邏輯裝置。
+<p>
+<<<<<<< gateway.sgml
+這個問題只要使用目前的<package>udev</package>套件版本和設定就能解決了。
+<!--
+=======
+這個問題應該由使用解決當前的 <package>udev</package> 包裹和它的配置。
+<!--
+>>>>>>> 1.16
+使用 <prgn>nameif</prgn> 工具(在 <package>net-tools</package> 套件中)或更具彈性的 <prgn>ifrename</prgn> 工具(在 <package>ifrename</package> 套件中)使得核心依照介面卡的屬性來指定裝置名稱。採用這種命名規則的話，介面卡就能推測是使用那一個實體裝置名稱。
+<p>
+另一個辦法是採用 <prgn>ifup</prgn> 的對應技術使得介面卡在被帶起時能依據部份屬性來找到對應的邏輯裝置介面。
+<p>
+假設，舉例說明，您有兩個不同的網路卡，對應的網路分別為 <tt>net1</tt> 和 <tt>net2</tt>。<file>/usr/share/doc/ifupdown/examples/</file> 目錄下包含了對應 script，依照 Media Access Controller address (MAC 位址) 來選擇介面卡的邏輯裝置介面。先安裝該 script 到適當的目錄。
+<example>
+# install -m770 /usr/share/doc/ifupdown/examples/get-mac-address.sh \
+   /usr/local/sbin/
+</example>
+然後增加類似下列的敘述到 <file>/etc/network/interfaces</file>：
+<example>
+mapping eth0
+        script /usr/local/sbin/get-mac-address.sh
+        map 02:23:45:3C:45:3C net1
+        map 00:A3:03:63:26:93 net2
+</example>
+參閱 <ref id="high-multistage-mapping"> 取得更進階的範例。
+<p>
+不管採用那一種方式，最常見的是用 MAC 位址來辨認介面卡。
+<<<<<<< gateway.sgml
+-->
+=======
+-->
+
+>>>>>>> 1.16
+<sect id="net-trigger">觸發(Triggering)網路設定
+<p>
+我們已經了解裝置介面是如何設定或重新設定。這些動作需要在適當時機就完成。
+<p>
+傳統上，網路在開機時會經由 <file>/etc/rcS.d/S40networking</file> 這個 initscript 設定完成，極少數的機會重新設定。其他網路服務會在陸續啟動。反過來說，在關機或重開機的時候，initscript 執行的時機剛好相反。
+<p>
+現在，GUN 和 Linux 正朝著支援動態更換硬體和處理突發事件產生的趨勢。首先支援的是可熱(線上)抽換的 PCMCIA 卡。目前的 <tt>hotplug</tt> 已經支援更多可抽換的週邊硬體，即使是電腦運行中。這也包含了網路硬體。注意，當您移除可熱(線上)抽換的硬體時，牽涉到硬體的服務必須先停止。這表示這類型的服務必須從 System V init 系統移除並歸屬在 <package>ifupdown</package> 的控制下。
+<p>
+例如，支援控制 <tt>foo</tt> 服務的 initscript：<file>/etc/init.d/foo</file> 仰賴於動態設定的網路介面 <tt>eth0</tt>。
+<list compact>
+<item>首先，從 init 系統中移除 <tt>foo</tt>。如果您使用 <package>sysv-rc</package> init 系統的話，請完成下列事項。 
+<footnote>
+注意，這個動作忽略了 "stop"軟連結(<file>/etc/rc?.d/K??foo</file>)。更多訊息請參閱  <ref id="runlevels">。
+</footnote>
+<example>
+# rm /etc/rc[2345].d/S??foo
+</example>
+<item>然後將 <tt>foo</tt> 加入<package>ifupdown</package>的控管下，新增<tt>up</tt> 和 <tt>down</tt>參數到<file>/etc/network/interfaces</file>檔案的 <tt>eth0</tt>敘述。該檔案會呼叫 <tt>foo</tt> initscript：
+<example>
+iface eth0 inet dhcp
+        up /etc/init.d/foo start
+        down /etc/init.d/foo stop
+</example>
+</list>
+
+<sect1 id="trigger-auto">在開機時觸發(trigging)網路設定
+<p>
+在啟動 <prgn>/etc/rcS.d/S40networking</prgn> init script 時會執行 <prgn>ifup -a</prgn> 這個指令。這會帶起<file>/etc/network/interfaces</file>檔案中所有<tt>auto</tt>敘述的硬體裝置介面。
+<p>
+這表示使用動態方式來設定網路會比較適當。當支援動態更動硬體的技術成熟後，這會是最簡單的方式來轉化固定的硬體當成動態裝置處理。啟動裝置就能當成是另一個熱插拔的事件。(參閱 <ref id="trigger-hotplug">。)
+<p>
+儘管如此，大部份的情況下，至少<tt>lo</tt>loopback裝置要在開機時被帶起。所以，確定 <file>/etc/network/interfaces</file> 中有包含底下的敘述。
+<example>
+auto lo
+
+iface lo inet loopback
+</example>
+如果妳想讓其他硬體裝置在開機時也被帶起，請加入 <tt>auto</tt> 敘述吧。<strong>絕對不要</strong>在 PCMCIA 介面上加入<tt>auto</tt>敘述。PCMCIA 的管理程式：<prgn>cardmgr</prgn>會在 <prgn>/etc/rcS.d/S40networking</prgn>執行後啟動。
+
+<sect1 id="trigger-hotplug">觸發網路設定 &ndash; 使用<package>hotplug</package>
+<p>
+安裝 <package>hotplug</package> 套件以尋求 熱抽換的支援。
+<p>
+你可以在開機時或是安裝介面卡(例如 PCMCIA 卡)到系統後或者<prgn>discover</prgn>工具執行後載入必須的驅動程式時隨然抽換您的網路硬體。
+<p>
+當核心偵測到新的硬體，則會初使硬體的驅動程式並執行 <prgn>hotplug</prgn> 程式來設定它。如果移除硬體，則核心會再一次執行<prgn>hotplug</prgn>但以不同的環境變數。在 &debian; 裡，當<prgn>hotplug</prgn>被呼叫時，會執行<file>/etc/hotplug/</file> 和 <file>/etc/hotplug.d/</file>目錄底下的 script。更詳盡的訊息請參閱 <manref name="hotplug" section="8">
+<p>
+新安裝的網路硬體是由<file>/etc/hotplug/net.agent</file>這個 script 來設定。
+<footnote>
+網路硬體也能被安裝在 <file>/etc/hotplug.d/net/</file> 目錄下的 hook script 設定。例如，安裝<package>ifplugd</package> 和 <package>waproamd</package>套件會增加這些 hook script。
+</footnote>
+假設您的 PCMCIA 網路卡在安裝後使得 <tt>eth0</tt> 為對應的網路裝置介面。則 <file>/etc/hotplug/net.agent</file> 會完成底下的事情
+<footnote>
+在 0.0.20040329-4 左右的版本，<package>hotplug</package>在某些情況下可以加入不同模式，使得它控制的方式跟往常不一樣。有一種模式為 "all"，<prgn>hotplug</prgn>會帶起所有的可熱抽換裝置介面。另外有一種模式為 "auto"，<prgn>hotplug</prgn>只會帶起列在<file>/etc/network/interfaces</file>中的 <tt>auto</tt> 敘述行的裝置介面。在這些模式裡，<prgn>ifup</prgn> 不會加入<tt>=hotplug</tt>附加參數啟動。
+</footnote>
+：
+<example>
+ifup eth0=hotplug
+</example>
+除非您加入邏輯裝置介面定義或對應的<tt>hotplug</tt>名稱到<file>/etc/network/interfaces</file>，否則該指定不會有任何效果。為了讓該指令能正確設定 <tt>eth0</tt>，加入下列敘述到<file>/etc/network/interfaces</file>：
+<example>
+mapping hotplug
+        script echo
+</example>
+如同 <ref id="net-reconf"> 說明的，這將會對應上述的指令，也同等於底下的指令：
+<example>
+ifup eth0=eth0
+</example>
+<p>
+(如果您使用<prgn>hotplug</prgn>啟動時所帶起的<prgn>ifplugd</prgn> 或 <prgn>waproamd</prgn>事件來控制這些裝置介面，千萬不要使用上述的對應敘述。)
+<p>
+如果您只希望<tt>eth0</tt>在熱抽換時被帶起，改用 <prgn>grep</prgn> 來取代 <prgn>echo</prgn> 敘述，如同下列：
+<example>
+mapping hotplug
+        script grep
+        map eth0
+</example>
+參閱 <ref id="net-magic-reconf"> 和 <url id="&f-hotplug;"> 取得更多小技巧。
+
+<sect1 id="trigger-ifplugd">觸發網路設定 &ndash; 使用<package>ifplugd</package>
+<p>
+<prgn>ifplugd</prgn> daemon 不管實體硬體有無安裝，都能帶起或關閉網路裝置介面。該程式能偵測乙太網路是否接上纜線或是 Wi-Fi 裝置介面是否取得 AP(雖然<prgn>waproamd</prgn>是比較適合後來的情況)。
+當 <prgn>ifplugd</prgn> 發現連線狀態改變時，它會執行一個代理 script，預設是呼叫 <prgn>ifup</prgn> 或 <prgn>ifdown</prgn>。
+
+<sect1 id="trigger-waproamd">觸發網路設定 &ndash; 使用 <package>waproamd</package>
+<p>
+<prgn>waproamd</prgn> daemon 類似<prgn>ifplugd</prgn>，只是說它是針對 Wi-Fi 介面卡設計的。它能動態掃描 Wi-Fi 硬體能存取的 AP。找到能存取的 AP 時，<prgn>waproamd</prgn> 會執行 <prgn>ifup</prgn>。
+<p>
+如果您使用 <prgn>waproamd</prgn>，則您應該直接使用<prgn>waproamd</prgn>來設定 Wi-Fi 介面卡而非使用<file>/etc/network/interfaces</file>中的<tt>wireless-*</tt>敘述。
+
+<sect1 id="trigger-pcmcia">網路設定和 PCMCIA
+<p>
+有許多可行的辦法來設定 PCMCIA 網路裝置介面(針對 2.4 和 2.6 的核心)。
+<list compact>
+  <item>針對 32 bit PCI (CardBus) PCMCIA 網路卡：
+    <list compact>
+      <item>由 <package>hotplug</package> 控制的 <package>ifupdown</package>
+      <list compact>
+      <item>在 Woody 或 Sarge 裡，您必須加入對應的敘述到<file>/etc/network/interfaces</file>使得<package>hotplug</package>能控制<package>ifupdown</package>，如同<ref id="trigger-hotplug">的說明。
+      </list>
+   </list>
+<item>針對 16 bit ISA PCMCIA 網路卡：
+  <list compact>
+    <item>使用 <package>hotplug</package> 和 <package>pcmcia-cs</package>的限制來控制 <package>ifupdown</package>載入模組
+      <list compact>
+      <item><strong>Recommended</strong>
+<!--
+      <item>For post-Sarge <package>pcmcia-cs</package>: 
+        You must make sure to set <tt>REFRAIN_FROM_IFUP=yes</tt> in
+	<file>/etc/default/pcmcia</file> to prevent 
+	<package>pcmcia-cs</package> from
+        interfering with <package>hotplug</package>
+-->
+      <item>在 Woody 或 Sarge 裡，您必須加入<tt>exit 0</tt>這一行到<file>/etc/pcmcia/network</file>設定檔開頭來取消<package>pcmcia-cs</package>控制<package>ifupdown</package>的預設行為。同時，您必須加入對應的敘述到<file>/etc/network/interfaces</file>使得<package>hotplug</package>能控制<package>ifupdown</package>，如同<ref id="trigger-hotplug">的說明。
+      </list>
+   </list>
+    <item><package>pcmcia-cs</package>控制<package>ifupdown</package>的方式是經由 <file>/etc/pcmcia/network</file> 的設定
+      <list compact>
+      <item><strong>不贊成</strong>使用，但 Woody 和 Sarge 預設採用這個方式
+      </list>
+    <item><package>pcmcia-cs</package>控制的低階的工具是經由 <file>/etc/pcmcia/network</file> 的特殊代碼所操縱
+      <list compact>
+      <item><strong>不贊成</strong>使用
+      <item>在 Woody 和 Sarge 裡，編輯<file>/etc/pcmcia/network.opts</file>就能啟用特殊代碼
+      </list>
+</list>
+<p>
+針對 16 bit 的介面卡而言，推薦使用核心 2.4，因為該版本的 hotplug 子系統已經支援 PCMCIA 了。
+<footnote>
+在先前發行的 &debian; 版本裡，設定 PCMCIA 網路卡的標準動作是透過<prgn>cardmgr</prgn>的 hook script<file>/etc/pcmcia/network</file> 和 <file>/etc/pcmcia/network.opts</file>。這些hook scripts是比 Linux 獲得更多熱抽換機制前就已經開發好了。
+<p>
+還是有些人使用 &debian; Woody 的 scripts 為預設的解決方式，不管裝置介面加入或移除時，他們只用<prgn>ifup</prgn>和<prgn>ifdown</prgn>來處理。現在推薦改使用 <package>hotplug</package> 來管理這些事情。
+<p>
+其餘的人仍然使用特別的啟動系統；當 <file>/etc/pcmcia/network.opts</file>中的特定變數被設定成 "<tt>y</tt>"時，直接呼叫低階的網路設定指令來啟動裝置介面。該系統有些許的問題。在某些 race condition 下會出錯；它只能用在 16 bit 的 PCMCIA 卡；留給 <package>ifupdown</package> 來處理會比較恰當。所以不贊成使用該方式。
+</footnote>
+<p>
+<!-- 
+  XXX FIXME XXX
+  I do not know to what extent 2.4 kernel needs pcmcia-cs.
+  But for now translate as below.  So we can chabge translation later too.
+-->
+PCMCIA網路卡是可熱插拔的。因此，任何使用 PCMCIA 卡的網路服務必須要仔細設定，使得網路卡插入時能正常啟動；網路卡移除時能正常關閉服務。這通常是依據排列<tt>ifup</tt>和<tt>ifdown</tt>來啟動或關閉服務才能完成。有些人是限制他們的PCMCIA網路卡為不可抽換：他們會在開機前安裝好網路卡，並在開機過程中陸續啟動需要該網路卡的服務。如果您是這樣的朋友，為了確保該網路卡在啟動服務前是設定良好的。您必須完成下列事項：
+<list compact>
+<item>在<file>/etc/default/pcmcia</file>設定<tt>CARDMGR_OPTS="-f"</tt>，這為了強迫<prgn>cardmgr</prgn>在背景執行。
+<item>更名 <file>/etc/rc?.d/S20pcmcia</file> 成類似 <file>/etc/rc?.d/S12pcmcia</file>。
+</list>
+這些動作只適合 16 bit PCMCIA 介面卡。
+<p>
+注意，如果您使用 16 bit PCMCIA 介面卡，還是需要安裝<package>pcmcia-cs</package>套件。該套件包含的<prgn>cardmgr</prgn> daemon 是用來管理 socket 和載入驅動程式模組。我們不用經由<file>/etc/pcmcia/network</file>去呼叫網路設定程式。
+<p>
+<<<<<<< gateway.sgml
+為了讓<prgn>cardmgr</prgn>能正常工作，您可能要編輯<file>/etc/pcmcia/config.opts</file>來設定16 bit PCMCIA 介面卡的資源。更多訊息請參閱<url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">
+=======
+為了讓<prgn>cardmgr</prgn>能正常工作，您可能要編輯<file>/etc/pcmcia/config.opts</file>來設定16 bit PCMCIA 介面卡的資源。更多訊息請參閱 <url id="&pcmcia-howto;" name="Linux PCMCIA HOWTO">
+>>>>>>> 1.16
+
+<sect id="high-multistage-mapping">多階段(Multi-stage)對應
+<p>
+第一個假設您的網路介面卡是可熱抽換的且您也設定好如<ref id="trigger-hotplug">敘述的自動設定功能。第二個假設您需要對應邏輯裝置介面到"實體"裝置介面(如同<ref id="high-rename">的敘述)以及連接到網路的裝置介面(如同<ref id="high-guessnet">的敘述)。您可利用多階段對應來實現這個功能。
+<p>
+如果裝置介面可熱抽換，第一階段的對應則使用 <tt>hotplug</tt> 群組名並輸出核心所指定的裝置介面。第二階段對應使用核心指定的裝置介面名稱並輸出該介面卡的名稱。第三階段對應以網路環境來對應介面卡名稱和邏輯裝置介面名稱。
+<example>
+# 允許 hotplug 帶起裝置
+mapping hotplug
+	script echo
+
+# 決定那一個介面是有線或無線
+mapping eth?
+        script /usr/local/sbin/get-mac-address.sh
+        map 02:23:45:3C:45:3C wired
+        map 00:A3:03:63:26:93 wifi
+
+# 偵測可取得的有線網路
+mapping wired
+        script guessnet-ifupdown
+        map work-wired
+        map home
+
+# 偵測可取得的無線網路
+mapping wifi
+        script ifscout
+        map starbucks
+        map work-wireless
+
+iface work-wired inet static
+	...
+</example>
+
+<sect id="net-service-conf">網路服務設定
+<p>
+家用或桌上型電腦使用的典型網路服務包括：
+<list compact>
+<item>Internet <em>super-server</em> 和 TCP/IP daemon wrapper, 參閱<ref id="tcpd">。
+<list compact>
+<item><file>/etc/inetd.conf</file>
+</list>
+<item><package>ssh</package>: OpenSSH secure shell, 參閱 <ref id="ssh">.
+<list compact>
+<item><file>/etc/ssh/ssh_config</file>
+<item><file>/etc/ssh/sshd_config</file>
+</list>
+<item><package>exim</package>: 郵件傳送代理, 參閱 <ref id="name-mail"> 和 <ref id="mta">.
+<list compact>
+<item><file>/etc/exim/exim.conf</file>
+<item><file>/etc/mailname</file>
+<item><file>/etc/aliases</file>
+<item><file>/etc/email-addresses</file>
+</list>
+<item><package>fetchmail</package>: 從 POP3 帳號擷取郵件的 daemon, 參閱 <ref id="fetchmail">. 
+<list compact>
+<item><file>/etc/fetchmailrc</file>
+</list>
+<item><package>procmail</package>: 本地端郵件傳送和分析器, 參閱 <ref id="procmail">.
+<list compact>
+<item><file>~/.procmailrc</file>
+</list>
+<item>主機名稱和 DNS (proxy, cache, ...), 參閱 <ref id="name-host"> 和 <ref id="net-dns">.
+<list compact>
+<item><file>/etc/host.conf</file>
+<item><file>/etc/hostname</file>
+<item><file>/etc/hosts</file>
+<item><file>/etc/hosts.allow</file>
+<item><file>/etc/hosts.deny</file>
+<item><file>/etc/resolv.conf</file>
+<item><file>/etc/bind/named.conf</file> (編輯)
+<item><file>/etc/bind/db.lan</file> (加入區網內的主機)
+<item><file>/etc/bind/db.<var>192.168.0</var></file> (加入區網的反查對應)
+</list>
+<item>DHCP, 參閱 <ref id="net-dhcp">.
+<list compact>
+<item><file>/etc/dhcp3/dhclient.conf</file> (DHCP 客戶端)
+<item><file>/etc/default/dhcp3-server</file> (DHCP 伺服器端)
+<item><file>/etc/dhcp3/dhcpd.conf</file> (DHCP 伺服器端)
+</list>
+<item><package>cvs</package>: concurrent versions system, 參閱 <ref id="cvs">. 
+<list compact>
+<item><file>/etc/cvs-cron.conf</file>
+<item><file>/etc/cvs-pserver.conf</file>
+</list>
+<item><package>nfs-kernel-server</package>: network file system, 參閱<ref id="nfs">. (針對 unix-like 系統)
+<list compact>
+<item><file>/etc/exports</file>
+</list>
+<item><package>samba</package>: Windows 網路檔案和印表機分享, 參閱 <ref id="samba"> and <ref id="smbmount">.
+<list compact>
+<item><file>/etc/samba/smb.conf</file>
+</list>
+<item>印表機 daemon 系統, 參閱 <ref id="printer">.
+<list compact>
+<item><file>/etc/printcap</file> (針對 lpr)
+</list>
+<item><package>apache</package> 和 <package>apache2</package>: 網路伺服器.
+<list compact>
+<item><file>/etc/apache/*</file>
+<item><file>/etc/apache2/*</file>
+</list>
+<item><package>squid</package>: 網頁代理及快取伺服器.
+<list compact>
+<item><file>/etc/squid/*</file>
+</list>
+</list>
+
+<!--
+XXX FIXME XXX: 
+The network service section needs more detailed contents.
+Volunteers are welcomed.  
+-->
+<!-- explain each types under sect1 -->
+<!-- equivalent ones under sect2 -->
+<!-- avoid duplication with tune.sgml -->
+<!-- this needs major rewrite -->
+<!-- Keep It Short and Simple (KISS) -->
+<!-- Use /bin/sh instead of English -->
+
+<sect id="net-trouble">解決網路問題
+<p>
+如果您在使用網路時出問題，請先執行下列的敘述來檢查輸出的結果：
+<example>
+# ifconfig
+# cat /proc/pci
+# cat /proc/interrupts
+# dmesg | more
+</example>
+同時，請參閱 <ref id="net-test"> 接下來的段落。
+<!-- add id="..." to corresponding 3 sect1 tags in tips.sgml -->
+<!-- That section should be moved here //JDTH -->
+<!-- Yes.  But when you do, do it for all languages and fix 
+ version tracking number if you can -->
+<p>
+如果您無法瀏覽特定的站台，請參閱 <ref id="killecn">。
+
+<sect id="net-router"> 建立通訊閘路由器
+<p>
+一台 &debian; 主機能完成所有通訊閘機器的功能，諸如網路位址轉譯(NAT, 也稱為 IP 偽裝)，傳送郵件，DHCP，DNS 快取，HTTP 代理快取，CVS 服務，NFS 服務以及 Samba 服務。參考 <ref id="ipmap"> 的範例來設定上述的服務。
+
+<sect1 id="router-netfilter">Netfilter 設定
+<p>
+netfilter/iptables 專案是核心 2.4 或之後的版本的一個防火牆子系統。參閱 <url id="&netfilterhome;" name="Netfilter">，您會取得許多網路設定的方針和說明。
+
+<sect2 id="netfilter-basics">Netfilter 基礎
+<p>
+Netfilter 使用五個內建的 "chain"--PREROUTING, INPUT, FORWARD, OUTPUT, POSTROUTING 來處理封包。
+<example>
+                routing
+                decision
+IN ------> PRE ---> ------> FORWARD -----> ----> POST -----> OUT
+interface  ROUTING  \       filter       /       ROUTING     interface
+           DNAT     |       tracking     ^       SNAT
+           REDIRECT |                    |       MASQUERADE
+                    v                    |
+                  INPUT                OUTPUT
+                    | filter             ^ filter,DNAT 
+                    v                    |
+                    \--&gt; Local Process --/
+                         user-space programs
+</example>
+
+<sect2 id="netfilter-table">Netfilter 表格
+<p>
+每一個內建的 "chain" 使用底下的表格來處理所有的封包。
+<list compact>
+<item>filter (預設使用的封包分析器)
+<list compact>
+<item>INPUT (針對目標為本地主機的封包)
+<item>FORWARD (針對主機路由後的封包)
+<item>OUTPUT (針對本地主機產生的封包).
+</list>
+<item>nat (網路位址轉譯)
+<list compact>
+<item>PREROUTING (針對進入主機所改變的封包)
+<item>OUTPUT (針對路由前所改變的本地主機產生的封包)
+<item>POSTROUTING (針對要送出所改變的封包)
+</list>
+<item>mangle (network address mangling, 只適用核心 2.4.18 之後的版本)
+<list compact>
+<item>以上是所有五個內建的鍊。
+</list>
+</list>
+
+<sect2 id="netfilter-target">Netfilter 目標
+<p>
+防火牆的規則有幾種目標：
+<list compact>
+<item>基本目標：
+<list compact>
+<item>ACCEPT 表示讓封包通過。
+<item>DROP 表示捨棄封包。  
+<item>QUEUE 表示傳遞封包到 userspace (如果核心支援的話)。
+<item>RETURN 表示停止讀取該鍊並回到前一個(呼叫的)鍊中的下一個規則。
+</list>
+<item>擴充的目標：
+<list compact>
+<item>LOG 啟動核心紀錄功能。
+<item>REJECT 回送一個錯誤封包並捨棄該封包。
+<item>SNAT 改變封包的來源位址，只用在 POSTROUTING 鍊。(只適用 nat 表格)
+<example compact>
+--to-source ipaddr[-ipaddr][:port-port]
+</example>
+<item>MASQUERADE 與 SNAT 相同但用在動態指定 IP (撥接)的連線。(只適用 nat 表格) 
+<example compact>
+--to-ports port[-port]
+</example>
+<item>DNAT 改變封包的目的源位址，只用在 PREROUTING 和 OUTPUT 以及使用者組合這兩種鍊的自訂鍊。(只適用 nat 表格)
+<example compact>
+--to-destination ipaddr[-ipaddr][:port-port]
+</example>
+<item>REDIRECT 改變封包的目的源位址並傳送封包到自己的機器。
+<example compact>
+--to-ports port[-port]
+</example>
+</list>
+</list>
+
+<sect2 id="netfilter-command">Netfilter 指令
+<p>
+基本的<prgn>iptables</prgn>指令為：
+<example compact>
+iptables -N <var>chain</var>                   # 建立一個新 <var>chain</var>
+
+iptables -A <var>chain</var> \                 # 加入規則到 <var>chain</var>
+         -t <var>table</var> \                 # 使用 <var>table</var> (filter, nat, mangle)
+         -p <var>protocol</var> \              # tcp, udp, icmp, 或 all,
+         -s <var>source-address[/mask]</var> \
+         --sport <var>port[:port]</var> \      # 當 -p 是 tcp 或 udp 時，指定來源埠號
+         -d <var>destination-address[/mask]</var> \
+         --dport <var>port[:port]</var> \      # 當 -p 是 tcp 或 udp 時，指定目的埠號
+         -j <var>target</var> \                # 如果符合則作何處理
+         -i <var>in-interface-name</var> \     # 針對 INPUT,  FORWARD, PREROUTING
+         -o <var>out-interface-name</var>      # 針對 FORWARD, OUTPUT, POSTROUTING
+</example>
+
+<sect2 id="ip-masq">網路位址轉譯(NAT)
+<p>
+區網內的機器能夠存取網際網路的資源是因為通訊閘轉譯了區網內的 IP 位置成網際網路合法的 IP 位置。
+<example>
+# apt-get install ipmasq
+</example>
+<<<<<<< gateway.sgml
+使用範例的規則來加強<prgn>ipmasq</prgn>的保護。
+=======
+使用範例的規則來加強<prgn>ipmasq</prgn>的保護。參閱<url id="&f-ipmasq-strong;">。
+>>>>>>> 1.16
+<p>
+另外，如果是透過 PCMCIA 網路卡連線的，<prgn>ipmasq</prgn> 需要由 <file>/etc/pcmcia/network.opts</file>(閱讀 <url id="&f-ipmasq;">)或<file>/etc/network/interfaces</file>(閱讀 <ref id="trigger-pcmcia"> 和 <ref id="net-trigger">)來啟動。
+
+<sect2 id="ip-redirect">重導 SMTP 連線 (2.4)
+<p>
+假設您的筆記型電腦在不同的區網環境下，如果您不希望重新設定郵件用戶代理程式就能直接使用在筆記型電腦上。
+<p>
+執行 <prgn>iptables</prgn> 並加入底下的規則，它將會重導 SMTP 連線到通訊閘的機器。
+<example>
+# iptables -t nat -A PREROUTING -s 192.168.1.0/24 -j REDIRECT \
+           -p tcp --dport smtp --to-port 25 # smtp=25, INPUT is open
+</example>
+至於完整的重導規則，安裝<package>ipmasq</package>套件並複製<file><url id="&examples;" name="M30redirect.def"></file>到<file>/etc/ipmasq/rules/</file>目錄下。
+
+<sect1>管理多重的網路連線
+<p>
+[FIXME] Policy routing (by Phil Brutsche
+<email>pbrutsch@tux.creighton.edu</email>):
+更多訊息請參閱 <url id="&iproute;" name="iproute manual">。Traffic control (tc) 也是有幫助的。
+<p>
+環境設定：
+<example>
+eth0: 192.168.1.2/24; 通訊閘 192.168.1.1
+eth1: 10.0.0.2/24; 通訊閘 10.0.0.1
+該機器沒有任何 IP 偽裝的機制。
+</example>
+Special magic:
+<enumlist compact>
+<item>ip rule add from 192.168.1.2 lookup 1
+<item>ip rule add from 10.0.0.2 lookup 2
+<item>ip route add to default via 10.0.0.1 metric 0
+<item>ip route add to default via 192.168.1.1 metric 1
+<item>ip route add table 1 to 192.168.1.0/24 via eth0
+<item>ip route add table 1 to 10.0.0.2/24 via eth1
+<item>ip route add table 1 to default via 192.168.1.1
+<item>ip route add table 2 to 192.168.1.0/24 via eth0
+<item>ip route add table 2 to 10.0.0.2/24 via eth1
+<item>ip route add table 2 to default via 10.0.0.2
+</enumlist>
+<p>
+[FIXME] 我從未試驗過。至於如何設定備緩的撥接以及自動重撥的功能來實現快速連線？還請寄給我一個補丁 :-)  
+</sect>
+
+
+</chapt>

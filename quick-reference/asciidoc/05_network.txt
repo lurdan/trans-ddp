@@ -1,0 +1,1130 @@
+== Network setup
+
+// vim: set sts=2 expandtab:
+// Use ":set nowrap" to edit table
+
+This section will address http://en.wikipedia.org/wiki/Internet_Protocol_Suite[TCP/IP network] setup for the mobile PC which moves around different networks. (For the non-mobile PC, the debian-installer should have taken care your network setup and there are almost nothing for us to play with.)
+
+**You should install the `resolvconf` package for the mobile PC.**  This package provides framework to solve conflicts of the host address resolution between different network configuration scripts when network configuration changes.  Read more on "`/usr/share/doc/resolvconf/README.Debian`".
+
+For the fixed location server machine, you can do without the `resolvconf` package and keep your system simple.
+
+In this document, we focus on Debian-specific issues. For a general guide to GNU/Linux networking, read the http://www.tldp.org/LDP/nag2/[Linux Network Administrators Guide].
+
+=== The basic network infrastructure
+
+Let\'s review the basic network infrastructure of the modern Debian system.
+
+==== The domain name
+
+The naming for the domain name is a tricky one for the normal workstation PC users.  The PC workstation may be mobile one hopping around the network or located behind the NAT firewall inaccessible from the Internet. For such case, you may not want the domain name to be a valid domain name to avoid name collision.
+
+// When you use your SMTP ISP's domain name, you should use a uniq hostname which your ISP does not use to avoid name collision (see <<_the_hostname_resolution>>).
+
+// Any authoritative recommendation is welcomed.
+
+According to http://tools.ietf.org/html/rfc2606[rfc2606], "`invalid`" seems to be a choice for the http://en.wikipedia.org/wiki/Top-level_domain[top level domain (TLD)] to construct domain names that are sure to be invalid from the Internet. 
+
+The http://en.wikipedia.org/wiki/MDNS[mDNS] network discovery protocol (http://en.wikipedia.org/wiki/Bonjour_(software)[Apple Bonjour / Apple Rendezvous], Avahi on Debian) uses http://en.wikipedia.org/wiki/.local["local"] as the http://en.wikipedia.org/wiki/Pseudo-top-level_domain[pseudo-top-level domain].  http://support.microsoft.com/kb/296250[Microsoft also seems to promote "local" for the TLD of local area network]. 
+
+Other popular choices for the invalid TLD seem to be "`localdomain`", "`lan`", "`localnet`", or "`home`" according to my incoming mail analysis.  
+
+==== The hostname resolution
+
+The hostname resolution is currently supported by the http://en.wikipedia.org/wiki/Name_Service_Switch[NSS (Name Service Switch)] mechanism too.  The flow of this resolution is:
+
+1. The "`/etc/nsswitch.conf`" file with stanza like "`hosts: files dns`" dictates the hostname resolution order. (This replaces the old functionality of the "`order`" stanza in "`/etc/host.conf`".)
+2. The `files` method is invoked first.  If the hostname is found in the "`/etc/hosts`" file, it returns all valid addresses for it and exits. (The "`/etc/host.conf`" file contains "`multi on`".)
+3. The `dns` method is invoked.  If the hostname is found by the query to the http://en.wikipedia.org/wiki/Domain_Name_System[Internet Domain Name System (DNS)] identified by the "`/etc/resolv.conf`" file, it returns all valid addresses for it and exits.
+
+The "`/etc/hosts`" file http://bugs.debian.org/316099[associates IP addresses with hostnames]:
+
+--------------------
+127.0.0.1 localhost
+127.0.1.1 <host_name>.<domain_name> <host_name>
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+--------------------
+Here the <host_name> in this matches the own hostname defined in the "`/etc/hostname`".  The <domain_name> in this is the http://en.wikipedia.org/wiki/FQDN[fully qualified domain name (FQDN)] of this host.
+
+TIP: I sometimes use bogus domain name for <domain_name>, such as "`invalid`" in this configuration for the mobile PC.
+
+The "`/etc/resolv.conf`" is a static file if the `resolvconf` package is not installed.  If installed, it is a symbolic link.  Either way, it contains information that initialize the resolver routines. If the DNS is found at IP="`192.168.11.1`", it contains:
+
+--------------------
+nameserver 192.168.11.1
+--------------------
+
+The `resolvconf` package makes this "`/etc/resolv.conf`" into a symbolic link and manages its contents by the hook scripts automatically.
+
+The hostname resolution via Multicast DNS (using http://en.wikipedia.org/wiki/Zeroconf[Zeroconf], aka http://en.wikipedia.org/wiki/Bonjour_(software)[Apple Bonjour / Apple Rendezvous]) which effectively allows name resolution by common Unix/Linux programs in the ad-hoc mDNS domain "`local`", can be provided by installing the `libnss-mdns` package.  The "`/etc/nsswitch.conf`" file should have stanza like "`hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4`" to enable this functionality.
+
+==== The network interface name
+
+The network interface name, e.g. `eth0`, is assigned to each hardware in the Linux kernel through the user space configuration mechanism, `udev` (see <<_the_udev_system>>), as it is found.  The network interface name is referred as **physical interface** in `ifup`(8) and `interfaces`(5).
+
+In order to ensure each network interface to be named persistently for each reboot using http://en.wikipedia.org/wiki/MAC_address[MAC address] etc., there is a record file "`/etc/udev/rules.d/70-persistent-net.rules`".  This file is automatically generated by the "`/lib/udev/write_net_rules`" program, probably run by the "`persistent-net-generator.rules`" rules file. You can modify it to change naming rule.
+
+CAUTION: When editing the "`/etc/udev/rules.d/70-persistent-net.rules`" rules file, you must keep each rule on a single line and the http://en.wikipedia.org/wiki/MAC_address[MAC address] in lowercase. For example, if you find "Firewire device" and "PCI device" in this file, you probably want to name "PCI device" as `eth0` and configure it as the primary network interface.
+
+==== The network address range for the LAN
+
+Let us be reminded of the IPv4 32 bit address ranges in each class reserved for use on the http://en.wikipedia.org/wiki/Local_area_network[local area networks (LANs)] by http://tools.ietf.org/html/rfc1918[rfc1918].  These addresses are guaranteed not to conflict with any addresses on the Internet proper.  
+
+
+.List of network address ranges.
+[grid="all"]
+`-----`----------------------------`-------------`--------------`------------
+Class network addresses            net mask      net mask /bits # of subnets 
+-----------------------------------------------------------------------------
+A     10.x.x.x                     255.0.0.0     /8             1            
+B     172.16.x.x -- 172.31.x.x     255.255.0.0   /16            16           
+C     192.168.0.x -- 192.168.255.x 255.255.255.0 /24            256          
+-----------------------------------------------------------------------------
+
+NOTE: If one of these addresses is assigned to a host, then that host must not access the Internet directly but must access it through a gateway that acts as a proxy for individual services or else does http://en.wikipedia.org/wiki/Network_address_translation[Network Address Translation(NAT)].  The broadband router usually performs NAT for the consumer LAN environment.
+
+==== The network configuration infrastructure
+
+There are 2 types of low level networking programs for Linux networking system (see <<_iproute2_commands>>).
+
+- Old http://www.linuxfoundation.org/en/Net:Net-tools[net-tools] programs (`ifconfig`(8), ...) are from the Linux NET-3 networking system. Most of these are obsolete now.
+- New http://www.linuxfoundation.org/en/Net:Iproute2[Linux iproute2] programs (`ip`(8), ...) are the current Linux networking system.
+
+Although these low level networking programs are powerful, they are cumbersome to use.  So higher level onfiguration systems have been created.
+
+The `ifupdown` package and its associated packages are the de facto standard for the Debian networking system.  It enables you to bring up network simply by doing , e.g., "`ifup eth0`".  Its configuration file is the "`/etc/network/interfaces`" (**`/e/n/i`**) file and its typical contents are:
+
+--------------------
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+--------------------
+
+In order to support easy reconfiguration of network address resolution, the `resolvconf` package was created.  Most debian network configuration systems are now modified to be supported by the `resolvconf` package.
+
+In order to adjust to dynamically changing network environments for mobile desktop users on laptops, extension mechanisms to the `ifupdown` package were created.  
+
+- helper script to `ifupdown`: `ifplugd`, `guessnet`, `ifscheme`, ...
+- alternative system to `ifupdown`: `network-manager`, `wicd`, ...
+
+In order for these network configuration tools to function as a alternative to `ifupdown` for a certain interface, you may need to disable the corresponding network interface configuration in **`/e/n/i`** (see <<_automatic_network_configuration>>).
+
+.List of network configuration tools.
+[grid="all"]
+`-----------------------`-------------`------------`--------------------------------------------------------------------------------------------------------------------------------------------------`---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+packages                popcon        size         type                                                                                                                                               function                                                                                                                                                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+`ifupdown`              @@@popcon1@@@ @@@psize1@@@ config::http://packages.debian.org/search?keywords=ifupdown@@@amp@@@searchon=names@@@amp@@@exact=1@@@amp@@@suite=all@@@amp@@@section=all[ifupdown] Standardized level to bring up and down the network (Debian specific)                                                                                                       
+`ifplugd`               @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Manage the wired network automatically                                                                                                                                      
+`ifupdown-extra`        @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network testing script to enhance "`ifupdown`" package                                                                                                                      
+`ifmetric`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Set routing metrics for a network interface.                                                                                                                                
+`guessnet`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Mapping script to enhance "`ifupdown`" package via **`/e/n/i`** file                                                                                                        
+`ifscheme`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Mapping scripts to enhance "`ifupdown`" package                                                                                                                             
+`ifupdown-scripts-zg2`  @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Zugschlus\' interface scripts for ifupdown\'s manual method                                                                                                                 
+`network-manager`       @@@popcon1@@@ @@@psize1@@@ config::http://en.wikipedia.org/wiki/NetworkManager[NetworkManager]                                                                                NetworkManager (daemon): Manage the network automatically                                                                                                                   
+`network-manager-gnome` @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                NetworkManager (GNOME frontend)                                                                                                                                             
+`network-manager-kde`   @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                NetworkManager (KDE frontend)                                                                                                                                               
+`wicd`                  @@@popcon1@@@ @@@psize1@@@ config::http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[wicd]                                                                            Wired and wireless network manager                                                                                                                                          
+`iptables`              @@@popcon1@@@ @@@psize1@@@ config::http://en.wikipedia.org/wiki/Netfilter[Netfilter]                                                                                          Administration tools for packet filtering and NAT                                                                                                                           
+`iproute`               @@@popcon1@@@ @@@psize1@@@ config::http://www.linuxfoundation.org/en/Net:Iproute2[iproute2]                                                                                   IPv6 and other advanced network configuration: `ip`(8), `tc`(8), etc.                                                                                                       
+`ifrename`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Rename network interfaces based on various static criteria: `ifrename`(8)                                                                                                   
+`ethtool`               @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Display or change Ethernet device settings:                                                                                                                                 
+`iputils-ping`          @@@popcon1@@@ @@@psize1@@@ test::http://www.linuxfoundation.org/en/Net:Iproute2[iproute2]                                                                                     Tools to test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address]               
+`iputils-arping`        @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools to test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address                                  
+`iputils-tracepath`     @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools to trace the network path to a remote host                                                                                                                            
+`net-tools`             @@@popcon1@@@ @@@psize1@@@ config::http://www.linuxfoundation.org/en/Net:Net-tools[net-tools]                                                                                 The NET-3 networking toolkit (IPv4 network configuration):  `ifconfig`(8) etc.                                                                                              
+`inetutils-ping`        @@@popcon1@@@ @@@psize1@@@ test::http://www.linuxfoundation.org/en/Net:Net-tools[net-tools]                                                                                   Tools to test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address] (legacy, GNU) 
+`arping`                @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools to test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address (legacy)                         
+`traceroute`            @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools to trace the network path to a remote host (legacy, console)                                                                                                          
+`dhcp3-client`          @@@popcon1@@@ @@@psize1@@@ config::low-level                                                                                                                                  DHCP client                                                                                                                                                                 
+`wpasupplicant`         @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Client support for WPA and WPA2 (IEEE 802.11i)                                                                                                                              
+`wireless-tools`        @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools for manipulating Linux Wireless Extensions                                                                                                                            
+`ppp`                   @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                PPP/PPPoE connection with `chat`                                                                                                                                            
+`pppoeconf`             @@@popcon1@@@ @@@psize1@@@ config::helper                                                                                                                                     Configuration helper for PPPoE connection                                                                                                                                   
+`pppconfig`             @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Configuration helper for plain PPP connection with `chat`                                                                                                                   
+`wvdial`                @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                PPP connection with `wvdial` with `ppp`, configuration helper                                                                                                               
+`mtr-tiny`              @@@popcon1@@@ @@@psize1@@@ test::low-level                                                                                                                                    Tools to trace the network path to a remote host (curses)                                                                                                                   
+`mtr`                   @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools to trace the network path to a remote host (curses and GTK+)                                                                                                          
+`gnome-nettool`         @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tools for common network information operations (GNOME)                                                                                                                     
+`nmap`                  @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network mapper / port scanner (http://en.wikipedia.org/wiki/Nmap[Nmap], console)                                                                                            
+`zenmap`                @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network mapper / port scanner (GTK+)                                                                                                                                        
+`knmap`                 @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network mapper / port scanner (KDE)                                                                                                                                         
+`tcpdump`               @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network traffic analyzer (http://en.wikipedia.org/wiki/Tcpdump[Tcpdump], console)                                                                                           
+`wireshark`             @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network traffic analyzer (http://en.wikipedia.org/wiki/Wireshark[Wireshark], GTK+)                                                                                          
+`tshark`                @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network traffic analyzer (console)                                                                                                                                          
+`nagios3`               @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Monitoring and management system for hosts, services and networks (http://en.wikipedia.org/wiki/Nagios[Nagios])                                                             
+`tcptrace`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tool to produce a summarization of the connections from `tcpdump` output                                                                                                    
+`snort`                 @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Flexible network intrusion detection system (http://en.wikipedia.org/wiki/Snort_(software)[Snort])                                                                          
+`ntop`                  @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Display network usage in web browser                                                                                                                                        
+`dnsutils`              @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Network clients provided with http://en.wikipedia.org/wiki/BIND[BIND]: `nslookup`(8), `nsupdate`(8), `dig`(8)                                                               
+`dlint`                 @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Checks http://en.wikipedia.org/wiki/Domain_Name_System[DNS] zone information using nameserver lookups                                                                       
+`dnstracer`             @@@popcon1@@@ @@@psize1@@@ , ,                                                                                                                                                Tool to trace a chain of http://en.wikipedia.org/wiki/Domain_Name_System[DNS] servers to the source                                                                         
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// removed clutter
+//|| {{{network-manager-openvpn}}} || - || - || , , || NetworkManager (OpenVPN plugin core) ||
+//|| {{{network-manager-openvpn-gnome}}} || - || - || , , || NetworkManager (OpenVPN plugin GNOME GUI) ||
+//|| {{{network-manager-pptp}}} || - || - || , , || NetworkManager (PPTP plugin core) ||
+//|| {{{network-manager-pptp-gnome}}} || - || - || , , || NetworkManager (PPTP plugin GNOME GUI) ||
+//|| {{{network-manager-vpnc}}} || - || - || , , || NetworkManager (VPNC plugin core) ||
+//|| {{{network-manager-vpnc-gnome}}} || - || - || , , || NetworkManager (VPNC plugin GNOME GUI) ||
+
+// removed
+// || {{{waproamd}}} || 141 || - || , , || Manage the wireless network automatically ||
+
+==== The network device support
+
+Although most hardware devices are supported by the Debian system, there are some network devices which require http://www.debian.org/social_contract#guidelines[DSFG] non-free external hardware drivers to support them.  Please see <<_non_free_hardware_drivers>>.
+
+=== The network connection method
+
+CAUTION: The connection test method described in this section are meant for testing purposes.  It is not meant to be used directly for the daily network connection.  You are advised to use them via the `ifupdown` package (see <<_the_basic_network_configuration_with_ifupdown>>).
+
+// FIXME: Since my MacBook has no build-in modem, and I use the broadband-modem via Ethernet, all POTS-related description needs to be tested with the recent system.
+
+The typical network connection method and connection path for a PC can be summarized as:
+
+
+.List of network connection types and connection paths.
+[grid="all"]
+`----------------------`-----------------`-----------------------------------------------------------------------------------------------------------------------------------------
+PC                     connection method connection path                                                                                                                           
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Serial port (`ppp0`)   PPP               <=> http://en.wikipedia.org/wiki/Modem[modem] <=> POTS <=> dial-up access point <=> ISP                                                   
+Ethernet port (`eth0`) PPPoE/DHCP/Static <=> BB-modem <=> BB service <=> BB access point <=> ISP                                                                                   
+Ethernet port (`eth0`) DHCP/Static       <=> LAN <=> BB-router with http://en.wikipedia.org/wiki/Network_address_translation[network address translation (NAT)] (<=> BB-modem ...) 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Here is the summary of configuration script for each connection method:
+
+
+.List of network connection configurations.
+[grid="all"]
+`-----------------`-----------------------------------------`------------------
+connection method configuration                             backend package(s) 
+-------------------------------------------------------------------------------
+PPP               `pppconfig` to create deterministic chat  `pppconfig`, `ppp` 
+PPP (alternative) `wvdialconf` to create heuristic chat     `ppp`, `wvdial`    
+PPPoE             `pppoeconf` to create deterministic chat  `pppoeconf`, `ppp` 
+DHCP              described in "`/etc/dhcp3/dhclient.conf`" `dhcp3-client`     
+static IP (IPv4)  described in **`/e/n/i`**                 `net-tools`        
+static IP (IPv6)  described in **`/e/n/i`**                 `iproute`          
+-------------------------------------------------------------------------------
+
+The network connection acronyms mean:
+
+
+.List of network connection acronyms.
+[grid="all"]
+`-------------------------------------------------------------------------`-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+acronym                                                                   meaning                                                                                                                                                                                           
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+http://en.wikipedia.org/wiki/Plain_old_telephone_service[POTS]            The plain old telephone service                                                                                                                                                                   
+BB                                                                        The http://en.wikipedia.org/wiki/Broadband[broadband]                                                                                                                                             
+BB-service                                                                E.g., the digital subscriber line (DSL), the cable TV, or the fiber to the premises (FTTP).                                                                                                       
+BB-modem                                                                  E.g., http://en.wikipedia.org/wiki/DSL_modem[the DSL modem], http://en.wikipedia.org/wiki/Cable_modem[the cable modem], or http://en.wikipedia.org/wiki/FTTP[the optical network terminal (ONT)]. 
+http://en.wikipedia.org/wiki/Local_area_network[LAN]                      The local area network                                                                                                                                                                            
+http://en.wikipedia.org/wiki/Wide_area_network[WAN]                       The wide area network                                                                                                                                                                             
+http://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol[DHCP]    The dynamic host configuration protocol                                                                                                                                                           
+http://en.wikipedia.org/wiki/Point-to-Point_Protocol[PPP]                 The point-to-point protocol                                                                                                                                                                       
+http://en.wikipedia.org/wiki/Point-to-Point_Protocol_over_Ethernet[PPPoE] The point-to-point protocol over Ethernet                                                                                                                                                         
+http://en.wikipedia.org/wiki/ISP[ISP]                                     The Internet service provider                                                                                                                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+NOTE: The WAN connection services via cable TV are generally served by DHCP or PPPoE.  The ones by ADSL and FTTP are generally served by PPPoE.  You have to consult your ISP for exact configuration requirements of the WAN connection.
+
+NOTE: When BB-router is used to create home LAN environment, PCs on LAN are connected to the WAN via BB-router with http://en.wikipedia.org/wiki/Network_address_translation[network address translation (NAT)].  For such case, PC\'s network interfaces on the LAN are served by static IP or DHCP from the BB-router.  BB-router must be configured to connect the WAN following the instruction by your ISP.
+
+==== The DHCP connection with the Ethernet
+
+The typical modern home and small business network, i.e. LAN, are connected to the WAN(Internet) using some consumer grade broadband router.  The LAN behind this router is usually served by the http://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol[dynamic host configuration protocol (DHCP)] server running on the router.
+
+Just install the `dhcp3-client` package for the Ethernet served by the http://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol[dynamic host configuration protocol (DHCP)].
+
+==== The static IP connection with the Ethernet
+
+No special action is needed for the Ethernet served by the static IP.
+
+==== The PPP connection with pppconfig
+
+The configuration script `pppconfig` will configure the http://en.wikipedia.org/wiki/Point-to-Point_Protocol[PPP] connection interactively just by selecting:
+
+- the telephone number,
+- the ISP user name, 
+- the ISP password,
+- the port speed,
+- the modem communication port, and
+- the authentication method.
+
+The configuration files are:
+
+
+.List of configuration files for the http://en.wikipedia.org/wiki/Point-to-Point_Protocol[PPP] connection with pppconfig.
+[grid="all"]
+`-----------------------------`------------------------------------------------------------------------------------------------------------------------
+file                          function                                                                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+`/etc/ppp/peers/<isp_name>`   The `pppconfig` generated configuration file for `pppd` specific to <isp_name>                                           
+`/etc/chatscripts/<isp_name>` The `pppconfig` generated configuration file for `chat` specific to <isp_name>                                           
+`/etc/ppp/options`            The general execution parameter for `pppd`                                                                               
+`/etc/ppp/pap-secret`         Authentication data for the http://en.wikipedia.org/wiki/Password_authentication_protocol[PAP] (still used)              
+`/etc/ppp/chap-secret`        Authentication data for the http://en.wikipedia.org/wiki/Challenge-handshake_authentication_protocol[CHAP] (more secure) 
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+CAUTION: The "<isp_name>" value of "provider" is assumed if `pon` and `poff` commands are invoked without arguments.
+
+You can test configuration using lower level network configuration tools:
+
+--------------------
+$ sudo pon <isp_name>
+...
+$ sudo poff <isp_name>
+--------------------
+
+See "`/usr/share/doc/ppp/README.Debian.gz`" for more information.
+
+==== The alternative PPP connection with wvdialconf
+
+A different approach to using `pppd`(8) is to run it from `wvdial`(1) which comes in the `wvdial` package.  Instead of `pppd` running `chat`(8) to dial in and negotiate the connection, `wvdial` does the dialing and initial negotiating and then starts `pppd` to do the rest.  
+
+The configuration script `wvdialconf` will configure the PPP connection interactively just by selecting:
+
+- the telephone number,
+- the ISP user name, and 
+- the ISP password.
+`wvdial` succeeds in making the connection in most cases and maintains authentication data list automatically.
+
+The configuration files are:
+
+
+.List of configuration files for the PPP connection with wvdialconf.
+[grid="all"]
+`-----------------------`------------------------------------------------------------------------------------------------------------------------
+file                    function                                                                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------------
+`/etc/ppp/peers/wvdial` The `wvdialconf` generated configuration file for `pppd` specific to `wvdial`                                            
+`/etc/wvdial.conf`      The `wvdialconf` generated configuration file                                                                            
+`/etc/ppp/options`      The general execution parameter for `pppd`                                                                               
+`/etc/ppp/pap-secret`   Authentication data for the http://en.wikipedia.org/wiki/Password_authentication_protocol[PAP] (still used)              
+`/etc/ppp/chap-secret`  Authentication data for the http://en.wikipedia.org/wiki/Challenge-handshake_authentication_protocol[CHAP] (more secure) 
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+You can test configuration using lower level network configuration tools:
+
+--------------------
+$ sudo wvdial
+...
+$ sudo killall wvdial
+--------------------
+
+See `wvdial`(1) and `wvdial.conf`(5) for more information.
+
+==== The PPPoE connection with pppoeconf
+
+When your ISP serves you with PPPoE connection and you decide to connect your PC directly to the WAN, the network of your PC must be configured with the PPPoE. The PPPoE stand for PPP over Ethernet. The configuration script `pppoeconf` will configure the PPPoE connection interactively.
+
+The configuration files are:
+
+
+.List of configuration files for the PPPoE connection with pppoeconf.
+[grid="all"]
+`-----------------------------`---------------------------------------------------------------------------
+file                          function                                                                    
+----------------------------------------------------------------------------------------------------------
+`/etc/ppp/peers/dsl-provider` The `pppoeconf` generated configuration file for `pppd` specific to `pppoe` 
+`/etc/ppp/options`            The general execution parameter for `pppd`                                  
+`/etc/ppp/pap-secret`         Authentication data for the PAP (still used)                                
+`/etc/ppp/chap-secret`        Authentication data for the CHAP (more secure)                              
+----------------------------------------------------------------------------------------------------------
+
+You can test configuration using lower level network configuration tools:
+
+--------------------
+$ sudo /sbin/ifconfig eth0 up
+$ sudo pon dsl-provider
+...
+$ sudo poff dsl-provider
+$ sudo /sbin/ifconfig eth0 down
+--------------------
+
+See "`/usr/share/doc/pppoeconf/README.Debian`" for more information.
+
+=== The basic network configuration with ifupdown
+
+The `ifupdown` package provides the standardized framework for the high level network configuration in the Debian system. In this section, we learn the basic network configuration with `ifupdown` with simplified introduction and many typical examples.
+
+==== The command syntax simplified
+
+The `ifupdown` package contains 2 commands: `ifup`(8) and `ifdown`(8).  They offer high level network configuration dictated by the configuration file **/e/n/i**.
+
+
+.List of basic network configuration commands with ifupdown.
+[grid="all"]
+`-------------`-------------------------------------------------------------------------------------------------------
+command       action                                                                                                  
+----------------------------------------------------------------------------------------------------------------------
+`ifup eth0`   To bring up a network interface `eth0` with the configuration `eth0` if "`iface eth0`" stanza exists.   
+`ifdown eth0` To bring down a network interface `eth0` with the configuration `eth0` if "`iface eth0`" stanza exists. 
+----------------------------------------------------------------------------------------------------------------------
+
+WARNING: Do not use low level configuration tools such as `ifconfig`(8) and `ip`(8) commands to configure an interface in **up** state.
+
+NOTE: There is no command `ifupdown`.
+
+///!\ Do not define duplicates of the '''{{{iface}}}''' stanza for a network interface in '''{{{/e/n/i}}}'''.
+
+==== The basic syntax of /etc/network/interfaces
+
+The key syntax of "`/etc/network/interfaces`" (**`/e/n/i`** as its acronym in the following text) as explained in `interfaces`(5) can be summarized as:
+
+[[list-of-stanzas-in-eni]]
+.List of stanzas in **`/e/n/i`**
+[grid="all"]
+`-----------------------------------------------------`-----------------------------------------------------------------------------------------------
+stanza                                                meaning                                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------
+"`auto <interface_name>`"                             To start interface  <interface_name> upon start of the system.                                  
+"`allow-auto <interface_name>`"                       , ,                                                                                             
+"`allow-hotplug <interface_name>`"                    To start interface <interface_name> when the kernel detects a hotplug event from the interface. 
+Lines started with "`iface <config_name> ...`"        To define the network configuration <config_name>.                                              
+Lines started with "`mapping <interface_name_glob> `" To define mapping value of <config_name> for the matching <interface_name>.                     
+A line starting with a hash "`#`"                     To be ignored as comments. (end-of-line comments are **not** supported)                         
+A line ending with a backslash "`\`"                  To extend the configuration to the next line.                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Lines started with **`iface`** stanza has the following syntax:
+
+--------------------
+iface <config_name> <address_family> <method_name>
+ <option1> <value1>
+ <option2> <value2>
+ ...
+--------------------
+For the basic configuration, the **`mapping`** stanza is not used and you use the network interface name as the network configuration name. (See <<_the_mapping_stanza>>).
+
+==== The loopback network interface
+
+The following configuration entry in the **`/e/n/i`** file brings up the loopback network interface `lo` upon booting the system (via **`auto`** stanza).
+
+--------------------
+auto lo
+iface lo inet loopback
+--------------------
+
+This one always exists in the **`/e/n/i`** file.
+
+==== The network interface served by the DHCP
+
+After prepairing the system by <<_the_dhcp_connection_with_the_ethernet>>, the network interface served by the DHCP is configured by creating the configuration entry in the **`/e/n/i`** file as:
+
+--------------------
+allow-hotplug eth0
+iface eth0 inet dhcp
+ hostname "mymachine"
+--------------------
+
+When the Linux kernel detects the physical interface `eth0`, the **`allow-hotplug`** stanza will cause ifup to bring up the interface and the **`iface`** stanza will cause `ifup` to use DHCP to configure the interface.
+
+
+==== The network interface with the static IP
+
+The network interface served by the static IP is configured by creating the configuration entry in the **`/e/n/i`** file as, e.g.,:
+
+--------------------
+allow-hotplug eth0
+iface eth0 inet static
+ address 192.168.11.100
+ netmask 255.255.255.0
+ broadcast 192.168.11.255
+ gateway 192.168.11.1
+ dns-domain lan
+ dns-nameservers 192.168.11.1
+--------------------
+
+When the Linux kernel detects the physical interface `eth0`, the **`allow-hotplug`** stanza will cause ifup to bring up the interface and the **`iface`** stanza will cause `ifup` to use the static IP to configure the interface.
+
+Here, I assumed:
+
+- IP address range of the LAN network: `192.168.11.0` - `192.168.11.255`
+- IP address of the gateway: `192.168.11.1`
+- IP address of the PC: `192.168.11.100`
+- The `resolvconf` package is installed.
+- The domain name as "`lan`".
+- The DNS server at: `192.168.11.1`
+
+When the `resolvconf` package is not installed, DNS related configuration needs to be done manually by editing the "`/etc/resolv.conf`" as:
+
+--------------------
+nameserver 192.168.11.1 
+domain lan
+--------------------
+
+CAUTION: The IP addresses used in the above example are not meant to be copied literally.  You have to adjust IP numbers to your actual network configuration.
+
+==== The basics of wireless LAN interface
+
+The http://en.wikipedia.org/wiki/Wireless_LAN[wireless LAN (WLAN for short)] provides the fast wireless connectivity through the spread-spectrum communication of unlicensed radio bands based on the set of standards called http://en.wikipedia.org/wiki/IEEE_802.11[IEEE 802.11].
+
+The WLAN interfaces are almost like normal Ethernet interfaces but require some network ID and encryption key data to be provided when they are initialized.  The higher level network tools are exactly the same as the Ethernet except the interface names are a bit different like `ath0`, `wlan0`, `ath0`, `wifi0`, ... depending on the kernel drivers used.
+
+Here are some keywords to remember for the WLAN:
+
+
+.List of acronyms for WLAN.
+[grid="all"]
+`-----------`--------------------------------------------------------------------------------------`------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+acronym     full word                                                                              meaning                                                                                                                                                                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+NWID        Network ID                                                                             The 16 bit network ID used by pre-802.11 http://en.wikipedia.org/wiki/WaveLAN[WaveLAN] network. Very much deprecated.                                                                                                    
+(E)SSID     (Extended) http://en.wikipedia.org/wiki/Service_set_identifier[Service Set Identifier] The network name of the http://en.wikipedia.org/wiki/Wireless_access_point[Wireless Access Points (APs)] interconnected to form an integrated http://en.wikipedia.org/wiki/IEEE_802.11[802.11 wireless LAN].  Domain ID. 
+WEP, (WEP2) http://en.wikipedia.org/wiki/Wired_Equivalent_Privacy[Wired Equivalent Privacy]        The 1st generation 64-bit (128-bit) wireless encryption standard with 40-bit key. Deprecated.                                                                                                                            
+WPA         http://en.wikipedia.org/wiki/Wi-Fi_Protected_Access[Wi-Fi Protected Access]            The 2nd generation wireless encryption standard (most of 802.11i), compatible with WEP.                                                                                                                                  
+WPA2        http://en.wikipedia.org/wiki/IEEE_802.11i[Wi-Fi Protected Access 2]                    The 3rd generation wireless encryption standard (full 802.11i), non-compatible with WEP.                                                                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+The actual choice of protocol is usually limited by the wireless router you deploy.
+
+==== The wireless LAN interface with WPA/WPA2
+
+You need to install the `wpasupplicant` package to support the WLAN with the new WPA/WPA2.
+
+In case of the DHCP served IP on WLAN connection, the **`/e/n/i`** file entry should be:
+
+--------------------
+allow-hotplug ath0
+iface ath0 inet dhcp
+ wpa-ssid homezone
+ # hexadecimal psk is encoded from a plaintext passphrase
+ wpa-psk 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+--------------------
+
+See more on "`/usr/share/doc/wpasupplicant/README.modes.gz`".
+
+==== The wireless LAN interface with WEP
+
+You need to install the `wireless-tools` package to support the WLAN with the old WEP.  (Your consumer grade router may still be using.  Insecure infrastructure but better than nothing.)
+
+CAUTION: Please note that your network traffic on WLAN may be sniffed by others.
+
+In case of the http://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol[DHCP] served IP on WLAN connection, the **`/e/n/i`** file entry should be:
+
+--------------------
+allow-hotplug eth0
+iface eth0 inet dhcp
+ wireless-essid Home
+ wireless-key1 0123-4567-89ab-cdef
+ wireless-key2 12345678
+ wireless-key3 s:password
+ wireless-defaultkey 2
+ wireless-keymode open
+--------------------
+
+See more on "`/usr/share/doc/wireless-tools/README.Debian`".
+
+==== The PPP connection
+
+You need to configure the PPP connection first as described before (see <<_the_ppp_connection_with_pppconfig>>).  Then, add the **`/e/n/i`** file entry for the primary PPP device `ppp0` as:
+
+--------------------
+iface ppp0 inet ppp
+ provider <isp_name>
+--------------------
+
+==== The alternative PPP connection
+
+You need to configure the alternative PPP connection with `wvdial` first as described before (see <<_the_alternative_ppp_connection_with_wvdialconf>>).  Then, add the **`/e/n/i`** file entry for the primary PPP device `ppp0` as:
+
+--------------------
+iface ppp0 inet wvdial
+--------------------
+
+==== The PPPoE connection
+
+For PC connected directly to the WAN served by the PPPoE, you need to configure system with the PPPoE connection as described before (see <<_the_pppoe_connection_with_pppoeconf>>).  Then, add the **`/e/n/i`** file entry for the primary PPPoE device `eth0` as:
+
+--------------------
+allow-hotplug eth0
+iface eth0 inet manual
+ pre-up /sbin/ifconfig eth0 up
+ up ifup ppp0=dsl
+ down ifdown ppp0=dsl
+ post-down /sbin/ifconfig eth0 down
+# The following is used internally only
+iface dsl inet ppp
+ provider dsl-provider
+--------------------
+
+==== The network configuration state of ifupdown
+
+The "`/etc/network/run/ifstate`" file stores the **intended** network configuration states for all the currently active network interfaces managed by the `ifupdown` package are listed. Unfortunately, even if the `ifupdown` system fails to bring up the interface as intended, the "`/etc/network/run/ifstate`" file lists it active.
+
+The output of the `ifconfig`(8) command without any arguments or with the interface name as its argument provides the **actual** network configuration state.  If the interface does not have the second line as:
+
+--------------------
+          inet addr:192.168.11.2  Bcast:192.168.11.255  Mask:255.255.255.0
+--------------------
+it can not be used as a part of http://en.wikipedia.org/wiki/IPv4[IPV4 network].
+
+NOTE: For the Ethernet device connected to the PPPoE, the output of the `ifconfig`(8) command lacks above line.
+
+==== The basic network reconfiguration
+
+When you try to reconfigure the interface, e.g. `eth0`, you must disable it first with the "**`sudo ifdown eth0`**" command.  This will remove the entry of `eth0` from the "`/etc/network/run/ifstate`" file. (This may result in some error message if `eth0` is not active or it is configured improperly previously.  So far, it seems to be safe to do this for the simple single user work station at any time.)
+
+You are now free to rewrite the **`/e/n/i`** contents as needed to reconfigure the network interface, `eth0`.
+
+Then, you can reactivate `eth0` with the "**`sudo ifup eth0`**" command.
+
+TIP: You can (re)initialize the network interface simply by "**`sudo ifdown eth0;sudo ifup eth0`**".
+
+==== The ifupdown-extra package
+
+The `ifupdown-extra` package provides the easy network connection test for use with the `ifupdown` package:
+
+- the `network-test`(1) command from the shell, and
+- the automatic scripts run for each `ifup` command execution.
+
+The `network-test` command frees you from the execution of cumbersome low level commands to analyze the network problem.
+
+The automatic scripts are installed in "`/etc/network/\*/`" and:
+
+- check the network cable connection,
+- check duplicate use of IP address,
+- setup system\'s static routes based on the "`/etc/network/routes`" definition,
+- check if network gateway is reachable, and
+- record results in the "`/var/log/syslog`" file.
+
+This syslog record is quite useful for administration of the network problem on the remote system.
+
+TIP: The automatic behavior of the `ifupdown-extra` package is configurable with the "`/etc/default/network-test`". Some of these automatic checks slow down the system bootup a little bit since it takes some time to listen for http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] replies.
+
+=== The advanced network configuration with ifupdown
+
+The functionality of the `ifupdown` package can be improved beyond what was described in <<_the_basic_network_configuration_with_ifupdown>> with the advanced knowledge.  
+
+The functionalities described here are completely optional.  I, being lazy and minimalist, rarely bother to use these.
+
+CAUTION: If you could not set up network connection by information in <<_the_basic_network_configuration_with_ifupdown>>, you will make situation worse by using information below.
+
+==== The ifplugd package
+
+The `ifplugd` package is older automatic network configuration tool which can manage only Ethernet connections. This solves unplugged/replugged Ethernet cable issues for mobile PC etc..   If you have http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] or http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (see <<_automatic_network_configuration>>) installled, you do not need this package.
+
+This package runs http://en.wikipedia.org/wiki/Daemon_(computer_software)[daemon] and replaces **auto** or **allow-hotplug** functionalities (see <<list-of-stanzas-in-eni>> and starts interfaces upon their connection to the network.  
+
+Here is how to use the `ifplugd` package for the internal Ethernet port, e.g. `eth0`:
+
+- Remove stanza in **`/e/n/i`**: "`auto eth0`" or "`allow-hotplug eth0`",
+- Keep stanza in **`/e/n/i`**: "`iface eth0 inet ...`" and "`mapping ...`",
+- Install the `ifplugd` package,
+- Run "`sudo dpkg-reconfigure ifplugd`", and
+- Put `eth0` as the "static interfaces to be watched by ifplugd".
+
+Now, the network reconfiguration works as you desire:
+
+- Upon power-on or upon hardware discovery, the interface is not brought up by itself.
+ * Quick boot process without the long DHCP timeout.
+ * No funny activated interface without proper IPv4 address (see <<_the_network_configuration_state_of_ifupdown>>).
+- Upon finding the Ethernet cable, the interface is brought up. 
+- Upon some time after unplugging the Ethernet cable, the interface is brought down automatically.  
+- Upon plugging in another Ethernet cable, the interface will be brought up under the new network environment.
+
+TIP: The arguments for the `ifplugd`(8) command can set its behaviors such as the delay for reconfiguring interfaces.
+
+// waproamd is removed
+// {i} For the wireless LAN where the WEP key configuration before AP associations is required, you should check the {{{waproamd}}} package instead of the {{{ifplugd}}} package.
+
+==== The ifmetric package
+
+The `ifmeric` package enables us to manipulate metrics of routes a posteriori even for DHCP.
+
+The following will set the `eth0` interface to be preferred over the `wlan0` interface:
+
+- Install the `ifmetric` package, and
+- Add an option line with "`metric 0`" just below the "`iface eth0 inet dhcp`" line.
+- Add an option line with "`metric 1`" just below the "`iface wlan0 inet dhcp`" line.
+
+The metric 0 means the highest priority route and is the default one.  The larger metric value means lower priority routes. The IP address of the active interface with the lowest metric value becomes the originating one. See `ifmetric`(8).
+
+==== The virtual interface
+
+A single physical Ethernet interface can be configured as multiple virtual interfaces with different IP addresses.  Usually the purpose is to connect an interface to several IP subnetworks.  For example, IP address based virtual web hosting by a single network interface is one such application.
+
+For example, let\'s suppose that
+
+- a single Ethernet interface on your host is connected to a Ethernet hub (not to the broadband router),
+- the Ethernet hub is connected to both the Internet and LAN network,
+- the Internet and LAN network by a single Ethernet interface with the Ethernet hub,
+- the LAN network uses subnet `192.168.0.x/24`,
+- your host uses DHCP served IP address with the physical interface `eth0` for the Internet, and
+- your host uses `192.168.0.1` with the virtual interface `eth0:0` for the LAN, then following stanzas in **`/e/n/i`** will configure your network:
++
+--------------------
+iface eth0 inet dhcp
+ metric 0
+iface eth0:0 inet static
+ address 192.168.0.1
+ netmask 255.255.255.0
+ network 192.168.0.0
+ broadcast 192.168.0.255
+ metric 1
+--------------------
+
+CAUTION: Although this configuration example with http://en.wikipedia.org/wiki/Network_address_translation[network address translation (NAT)] using http://en.wikipedia.org/wiki/Netfilter[netfilter/iptables] (see <<_netfilter>>) can provide cheap router for the LAN with only single interface, there is no real firewall capability with such set up.  You should use 2 physical interfaces with NAT to secure the local network from Internet.
+
+==== The advanced command syntax
+
+The `ifupdown` package offers advanced network configuration using the  **network configuration** name and the **network interface** name.  I use slightly different terminology from one used in `ifup`(8) and `interfaces`(5).
+
+
+.List of terminology for network devices.
+[grid="all"]
+`---------------------------`------------------------------`----------------------------------------------------------`-------------------------------------
+manpage terminology         my terminology                 explanation                                                examples in the following text        
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+**physical interface** name **network interface** name     A name given by the Linux kernel (using `udev` mechanism). `lo`, `eth0`, `<interface_name>`      
+**logical interface** name  **network configuration** name A name token following **`iface`** in the **`/e/n/i`**.    `config1`, `config2`, `<config_name>` 
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Basic network configuration commands in <<_the_basic_syntax_of_etc_network_interfaces>> require the **network configuration** name token of the **`iface`** stanza to match the **network interface** name in the **`/e/n/i`**.
+
+Advanced network configuration commands enables separation of the **network configuration** name and the **network interface** name in the **`/e/n/i`**:
+
+
+.List of advanced network configuration commands with ifupdown.
+[grid="all"]
+`---------------------`-------------------------------------------------------------------------------------------------
+command               action                                                                                            
+------------------------------------------------------------------------------------------------------------------------
+`ifup eth0=config1`   To bring up a network interface `eth0` with the configuration `config1`.                          
+`ifdown eth0=config1` To bring down a network interface `eth0` with the configuration `config1`.                        
+`ifup eth0`           To bring up a network interface `eth0` with the configuration selected by **`mapping`** stanza.   
+`ifdown eth0`         To bring down a network interface `eth0` with the configuration selected by **`mapping`** stanza. 
+------------------------------------------------------------------------------------------------------------------------
+
+==== The mapping stanza
+
+We skipped explaining the **`mapping`** stanza in the **`/e/n/i`** in <<_the_basic_syntax_of_etc_network_interfaces>> to avoid complication.  This stanza has the following syntax:
+
+--------------------
+mapping <interface_name_glob>
+ script <script_name>
+ map <script_input1>
+ map <script_input2>
+ map ...
+--------------------
+
+This provides advanced feature to the **`/e/n/i`** file by automating the choice of the configuration with the mapping script specified by `<script_name>`.
+
+When the "`<interface_name_glob>`" matches "`eth0`", the execution of
+--------------------
+$ sudo ifup eth0
+--------------------
+will produce the execution of:
+--------------------
+$ sudo ifup eth0=$(echo -e '<script_input1> \n <script_input2> \n ...' | <script_name> eth0)
+--------------------
+to configure `eth0` automatically. Here, lines with "`map`" are optional and can be repeated.
+
+NOTE: The glob for **`mapping`** stanza works like shell file name glob.
+
+==== The manually switchable network configuration
+
+Here is how to switch manually among several network configurations without rewriting the **`/e/n/i`** file as in <<_the_basic_network_reconfiguration>> .
+
+For all the network configuration you need to access, you create a single **`/e/n/i`** file, e.g,:
+
+--------------------
+auto lo
+iface lo inet loopback
+
+iface config1 inet dhcp
+ hostname "mymachine"
+
+iface config2 inet static
+ address 192.168.11.100
+ netmask 255.255.255.0
+ broadcast 192.168.11.255
+ gateway 192.168.11.1
+ dns-domain lan
+ dns-nameservers 192.168.11.1
+
+iface pppoe inet manual
+ pre-up /sbin/ifconfig eth0 up
+ up ifup ppp0=dsl
+ down ifdown ppp0=dsl
+ post-down /sbin/ifconfig eth0 down
+
+# The following is used internally only
+iface dsl inet ppp
+ provider dsl-provider
+
+iface pots inet ppp
+ provider provider
+--------------------
+
+Please note the **network configuration name** which is the token after **`iface`** does not use the token for the **network interface name**.  Also, there are no **`auto`** stanza nor **`allow-hotplug`** stanza to start the network interface `eth0` automatically upon events.
+
+Now you are ready to switch the network configuration.
+
+Let\'s move your PC to a LAN served by the DHCP.  You bring up the **network interface** (the physical interface) `eth0` by assigning  the **network configuration** name (the logical interface name) `config1` to it:
+
+--------------------
+$ sudo ifup eth0=config1
+Password:
+...
+--------------------
+The interface `eth0` is up, configured by DHCP and connected to LAN.
+
+--------------------
+$ sudo ifdown eth0=config1
+...
+--------------------
+The interface `eth0` is down and disconnected from LAN.
+
+Let\'s move your PC to a LAN served by the static IP.  You bring up the **network interface** `eth0` by assigning the **network configuration** name `config2` to it:
+
+--------------------
+$ sudo ifup eth0=config2
+...
+--------------------
+The interface `eth0` is up, configured with static IP and connected to LAN. The additional parameters given as `dns-\*` configures "`/etc/resolv.conf`" contents.  This "`/etc/resolv.conf`" is better manged if the `resolvconf` package is installed.
+
+--------------------
+$ sudo ifdown eth0=config2
+...
+--------------------
+The interface `eth0` is down and disconnected from LAN, again.
+
+Let\'s move your PC directly connected to BB-modem connected to the PPPoE served service.  You bring up the **network interface** `eth0` by assigning the **network configuration** name `pppoe` to it:
+
+--------------------
+$ sudo ifup eth0=pppoe
+...
+--------------------
+The interface `eth0` is up, configured with PPPoE connection directly to the ISP.
+
+--------------------
+$ sudo ifdown eth0=pppoe
+...
+--------------------
+The interface `eth0` is down and disconnected, again.
+
+Let\'s move your PC to a location without LAN or BB-modem but with POTS and modem.  You bring up the **network interface** `ppp0` by assigning the **network configuration** name `pots` to it:
+
+--------------------
+$ sudo ifup ppp0=pots
+...
+--------------------
+The interface `ppp0` is up and connected to the Internet with PPP.
+
+--------------------
+$ sudo ifdown ppp0=pots
+...
+--------------------
+The interface `ppp0` is down and disconnected from the Internet.
+
+You should check the "`/etc/network/run/ifstate`" file for the current network configuration state of the `ifupdown` system.
+
+WARNING: You may need to adjust numbers at the end of `eth\*`, `ppp\*`, etc. if you have multiple network interfaces.
+
+==== Scripting with the ifupdown system
+
+The `ifupdown` system automatically runs scripts installed in "`/etc/network/\*/`" while exporting environment variables to scripts:
+
+
+.List of environment variables passed by the ifupdown system
+[grid="all"]
+`--------------------`-----------------------------------------------------------------------------------------------------------
+environment variable value passed                                                                                                
+---------------------------------------------------------------------------------------------------------------------------------
+"`$IFACE`"           physical name (interface name) of the interface being processed.                                            
+"`$LOGICAL`"         logical name (configuration name) of the interface being processed.                                         
+"`$ADDRFAM`"         address family of the interface.                                                                            
+"`$METHOD`"          method of the interface. (e.g., "static")                                                                   
+"`$MODE`"            "start" if run from `ifup`, "stop" if run from `ifdown`.                                                    
+"`$PHASE`"           as per MODE, but with finer granularity, distinguishing the pre-up, post-up, pre-down and post-down phases. 
+"`$VERBOSITY`"       indicates whether "`--verbose`" was used; set to 1 if so, 0 if not.                                         
+"`$PATH`"            the command search path: "`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`"                   
+"`$IF_<OPTION>`"     the value for the corresponding option under the **`iface`** stanza.                                        
+---------------------------------------------------------------------------------------------------------------------------------
+
+Here, each environment variable, "`$IF_<OPTION>`", is created from the name for the corresponding option by prepending "`$IF_`", converting the case to the upper case, replacing hyphens to underscores, and discarding non-alphanumeric characters.  
+
+The `ifupdown-extra` package (see <<_the_ifupdown_extra_package>>) uses these environment variables to extend the functionality of the `ifupdown` package.  The `ifmetric` package (see <<_the_ifmetric_package>>) installs the "`/etc/network/if-up.d/ifmetric`" script which sets the metric via the "`$IF_METRIC`" variable.  The `guessnet` package (see <<_mapping_with_guessnet>>), which provides simple and powerful framework for the auto-selection of the network configuration via the mapping mechanism, also uses these.
+
+NOTE: For more specific examples of custom network configuration scripts using these environment variables, you should check example scripts in "`/usr/share/doc/ifupdown/examples/\*`" and scripts used in `ifscheme` and `ifupdown-scripts-zg2` packages.  These additional scripts have some overlaps of functinalities with basic `ifupdown-extra` and `guessnet` packages.  If you install these additional scripts, you should customize these scripts to avoid interferences.
+
+==== Mapping with guessnet
+
+Instead of manually choosing configuration as described in <<_the_manually_switchable_network_configuration>>, you can use the mapping mechanism described in <<_the_mapping_stanza>> to select network configuration automatically with custom scripts.
+
+The `guessnet-ifupdown`(8) command provided by the `guessnet` package is designed to be used as a mapping script and provides powerful framework to enhance the `ifupdown` system.
+
+
+- you list test condition as the value for **`guessnet`** options for each network configuration under **`iface`** stanza.
+- mapping will chose the **`iface`** with first non-ERROR result as the network configuration.
+
+This dual usage of the **`/e/n/i`** file by the mapping script, `guessnet-ifupdown`, and the original network configuration infrastructure, `ifupdown`, does not cause negative impacts since **`guessnet`** options only export extra environment variables to scripts run by the `ifupdown` system.  See details in `guessnet-ifupdown`(8).
+
+NOTE: When multiple **`guessnet`** option lines are required in **`/e/n/i`**, use option lines started with **`guessnet1`**, **`guessnet2`**, and so on, since the `ifupdown` package does not allow starting strings of option lines to be repeated.
+
+=== The network configuration for desktop
+
+==== GUI network configuration tools
+
+The capability of default GUI network configuration tools for each desktop environments such as GNOME tends to be limited to basic configurations such as static IP or DHCP.  They actually overwrite contents of **`/e/n/i`** file behind you. Please check how they change **e/n/i** file by yourself.
+
+CAUTION: They may not understand complicated advanced configuration done manually in **`/e/n/i`** file.
+
+==== Automatic network configuration
+
+There are independent automatic network configuration tools, such as http://en.wikipedia.org/wiki/NetworkManager[NetworkManager (NM)] (`network-manager` and associated packages) and http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (`wicd` package) which manage network connection via http://en.wikipedia.org/wiki/Daemon_(computer_software)[daemon] independen of the `ifupdown` package. They allow easy management of wireless connections.  These come with its own nice GUI user interfaces.
+
+WARNING: Do not use these automatic network configuration tools for servers.  These are aimed primarily for mobile desktop users on laptops.
+
+CAUTION: These automatic network configuration tools may not be compatible with esoteric configurations of `ifupdown` in **`/e/n/i`** such as ones in <<_the_basic_network_configuration_with_ifupdown>> and <<_the_advanced_network_configuration_with_ifupdown>>.  Having even "`hostname`" stanza for DHCP controlled interface as described in <<_the_network_interface_served_by_the_dhcp>> caused NM to ignore such interface in `lenny`. Check http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=network-manager[BTS of network-manager] and http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=wicd[BTS of wicd] for current issues and limitations.
+
+The configuration of NM is described in "`/usr/share/doc/network-manager/README.Debian`".  Essentially:
+
+1. Make desktop user, e.g. `foo`, belong to group "`netdev`" by:
++
+--------------------
+$ sudo adduser foo netdev
+--------------------
+2. Keep configuration of **`/e/n/i`** as simple as:
++
+--------------------
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+--------------------
+3. Restart NM by:
++
+--------------------
+$ sudo /etc/init.d/network-manager restart
+--------------------
+
+NOTE: Only interfaces which are **not** listed in **`/e/n/i`** or which have been configured with "`auto ...`" or "`allow-hotplug ...`" and "`iface ... inet dhcp`" (with no other options) are managed by NM to avoid conflict with `ifupdown`.
+
+The configuration of http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] is described in "`/usr/share/doc/wicd/README.Debian`".  Essentially:
+
+1. Make configuration in **`/e/n/i`** only as:
++
+--------------------
+auto lo
+iface lo inet loopback
+--------------------
+2. Restart Wicd.
++
+--------------------
+$ sudo /etc/init.d/wicd restart
+--------------------
+
+=== The low level network configuration
+
+==== Iproute2 commands
+
+http://www.linuxfoundation.org/en/Net:Iproute2[Iproute2] commands offer complete low-level network configuration capabilities. Here is a translation table from obsolete http://www.linuxfoundation.org/en/Net:Net-tools[net-tools] commands to new http://www.linuxfoundation.org/en/Net:Iproute2[iproute2] etc. commands.
+
+
+.Translation table from obsolete `net-tools` commands to new `iproute2` commands.
+[grid="all"]
+`------------------`-----------------`-----------------------------------------------
+obsolete net-tools new iproute2 etc. manipulation                                    
+-------------------------------------------------------------------------------------
+`ifconfig`(8)      `ip addr`         protocol (IP or IPv6) address on a device.      
+`route`(8)         `ip route`        routing table entry.                            
+`arp`(8)           `ip neigh`        ARP or NDISC cache entry.                       
+`ipmaddr`          `ip maddr`        multicast address.                              
+`iptunnel`         `ip tunnel`       tunnel over IP.                                 
+`nameif`(8)        `ifrename`(8)     name network interfaces based on MAC addresses. 
+`mii-tool`(8)      `ethtool`(8)      Ethernet device settings.                       
+-------------------------------------------------------------------------------------
+
+See `ip`(8) and http://www.policyrouting.org/iproute2.doc.html[IPROUTE2 Utility Suite Howto].
+
+==== Safe lower level network operations
+
+You may use the lower level network commands as follows safely since they do not change network configuration:
+
+
+.List of lower level network commands.
+[grid="all"]
+`------------------------------------------------`-----------------------------------------------------------------------------------------------------------------------------------------------
+command                                          description                                                                                                                                     
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+`ifconfig`                                       displays the link and address status of active interfaces                                                                                       
+`ip addr show`                                   displays the link and address status of active interfaces                                                                                       
+`route -n`                                       displays all the routing table in numerical addresses                                                                                           
+`ip route show`                                  displays all the routing table in numerical addresses                                                                                           
+`arp`                                            displays the current content of the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] cache tables                                  
+`ip neigh`                                       displays the current content of the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] cache tables                                  
+`plog`                                           display ppp daemon log                                                                                                                          
+`ping yahoo.com`                                 check Internet connection to yahoo.com                                                                                                          
+`whois yahoo.com`                                check who registered "`yahoo.com`" in the domains database                                                                                      
+`traceroute yahoo.com`                           trace Internet connection to "`yahoo.com`"                                                                                                      
+`tracepath yahoo.com`                            trace Internet connection to "`yahoo.com`"                                                                                                      
+`mtr yahoo.com`                                  trace Internet connection to "`yahoo.com`" (repeatedly)                                                                                         
+`dig [@dns-server.com] example.com [{a|mx|any}]` check "`example.com`" http://en.wikipedia.org/wiki/Domain_Name_System[DNS] records by "`dns-server.com`" for a "`a`", "`mx`", or "`any`" record 
+`iptables -L -n`                                 check packet filter                                                                                                                             
+`netstat -a`                                     find all open ports                                                                                                                             
+`netstat -l --inet`                              find listening ports                                                                                                                            
+`netstat -ln --tcp`                              find listening TCP ports (numeric)                                                                                                              
+`dlint example.com`                              check DNS zone information of "`examle.org`"                                                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+TIP: Some of these lower level network configuration tools reside in "`/sbin/`".  You may need to issue full command path such as "`/sbin/ifconfig`" or add "`/sbin`" to the "`$PATH`" list in your "`\~/.bashrc`".
+
+=== Network optimization
+
+Generic network optimization is beyond the scope of this documentation.  I will touch only subjects pertinent to the consumer grade connection.
+
+
+.List of network optimization tools.
+[grid="all"]
+`-----------`-------------`------------`------------------------------------------------------------
+packages    popcon        size         description                                                  
+----------------------------------------------------------------------------------------------------
+`iftop`     @@@popcon1@@@ @@@psize1@@@ displays bandwidth usage information on an network interface 
+`iperf`     @@@popcon1@@@ @@@psize1@@@ Internet Protocol bandwidth measuring tool                   
+`apt-spy`   @@@popcon1@@@ @@@psize1@@@ writes a sources.list file based on bandwidth tests          
+`ifstat`    @@@popcon1@@@ @@@psize1@@@ InterFace STATistics Monitoring                              
+`bmon`      @@@popcon1@@@ @@@psize1@@@ portable bandwidth monitor and rate estimator                
+`ethstatus` @@@popcon1@@@ @@@psize1@@@ script that quickly measures network device throughput       
+`bing`      @@@popcon1@@@ @@@psize1@@@ Empirical stochastic bandwidth tester                        
+`bwm-ng`    @@@popcon1@@@ @@@psize1@@@ small and simple console-based bandwidth monitor             
+`ethstats`  @@@popcon1@@@ @@@psize1@@@ console-based Ethernet statistics monitor                    
+`ipfm`      @@@popcon1@@@ @@@psize1@@@ a bandwidth analysis tool                                    
+----------------------------------------------------------------------------------------------------
+
+// removed or low popcon or ...
+//|| {{{ftm}}} || - || - || Frogfoot Networks Traffic Monitoring Utility ||
+//|| {{{dhcping}}} || - || - || DHCP Daemon Ping Program ||
+//|| {{{echoping}}} || - || - || A small test tool for TCP servers ||
+//|| {{{fping}}} || - || - || sends ICMP ECHO_REQUEST packets to network hosts ||
+//|| {{{hping2}}} || - || - || Active Network Smashing Tool ||
+//|| {{{hping3}}} || - || - || Active Network Smashing Tool ||
+//|| {{{httping}}} || - || - || ping-like program for http-requests ||
+//|| {{{oping}}} || - || - || sends ICMP_ECHO requests to network hosts ||
+//|| {{{tkping}}} || - || - || Perl/Tk app. - Monitor hosts on network ||
+// || {{{bwm}}} || - || - || BandWidth Monitor ||
+
+==== Finding optimal MTU
+
+The http://en.wikipedia.org/wiki/Maximum_transmission_unit[Maximum Transmission Unit (MTU)] value can be determined experimentally with `ping`(8) with "`-M do`" option which sends ICMP packets with data size starting from 1500 (with offset of 28 bytes for the IP+ICMP header) and finding the largest size without IP fragmentation. For example:
+
+--------------------
+$ ping -c 1 -s $((1500-28)) -M do www.debian.org
+PING www.debian.org (194.109.137.218) 1472(1500) bytes of data.
+From 192.168.11.2 icmp_seq=1 Frag needed and DF set (mtu = 1454)
+
+--- www.debian.org ping statistics ---
+0 packets transmitted, 0 received, +1 errors
+--------------------
+
+- ... try 1454 instead of 1500
+- The `ping`(8) command succeed
+
+This process is http://en.wikipedia.org/wiki/Path_MTU_discovery[Path MTU (PMTU) discovery] (http://tools.ietf.org/html/rfc1191[RFC1191])and the `tracepath`(8) command can automate this.  
+
+TIP: The above example with PMTU value of 1454 is for my previous FTTH provider which used http://en.wikipedia.org/wiki/Asynchronous_Transfer_Mode[Asynchronous Transfer Mode] (ATM) as its backbone network and served its clients with the http://en.wikipedia.org/wiki/Point-to-Point_Protocol_over_Ethernet[PPPoE].  The actual PMTU value depends on your environment, e.g., 1500 for the my new FTTH provider.
+
+
+.Basic guide lines of the optimal MTU value
+[grid="all"]
+`-------------------------------------------------------`---------------------`----------------------------------------------------------------------------------------------------------------------------
+network environment                                     MTU                   rationale                                                                                                                    
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Dial-up link (IP: PPP)                                  576                   standard                                                                                                                     
+Ethernet link (IP: DHCP or fixed)                       1500                  standard and default                                                                                                         
+Ethernet link (IP: PPPoE)                               1492 (=1500-8)        2 bytes for PPP header and 6 bytes for PPPoE header                                                                          
+Ethernet link (ISP\'s backbone: ATM, IP: DHCP or fixed) 1462 (=48\*31-18-8)   author\'s speculation: 18 for Ethernet header, 8 for SAR trailer.                                                            
+Ethernet link (ISP\'s backbone: ATM, IP: PPPoE)         1454 (=48\*31-8-18-8) see "http://www.mynetwatchman.com/kb/ADSL/pppoemtu.htm[Optimal MTU configuration for PPPoE ADSL Connections]" for rationale. 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+In addtion to these basic guide lines, you should know:
+
+- Any use of tunneling methods (http://en.wikipedia.org/wiki/Virtual_private_network[VPN] etc.) may reduce optimal MTU further by their overheads.
+- The MTU value should not exceed the experimentally determined PMTU value.
+- The bigger MTU value is generally better when other limitations are met.
+
+==== Setting MTU
+
+Here are examples for setting the MTU value from its default 1500 to 1454.
+
+For the DHCP (see <<_the_network_interface_served_by_the_dhcp>>), you can replace pertinent **`iface`** stanza lines in the **`/e/n/i`** with, e.g.,:
+
+--------------------
+iface eth0 inet dhcp
+ hostname "mymachine"
+ pre-up /sbin/ifconfig $IFACE mtu 1454
+}}} 
+
+For the static IP (see <<_the_network_interface_with_the_static_ip>>), you can replace pertinent '''{{{iface}}}''' stanza lines in the '''{{{/e/n/i}}}''' with, e.g.,:
+{{{
+iface eth0 inet static
+ address 192.168.11.100
+ netmask 255.255.255.0
+ broadcast 192.168.11.255
+ gateway 192.168.11.1
+ mtu 1454
+ dns-domain lan
+ dns-nameservers 192.168.11.1
+}}} 
+
+For the direct PPPoE (see <<_the_pppoe_connection_with_pppoeconf>>), you can replace pertinent '''{{{mtu}}}''' line in the "{{{/etc/ppp/peers/dsl-provider}}}" with:
+{{{
+mtu 1454
+--------------------
+
+The http://en.wikipedia.org/wiki/Maximum_segment_size[maximum segment size] (MSS) is used as an alternative measure of packet size.  The relationship between MSS and MTU are:
+
+- MSS = MTU - 40 for IPv4
+- MSS = MTU - 60 for IPv6
+
+NOTE: The `iptables`(8) (see <<_netfilter>>) based optimization can clamp packet size by the MSS and is useful for the router.
+
+==== WAN TCP optimization
+
+The TCP throughput can be maximized by adjusting TCP buffer size parameters as described in "http://dsd.lbl.gov/TCP-tuning/[TCP Tuning Guide]" and "http://en.wikipedia.org/wiki/TCP_tuning[TCP tuning]"  for the modern high-bandwidth and high-latency WAN.  So far, the current Debian default settings serve well even for my LAN connected by the fast 100M bps FTTP service.
+
+=== Netfilter 
+
+http://en.wikipedia.org/wiki/Netfilter[Netfilter] provides infrastructure for http://en.wikipedia.org/wiki/Stateful_firewall[stateful firewall] and http://en.wikipedia.org/wiki/Network_address_translation[network address translation (NAT)] with http://en.wikipedia.org/wiki/Linux_kernel[Linux kernel] modules (see <<_the_kernel_module_initialization>>).  
+
+
+.List of firewall tools.
+[grid="all"]
+`-----------------`-------------`------------`---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+packages          popcon        size         description                                                                                                                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+`iptables`        @@@popcon1@@@ @@@psize1@@@ administration tools for http://en.wikipedia.org/wiki/Netfilter[netfilter]                                                                                                        
+`iptstate`        @@@popcon1@@@ @@@psize1@@@ Tool to continuously monitor http://en.wikipedia.org/wiki/Netfilter[netfilter] state. (similar to `top`(1))                                                                       
+`shorewall-perl`  @@@popcon1@@@ @@@psize1@@@ http://en.wikipedia.org/wiki/Shorewall[Shoreline Firewall], http://en.wikipedia.org/wiki/Netfilter[netfilter] configuration file generator (Perl-based, recommended for `lenny`)  
+`shorewall-shell` @@@popcon1@@@ @@@psize1@@@ http://en.wikipedia.org/wiki/Shorewall[Shoreline Firewall], http://en.wikipedia.org/wiki/Netfilter[netfilter] configuration file generator (shell-based, alternative for `lenny`) 
+`ipmasq`          @@@popcon1@@@ @@@psize1@@@ Simple set of init script to configure http://en.wikipedia.org/wiki/Netfilter[netfilter] (old)                                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Main user space program of http://en.wikipedia.org/wiki/Netfilter[netfilter] is `iptables`(8).  You can manually configure http://en.wikipedia.org/wiki/Netfilter[netfilter] interactively from shell, save its state with `iptables-save`(8), and restore it via init script with `iptables-restore`(8) upon system reboot.
+
+Configuration helper scripts such as http://en.wikipedia.org/wiki/Shorewall[shorewall] ease this process.
+
+See documentation at http://www.netfilter.org/documentation/[http://www.netfilter.org/documentation/] (or in "`/usr/share/doc/iptables/html/`"): 
+
+- http://www.netfilter.org/documentation/HOWTO//networking-concepts-HOWTO.html[Linux Networking-concepts HOWTO]
+- http://www.netfilter.org/documentation/HOWTO//packet-filtering-HOWTO.html[Linux 2.4 Packet Filtering HOWTO]
+- http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO.html[Linux 2.4 NAT HOWTO]
+
+TIP: Although these were written for Linux **2.4**, both `iptables`(8) command and netfilter kernel function apply for current Linux **2.6**.

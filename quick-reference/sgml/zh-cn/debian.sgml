@@ -1,0 +1,746 @@
+<!-- CVS revision of this document "# Revision is not used here.#"  -->
+<!-- CVS revision of original english document "1.130"  -->
+
+<chapt id="package">Debian 软件包管理
+
+<p>
+高级包管理工具 <prgn>aptitude</prgn> 是目前首选的字符界面的 APT 前端程序。 它会记住哪些包是你安装的，哪些是为了满足依赖关系而安装的；在不被已安装包需要的情况下<prgn>aptitude</prgn> 会自动卸载后者。它内建一套高级的包过滤器，但是比较难上手。
+<p>
+<prgn>synaptic</prgn> 是目前首选的基于 GTK 的图形化 APT 前端程序。它的包过滤器比 <prgn>aptitude</prgn> 的好用多了。它包含了对 <url id="&debtags;" name="Debian Package Tags"> 的实验性支持。
+<p>
+为了减少 &debian; 仓库的网络负担和加快你下载的速度，你应该从 &debian; 镜像下载。
+<p>
+如果你需要在你本地网络的许多台机器上安装相同的包。在使用 APT 下载包的时候，请考虑使用 <prgn>squid</prgn> 来设置本地 HTTP 代理。必要的话，可以设置环境变量 <tt>http_proxy</tt> 或者在 <file>/etc/apt/apt.conf</file> 里面设置 <tt>http</tt> 的值。
+<p>
+尽管 <manref name="apt_preferences" section="5"> 中描述的 APT 的 pinning 功能非常强大，但造成的影响是难以察觉和管理的。你应该把它作为一个高级功能来看待。
+<p>
+<![%f-ref;[
+在 <ref id="chroot">]]>
+中描述的使用方法非常适合于需要同时确保系统的稳定性和使用最新软件的情况。
+<p>
+本章节是基于 Woody 之后的系统写的，某些东西只适合于 Sarge 或更新的系统。
+
+<sect id="pkg-intro">介绍
+<p>
+如果你没有精力阅读完所有的开发者文档，那么先看看本章的内容，然后开始体验 Debian <tt>testing</tt>/<tt>unstable</tt> 的威力吧:-)
+
+<sect1>主要的包管理工具
+<p>
+<example>
+dpkg      &ndash; &debian; 包安装工具
+apt-get   &ndash; APT 的命令行前端
+aptitude  &ndash; APT 的高级的字符和命令行前端
+synaptic  &ndash; 图形界面的 APT 前端
+dselect   &ndash; 使用菜单界面的包管理工具
+tasksel   &ndash; Task 安装工具
+</example>
+这些工具不是用来取代对方的，比如 <prgn>dselect</prgn> 同时使用 APT 和 <prgn>dpkg</prgn>。
+<p>
+APT 使用 <file>/var/lib/apt/lists/*</file> 来跟踪可用的软件包，而 <prgn>dpkg</prgn> 使用的是 <file>/var/lib/dpkg/available</file>。如果你使用了 <prgn>aptitude</prgn> 或者其他 APT 前端来安装软件包，同时你希望使用 <prgn>dselect</prgn> 来安装软件包，请不要忘记使用 <prgn>dselect</prgn> 菜单上的 <tt>[U]pdate</tt>(或者运行"<tt>dselect update</tt>")来更新 <file>/var/lib/dpkg/available</file>。
+<p>
+在处理依赖关系上 <prgn>apt-get</prgn> 会自动下载安装依赖的软件包，但是不会处理所安装软件推荐的或者建议的软件包。
+<p>
+相反 <prgn>aptitude</prgn> 可以设置成安装所安装软件推荐的或者建议的软件包。
+<p>
+<prgn>dselect</prgn> 给使用者列出所安装软件推荐或建议的软件包，可以进行单独选择。 
+<![%f-ref;[
+参阅 <ref id="depends">.
+]]>
+</sect1>
+
+<sect1>方便的工具
+<p>
+<example>
+dpkg-reconfigure  - 重新配置已安装的软件包
+		(如果它是使用 debconf 进行配置的)
+dpkg-source       - 管理源码包
+dpkg-buildpackage - 自动生成包文件
+apt-cache         - 在本地缓冲区检查包文件
+</example>
+</sect1>
+</sect>
+
+<sect id="apt-install">&debian; 软件包管理基础
+<p>
+
+<sect1 id="setup-apt">设置 APT
+<p>
+参考 <ref id="testing-transition"> 来设置 <file>sources.list</file>。
+<footnote>
+如够你使用 <tt>testing</tt> 或者 <tt>unstable</tt>，您可以移除 <file>/etc/apt/sources.list</file> 和 <file>/etc/apt/preferences</file> 中的 <tt>stable</tt>。因为 <tt>testing</tt> 最初拷贝自 <tt>stable</tt>。
+</footnote>
+
+<![%f-ref;[
+请参考
+<ref id="install">, <ref id="woody">, 和 <ref id="bin-editor">.
+]]>
+
+<sect1 id="tasksel">安装 tasks
+<p>
+你可以安装一些软件包集合，这些集合是由使 &debian; 系统满足某些特定用途的典型软件包组成的。
+这些集合被称为“tasks”。
+<p>
+在初始化安装中，安装 tasks 最简单的方法就是使用 <prgn>tasksel</prgn>。
+注意在使用之前，你需要运行 <example>dselect update</example>
+<p>
+建议使用 <prgn>aptitude</prgn> 来安装 tasks。
+它能让你在选择好 tasks 并准备安装之前，删除 tasks 中的某些软件包。
+</sect1>
+
+<sect1 id="aptitude"><prgn>aptitude</prgn>
+<p>
+<prgn>aptitude</prgn> 是全新的可菜单操作的包安装工具，和 <prgn>dselect</prgn> 类似，但是是针对 APT 从头设计的。从大多数参数来讲，<prgn>aptitude</prgn> 完全可以作为 <prgn>apt-get</prgn> 的一个兼容的代替品。
+参阅 <manref name="aptitude" section="1"> 和 <file>&f-aptitude-readme;</file>.
+<p>
+一旦开始使用 <prgn>aptitude</prgn>，你最好继续使用它，而不是选择其他替代工具。否则你将失去 <prgn>aptitude</prgn> 包存的软件安装清单，你就不能享受自动删除多余软件包的功能了。
+<p>
+全屏状态下 <prgn>aptitude</prgn> 接受单键的命令，大多数是小写的。主要的几个功能键如下：
+<example>
+按键	    动作
+F10         菜单
+?           按键命令帮助(完整的清单)
+u           更新软件包信息
++           标记软件包为升级或者新安装
+-           标记软件包为删除(保留配置文件)
+_           标记软件包为完全删除(删除配置文件)
+=           保持软件包的当前版本，阻止其被升级
+U           标记所有可以升级的软件包为升级
+g           下载和安装选择的软件包
+q           退出当前屏幕，保存改变
+x           退出当前屏幕，忽略改变
+Enter       查看一个软件包的信息
+C           查看一个软件包的更新日志
+l           改变软件包树状显示限制
+/           搜索第一个匹配的软件包
+\           重复最后一次搜索
+</example>
+和 <prgn>apt-get</prgn> 一样， <prgn>aptitude</prgn> 安装软件包的时候自动解决依赖问题。
+<prgn>aptitude</prgn> 还能安装即将安装的软件包推荐或者建议的软件包。你通过 <tt>F10 -> 选项 -> 处理依赖关系</tt> 在菜单上更改这一默认设置。 
+<p>
+<prgn>aptitude</prgn> 的其他特点如下：
+<list compact>
+<item><prgn>aptitude</prgn> 能访问所有版本的软件包。
+<item><prgn>aptitude</prgn> 的动作记录在 <file>&f-aptitude-log;</file>。
+<item><prgn>aptitude</prgn> 能轻松的追踪陈旧的和本地建立的软件包，并在“过期的和在本地创建的软件包”上列出。
+<item><prgn>aptitude</prgn> 内建强大的包搜索和显示功能。熟悉 <prgn>mutt</prgn> 的用户很容易上手，因为这个显示方法的灵感来源于 mutt。
+参阅 <file>&f-aptitude-readme;</file> 中的“SEARCHING, LIMITING, AND EXPRESSIONS”
+<item><prgn>aptitude</prgn> 在全屏状态下有嵌入的 <prgn>su</prgn> 功能。普通用户都可以执行，直到安装或删除软件的时候再取得管理员权限。
+</list>
+</sect1>
+
+<sect1 id="dselect"><prgn>dselect</prgn>
+<p>
+从 stable 发行到现在为止(包含 Potato)，<prgn>dselect</prgn> 一直是主要的包维护工具。对于 Sarge，你可以考虑用 <prgn>aptitude</prgn> 代替。
+<p>
+当你启动程序的时候，<prgn>dselect</prgn> 会自动选择所有“Required”“Important”和“Standard”的包。
+<p>
+<prgn>dselect</prgn> 的用户界面是有些奇怪，但是大部分人已经习惯了。
+它有四个主要命令：
+(指令都是大写的！)：
+<example>
+按键	    动作
+Q           退出。确认当前的选择并退出。 
+            (忽略依赖关系)
+R           撤销！ 我不是那个意思。
+D           不管他！我不管你 dselect 怎么想的，照做就好了！
+U           都照建议的来做
+</example>
+使用 <tt>D</tt> 和 <tt>Q</tt>，你可以选择有冲突的选项。请小心使用这个命令。
+<p>
+在 <file>/etc/dpkg/dselect.cfg</file> 中加上一行“expert”来减少干扰。
+<p>
+如果你的机器运行 <prgn>dselect</prgn> 的速度很慢，你可以考虑在速度快一点的机器上运行 <prgn>dselect</prgn>，确定你要安装的软件包之后，在慢的机器上通过 <prgn>apt-get</prgn> 来安装它们。
+</sect1>
+
+<sect1 id="apt-track">使用 APT 来维护发行版本<p>
+请编辑 <file>/etc/apt/preferences</file> 并加入以下内容来维持系统为 <tt>testing</tt> 版本：
+<example>
+Package: *
+Pin: release a=testing
+Pin-Priority: 800
+
+Package: *
+Pin: release a=stable
+Pin-Priority: 600
+</example>
+要注意的是追踪 <tt>testing</tt> 版本可能带来延误安装安全性修正软件包的副作用。因为这些软件包都是上传到 <tt>unstable</tt> 一段时间后再移植到 <tt>testing</tt>。
+<p>
+更多复杂的例子请参考 <manref name="apt_preferences" section="5">，可以让您做更多的事情，例如安装 <tt>unstable</tt> 的软件包的同时还能把系统维持在 <tt>testing</tt>。
+<p>
+关于限制特定软件在特定版本上，而其他软件随系统升级的设置在 <url id="&examples;" name="examples subdirectory"> 找到，即 <file>preferences.testing</file> 和 <file>preferences.unstable</file>。
+<p>
+如果你混用不同的发行版本，例如 <tt>testing</tt> 和 <tt>stable</tt> 或 <tt>unstable</tt> 和 <tt>stable</tt>,你终究还是会安装上 <tt>testing</tt> 或 <tt>unstale</tt> 版本的核心软件，例如 <package>libc6</package>,这样作无法确保系统中没有臭虫。你需要特别小心。
+<p>
+另外一个例子，<file>preferences.stable</file>，会强制降级所有的软件到 <tt>stable</tt>。
+<p>
+&debian; 不支持将某个<strong>软件包</strong>降级到先前的发行版本。然而在新的软件包出问题时，你会发现你不得不安装旧的可用的软件包。你可以在本地的 <file>/var/cache/apt/archives/</file> 或远端的 <url id="&snapshothome;"> 中找到先前的版本。请参考 <ref id="rescue-dpkg">。  
+<p>
+从某个<strong>发行版本</strong>降级到先前的发行版本也是不被支持的，而且这样做往往造成很多问题。不过你愿意冒险的话，作为最后的手段这样做也是值得的。
+</sect1>
+
+<sect1 id="apt-commands"><prgn>aptitude</prgn>, <prgn>apt-get</prgn> 和 <prgn>apt-cache</prgn> 命令
+<p>
+还是以上面使用 <tt>testing</tt> 发行版的用户为例,可使用下列命令来管系统：
+<list>
+<item><tt>aptitude update</tt>（或 
+      <tt>apt-get update</tt>）
+  <p>更新在仓库中存在的软件包列表。
+<item><tt>aptitude upgrade</tt> (或
+      <tt>apt-get upgrade</tt> 或
+      <tt>aptitude dist-upgrade</tt> 或 
+      <tt>apt-get dist-upgrade</tt>)
+ <p>这样就会跟随 <tt>testing</tt> 版本 &mdash;
+ 它们会跟踪 <tt>testing</tt> 版本的更新情况，对系统上所有软件包进行升级，并从 <tt>testing</tt> 处重新分析依赖关系并安装相关的包。
+<footnote>
+<tt>upgrade</tt> 和 <tt>dist-upgrade</tt> 仅仅在新的软件包依赖关系和旧的不同时才表现出不同的处理方式。请参考 <manref name="apt-get" section="8"> 来了解更多细节。
+<p>
+<tt>aptitude upgrade</tt> 和 <tt>aptitude dist-upgrade</tt> 运行在
+<prgn>aptitude</prgn> 的命令行模式。通过按键 <tt>e</tt> 你可以切换到全屏模式。
+</footnote>
+<item><tt>apt-get dselect-upgrade</tt>
+ <p>这个命令跟踪 <tt>testing</tt> 版本 &mdash;
+ 根据 <prgn>dselect</prgn> 的选择对系统上的软件包进行升级。
+<item><tt>aptitude install <var>package</var>/unstable</tt>
+ <p>从 <tt>unstable</tt> 中安装 <var>package</var>，并由 <tt>testing</tt> 版本提供安装依赖的包。
+<item><tt>aptitude install -t unstable <var>package</var></tt>
+ <p>通过设置 <tt>unstable</tt> 的 Pin-Priority 为 990，可以从 <tt>unstable</tt> 处安装 <var>package</var> 及其依赖的包。
+<item><tt>apt-cache policy <var>foo bar ...</var></tt>
+ <p>检查 <var>foo bar ...</var> 软件包的状态。 
+<item><tt>aptitude show <var>foo bar ...</var> | less</tt>
+(或 <tt>apt-cache show <var>foo bar ...</var> | less</tt>)
+ <p>查看 <var>foo bar ...</var> 软件包的有关信息。
+<item><tt>aptitude install <var>foo=2.2.4-1</var></tt>
+ <p>安装 <var>foo</var> 软件包的特定版本 <var>2.2.4-1</var>。 
+<item><tt>aptitude install <var>foo bar-</var></tt>
+ <p>安装 <var>foo</var> 软件包并删除 <var>bar</var> 软件包。
+<item><tt>aptitude remove <var>bar</var></tt>
+ <p>删除 <var>bar</var> 软件包，但保留其配置文件。
+<item><tt>aptitude purge <var>bar</var></tt>
+ <p>删除 <var>bar</var> 软件包及其所有配置文件。
+</list>
+在上面的例子中使用 <tt>-u</tt> 选项的作用是在实际升级之前将所有将要升级的软件包列出，并提示用户确认。
+这也是 <prgn>aptitude</prgn> 的默认操作方式。
+下面的操作可将 <tt>-u</tt> 设置为默认的操作方式：
+<example>
+$ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+// Always show packages to be upgraded (-u)
+APT::Get::Show-Upgraded "true";
+.
+</example>
+<p>
+使用 <tt>--no-act</tt> 进行模拟操作，但实际上并不安装或者删除任何软件包。
+
+<sect id="survival">Debian 生存命令
+<p>
+掌握了这些知识，你就能够享受无尽的“升级”了 :-)
+
+<sect1 id="bug-check">检测程序错误寻求帮助
+<P>
+如你使用某个软件包出现问题，在寻求帮助或发送错误报告之前请确认查看过下列站点
+(<prgn>lynx</prgn>, <prgn>links</prgn> 和 <prgn>w3m</prgn> 都很好用):
+<example>
+$ lynx &bugs;
+$ lynx &bugs;<var>package-name</var>  # 如果你知道软件包的名字
+$ lynx &bugs;<var>bugnumber</var>     # 如果你知道错误序号
+</example>
+在 Google(www.google.com)中使用关键字“site:debian.org”搜索。
+<p>
+如有疑问，可阅读帮助文件。设置 <tt>CDPATH</tt> 如下：
+<example>
+export CDPATH=.:/usr/local:/usr/share/doc
+</example>
+然后输入
+<example>
+$ cd <var>packagename</var>
+$ pager README.Debian # 如果存在的话
+$ mc 
+</example>
+<![%f-ref;[
+更多技术支持资源列在 <ref id="support">。
+]]>
+</sect1>
+
+<sect1 id="apt-trouble">APT 升级错误以及解决方法
+<p>
+从 <tt>unstable</tt>/<tt>testing</tt> 进行升级时可能出现 <ref id="upgrade-system"> 中提到的软件包关联问题。多数情况下，是因为升级的软件包所需的新增的关联包没有安装。可使用如下方法解决：
+<example>
+# aptitude dist-upgrade
+</example>
+如果这招无效，可以重复下面的方法至到问题解决：
+<example>
+# aptitude -f upgrade        # 即使遇到错误也继续 upgrade
+... 或
+# aptitude -f dist-upgrade   # 即使遇到错误也继续 dist-upgrade
+</example>
+<p>
+一些的确存在问题的升级脚本会引起持续出错。最好的解决方法是检查该软件包的安装脚本 <file>/var/lib/dpkg/info/<var>packagename</var>.{post-,pre-}{install,removal}</file> 然后运行：
+<example>
+# dpkg --configure -a    # 配置所有安装的软件包
+</example>
+<p>
+如果脚本报告缺少配置文件，查看一下 <file>/etc</file> 中相关的配置文件。如果配置文件有 <tt>.dpkg-new</tt> 扩展名(或其它类似的扩展名)，去掉(<prgn>mv</prgn>)它的扩展名。
+<p>
+从 unstable/testing 进行升级时可能出现软件包关联问题。可用这个方法智取：
+<example>
+# aptitude -f install <var>package</var> # 重载坏关联
+</example>
+<p>
+还可以用 <package>equivs</package> 包来解决此类问题。参阅 <file>&f-equivs;</file><![%f-ref;[ 和 <ref id="equivs">]]>。
+</sect1>
+
+<sect1 id="rescue-dpkg">使用 <prgn>dpkg</prgn> 救助
+<p>
+如果你在使用 APT 的时候遇到死胡同了，那么可以从 &debian; 的镜像站点下载软件包并使用 <prgn>dpkg</prgn> 来安装。如果你不能访问网络，可以在 <file>/var/cache/apt/archives/</file> 中找到被缓存的软件包。
+<example>
+# dpkg -i fetchmail_6.2.5-4_i386.deb
+</example>
+如果你用这种方法安装软件包，但是遇到了依赖问题安装失败了，并且你确实需要安装这个软件包。你可以用 <prgn>dpkg</prgn> 的 <tt>--ignore-depends</tt>，<tt>--force-depends</tt> 和其他参数来安装软件包。<manref name="dpkg" section="8"> 有更详细的介绍。
+</sect1>
+
+<sect1 id="recover-status">恢复软件包选择状态的数据
+<p>
+如果 <file>/var/lib/dpkg/status</file> 因为某种原因坏掉了，&debian; 系统将会完全丢失软件包选择状态的数据。赶快到 <file>/var/lib/dpkg/status-old</file> 或 <file>/var/backups/dpkg.status.*</file> 下找找旧的 <file>/var/lib/dpkg/status</file> 文件。
+<p>
+将 <file>/var/backups/</file> 放在其它的分区是个好习惯，因为该目录包含了许多非常重要的系统数据。
+<p>
+如果旧的 <file>/var/lib/dpkg/status</file> 文件也坏了，仍可以从 <file>/usr/share/doc/</file> 下的目录进行恢复这些信息。
+<example>
+# ls /usr/share/doc | \
+  grep -v [A-Z] | \
+  grep -v '^texmf$' | \
+  grep -v '^debian$' | \
+  awk '{print $1 " install"}' | \
+  dpkg --set-selections
+# dselect --expert # 重新安装系统，如果需要的话去除一些选项
+</example>
+
+<sect1 id="rescue-var"><file>/var</file> 崩溃之后如何恢复系统
+<p>
+<file>/var</file> 目录包含着定时更新的数据如 mail，它们很容易遭破坏。将目录放到别的分区可降低风险，如果最坏的事情发生了，可以通过重建 <file>/var</file> 目录来挽救 &debian; 系统。
+<p>
+从相同或旧版本的最简 &debian; 系统中取得 <file>/var</file> 目录的内容框架，例如 <url id="&var-tar-gz;" name="var.tar.gz">，然后它放入受损系统的 root 目录，接着
+<example>
+# cd /
+# mv var var-old      # 如果里面还有其他有用资料的话
+# tar xvzf var.tar.gz # 使用 Woody 框架文件
+# aptitude            # 或是用 dselect
+</example>
+上述步骤可使系统恢复工作。使用 <ref id="recover-status"> 中描述的技术加速软件包选择数据的恢复。([FIXME]：该过程需要更多的实践来检验)
+</sect1>
+
+<sect1 id="un-bootable">为无法启动的系统安装软件包
+<p>
+使用 Debian 急救软盘 /CD 或从多启动 Linux 系统其它分区启动。
+<![%f-ref;[
+参阅 <ref id="booting">. 
+]]>
+将无法启动的系统挂载到 <file>/target</file> 并使用 <prgn>dpkg</prgn> 的 chroot 安装模式。
+<example>
+# dpkg --root /target -i <var>packagefile.deb</var>
+</example>
+接下来就可以着手配置并解决问题。
+<p>
+如是只是由于 <prgn>lilo</prgn> 损坏而造系统无法启动，可使用标准 Debian 急救盘启动。假设你的 root 分区位于 <file>/dev/hda12</file> 且想使用 runlevel 3，在启动提示符输入：
+<example>
+boot: rescue root=/dev/<var>hda12</var> 3
+</example>
+这样，你就可以使用软盘中内核启动系统，新系统的功能基本齐全。(可能丢失某些内核特性或模块)
+</sect1>
+
+<sect1>如果 <prgn>dpkg</prgn> 命令出错怎么办
+<p>
+如果 <prgn>dpkg</prgn> 损坏就不能安装任何 <tt>.deb</tt> 文件。下面的操作可帮助你修复这种状况。(在第一行，你可将“links”替换成你喜欢的浏览器。)
+<example>
+$ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
+  ... 下载完好的 dpkg_<var>version</var>_<var>arch</var>.deb
+$ su
+password: *****
+# ar x dpkg_<var>version</var>_<var>arch</var>.deb
+# mv data.tar.gz /data.tar.gz
+# cd /
+# tar xzfv data.tar.gz
+</example>
+对 <tt>i386</tt>，亦可用 <tt>http://packages.debian.org/dpkg</tt> 作为 URL。
+</sect1>
+
+</sect>
+
+<sect id="debian-package">Debian 必杀技
+<p>
+有了这些命令的<strong>启迪</strong>，你将会从无休止的升级冲突的地狱中解放出来，达到 Debian <strong>天堂</strong>。 :-)
+
+<sect1 id="info-file">文件信息
+<p>
+在已安装的软件包中许找特定文件所属的软件包:
+<example>
+$ dpkg {-S|--search} pattern
+</example>
+或者搜索 &debian; archive:
+<example>
+$ wget http://ftp.us.debian.org/debian/dists/<var>sarge</var>/<var>Contents-i386.gz</var>
+$ zgrep -e pattern <var>Contents-i386.gz</var>
+</example>
+或是用专门的软件包命令：
+<example>
+# aptitude install dlocate  
+$ dlocate <var>filename</var>         # dpkg -L 和 dpkg -S 的高效代替品
+...
+# aptitude install auto-apt # 请求式软件包安装工具
+# auto-apt update          # 为 auto-apt 建立 db 文件
+$ auto-apt search <var>pattern</var>  
+                # 在所有软件包中搜索 pattern，不论安装与否
+</example>
+</sect1>
+
+<sect1 id="info-package">软件包信息
+<p>
+搜索并显示包文件的信息。编辑 <file>/etc/apt/sources.list</file>，让 APT 指向正确的包文件。如果想了解 testing/unstable 中的相应软件包与当前系统安装的软件包有何差别，使用 <tt>apt-cache policy</tt> &mdash; 更好。
+<example>
+# apt-get   check           # 更新缓冲区并检查损坏的软件包
+$ apt-cache search  <var>pattern</var> # 按文本描述搜索软件包
+$ apt-cache policy  <var>package</var> # 软件包的 priority/dists 信息
+$ apt-cache show -a <var>package</var> # 显示所有 dists 中软件包描述信息
+$ apt-cache showsrc <var>package</var> # 显示相应源码包的信息
+$ apt-cache showpkg <var>package</var> # 软件包调试信息
+# dpkg  --audit|-C          # 搜索未完成安装的软件包
+$ dpkg {-s|--status} <var>package</var> ... # 已安装软件包描述
+$ dpkg -l <var>package</var> ...       # 已安装软件包的状态(每个占一行)
+$ dpkg -L <var>package</var> ...       # 列出软件包安装的文件的名称
+</example>
+<!-- Erase this when manual page gets fixed.  FIXME -->
+Woody 发布版没有为 <tt>apt-cache showsrc</tt> 建档，但该命令可用:)
+<p>
+你也这可这样查看软件包信息(我用 <tt>mc</tt> 浏览)：
+<example>
+/var/lib/apt/lists/*
+/var/lib/dpkg/available
+</example>
+比较下面的文件可以确切了解最近的安装过程对系统造成了那些改变。
+<example>
+/var/lib/dpkg/status
+/var/backups/dpkg.status*
+</example>
+
+</sect1>
+
+<sect1 id="apt-get-auto">使用 APT 无人值守安装
+<p>
+使用 APT 无人执守安装，要在 <file>/etc/apt/apt.conf</file> 中加上一行：
+<file>/etc/apt/apt.conf</file>:
+<example>
+Dpkg::Options {"--force-confold";}
+</example>
+另一种等价的方法是运行 <tt>apt-get -q -y <var>packagename</var></tt>。这种方法可能产生严重的负作用，所以使用起来要小心。参阅 <manref name="apt.conf" section="5">和 <manref name="dpkg" section="1">。
+<p>
+安装完毕以后，可以用 <ref id="reconfigure"> 中的方法配置特定的软件包。
+
+<sect1 id="reconfigure">重新配置已安装的软件包
+<p>
+使用下列方法重新配置已安装的软件包。
+<example>
+# dpkg-reconfigure --priority=<var>medium</var> <var>package</var> [...]
+# dpkg-reconfigure --all   # 重新配置所有的软件包
+# dpkg-reconfigure locales # 生成额外的 locales
+# dpkg-reconfigure --p=<var>low</var> xserver-xfree86 # 重新配置 X 服务器
+</example>
+如果你想永久改变 <prgn>debconf</prgn> 对话框模式，可这么做。
+<p>
+某些程序用于生成特殊的配置脚本。
+<footnote>
+某些 <prgn>*config</prgn> 脚本在 Sarge 之后的发行版本里面消失了。软件包的配置功能已经转向 <prgn>debconf</prgn> 系统。 
+</footnote>
+<example>
+apt-setup     - 创建 /etc/apt/sources.list
+install-mbr   - 安装主引导(Master Boot Record)管理器
+tzconfig      - 设定本地时间
+gpmconfig     - 设置 gpm 鼠标 daemon
+eximconfig    - 配置 Exim (MTA)
+texconfig     - 配置 teTeX
+apacheconfig  - 配置 Apache (httpd)
+cvsconfig     - 配置 CVS
+sndconfig     - 配置声音系统
+...
+update-alternatives - 设定默认启动命令，例如设定 vi 启动 vim
+update-rc.d         - System-V init 脚本管理工具
+update-menus        - Debian 菜单系统
+...
+</example>
+</sect1>
+
+<sect1 id="remove">删除和清除软件包
+<p>
+删除软件包但保留其配置文件：
+<example>
+# aptitude remove <var>package</var> ...
+# dpkg   --remove <var>package</var> ...
+</example>
+删除软件包并清除配置文件：
+<example>
+# aptitude purge  <var>package</var> ...
+# dpkg   --purge  <var>package</var> ...
+</example>
+</sect1>
+
+<sect1 id="hold">阻止旧软件包升级
+<p>
+举个例子，要阻止 <package>libc6</package> 和 <package>libc6-dev</package> 通过 <prgn>dselect</prgn> 或使用 <tt>aptitude install <var>package</var></tt> 命令升级，可执行：
+<example>
+# echo -e "libc6 hold\nlibc6-dev hold" | dpkg --set-selections
+</example>
+这种方法不影响 <tt>aptitude install <var>package</var></tt> 命令操作。要阻止 <tt>aptitude upgrade
+<var>package</var></tt> 或 <tt>aptitude dist-upgrade</tt> 命令对软件包执行的强制自动降级行为，可在 <file>/etc/apt/preferences</file> 中加上：
+<example>
+Package: libc6
+Pin: release a=stable
+Pin-Priority: 2000
+</example>
+这里“<tt>Package:</tt>”后不能使用通配符如“<tt>libc6*</tt>”，如果要保持所有与 <package>glibc</package> 源码包相关的二进制包的版本同步，可以明确的列出它们。
+<p>
+该命令可以显示处于“阻止”状态的软件包：
+<example>
+dpkg --get-selections "*"|grep -e "hold$"
+</example>
+</sect1>
+
+<sect1 id="mixedsys"> <tt>stable</tt>/<tt>testing</tt>/<tt>unstable</tt> 混合系统
+<p>
+<prgn>apt-show-versions</prgn> 可以列出发行版中可用软件包的版本。
+<example>
+$ apt-show-versions | fgrep /testing | wc
+... 你有多少 testing 软件包
+$ apt-show-versions -u
+... 列出可升级的软件包
+$ aptitude install `apt-show-versions -u -b | fgrep /unstable`
+... 将所有 unstable 软件包升级到最新版本
+</example>
+</sect1>
+
+<sect1 id="cache">删除缓存包文件
+<p>
+使用 APT 安装软件包会在 <file>/var/cache/apt/archives</file> 目录留下缓存文件，要清除这些文件可使用：
+<example>
+# aptitude autoclean # 仅删除无用的包
+# aptitude clean     # 删除所有的包
+</example>
+</sect1>
+
+
+<sect1 id="record">记录/拷贝系统配置
+<p>
+对软件包选择情况进行本地备份：
+<example>
+# debconf-get-selections &gt; <var>debconfsel.txt</var>
+# dpkg --get-selections "*" &gt;<var>myselections</var>   # 或使用 \*
+# debconf-get-selections &gt; <var>debconfsel.txt</var>
+</example>
+<tt>"*"</tt> 使 <tt><var>myselections</var></tt> 包含那些被指定“完全删除(purge)”的文件。
+<p>
+你可将这个文件发送到另一台电脑并在那儿按文件中的选择进行软件包安装。
+<example>
+# dselect update
+# debconf-set-selections &lt; <var>debconfsel.txt</var>
+# dpkg --set-selections &lt;<var>myselections</var>
+# apt-get -u dselect-upgrade    # <var>或者</var> dselect install
+</example>
+</sect1>
+
+<sect1 id="port">向 <tt>stable</tt> 系统引入软件包
+<p>
+对 stable 系统进行部分升级，在软件运行环境中重新编译源码的确是个诱人的想法，这样可以避免由于关联关系不得不对大量软件包升级。首先，将下列镜像源加入 <file>/etc/apt/sources.list</file>：
+<example>
+deb-src &http-us;debian testing \
+ main contrib non-free
+deb-src &http-us;debian unstable \
+ main contrib non-free
+</example>
+由于屏幕输出的限制，上述每条 <tt>deb-src</tt> 命令均分成了 2 行，实际上在 <file>sources.list</file> 中它们均为单行。
+<p>
+然后下载源码并在本地生成软件包：
+<example>
+$ apt-get update  # 更新软件包搜索列表
+$ apt-get source <var>package</var>
+$ dpkg-source -x <var>package.dsc</var>
+$ cd <var>package-version</var>
+  ... 查找需要的软件包(编译所需的关联包列在.dsc文件中)并安装它们，
+      你还需要“fakerroot”软件包。
+
+$ dpkg-buildpackage -rfakeroot 
+
+  ……或者(没有签名)
+$ dpkg-buildpackage -rfakeroot -us -uc # 如果需要，再使用“debsign”
+
+  ……然后安装
+$ su -c "dpkg -i <var>packagefile.deb</var>"
+</example>
+通常，需要安装一些带 “-dev” 后缀的软件包以满足关联关系。<prgn>debsign</prgn> 在 <package>devscripts</package> 软件包中。<prgn>auto-apt</prgn> 可以轻松解决这些关联问题。请使用 <prgn>fakeroot</prgn>，如是没有必要，就别使用 root 帐号。
+<p>
+在 Woody 中，这些关联问题已被简化。例如，编译 <package>pine</package> 源码包：
+<example>
+# apt-get build-dep pine
+# apt-get source -b pine
+</example>
+</sect1>
+
+<sect1 id="local">本地软件包文件
+<p>
+为了创建与 APT 和 <prgn>dselect</prgn> 系统兼容的本地软件包文件，需要创建 <file>Packages</file>，包中文件要放在特定的目录树中。
+<p>
+Debian 官方包文件喜欢存放于本地 deb 仓库，下面就来创建仓库：
+<example>
+# aptitude install dpkg-dev
+# cd <var>/usr/local</var>
+# install -d <var>pool</var> # 软件包存放的物理地址
+# install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
+# ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+# 编辑 <var>override</var> # 调整 <var>priority</var> and <var>section</var>
+# dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
+   &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
+# cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
+Archive: <var>unstable</var>
+Version: <var>3.0</var>
+Component: <var>main</var>
+Origin: <var>Local</var>
+Label: <var>Local</var>
+Architecture: <var>i386</var>
+EOF
+# echo "deb file:<var>/usr/local</var> <var>unstable</var> <var>main</var>" \
+   &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+还有一种快速但随意的方法来创建本地 <tt>deb</tt> 仓库：
+<example>
+# aptitude install dpkg-dev
+# mkdir <var>/usr/local/debian</var>
+# mv <var>/some/where/package.deb</var> <var>/usr/local/debian</var>
+# dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
+  gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
+#  echo "deb file:<var>/usr/local/debian</var> ./" &gt;&gt; /etc/apt/sources.list
+</example>
+<p>
+在 <file>/etc/apt/sources.list</file> 中设置相应镜像源入口地址，就可以通过 HTTP 或 FTP 方式远程访问存放在其中的包文件了。
+
+<sect1 id="alien">转换或安装外来的二进制软件包
+<p>
+<package>alien</package> 可将其它格式的二进制软件包如 Redhat 的 <tt>rpm</tt>、Stampede 的 <tt>slp</tt> 、Slackware 的 <tt>tgz</tt> 和 Solaris 的 <tt>pkg</tt> 等转化成 &debian; 的 <tt>deb</tt> 格式软件包，如果你想在自己的系统上使用别的 Linux 发行版中的软件包，可使用 <prgn>alien</prgn> 将它转化成系统首选的软件包格式后安装。<package>alien</package> 还支持 LSB 的软件包。
+</sect1>
+
+<sect1 id="auto-apt">自动安装命令
+<p>
+<prgn>auto-apt</prgn> 是一种按需安装的软件包安装工具。
+<example>
+$ sudo auto-apt update
+ ... 升级数据库
+$ auto-apt -x -y run
+进入 auto-apt 模式：/bin/bash
+退出这个命令继而退出 auto-apt 模式。
+$ less /usr/share/doc/med-bio/copyright # 访问不存在的文件
+ ... 安装提供了这个文件的软件包。
+ ... 同样安装依赖的包
+</example>
+</sect1>
+
+<sect1 id="debsums">校验已安装的软件包
+<p>
+<prgn>debsums</prgn> 可以校验已安装软件包的 MD5 编码，对某些软件包没有可用的 MD5 编码，系统管理员可使用一个临时的解决办法：
+<example>
+# cat >>/etc/apt/apt.conf.d/90debsums
+DPkg::Post-Install-Pkgs {"xargs /usr/bin/debsums -sg";};
+^D
+</example>
+来自 Joerg Wendland <email>joergland@debian.org</email> (untested).
+
+<![%f-ref;[
+<sect1 id="spy">优化 <file>sources.list</file>
+<p>
+简而言之，我尝试过用各种优化方法来创建 <file>sources.list</file>，但任何一种方法对我这个住在美国的人来说都没有明显的改善。最后我还是用 <prgn>apt-setup</prgn> 手工选择近一点的站点。
+<p>
+<prgn>apt-spy</prgn> 会根据站点回应时间和带宽自动创建 <file>sources.list</file>。<prgn>netselect-apt</prgn> 会创建一个更完整的 <file>sources.list</file> 文件，但它使用更落后的方法来选择镜像站点(比较 ping 时间)。
+<example>
+# aptitude install apt-spy
+# cd /etc/apt ; mv sources.list sources.list.org
+# apt-spy -d testing -l sources.apt
+</example>
+</sect1>
+
+]]>
+
+
+</sect>
+
+<sect id="pecuriarities">其他 Debian 的特性
+
+<sect1 id="dpkg-divert"><prgn>dpkg-divert</prgn> 命令
+<p>
+<!-- copied from manual page -->
+使用文件<strong>转移</strong>(diversions)的方法可以强令 <prgn>dpkg</prgn> 将文件安装到 <strong>转移</strong> 目录而非默认目录。对于某个引起冲突的文件，可以在 &debian; 软件包脚本中使用 <strong>Diversions</strong> 将它安装到别的目录。系统管理员还可以使用 diversion 来重载软件包配置文件，或者用来保留某些旧配置文件(这些文件没有在 <strong>conffiles</strong> 中登记)当安装新版软件时这些文件会被覆盖。<![%f-ref;[(参阅 <ref id="conffile">)]]>。
+<example>
+# dpkg-divert [--add]  <var>filename</var> # 添加 “转移”
+# dpkg-divert --remove <var>filename</var> # 删除 “转移”
+</example>
+记住，不到万不得已不要使用 <prgn>dpkg-divert</prgn>。
+</sect1>
+
+<sect1 id="equivs"><package>equivs</package> 软件包
+<p>
+如果你从源码编译程序，最好将它做成本地 Debian 化软件包(<tt>*.deb</tt>)。最新的方法是使用 <tt>equivs</tt>。
+<example>
+Package: equivs
+Priority: extra
+Section: admin
+Description: Circumventing Debian package dependencies
+ This is a dummy package which can be used to create Debian
+ packages, which only contain dependency information.
+</example>
+</sect1>
+
+<sect1 id="alternatives">Alternative 命令
+<p>
+如果想用 <prgn>vi</prgn> 来启动 <prgn>vim</prgn>，请用
+<prgn>update-alternatives</prgn>：
+<example>
+# update-alternatives --display vi
+...
+# update-alternatives --config vi
+  Selection    Command
+-----------------------------------------------
+      1        /usr/bin/elvis-tiny
+      2        /usr/bin/vim
+*+    3        /usr/bin/nvi
+
+Enter to keep the default[*], or type selection number: 2
+</example>
+Debian alternatives 系统中的这些项目，都是以符号连接的形式存放在 <file>/etc/alternatives</file> 下的。
+<p>
+想设置你喜爱的 X window 环境，执行 <prgn>update-alternatives</prgn> 来指定 <file>/usr/bin/x-session-manager</file> 和 <file>/usr/bin/x-window-manager</file>。<![%f-ref;[详情参阅 <ref id="custom-x">。]]>
+<p>
+<file>/bin/sh</file> 是指向 <file>/bin/bash</file> 或 <file>/bin/dash</file> 的链接。想兼容旧的 Bash 脚本，使用 <file>/bin/bash</file> 比较保险，但更好还是使用 <file>/bin/dash</file>，因为它更符合 POSIX 标准。升级到 2.4 版 Linux 内核，系统一般将它设置为 <file>/bin/dash</file>。
+</sect1>
+
+<sect1 id="sys-v">运行级别 Runlevel
+<p>
+安装好之后，大部分 &debian; 软件包的服务被设定为在 runlevel 2 到 5 时运行。所以，在没有定制过的 &debian; 系统中，runleve 2、3、4、5、6 是没有区别的。&debian; 保留这些给本地管理员使用。
+<![%f-ref;[
+<ref id="custombootscripts"> 说明如何定制 runlevels。
+]]>
+<![%q-ref;[
+to customize runlevels.
+]]>
+这样的 runlevels 系统和其他流行的 GNU/Linux 发行版本完全不同。
+你可能要做的改变之一就是取消 runlevel 2 上的 <prgn>xdm</prgn> 和 <prgn>gdm</prgn>,使得在完成启动之后 X 显示管理去不会自动启动；然后你可以通过切换到 runlevel 3 来启动 X 显示管理器。
+<p>
+<![%f-ref;[
+参阅 <ref id="runlevels"> 来获得更多关于 runlevels 的信息。
+]]>
+
+<sect1 id="disables">停止 daemon 服务
+<p>
+&debian; 发行版非常注重系统安全，并期望系统管理员能担此重任。它将系统的易用性放在了第二位，许多 daemon 服务都定位在最高安全级别，因而，默认安装状态下系统只启动最少的(甚至没有)可用的服务。
+<p>
+如果拿不定主意(有关 Exim、DHCP...)，可执行 <tt>ps aux</tt> 或检查 <file>/etc/init.d/*</file> 和 <file>/etc/inetd.conf</file> 下的内容，还可以<![%f-ref;[使用 <ref id="loginctrl"> 中提到的方法]]>检查 <file>/etc/hosts.deny</file>。<prgn>pidof</prgn> 命令也很有用(参阅 <manref name="pidof" section="8">)
+<p>
+在最近的 &debian; 系统中，默认状态下 X11 不允许 TCP/IP(远程)连接。<![%f-ref;[参阅 <ref id="xtcp">，]]>使用 SSH 进行 X 转发也是禁用的，<![%f-ref;[参阅 <ref id="xssh">。]]>
+</sect1>
+</sect>
+
+</chapt>
+

@@ -1,0 +1,139 @@
+<!-- CVS revision of this document "# Revision is not used here.#"  -->
+<!-- CVS revision of original english document "1.70"  -->
+
+<chapt id="kernel">Der Linux-Kernel unter Debian
+<p>
+Debian hat eine eigene Methode einen Kernel und dazugehörige Module zu
+kompilieren. Weitere Infos sind in <ref id="kernel-details"> zu finden.
+
+<sect id="kernel-compile">(Neu)kompilieren des Kernels
+<p>
+Die Tools <prgn>gcc</prgn>, <prgn>binutils</prgn> und
+<prgn>module-init-tools</prgn> aus Debian <tt>unstable</tt> sind sehr
+hilfreich, wenn man einen aktuellen Linux-Kernel kompilieren möchte.
+Siehe <file>&f-kernel-readme;</file> um offizielle Informationen zu erhalten,
+besonders der untere Teil ist interessant.
+<p>
+
+Einen eigenen Kernel zu kompilieren ist eine nicht ganz einfache Sache,
+womit selbst begnadete Entwickler Schwierigkeiten haben könnten, gerade auch
+weil diese Thematik eine sich ständig weiter entwickelnde ist.
+<taglist compact>
+<tag>Manoj Srivastava schrieb:
+<item><tt>--initrd</tt> benötigt einen Debian-eigenen cramfs-Patch.
+<tag>Herbert Xu schrieb:
+<item>Nein, das tut es nicht. Das einzige was nötig ist, um ein anderes
+Dateisystem als CRAMFS zu nutzen, ist, MKIMAGE in
+<file>/etc/mkinitrd/mkinitrd.conf</file> zu setzen.
+</taglist>
+
+<p>
+Seien Sie vorsichtig und ziehen Sie <file>&f-kernel-readme;</file> von Manoj
+und Kent sowie <url id="&kernel-handbook;"> stets zu Hilfe. Des Weiteren stellen Sie sicher, dass Sie immer die
+aktuellste Version des unstable <package>kernel-package</package>-Paketes
+haben, wenn Sie einen instabilen Kernel kompilieren möchten.
+<p>
+
+Für einen Kernel, der nur für eine Maschine kompiliert ist, wird
+<tt>initrd</tt> nicht benötigt. Weil ich aber möchte, dass mein Kernel nahezu
+der gleiche ist, wie der, der von den kernel-image-Paketen bereitgestellt
+wird, nutze ich es
+trotzdem. Wenn Sie <tt>initrd</tt> nutzen möchten, lesen Sie bitte
+<manref name="mkinitrd" section="8"> und <manref name="mkinitrd.conf" section="5">.
+
+<sect1 id="kernel-headers">Kernelheader
+<p>
+Die meisten Programme brauchen die Kernelheader-Dateien nicht, und einige
+Programme lassen sich sogar nicht erfolgreich kompilieren, wenn die
+Header-Dateien genutzt werden. Stattdessen sollten die Programme beim Kompilieren
+gegen die Header-Dateien gelinkt werden, gegen die auch
+<strong><prgn>glibc</prgn> gelinkt wurde</strong>.
+Auf einem &debian;-System sind diese
+Kernelheader-Dateien in <file>/usr/include/linux</file> und
+<file>/usr/include/asm</file> zu finden.
+<p>
+Entgegen einigen veralteten Dokumentationen, sollten keine symbolischen
+Links in <file>/usr/src/linux</file> von <file>/usr/include/linux</file> 
+und <file>/usr/include/asm</file> erstellt werden.
+<p>
+Es sollte, wenn ein Programm bestimmte Kernelheader-Dateien für
+Kernel-spezifische Programme benötigt, stattdessen das Makefile
+so angepasst werden, dass der Pfad der einzubindenden Header-Dateien folgende
+Pfade enthält:
+<file><var>Verzeichnis-bestimmter-Kernelheader</var>/include/linux</file> und
+<file><var>Verzeichnis-bestimmter-Kernelheader</var>/include/asm</file>.
+</sect1>
+
+</sect>
+
+<sect id="proc-sys">Tunen des Kernels mittels des proc-Dateisystems
+<p>
+Das Verhalten des Linux-Kernels kann dynamisch durch das proc-Dateisystem
+geändert werden.
+<p>
+Für grundlegende Informationen über das Ändern von Kernelparametern durch das
+<file>/proc</file>-Dateisystem, lesen Sie im Linux-Quellcodeverzeichnis
+<file>Documentation/sysctl/*</file>.
+<p>
+Einige Beispiele der Kernelparametermanipulation können in
+<file>/etc/init.d/networking</file> und <ref id="killecn"> gefunden werden.
+<p>
+Sehen Sie in <manref name="sysctl.conf" section="5"> wie man den Kernel zur
+Bootzeit mittels des <file>/proc</file>-Dateisystems konfigurieren kann.
+Dazu wird das Skript <file>/etc/init.d/procps.sh</file> genutzt, das in der
+Regel aus <file>/etc/rcS.d/S30procps.sh</file> gestartet wird.
+
+<sect1 id="many-files">Zu viele geöffnete Dateien
+<p>
+Der Linux-Kernel könnte unter Umständen die Meldung "Too many open files"
+("Zu viele geöffnete Dateien") ausgeben. Der Grund hierfür ist, dass der
+Standardwert (8096) für <tt>file-max</tt> sehr klein gewählt wurde.
+Um dieses Problem zu lösen, führen Sie folgende Schritte als root aus:
+<example>
+# echo "65536"  &gt; /proc/sys/fs/file-max  # für 2.2er- und 2.4er-Kernel
+# echo "131072" &gt; /proc/sys/fs/inode-max # nur für 2.2er-Kernel
+</example>
+Alternativ können Sie Folgendes in <file>/etc/sysctl.conf</file> eintragen,
+um diese Änderungen permanent zu aktivieren:
+<example>
+file-max=65536   # für 2.2er- und 2.4er-Kernel
+inode-max=131072 # nur für 2.2er-Kernel
+</example>
+
+<sect1 id="bdflush">Disk-Flush-Intervalle
+<p>
+Sie können Disk-Flush-Intervalle durch das proc-Dateisystem ändern. Das
+Folgende kürzt das Intervall von standardmäßig fünf Sekunden auf eine
+Sekunde.
+<example>
+# echo "40 0 0 0 100 30000 60 0 0"  &gt; /proc/sys/vm/bdflush
+</example>
+Dies kann die Ein-/Ausgabe-Performance ein klein wenig negativ beeinflussen. 
+Aber dies sichert den Dateiinhalt mit Ausnahme der letzten Sekunde, was
+kürzer ist als die standardmäßigen fünf Sekunden. Dies ist selbst für die
+Journaling-Dateisysteme wahr.
+</sect1>
+
+<sect1 id="over-commit">Trägheit alter Maschinen mit wenig Speicher
+<p>
+Für einige alte Systeme mit wenig Speicher kann es immer noch sinnvoll sein,
+over-commit von Speicher durch das proc-Dateisystem zu aktivieren:
+<example>
+# echo 1 &gt; /proc/sys/vm/overcommit_memory
+</example>
+</sect1>
+
+</sect>
+
+<sect id="udev">Der 2.6er Kernel mit udev
+<p>
+udev ist ein dynamischer Ersatz für <file>/dev/</file>. Gerätenamen können
+sehr kurz gewählt werden. devfs, das in Kernel 2.4 verwendet wurde, ist nun
+überholt.
+<p>
+Installation des neuen Debian 2.6er Kernels, der von
+<package>kernel-image-2.6.<var>NN</var></package> bereitgestellt wird, zusammen
+mit dem <package>udev</package>-Paket aktiviert es.
+</sect>
+
+</chapt>

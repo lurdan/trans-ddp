@@ -1,0 +1,360 @@
+<!-- CVS revision of this document "# Revision is not used here.#"  -->
+<!-- CVS revision of original english document "1.41"  -->
+
+<chapt id="vcs">Sistemi per il controllo versione
+
+<sect id="cvs">Concurrent Version System (CVS)
+
+<p>
+Leggete <file>/usr/share/doc/cvs/html-cvsclient</file>,
+<file>/usr/share/doc/cvs/html-info</file>,
+<file>/usr/share/doc/cvsbook</file> con <prgn>lynx</prgn>, od eseguite un <tt>info
+cvs</tt> e <tt>man cvs</tt> per informazioni dettagliate.
+
+<sect1 id="cvs-inst">Installare un server CVS
+<p>
+Le impostazioni seguenti permettono il commit solo
+da parte di un membro del gruppo "src", e l'amministrazione del cvs
+solo da parte di un membro del gruppo "staff", riducendo così le
+possibilità di mettersi nei guai.
+<example>
+# cd <var>/var/lib</var>; umask 002 ; mkdir <var>cvs</var> # [Woody] FSH
+# apt-get install cvs cvs-doc cvsbook
+# export CVSROOT=<var>/var/lib/cvs</var>
+# cd $CVSROOT
+# chown root:src .         # mettete "staff" per aumentare le restrizioni.                           # in caso di progetti allo stato iniziale.
+# chmod 3775 .             # Se si usa "staff", utilizzate 2775
+# cvs -d <var>/var/lib/cvs</var> init # è più sicuro specificare l'opzione -d in maniera esplicita!
+# cd CVSROOT
+# chown -R root:staff .
+# chmod 2775 .
+# touch val-tags 
+# chmod 664 history val-tags
+# chown root:src history val-tags
+</example>
+<p>
+</sect1>
+
+<sect1 id="cvs-examples">Esempi di una sessione CVS 
+<p>
+Quanto segue imposta l'ambiente di shell per l'accesso al deposito CVS.
+
+<sect2>CVS anonimo (solo download)
+<p>
+Accesso remoto in sola lettura
+<example>
+$ export CVSROOT=:pserver:<var>anonymous@cvs.sf.net:/cvsroot/qref</var>
+$ cvs login
+$ cvs -z3 co <var>qref</var>
+</example>
+</sect2>
+
+<sect2>Uso del server CVS locale
+<p>
+Accesso locale da una shell sulla stessa macchina:
+<example>
+$ export CVSROOT=<var>/var/lib/cvs</var>
+</example>
+</sect2>
+
+<sect2>Uso di un pserver CVS remoto
+<p>
+Accesso remoto senza SSH (usate le capacità del protocollo RSH in <prgn>cvs</prgn>)
+<example>
+$ export CVSROOT=:pserver:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+$ cvs login
+</example>
+E' vulnerabile ad attacchi tipo eavesdropping.
+</sect2>
+
+<sect2>CVS remoto tramite <prgn>ssh</prgn>
+<p>
+Accesso remoto con SSH:
+<example>
+$ export CVSROOT=:ext:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+</example>
+oppure, per SourceForge:
+<example>
+$ export CVSROOT=:ext:<var>account@cvs.sf.net:/cvsroot/qref</var>
+</example>
+Potete anche utilizzare l'autenticazione RSA (<ref id="ssh-rsa">),
+che elimina la necessità della richiesta di password.
+</sect2>
+
+<sect2>Creare un nuovo archivio CVS
+<p>
+Per,
+<example>
+OGGETTO          VALORE             SIGNIFICATO
+albero sorgente  ~/<var>progetto-x</var>       Tutti i codici sorgente
+Nome progetto    <var>progetto-x</var>         Nome per questo progetto
+Vendor Tag:      <var>Main-branch</var>        Tag per la branca intera
+Release Tag:     <var>Versione-iniziale</var> Tag per una versione specifica
+</example>
+Quindi,
+<example>
+$ cd ~/<var>progetto-x</var>              # entra nella directory sorgente
+ ... crea un albero sorgente ...
+$ cvs import -m <var>"Start progetto-x" progetto-x Main-branch Versione-iniziale</var>
+$ cd ..; rm -R ~/<var>progetto-x</var>
+</example>
+</sect2>
+
+<sect2>Lavorare con CVS
+<p>
+Per richiamare e lavorare con le versioni locali del <var>progetto-x</var> con l'archivio CVS:
+<example>
+$ cd                # muove all'area di lavoro.
+$ cvs co <var>progetto-x</var> # copia i sorgenti CVS all'archivio locale
+$ cd <var>progetto-x</var>
+ ... esegui cambiamenti al contenuto ...
+$ cvs diff -u       # simile a diff -u repository/ local/
+$ cvs up -C <var>file_modificato</var>       # elimina le modifiche ad un file
+$ cvs ci -m <var>Descrivi i cambiamenti</var>   # salva i sorgenti locali nel CVS
+$ vi <var>nuovofile_aggiunto</var>
+$ cvs add <var>nuovofile_aggiunto</var>
+$ cvs ci -m <var>Aggiunto nuovofile_aggiunto</var>
+$ cvs up                        # fonde l'ultima versione da CVS
+ ... per creare tutte le sottodirectory appena create da CVS, usate
+ .... "cvs up -d -P", invece
+ ... cercate le righe che iniziano per "C <var>nomefile</var>"
+ ... il codice immodificato viene spostato a `.#<var>nomefile</var>.version'.
+ ... Cerca "&lt;&lt;&lt;&lt;&lt;&lt;&lt;" e "&gt;&gt;&gt;&gt;&gt;&gt;&gt;" in <var>nomefile</var>.
+$ cvs tag <var>Release-1</var>             # aggiunge la tag di versione
+... esegui ulteriori modifiche ...
+$ cvs tag -d <var>Release-1</var>          # rimuove la tag di versione
+$ cvs ci -m <var>altri commenti</var>
+$ cvs tag <var>Release-1</var>             # ri-aggiunge la tag di versione
+$ cd                            # ritorna all'area di lavoro.
+$ cvs co -r <var>Release-initial</var> -d <var>old</var> <var>progetto-x</var> 
+ ... riporta la versione originale alla directory <var>old</var>
+$ cd old
+$ cvs tag -b <var>Release-initial-bugfixes</var> # crea la tag di branca (-b)
+ ... Ora si può lavorare sulla vecchia versione (Tag=sticky)
+$ cvs update -d -P             # non crea directory vuote
+ ... L'albero sorgente ha ora una tag fissa "Release-initial-bugfixes"
+ ... Lavorate su questa branca
+$ cvs up -d -P # si sincronizza con i file modificati da altri su questa branca
+$ cvs ci -m "<var>controllate questa branca</var>"
+$ cvs update -kk -A -d -P
+ ... Rimuovete la tag fissa e dimenticate il contenuto
+ ... Aggiornate la linea principale senza espansione per parola chiave
+$ cvs update -kk -d -P -j <var>Release-initial-bugfixes</var>
+ ... Fonde la branca <var>Release-initial-bugfixes</var> nella linea 
+ ... principale senza espansione per parola chiave.  Risolvete i conflitti con l'editor.
+$ cvs ci -m <var>fusa Release-initial-bugfixes</var>
+$ cd
+$ tar -cvzf <var>old-progetto-x.tar.gz</var> <var>old</var> # produce un archivio, -j per bz2
+$ cvs release -d <var>old</var>     # rimuove i sorgenti locali (opzionale)
+</example>
+Alcune opzioni utili da ricordare (da usare come primi argomenti per <prgn>cvs</prgn>):
+<example>
+-n      esecuzione secca, nessun effetto
+-t      mostra messaggi sui passi dell'attività di cvs
+</example>
+</sect2>
+
+<sect2>Esportare i file da CVS
+<p>
+Per ottenere l'ultimissima versione da CVS, usate "tomorrow":
+<example>
+$ cvs ex -D tomorrow <var>nome_modulo</var>
+</example>
+</sect2>
+
+<sect2>Amministrare CVS
+<p>
+Aggiungere un alias ad un progetto(server locale):
+<example>
+$ su - admin           # un membro del team
+$ export CVSROOT=<var>/var/lib/cvs</var>
+$ cvs co CVSROOT/modules
+$ cd CVSROOT
+$ echo "<var>px</var> -a <var>progetto-x</var>" &gt;&gt;modules
+$ cvs ci -m <var>Ora px è un alias per progetto-x</var>
+$ cvs release -d .
+$ exit                 # o Ctrl-D per uscire da su
+$ cvs co -d <var>progetto</var> <var>px</var> 
+ ... check out <var>progetto-x</var> (alias:<var>px</var>) da CVS alla directory del progetto
+$ cd project
+ ... modifica il contenuto ...
+</example>
+</sect2>
+
+<sect1 id="cvs-trouble">Risoluzione dei problemi
+
+<sect2>Permessi dei file nel deposito
+<p>
+CVS non sovrascriverà il file corrente, ma lo rimpiazzerà con un
+altro.  Quindi, <em>il permesso di scrittura nella directory
+deposito</em> è critico. Ogni volta che si crea un nuovo deposito, è
+bene lanciare i seguenti comandi per assicurarsi che detta condizione venga
+soddisfatta se necessario.
+<example>
+# cd <var>/var/lib/cvs</var>
+# chown -R root:src <var>deposito</var>
+# chmod -R ug+rwX   <var>deposito</var>
+# chmod    2775     <var>deposito</var> 
+                     # se necessario, anche per le sottodirectory
+</example>
+</sect2>
+
+<sect2>Il bit d'esecuzione
+<p>
+Il bit d'esecuzione di un file viene mantenuto alla chiusura della
+sessione (check-out). Tutte le volte che appaiono problemi di permessi
+di esecuzione dei file, cambiate i permessi nel deposito CVS con il
+comando seguente.
+<example>
+# chmod ugo-x <var>filename</var>
+</example>
+</sect2>
+
+</sect1>
+
+<sect1 id="cvs-short">Comandi CVS
+<p>
+Ecco i comandi CVS con le abbreviazioni corrispondenti.
+<example>
+{add|ad|new} [-k kflag] [-m 'message'] files...
+{admin|adm|rcs} [rcs-options] files...
+{annotate|ann} [options] [files...]
+{checkout|co|get} [options] modules...
+{commit|ci|com}   [-lnR]  [-m  'log_message'  |  -f  file] \
+        [-r revision] [files...]
+{diff|di|dif} [-kl] [rcsdiff_options] [[-r rev1 | -D date1] \
+        [-r rev2 |  -D date2]] [files...]
+{export|ex|exp} [-flNn] -r rev|-D date [-d dir] [-k kflag] module...
+{history|hi|his} [-report] [-flags] [-options args] [files...]
+{import|im|imp} [-options] repository vendortag releasetag...
+{login|logon|lgn}
+{log|lo|rlog} [-l] rlog-options [files...]
+{rdiff|patch|pa} [-flags] [-V vn] [-r t|-D d [-r t2|-D d2]] modules...
+{release|re|rel} [-d] directories...
+{remove|rm|delete} [-lR] [files...]
+{rtag|rt|rfreeze} [-falnR]  [-b]  [-d]  [-r  tag  |  -D  date] \
+         sym_bolic_tag modules...
+{status|st|stat} [-lR] [-v] [files...]
+{tag|ta|freeze} [-lR] [-F] [-b] [-d] [-r tag | -D date]  [-f] \
+         sym_bolic_tag [files...]
+{update|up|upd} [-AdflPpR] [-d] [-r tag|-D date] files...
+</example>
+</sect1>
+
+<sect id="svn">Subversion
+<p>
+Subversion è un sistema di controllo versione di prossima generazione, che è
+inteso come rimpiazzo di CVS.  Gli sviluppatori lo considerano al momento in stadio
+"alfa", ma è probabilmente sufficientemente stabile per gran parte degli usi.
+Al momento della scrittura di questa guida, Subversion è disponibile solo 
+in Debian <tt>unstable</tt>.
+<sect1 id="svn-inst">Installazione di un server Subversion 
+<p>
+Il metapacchetto <package>subversion</package> dipende dai pacchetti
+necessari per impiantare un server (<package>libapache2-svn</package> e
+<package>subversion-tools</package>).
+<sect2>Impostare un deposito
+<p>
+Attualmente il pacchetto <package>subversion</package> non imposta un deposito,
+per cui bisogna farlo manualmente.  Una locazione possibile per un deposito è
+in <file>/var/local/repos</file>.
+<p>
+Create la directory:
+<example>
+# mkdir -p /var/local/repos
+</example>
+Create il database del deposito:
+<example>
+# svnadmin create /var/local/repos
+</example>
+Rendete il deposito scrivibile dal server WWW:
+<example>
+# chown -R www-data:www-data /var/local/repos
+</example>
+</sect2>
+<sect2>Configurare Apache2
+<p>
+Per permettere l'accesso al deposito tramite autenticazione degli utenti, aggiungete
+quanto segue a <file>/etc/apache2/mods-available/dav_svn.conf</file>:
+<example>
+&lt;Location /repos&gt;
+  DAV svn
+  SVNPath /var/local/repos
+  AuthType Basic
+  AuthName "Subversion repository"
+  AuthUserFile /etc/subversion/passwd
+  &lt;LimitExcept GET PROPFIND OPTIONS REPORT&gt;
+    Require valid-user
+  &lt;/LimitExcept&gt;
+&lt/Location&gt
+</example>
+Poi create un file per l'autenticazione degli utenti con il comando:
+<example>
+htpasswd2 -c /etc/subversion/passwd username-di-qualcuno
+</example>
+Riavviate Apache2 ed il vostro nuovo deposito Subversion sarà accessibile
+all'URL http://<var>hostname</var>/repos.
+</sect2>
+</sect1>
+<sect1 id="svn-cvs">Muovere un deposito CVS a Subversion
+</sect1>
+<sect1 id="svn-usage">Subversion usage examples
+<p>
+Le sezioni seguenti vi insegnano l'utilizzo dei diversi comandi in
+subversion.
+
+<sect2>Creare un nuovo archivio Subversion
+<p>
+Per creare un nuovo archivio Subversion, digitate quanto segue:
+<example>
+$ cd ~/<var>il-tuo-progetto</var>         # vai alla directory sorgente
+$ svn import http://localhost/repos <var>il-tuo-progetto</var> \
+  <var>nome-progetto</var> -m "importazione iniziale progetto"
+</example>
+<p>
+Ciò crea una directory denominata <var>nome-progetto</var> nel vostro deposito
+Subversion che contiene i file del progetto. Guardate in
+http://localhost/repos/ per vedere se è lì.
+</sect2>
+
+<sect2>Lavorare con Subversion
+<p>
+Lavorare con il <var>progetto-y</var> usando Subversion:
+<example>
+$ cd                            # muove all'area di lavoro
+$ svn co http://localhost/repos/<var>progetto-y</var>  # Copia (checkout) i sorgenti
+$ cd <var>progetto-y</var>
+ ... lavorateci ...
+$ svn diff                      # simile a diff -u repository/ local/  
+$ svn revert <var>file_modificato</var>      # cancella le modifiche di un file
+$ svn ci -m "<var>Descrivi le modifiche</var>"  # copia le vostre modifiche nel deposito
+$ vi <var>nuovofile_aggiunto</var>
+$ svn add <var>nuovofile_aggiunto</var>
+$ svn add <var>nuova_dir</var>          # aggiunge tutti i file ricorsivamente in nuova_dir
+$ svn add -N <var>nuova_dir2</var>      # aggiunge la directory non ricorsivamente
+$ svn ci -m "Aggiunto <var>nuovofile_aggiunto</var>, <var>nuova_dir</var>,<var>nuova_dir2</var>"
+$ svn up                        # aggiorna l'ultima versione dal deposito
+$ svn log                       # mostra tutte le modifiche effettuate
+$ svn copy http://localhost/repos/<var>progetto-y</var> \
+      http://localhost/repos/<var>progetto-y-branca</var> \
+      -m "sto creando la mia branca del <var>progetto-y</var>"  
+          # creazione di una branca del <var>progetto-y</var>
+$ svn copy http://localhost/repos/<var>progetto-y</var> \
+      http://localhost/repos/<var>prog-y_rilascio1.0</var> \
+      -m "<var>progetto-y</var> rilascio 1.0"    # aggiunta tag di release
+ ... notate che il processo di branching e di tagging sono la stessa cosa. L'unica differenza
+ ... è che le branche subiscono il commit mentre le tag no.
+
+ ... modificate la branca ...
+
+$ # fa confluire la branca copiata nel tronco principale
+$ svn merge http://localhost/repos/<var>progetto-y</var> \
+   http://localhost/repos/<var>progetto-y-branca</var>
+$ svn co -r 4 http://localhost/repos/<var>progetto-y</var> # prende la revisione 4
+</example>
+
+</sect2>
+
+</sect1>
+</sect>
+</chapt>

@@ -1,0 +1,319 @@
+== The system initialization
+
+// vim: set sts=2 expandtab:
+// Use ":set nowrap" to edit table
+
+It is wise for you as the system administrator to know roughly how the Debian system is started and configured.  Although the exact details are in the source files of the packages installed and their documentations, it is a bit overwhelming for most of us.
+
+I did my best to provide a quick overview of the key points of the Debian system and their configuration for your reference, based on the current and previous knowledge of mine and others. Since the Debian system is a moving target, the situation over the system may have been changed.  Before making any changes to the system, you should refer to the latest documentation for each package.
+
+=== An overview of the boot strap process
+
+The computer system undergoes several phases of http://en.wikipedia.org/wiki/Booting[boot strap processes] from the power-on event until it offers the fully functional operating system (OS) to the user. 
+
+For simplicity, I will limit discussion to the typical PC platform with the default installation.  
+
+The typical boot strap process is like a four-stage rocket.  Each stage rocket hands over the system control to the next stage one.  Here each stage corresponds to:
+
+- Stage 1: the BIOS
+- Stage 2: the boot loader
+- Stage 3, the mini-Debian system
+- Stage 4: the normal Debian system
+
+Of course, these can be configured differently.  For example, if you compiled your own kernel, you may be skipping the step with the mini-Debian system.  So please do not assume this is the case for your system until you check it yourself.
+
+NOTE: For non-legacy PC platform such as the SUN or the Macintosh system, the BIOS on ROM and the partition on the disk may be quite different (<<_partition_configuration>>).  Please seek the platform specific documentations elsewhere for such a case.
+
+=== Stage 1: the BIOS
+
+The http://en.wikipedia.org/wiki/BIOS[BIOS] is the 1st stage of the boot process which is started by the power-on event. The http://en.wikipedia.org/wiki/BIOS[BIOS] resides on the http://en.wikipedia.org/wiki/Read-only_memory[read only memory (ROM)] from the particular memory address to which the program counter of CPU is initialized by the power-on event. 
+
+This BIOS performs the basic initialization of the hardware (http://en.wikipedia.org/wiki/Power-on_self-test[POST: power on self test]) and hands the system control to the next step which you provide.  The BIOS is usually provided with the hardware.
+
+The BIOS startup screen usually indicates what key(s) to press to enter the BIOS setup screen to configure the BIOS behavior. Popular keys used are F1, F2, F10, Esc, Ins, and Del. If your BIOS startup screen is hidden by a nice graphics screen, you may press some keys such as Esc to disable this.  These keys are highly dependent on the hardware.
+
+The hardware location and the priority of the code started by the BIOS can be selected from the BIOS setup screen.  Typically, the first few sectors of the first found selected device (hard disk, floppy disk, CD-ROM, ...) are loaded to the memory and this initial code is executed.  This initial code can be:
+
+- the boot loader code,
+- the kernel code of the stepping stone OS such as http://www.freedos.org/[FreeDOS], or
+- the kernel code of the target OS if it fits in this small space.
+
+Typically, the system is booted from the specified partition of the primary hard disk partition. The first sector of the hard disk contain the http://en.wikipedia.org/wiki/Master_boot_record[master boot record (MBR)].  The disk partition information including the boot selection is recorded at the end of this MBR. The first boot loader code executed from the BIOS for the hard disk occupies the rest of this MBR.
+
+=== Stage 2: the boot loader
+
+The http://en.wikipedia.org/wiki/Boot_loader[boot loader] is the 2nd stage of the boot process which is started by the BIOS.  It loads the system kernel image and the http://en.wikipedia.org/wiki/Initrd[initrd] image to the memory and hands control over to them.  This initrd image is the root filesystem image and its support depends on the bootloader used.
+
+The Debian system normally uses the Linux kernel as the default system kernel. The initrd image for the current 2.6 Linux kernel is technically the initramfs (initial RAM filesystem) image. The initramfs image is a gzipped cpio archive of files in the root filesystem.
+
+// This is not important here.  Link to initrd wiki page above is enough.
+// (!) The [http://en.wikipedia.org/wiki/Initrd initrd] mechanism of Linux kernel was used to realize the root filesystem on the memory in older Linux kernels.  
+
+The default install of the Debian system places first-stage GRUB boot loader code into the http://en.wikipedia.org/wiki/Master_boot_record[MBR] for the PC platform. There are many boot loaders and configuration options available.
+
+
+.List of boot loaders.
+[grid="all"]
+`--------------------------------------------------------------`--------------`-------------`------------`-------------`-------------------------------------------------------------------------------------------------------------------------------------------
+bootloader                                                     package        popcon        size         initrd        description                                                                                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+http://en.wikipedia.org/wiki/GNU_GRUB[GRUB Legacy]             grub           @@@popcon2@@@ @@@psize2@@@ Supported     This is smart enough to understand disk partitions and file systems such as vfat, ext3, .... (`lenny` default)                              
+http://en.wikipedia.org/wiki/GNU_GRUB[GRUB 2]                  grub-pc        @@@popcon2@@@ @@@psize2@@@ Supported     This is smart enough to understand disk partitions and file systems such as vfat, ext3, ....                                                
+http://en.wikipedia.org/wiki/GNU_GRUB[GRUB 2]                  grub-rescue-pc @@@popcon2@@@ @@@psize2@@@ Supported     This is GRUB 2 bootable rescue images (CD and floppy) (PC/BIOS version)                                                                     
+http://en.wikipedia.org/wiki/LILO_(boot_loader)[Lilo]          lilo           @@@popcon2@@@ @@@psize2@@@ Supported     This relies on the sector locations of data on the hard disk. (Old)                                                                         
+http://en.wikipedia.org/wiki/SYSLINUX[Isolinux]                syslinux       @@@popcon2@@@ @@@psize2@@@ Supported     This understands the ISO9660 file system.  This is used by the boot CD.                                                                     
+http://en.wikipedia.org/wiki/SYSLINUX[Syslinux]                syslinux       @@@popcon2@@@ @@@psize2@@@ Supported     This understands the http://en.wikipedia.org/wiki/File_Allocation_Table[MSDOS file system (FAT)].  This is used by the boot floppy.         
+http://en.wikipedia.org/wiki/Loadlin[Loadlin]                  loadlin        @@@popcon2@@@ @@@psize2@@@ Supported     New system is started from the FreeDOS/MSDOS system.                                                                                        
+http://www.chiark.greenend.org.uk/\~neilt/[Neil Turton\'s MBR] mbr            @@@popcon2@@@ @@@psize2@@@ Not supported This is free software which substitutes MSDOS http://en.wikipedia.org/wiki/Master_boot_record[MBR].  This only understands disk partitions. 
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+WARNING: Do not play with boot loaders without having bootable rescue media (CD or floppy) created from images in the `grub-rescue-pc` package.  It will let you boot your system even without functioning bootloader on the harddisk.
+
+For GRUB Legacy, the menu configuration file is located at "`/boot/grub/menu.lst`".  For example, it has entries like:
+
+--------------------
+title           Debian GNU/Linux
+root            (hd0,2)
+kernel          /vmlinuz root=/dev/hda3 ro
+initrd          /initrd.img
+--------------------
+
+For GRUB 2, the menu configuration file is located at "`/boot/grub/grub.cfg`". It is automatically generated by "`/usr/sbin/update-grub`" using templates from "`/etc/grub.d/\*`" and settings from "`/etc/default/grub`".  For example, it has entries like:
+
+
+--------------------
+menuentry "Debian GNU/Linux" {
+        set root=(hd0,3)
+        linux /vmlinuz root=/dev/hda3
+        initrd /initrd.img
+}
+--------------------
+
+For these examples, these GRUB parameters mean:
+
+
+.The meaning of GRUB parameters.
+[grid="all"]
+`--------------`-------------------------------------------------------------------------------------------------------
+GRUB parameter meaning                                                                                                 
+-----------------------------------------------------------------------------------------------------------------------
+`root`         Use 3rd partition on boot disk by setting it as "`(hd0,2)`" in GRUB legacy or as "`(hd0,3)`" in GRUB 2. 
+`kernel`       Use kernel located at "`/vmlinuz`" with kernel parameter: "`root=/dev/hda3 ro`".                        
+`initrd`       Use http://en.wikipedia.org/wiki/Initrd[initrd/initramfs] image located at "`/initrd.img`".             
+-----------------------------------------------------------------------------------------------------------------------
+
+NOTE: The value of the partition number used by GRUB legacy program is one less than normal one used by Linux kernel and utility tools.  GRUB 2 program fixes this problem.
+
+TIP: http://en.wikipedia.org/wiki/Universally_Unique_Identifier[UUID] (see <<_accessing_partition_using_uuid>>) may be used to identify a block special device instead of its file name such as "`/dev/hda3`", e.g."`root=UUID=81b289d5-4341-4003-9602-e254a17ac232 ro`".
+
+TIP: You can start a boot loader from another boot loader using techniques called http://en.wikipedia.org/wiki/Chain_loading[chain loading].
+
+See "`info grub`" and `grub-install`(8).
+
+=== Stage 3: the mini-Debian system
+
+// The choice of "mini-Debian" over "mini-Linux" is intentional.  Think about kFreeBSD or any alternative kernel
+// which may support similar on memory system.  (Maybe NFS mounted ...)
+// I thought about "initramfs system" too but it may confuse people.  It is Linux specific too.
+// I know I only talk about Linux+initramfs here.
+// Avoided to repeat the stage explanation.
+
+The mini-Debian system is the 3rd stage of the boot process which is started by the boot loader.  It runs the system kernel with its root filesystem on the memory. It is an optional preparatory stage of the boot process.
+
+NOTE: The term "the mini-Debian system" is coined by the author to describe this 3rd stage boot process for this document.  This system is commonly referred as the http://en.wikipedia.org/wiki/Initrd[initrd] or initramfs system. Similar system on the memory is used by http://www.debian.org/devel/debian-installer/[the Debian Installer].
+
+The "`/init`" script is executed as the first program in this root filesystem on the memory.  It is a shell script program which initializes the kernel in user space and hands control over to the next stage. This mini-Debian system offers flexibility to the boot process such as adding kernel modules before the main boot process or mounting the root file system as an encrypted one. 
+
+You can interrupt this part of the boot process to gain root shell by providing "`break=init`" etc. to the kernel boot parameter. See the "`/init`" script for more break conditions.  This shell environment is sophisticated enough to make a good inspection of your machine\'s hardware.
+
+Commands available in this mini-Debian system are stripped down ones and mainly provided by a GNU tool called `busybox`(1).  
+
+CAUTION: You need to use "`-n`" option for `mount` command when you are on the readonly root file system.
+
+=== Stage 4: the normal Debian system
+
+The normal Debian system is the 4th stage of the boot process which is started by the mini-Debian system.  The system kernel for the mini-Debian system continues to run in this environment. The root filesystem is switched from the one on the memory to the one on the real harddisk filesystem. 
+
+The "`/sbin/init`" program is executed as the first program and performs the main boot process. The Debian normally uses the traditional sysvinit scheme with the `sysv-rc` package.  See `init`(8), `inittab`(5), and "`/usr/share/doc/sysv-rc/README.runlevels.gz`" for the exact explanation.  Following is a simplified overview of this main boot process:
+
+1. The Debian system goes into **runlevel N** (none) to initialize the system by following the "`/etc/inittab`" description.
+2. The Debian system goes into **runlevel S** to initialize the system under the single-user mode to complete hardware initialization etc.
+3. The Debian system switches itself to one of the specified **multi-user runlevels (2 to 5)** to start the system services.
+
+The initial runlevel used for multi-user mode is specified with the "`init=`" kernel boot parameter or in the "initdefault" line of this "`/etc/inittab`". The Debian system as installed starts at the **runlevel 2**. 
+
+All scripts executed by the init system are located in the directory "`/etc/init.d/`". 
+
+TIP: For alternative boot mechanism to the `sysv-rc` package using a single configuration file "`/etc/runlevel.conf`", see the `file-rc` package. Both mechanisms are compatible through "`/etc/init.d/rc`", "`/etc/init.d/rcS`", "`/usr/sbin/update-rc.d`", and "`/usr/sbin/invoke-rc.d`" scripts.
+
+==== The meaning of the runlevel
+
+Each http://en.wikipedia.org/wiki/Runlevel[runlevel] uses a directory for its configuration and has specific meaning:
+
+
+.List of runlevels and meanings.
+[grid="all"]
+`--------`-------------`--------------------------------------------------------------------
+runlevel directory     meaning                                                              
+--------------------------------------------------------------------------------------------
+`N`      none          System bootup (NONE). There is no "`/etc/rcN.d/`" directory.         
+`0`      `/etc/rc0.d/` Halt the system.                                                     
+`S`      `/etc/rcS.d/` Single-user mode on boot. The lower case "`s`" can be used as alias. 
+`1`      `/etc/rc1.d/` Single-user mode switched from multi-user mode.                      
+`2`      `/etc/rc2.d/` Multi-user mode.                                                     
+`3`      `/etc/rc3.d/` ,,                                                                   
+`4`      `/etc/rc4.d/` ,,                                                                   
+`5`      `/etc/rc5.d/` ,,                                                                   
+`6`      `/etc/rc6.d/` Reboot the system.                                                   
+`7`      `/etc/rc7.d/` Valid multi-user mode but not normally used.                         
+`8`      `/etc/rc8.d/` ,,                                                                   
+`9`      `/etc/rc9.d/` ,,                                                                   
+--------------------------------------------------------------------------------------------
+
+You can change the runlevel from the console to, e.g., 4 by:
+
+--------------------
+$ sudo telinit 4
+--------------------
+
+CAUTION: **The Debian system does not pre-assign any special meaning differences among the http://en.wikipedia.org/wiki/Runlevel[runlevels] between 2 and 5.** The system administrator on the Debian system may change this.  (I.e., Debian is not http://en.wikipedia.org/wiki/Red_Hat_Linux[Red Hat Linux] nor http://en.wikipedia.org/wiki/Solaris_(operating_system)[Solaris by Sun Microsystems] nor http://en.wikipedia.org/wiki/HP-UX[HP-UX by Hewlett Packard] nor http://en.wikipedia.org/wiki/IBM_AIX[AIX by IBM] nor ...)
+
+CAUTION: The Debian system does not populate directories for the http://en.wikipedia.org/wiki/Runlevel[runlevels] between 7 and 9 when the package is installed.  Traditional http://en.wikipedia.org/wiki/Unix-like[Unix variants] don’t use these http://en.wikipedia.org/wiki/Runlevel[runlevels].
+
+==== The configuration of the runlevel
+
+The names of the symlinks in the runlevel directories have the form "`S<2-digit-number><original-name>`" or "`K<2-digit-number><original-name>`". The 2-digit-number is used to determine the order in which to run the scripts. "`S`" is for "Start" and "`K`" is for "Kill".
+
+When `init`(8) or `telinit`(8) commands change the runlevel to "<n>":
+
+1. the script names starting with a "`K`" in "`/etc/rc<n>.d/`" are executed in alphabetical order with the single argument "`stop`". (killing services)
+2. the script names starting with an "`S`" in "`/etc/rc<n>.d/`" are executed in alphabetical order with the single argument "`start`". (starting services)
+
+For example, if you had the links "`S10sysklogd`" and "`S20exim4`" in a runlevel directory, "`S10sysklogd`" would run before "`S20exim4`".
+
+WARNING: It is not advisable to make any changes to symlinks in "`/etc/rcS.d/`" unless you know better than the maintainer.  
+
+// (In other word, if the maintainer did something stupid to unstable package, you may need to touch this after lots of thinking.)
+
+==== The runlevel management example
+
+For example, let\'s set up runlevel system somewhat like http://en.wikipedia.org/wiki/Red_Hat_Linux[Red Hat Linux], i.e.:
+
+- to start the system in runlevel=3 as the default,
+- not to start `gdm`(1) in runlevel=(0,1,2,6), and 
+- to start `gdm`(1) in runlevel=(3,4,5).
+The easy way is to use editor on the "`/etc/inittab`" file to change starting runlevel and use user friendly runlevel management tools such as `sysv-rc-conf` or `bum` to edit the runlevel.  If you are to use command line only, here is how you do it (after the default installation of the `gdm` package and selecting it to be the choice of display manager):
+
+--------------------
+# cd /etc/rc2.d ; mv S21gdm K21gdm
+# cd /etc ; perl -i -p -e 's/^id:.:/id:3:/' inittab
+--------------------
+
+Please note the "`/etc/X11/default-display-manager`" file is checked when starting the display manager daemons: `xdm`, `gdm`, `kdm`, and `wdm`.
+
+NOTE: You can still start X from any console shell with the `startx`(1) command.
+
+==== The default parameter for each init script
+
+The default parameter for each init script in "`/etc/init.d/`" is given by the corresponding file in "`/etc/default/`" which contains environment variable assignments **only**. The choice of directory name is specific to the Debian system.  It is roughly the equivalent of the "`/etc/sysconfig`" directory found in http://en.wikipedia.org/wiki/Red_Hat_Linux[Red Hat Linux] and other distributions.
+
+For example, "`/etc/default/hotplug`" can be used to control how "`/etc/init.d/hotplug`" works.  The "`/etc/default/rcS`" file can be used to customize boot-time defaults for `motd`(5), `sulogin`(8), etc.
+
+If you cannot get the behavior you want by changing such variables then you may http://www.debian.org/doc/debian-policy/ch-opersys.html#s9.3.2[modify the init scripts] themselves: they are all configuration files.
+
+==== The hostname
+
+The kernel maintains the system **hostname**.  The initscript "`/etc/init.d/hostname.sh`" sets the system hostname at boot time (using the `hostname` command) to the name stored in "`/etc/hostname`".  This file should contain **only** the system hostname, not a fully qualified domain name.
+
+To print out the current hostname run `hostname`(1) without an argument.
+
+==== Network interface initialization
+
+Network interfaces are initialized under single-user mode on boot by the initscript "`/etc/init.d/ifupdown-clean`" and "`/etc/init.d/ifupdown`".  See <<_network_setup>> for how to configure them.
+
+==== Network service initialization
+
+Many network services (see <<_network_applications>>) are started directly as daemon processes at boot time, e.g., "`/etc/rc2.d/S20exim4`" (for RUNLEVEL=2) which is a symlink to "`/etc/init.d/exim4`".
+
+Some network services can be started on demand using the http://en.wikipedia.org/wiki/Super-server[super-server], `inetd` (or its equivalents).  The `inetd` is started at boot time by "`/etc/rc2.d/S20inetd`" (for RUNLEVEL=2) which is a symlink to "`/etc/init.d/inetd`".  Essentially, `inetd` allows one running daemon to invoke several others, reducing load on the system.
+
+Whenever a request for service arrives, its protocol and service are identified by looking them up in the databases in "`/etc/protocols`" and "`/etc/services`".  `inetd` then looks up a normal Internet service in the "`/etc/inetd.conf`" database, or a http://en.wikipedia.org/wiki/Open_Network_Computing_Remote_Procedure_Call[Open Network Computing Remote Procedure Call (ONC RPC)/Sun RPC] based service in "`/etc/rpc.conf`".
+
+For system security, make sure to disable unused services in "`/etc/inetd.conf`".  Sun-RPC services need to be active for NFS and other RPC-based programs.
+
+Sometimes, `inetd` does not start the intended server directly but starts the http://en.wikipedia.org/wiki/TCP_Wrapper[TCP wrapper], `tcpd`,  with the intended server name as its argument in "`/etc/inetd.conf`".  In this case, `tcpd` runs the appropriate server program after logging the request and doing some additional checks using "`/etc/hosts.deny`" and "`/etc/hosts.allow`".
+
+If you have problems with remote access in a recent Debian system, comment out "ALL: PARANOID" in "`/etc/hosts.deny`" if it exists.  (But you must be careful on security risks involved with this kind of action.)
+
+For details, see `inetd`(8), `inetd.conf`(5), `protocols`(5), `services`(5), `tcpd`(8), `hosts_access`(5), and `hosts_options`(5).
+
+For more information on Sun-RPC, see `rpcinfo`(8), `portmap`(8), and "`/usr/share/doc/portmap/portmapper.txt.gz`".
+
+==== The system message
+
+The system message can be customized by "`/etc/syslog.conf`" for both the log file and on-screen display. See `syslogd`(8) and `syslog.conf`(5).  See also <<_log_analyzer>>.
+
+==== The kernel message
+
+The kernel message can be customized by "`/etc/init.d/klogd`" for both the log file and on-screen display.  Set "`KLOGD=\'-c 3\'`" in this script and run "`/etc/init.d/klogd restart`".  See `klogd`(8).
+
+You may directly change the error message level by:
+
+--------------------
+# dmesg -n3
+--------------------
+
+Here:
+
+
+.List of kernel error levels.
+[grid="all"]
+`-----------------`----------------`--------------------------------
+error level value error level name meaning                          
+--------------------------------------------------------------------
+0                 KERN_EMERG       system is unusable               
+1                 KERN_ALERT       action must be taken immediately 
+2                 KERN_CRIT        critical conditions              
+3                 KERN_ERR         error conditions                 
+4                 KERN_WARNING     warning conditions               
+5                 KERN_NOTICE      normal but significant condition 
+6                 KERN_INFO        informational                    
+7                 KERN_DEBUG       debug-level messages             
+--------------------------------------------------------------------
+
+==== The udev system
+
+For Linux kernel 2.6, http://en.wikipedia.org/wiki/Udev[the udev system] provides mechanism for the automatic hardware discovery and initialization (see `udev`(7)). Upon discovery of each device by the kernel, the udev system starts a user process which uses information from the http://en.wikipedia.org/wiki/Sysfs[sysfs] filesystem (see <<_procfs_and_sysfs>>), loads required kernel modules supporting it using the `modprobe`(8) program (see <<_the_kernel_module_initialization>>), and creates corresponding device nodes.  
+
+TIP: If "`/lib/modules/<kernel-version>/modules.dep`" was not generated properly by `depmod`(8) for some reason, modules may not be loaded as expected by the udev system. Execute "`depmod -a`" to fix it.
+
+The name of device nodes can be configured by files in "`/etc/udev/rules.d/`" (see "`/usr/share/doc/udev/writing_udev_rules/index.html`"). 
+
+Since the udev system is somewhat a moving target, I leave details to other documentations and describe the minimum information here.
+
+==== The kernel module initialization
+
+The `modprobe`(8) program enables us to configure running Linux kernel from user process by adding and removing kernel modules.  The udev system (see <<_the_udev_system>>) automates its invocation to help the kernel module initialization.
+
+Non-hardware modules and special hardware driver modules, such as:
+
+- http://en.wikipedia.org/wiki/TUN/TAP[TUN/TAP] modules providing virtual Point-to-Point network device (TUN) and virtual Ethernet network device (TAP),
+- http://en.wikipedia.org/wiki/Netfilter[netfilter] modules providing netfilter firewall capabilities (`iptables`(8), <<_netfilter>>),
+- http://en.wikipedia.org/wiki/Watchdog_timer[watchdog timer] driver modules
+need to be pre-loaded by listing them in the "`/etc/modules`" file (see `modules`(5)).
+
+The configuration files for the `modprobe`(8) program are located under the "`/etc/modprobes.d/`" directory as explained in `modprobe.conf`(5).   (If you want to avoid some kernel modules to be auto-loaded, consider to blacklist them in the "`/etc/modprobes.d/blacklist`" file.)
+
+The "`/lib/modules/<version>/modules.dep`" file generated by the `depmod`(8) program describes module dependencies used by the `modprobe`(8) program.
+
+NOTE: If you experience module loading issues with boot time module loading or with `modprobe`(8), "`depmod -a`" may resolve these issues by reconstructing "`modules.dep`".
+
+The `modinfo`(8) program shows information about a Linux Kernel module.  
+
+The `lsmod`(8) program nicely formats the contents of the "`/proc/modules`", showing what kernel modules are currently loaded.
+
+TIP: You can identify exact hardware on your system.  See <<_hardware_identification>>.
+
+TIP: You may configure hardware at boot time to activate expected hardware features. See <<_hardware_configuration>>.
+
+TIP: You can add support for your device by recompiling kernel.  See <<_the_kernel>>.
