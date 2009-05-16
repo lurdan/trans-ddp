@@ -9,7 +9,7 @@ PDIR	:=	$(notdir $(realpath $(CURDIR)/..))
 # Publish directory
 # This can and will be overridden by a higher level makefile
 ifeq ($(PDIR),manuals)
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals/reference
 else
 PUBLISHDIR := $(CURDIR)/html
 endif
