@@ -5,163 +5,95 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-# This is the debhelper compatibility version to use.
-export DH_COMPAT=4
+# C build environmet need for perl
 export LC_ALL=C
+# UTF-8 build environmet need for w3m (see Makefile)
 
-MANUAL1 := reference
-MANUAL2 := quick-reference
-LANGS1 := en fr it pt-br es de pl zh-tw zh-cn ja
-LANGS2 := en fr it pt-br es de pl zh-tw zh-cn ja
-BUILD_TYPE := package
-ENTFILES1 := $(foreach lang,$(LANGS1),$(MANUAL1).$(lang).ent)
-ENTFILES2 := $(foreach lang,$(LANGS2),$(MANUAL2).$(lang).ent)
-ENTFILES := $(ENTFILES1) $(ENTFILES2)
+#  Build multi file html, single file html, and single file text formats.
+#  Makefile for developer-reference was used as my reference.
+#
+# ------------------------------------------------------------------- #
+#                          WARNING                                    #
+#         Use with caution, aimed at lenny/squeeze system             #
+# ------------------------------------------------------------------- #
 
-$(MANUAL1).%.ent:
-	echo "<!entity language \"$*\">"        > $@
-	echo "<!entity % lang-$* \"INCLUDE\">" >> $@
-	echo "<!entity docversion \"$(shell \
-		LC_ALL=C \
-		dpkg-parsechangelog | \
-		sed -n 's/^Version: *//p')\">" >> $@
-	echo "<!entity docdate \"$(shell \
-		bin/getdocdate -p $*)\">"      >> $@
-	echo "<!entity % f-ref   \"INCLUDE\">" >> $@ 
-	echo "<!entity % q-ref   \"IGNORE\">"  >> $@ 
+# do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
+.SUFFIXES:
+# =================================================================== #
+#                 Default configuration part                          #
+# =================================================================== #
+DOCNAME	:=	debian-reference
+LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
+LANGPO	:=	ja
+LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
+# Directories (no trailing slash)
+PXSLT	:=	xslt
+PBIN	:=	bin
+ADOC	:=	asciidoc
+PODOC	:=	po4a
+IMAGES	:=	/usr/share/xml/docbook/stylesheet/nwalsh/images
+PUBLISHDIR:=	$(CURDIR)/html
 
-
-$(MANUAL2).%.ent:
-	echo "<!entity language \"$*\">"        > $@
-	echo "<!entity % lang-$* \"INCLUDE\">" >> $@
-	echo "<!entity docversion \"$(shell \
-		LC_ALL=C \
-		dpkg-parsechangelog | \
-		sed -n 's/^Version: *//p')\">" >> $@
-	echo "<!entity docdate \"$(shell \
-		bin/getdocdate -p $*)\">"      >> $@
-	# if "Debian Quick Reference" (20 page max)
-	echo "<!entity % f-ref   \"IGNORE\">"  >> $@ 
-	echo "<!entity % q-ref   \"INCLUDE\">" >> $@
-
-
+# =================================================================== #
+#                 Build/clean script part                             #
+# =================================================================== #
 configure: configure-stamp
-configure-stamp: $(ENTFILES)
+configure-stamp:
 	dh_testdir
 	# Do nothing
 	touch configure-stamp
 
-
 build: build-stamp
-
 build-stamp: configure-stamp 
 	dh_testdir
 	# Add here commands to compile the package.
-	$(MAKE) "MANUAL1=$(MANUAL1)" "LANGS1=$(LANGS1)" \
-	        "MANUAL2=$(MANUAL2)" "LANGS2=$(LANGS2)" \
-	        "BUILD_TYPE=$(BUILD_TYPE)" html txt pdf ps README
+	# XML genaration including PO update
+	$(MAKE) "DOCNAME=$(DOCNAME)" "LANGPO=$(LANGPO)" xml
 	touch build-stamp
 
 clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp configure-stamp
-	# Add here commands to clean up after the build process.
-	-$(MAKE) "MANUAL1=$(MANUAL1)" "LANGS1=$(LANGS1)" \
-	 "MANUAL2=$(MANUAL2)" "LANGS2=$(LANGS2)" \
-	 "BUILD_TYPE=$(BUILD_TYPE)" clean
-	-set -e; cd $(CURDIR)/debian/ ; for xx in \
-	debian-reference \
-	debian-reference-common ; do \
-	rm -f $${xx}.README.Debian ; done
+	# Clean generted files from document build for packaging
+	-$(MAKE) "DOCNAME=$(DOCNAME)" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)" "PUBLISHDIR=$(PUBLISHDIR)" clean
 
+	# Clean html files if ever existed in html/
+	-rm -rf html
+
+	# Clean generated files for debhelper in debian/
 	-cd $(CURDIR)/debian/ ; \
-	rm -f debian-reference-common.postinst
-
-	-set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
-	rm -f debian-reference-$${xx}.README.Debian \
-	      debian-reference-$${xx}.dirs \
-	      debian-reference-$${xx}.doc-base \
-	      debian-reference-$${xx}.postrm \
-	      debian-reference-$${xx}.postinst ; \
+	rm -f $(DOCNAME)-common.postinst ; \
+	for xx in $(LANGALL) ; do \
+	  rm -f $(DOCNAME)-$${xx}.dirs \
+	      $(DOCNAME)-$${xx}.doc-base \
+	      $(DOCNAME)-$${xx}.postrm \
+	      $(DOCNAME)-$${xx}.postinst ; \
 	done
-
-	-set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
-	rm -f quick-reference-$${xx}.README.Debian \
-	      quick-reference-$${xx}.dirs \
-	      quick-reference-$${xx}.doc-base ; \
-	done
-
 	dh_clean
 
-refresh: clean
-	dh_testdir
-	dh_testroot
-# 	cvs -d :ext:osamu@cvs.sf.net:/cvsroot/qref up
-#	cvs -d :pserver:anonymous@cvs.sf.net:/cvsroot/qref up
-
-new:    clean
-#	rm ../debian-refernce
-#	cvs -d :ext:osamu@cvs.sf.net:/cvsroot/qref export -d ../debian-reference -D tomorrow qref
-#	cvs -d :pserver:anonymous@cvs.sf.net:/cvsroot/qref up
-
-
 copyfiles:
-#	copy README.Debian for all the packages
-	set -e; cd $(CURDIR)/debian/ ; for xx in \
-	debian-reference debian-reference-common ; do \
-	cp README.Debian.all $${xx}.README.Debian ; done
-
+	# Generate files for debhelper in debian/
 	cd $(CURDIR)/debian/ ; \
-	cp postinst-full     debian-reference-common.postinst
-	# debian-reference-common.prerm exists and removes everything
-
-	cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
-	cp README.Debian.all debian-reference-$${xx}.README.Debian ; \
-	cp postinst-full     debian-reference-$${xx}.postinst ; \
-	cp postrm-full       debian-reference-$${xx}.postrm ; \
-	done
-
-	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
-	cp README.Debian.all quick-reference-$${xx}.README.Debian ; \
-	done
-
-	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS1) ; do \
-	case $$xx in \
-	en) LANG="English" ;;  \
-	de) LANG="German" ;;   \
-	fr) LANG="French" ;;   \
-	fi) LANG="Finnish" ;;  \
-	es) LANG="Spanish" ;;  \
-	it) LANG="Italian" ;;  \
-	ja) LANG="Japanese" ;; \
-	pl) LANG="Polish" ;; \
-	pt-br) LANG="Portuguese (Brazil)" ;; \
-	zh-tw) LANG="Chinese (Traditional)" ;; \
-	zh-cn) LANG="Chinese (Simplified)" ;; \
-	esac ; \
-	cp debian-reference.dirs.all debian-reference-$${xx}.dirs ; \
-	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
-	<debian-reference.doc-base-all  >debian-reference-$${xx}.doc-base ; \
-	done
-
-	set -e; cd $(CURDIR)/debian/ ; for xx in $(LANGS2) ; do \
-	case $$xx in \
-	en) LANG="English" ;;  \
-	de) LANG="German" ;;   \
-	fr) LANG="French" ;;   \
-	fi) LANG="Finnish" ;;  \
-	es) LANG="Spanish" ;;  \
-	it) LANG="Italian" ;;  \
-	ja) LANG="Japanese" ;; \
-	pl) LANG="Polish" ;; \
-	pt-br) LANG="Portuguese (Brazil)" ;; \
-	zh-tw) LANG="Chinese (Traditional)" ;; \
-	zh-cn) LANG="Chinese (Simplified)" ;; \
-	esac ; \
-	cp quick-reference.dirs.all quick-reference-$${xx}.dirs ; \
-	sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANG/" \
-	<quick-reference.doc-base-all  >quick-reference-$${xx}.doc-base ; \
+	cp postinst-full     $(DOCNAME)-common.postinst ; \
+	for xx in $(LANGALL) ; do \
+	  cp postinst-full     $(DOCNAME)-$${xx}.postinst ; \
+	  cp postrm-full       $(DOCNAME)-$${xx}.postrm ; \
+	  case $$xx in \
+	    en) LANGX="English" ;;  \
+	    de) LANGX="German" ;;   \
+	    fr) LANGX="French" ;;   \
+	    fi) LANGX="Finnish" ;;  \
+	    es) LANGX="Spanish" ;;  \
+	    it) LANGX="Italian" ;;  \
+	    ja) LANGX="Japanese" ;; \
+	    pl) LANGX="Polish" ;; \
+	    pt-br) LANGX="Portuguese (Brazil)" ;; \
+	    zh-tw) LANGX="Chinese (Traditional)" ;; \
+	    zh-cn) LANGX="Chinese (Simplified)" ;; \
+	  esac ; \
+	  cp $(DOCNAME).dirs.all $(DOCNAME)-$${xx}.dirs ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base-all  >$(DOCNAME)-$${xx}.doc-base ; \
 	done
 
 install: build copyfiles
@@ -170,28 +102,40 @@ install: build copyfiles
 	dh_clean -k
 	dh_installdirs
 
-	# Add here commands to install the package into debian/debian-reference-??.
-	$(MAKE) "LANGS1=" "LANGS2=" "MANUAL1=$(MANUAL1)" "MANUAL2=$(MANUAL2)" \
-	    "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-common/usr/share/doc/Debian \
-	    publish-examples
+	# Add here commands to install the package into debian/$(DOCNAME)-??.
+	#  (No more examples)
 
-	install -m 755 --preserve-timestamps debian-reference \
-	    $(CURDIR)/debian/debian-reference-common/usr/bin/debian-reference
+	install -d $(CURDIR)/debian/$(DOCNAME)-common/usr/share/applications
+	install -m 644 debian/$(DOCNAME)-common.desktop $(CURDIR)/debian/$(DOCNAME)-common/usr/share/applications/
+
+	install -d $(CURDIR)/debian/$(DOCNAME)-common/usr/share/pixmaps
+	install -m 644 debian/$(DOCNAME).png $(CURDIR)/debian/$(DOCNAME)-common/usr/share/pixmaps/
+
+	install -m 755 --preserve-timestamps bin/$(DOCNAME) \
+	    $(CURDIR)/debian/$(DOCNAME)-common/usr/bin/$(DOCNAME)
 
 	install -m 755 --preserve-timestamps bin/mkindexhtml \
-	    $(CURDIR)/debian/debian-reference-common/usr/share/debian-reference/mkindexhtml
+	    $(CURDIR)/debian/$(DOCNAME)-common/usr/share/$(DOCNAME)/mkindexhtml
 
-	set -e; for xx in $(LANGS1); do \
-	$(MAKE) "LANGS1=$${xx}" "LANGS2=" "MANUAL1=$(MANUAL1)" "MANUAL2=" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/debian-reference-$${xx}/usr/share/doc/Debian \
-	    publish-html1 publish-txt1 publish-ps1 publish-pdf1; \
+	for xx in $(LANGALL); do \
+	  mkdir -p $(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-$${xx} ;\
+	  ln -fs ../$(DOCNAME)-common/README.gz \
+	      $(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-$${xx}/README.gz ;\
 	done
-
-	set -e; for xx in $(LANGS2); do \
-	$(MAKE) "LANGS1=" "LANGS2=$${xx}" "MANUAL1=" "MANUAL2=$(MANUAL2)" "BUILD_TYPE=$(BUILD_TYPE)" \
-	    PUBLISHDIR=$(CURDIR)/debian/quick-reference-$${xx}/usr/share/doc/Debian \
-	    publish-html2 publish-txt2 publish-ps2 publish-pdf2; \
+	# HTML genaration
+	for xx in en $(LANGPO) ; do \
+	  PUBLISHDIR=$(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-common/html ; \
+	  echo "LANG=$$xx, PUBLISHDIR=$$PUBLISHDIR" ; \
+	  $(MAKE) "DOCNAME=$(DOCNAME)" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)" \
+	      "PUBLISHDIR=$$PUBLISHDIR" \
+	      $$PUBLISHDIR/$(DOCNAME).$${xx}.html  $$PUBLISHDIR/index.$${xx}.html ; \
+	done
+	for xx in $(LANG_SGML); do \
+	  PUBLISHDIR=$(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-common/html ; \
+	  echo "LANG=$$xx, PUBLISHDIR=$$PUBLISHDIR" ; \
+	  $(MAKE) -C sgml "DOCNAME=$(DOCNAME)" "LANG_ALL=$(LANSGML)" \
+	      "PUBLISHDIR=$$PUBLISHDIR" \
+	      $$PUBLISHDIR/$(DOCNAME).$${xx}.html  $$PUBLISHDIR/index.$${xx}.html ; \
 	done
 
 # Build architecture-independent files here.
@@ -209,12 +153,13 @@ binary-indep: build install
 #	dh_installmime
 #	dh_installinit
 	dh_installcron
-	dh_installman -p debian-reference-common debian-reference.1 debian-reference.*.1 
+	dh_installman -p $(DOCNAME)-common man/$(DOCNAME).1 man/$(DOCNAME).*.1 
 	dh_installinfo
 #	dh_undocumented
 	dh_installchangelogs 
 	dh_link
 	dh_strip
+	dh_desktop
 	dh_compress
 	dh_fixperms
 #	dh_makeshlibs
@@ -230,4 +175,5 @@ binary-arch: build install
 
 binary: binary-indep binary-arch
 
-.PHONY: build clean binary-indep binary-arch binary install configure refresh
+# if rule bomb out, delete the target
+.DELETE_ON_ERROR:
