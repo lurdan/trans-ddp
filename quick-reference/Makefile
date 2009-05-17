@@ -183,6 +183,13 @@ $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 #########################################################################
 # Create HTML files
 #########################################################################
+.PHONY: css
+css:
+	-rm -rf $(PUBLISHDIR)/images
+	mkdir -p $(PUBLISHDIR)/images
+	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
+	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
+
 .PHONY: html
 html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
 
@@ -216,9 +223,6 @@ REMOTE  := people.debian.org:public_html/pub/po4a/
 
 .PHONY: rsync
 rsync:
-	-rm -rf $(PUBLISHDIR)/images
-	mkdir -p $(PUBLISHDIR)/images
-	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
 	rsync --exclude=all-popcon-results.txt --exclude=packages.txt --exclude=pkg.lst --exclude="debian-reference.*.xml" \
 		-rpt --delete-after . $(REMOTE)
 	# somehow rsync does 700, fixit
@@ -261,9 +265,8 @@ update:
 .PHONY: all
 
 all:
-	$(MAKE) html txt
-	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
-	$(MAKE) -C sgml all HTML_ROOT=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	# skip if DDP
 ifneq ($PDIR,doc)
 	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml

@@ -22,7 +22,7 @@
 MANUAL		:= debian-reference
 MANUAL0		:= dr1
 LANG_ALL	:= fr it es de pt-br pl zh-tw zh-cn
-HTML_ROOT	:= ../html
+PUBLISHDIR	:= ../html
 HTML_PAGES 	:= ap-appendix ch-edit ch-gateway ch-gnupg ch-install \
 		ch-kernel ch-package ch-preface ch-program ch-support \
 		ch-system ch-tips ch-tune ch-tutorial ch-vcs ch-woody \
@@ -41,11 +41,11 @@ SRCS	:= $(foreach lang, $(LANG_ALL), $(MANUAL).$(lang).sgml) \
 
 SRCX	:= $(foreach lang, $(LANG_ALL), $(MANUAL).$(lang).sgml)
 # List of html stamp files to be built
-HTML	:= $(foreach lang,$(LANG_ALL),$(HTML_ROOT)/index.$(lang).html) \
-	$(foreach page,$(HTML_PAGES),$(foreach lang,$(LANG_ALL),$(HTML_ROOT)/$(page).$(lang).html)) \
-	$(foreach lang,$(LANG_ALL),$(HTML_ROOT)/$(MANUAL).$(lang).html)
+HTML	:= $(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/index.$(lang).html) \
+	$(foreach page,$(HTML_PAGES),$(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(page).$(lang).html)) \
+	$(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(MANUAL).$(lang).html)
 # List of txt to be built
-TXT	:= $(foreach lang,$(LANG_ALL),$(HTML_ROOT)/$(MANUAL).$(lang).txt)
+TXT	:= $(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(MANUAL).$(lang).txt)
 # All target
 TARGETS	:= $(HTML) $(TXT)
 # Blacklist for failing build
@@ -63,21 +63,21 @@ $(MANUAL).%.sgml: $(MANUAL0).sgml
 	        $< > $(MANUAL).$*.sgml
 
 #  Build rule for HTML (non-English)
-$(HTML_ROOT)/index.%.html: $(MANUAL).%.sgml $(SRCS)
+$(PUBLISHDIR)/index.%.html: $(MANUAL).%.sgml $(SRCS)
 	debiandoc2html $(BUILD_OPT) -l $*.utf-8 -C $<
-	mkdir -p $(HTML_ROOT)
-	cp $(MANUAL).$*.html/* $(HTML_ROOT)/
+	mkdir -p $(PUBLISHDIR)
+	cp $(MANUAL).$*.html/* $(PUBLISHDIR)/
 	rm -rf $(MANUAL).$*.html
-$(HTML_ROOT)/$(MANUAL).%.html: $(MANUAL).%.sgml $(SRCS)
+$(PUBLISHDIR)/$(MANUAL).%.html: $(MANUAL).%.sgml $(SRCS)
 	debiandoc2html $(BUILD_OPT) -1 -b $(MANUAL)-1.$* -l $*.utf-8 -C $<
-	mkdir -p $(HTML_ROOT)
-	mv -f $(MANUAL)-1.$*.html/index.$*.html $(HTML_ROOT)/$(MANUAL).$*.html
+	mkdir -p $(PUBLISHDIR)
+	mv -f $(MANUAL)-1.$*.html/index.$*.html $(PUBLISHDIR)/$(MANUAL).$*.html
 	rm -rf $(MANUAL)-1.$*.html
 
 #  Build rule for TXT (non-English)
 #  (UTF-8 compatibility of debiandoc2text is limitted) 
-$(HTML_ROOT)/$(MANUAL).%.txt: $(HTML_ROOT)/$(MANUAL).%.html
-	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(HTML_ROOT)/$(MANUAL).$*.html >$@
+$(PUBLISHDIR)/$(MANUAL).%.txt: $(PUBLISHDIR)/$(MANUAL).%.html
+	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(MANUAL).$*.html >$@
 
 #====[ validating SGML ]=======================================================
 validate:
@@ -115,5 +115,5 @@ clean:
 .PHONY: distclean purgeclean
 distclean: clean
 	-rm  -f $(TARGETS)
-	-rm  -rf $(HTML_ROOT)
+	-rm  -rf $(PUBLISHDIR)
 
