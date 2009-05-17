@@ -58,6 +58,7 @@ LANGPO	:=	ja
 LANGNEW	:=
 LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
 
+ifneq ($PDIR,doc)
 #########################################################################
 # Local raw XML file generated from local asciidoc prior to the build
 # This is cleaned after "make clean"
@@ -104,15 +105,17 @@ packages.txt:
 pkg.lst: $(DOCNAME).raw.xml
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
 
+
+endif
+
 #########################################################################
 # Create final XML sources
 # This is not cleaned after "make clean" but cleaned by "make distclean"
 #########################################################################
-.PHONY: xml
-xml:	$(XMLSRCS) $(addsufix, .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 
 # replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
 # fix URL referencees and table ID.
+ifneq ($PDIR,doc)
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# use 00_header.txt as header instead
 	sed -f bin/replace < $(ADOC)/header.txt > $@
@@ -159,6 +162,10 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
+endif
+
+.PHONY: xml
+xml:	$(XMLSRCS) $(addsufix, .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 #########################################################################
 # Create new PO file in $(PODOC)
 # Use with "make LANGNEW=<language> newpo" while <language>= ja, fr, ...
@@ -262,16 +269,20 @@ update:
 #######################################################################
 # Build html for web (DDP or alioth)
 #######################################################################
+.PHONY: publish
+
+publish:
+	$(MAKE) html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+
 .PHONY: all
 
 all:
 	$(MAKE) html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	# skip if DDP
-ifneq ($PDIR,doc)
 	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
 	$(MAKE) rsync
-endif
 
 #######################################################################
 # Clean targets
@@ -283,7 +294,8 @@ clean:
 	-rm -rf $(PUBLISHDIR)
 ifneq ($PDIR,doc)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
-	-rm -f $(DOCNAME).*.xml
+	-rm -f $(DOCNAME).ja.xml
+	-rm -f $(DOCNAME).raw.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
 endif
 
