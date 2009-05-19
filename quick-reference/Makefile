@@ -272,8 +272,9 @@ update:
 .PHONY: publish
 
 publish:
-	$(MAKE) html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	debian-reference.*.xml
+#	$(MAKE) html txt css
+#	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
 .PHONY: all
 
@@ -293,7 +294,6 @@ clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf $(PUBLISHDIR)
 	# just this time
-	debian-reference.*.xml
 
 ifneq ($PDIR,doc)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
