@@ -273,9 +273,8 @@ update:
 .PHONY: publish
 
 publish:
-	debian-reference.*.xml
-#	$(MAKE) html txt css
-#	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
 .PHONY: all
 
