@@ -30,7 +30,7 @@ THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD)
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
 UPDATEPO:=	po4a-updatepo   -M utf-8          --format docbook
-
+pec colwidth=
 # # XSL files and parameters
 # # note: the URL is used as identifier, no HTTP is used!
 # DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
@@ -66,7 +66,9 @@ ifneq ($PDIR,doc)
 
 # create a raw XML source from asciidoc source
 $(DOCNAME).raw.xml: $(ASCSRCS)
-	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt	> $@
+	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
+	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
+	xmllint --format -  > $@
 
 #########################################################################
 # Remotely fetched files prior to the build after "make distclean"
@@ -117,12 +119,11 @@ endif
 # fix URL referencees and table ID.
 ifneq ($PDIR,doc)
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	# use 00_header.txt as header instead
-	sed -f bin/replace < $(ADOC)/header.txt > $@
 	# use asciidoc generated xml file as main contents 
-	# (excluding header parts with sed)
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
-	sed -f bin/replace | sed -n -e "1,/<\/bookinfo>/!p"	>> $@ 
+	$(PBIN)/colspec.py  |\
+	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
+	sed -f bin/replace > $@
 
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
