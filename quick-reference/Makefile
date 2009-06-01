@@ -2,18 +2,24 @@
 # Build debian-reference (v2)
 # vim: set ts=8:
 #######################################################################
-### basic parameters
+### basic parameters (build condition dependent)                    ALL
 #######################################################################
-# parent dir name of the SVN source checkout location (DDP=doc)
+# parent dir name of the SVN source checkout location
+# make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
 PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
-# Publish directory
-# This can and will be overridden by a higher level makefile
-ifeq ($(PDIR),doc)
+# if $(PDIR) is ddp-svn -> DDP build
+# if $(PDIR) is ddp-svn -> normal build -> scp to ~osamu
+
+ifeq ($(PDIR),ddp-svn)
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals/reference
 else
 PUBLISHDIR := $(CURDIR)/html
 endif
+# Please note package build script overides $(PUBLISHDIR)
 
+#######################################################################
+### basic parameters (build condition independent)                  ALL
+#######################################################################
 # base file name excluding file extension
 DOCNAME :=	debian-reference
 # Directories (no trailing slash)
@@ -25,13 +31,11 @@ IMAGES	:=	/usr/share/xml/docbook/stylesheet/nwalsh/images
 # Program name and option
 XP	:=	xsltproc --nonet --novalid --xinclude
 #XL	:=	xmllint --nonet --noout --postvalid --xinclude
-# The threshold should be 80 if translation id completed.
+# The threshold should be 80 if translation is completed.
 THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD)
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
 UPDATEPO:=	po4a-updatepo   -M utf-8          --format docbook
-pec colwidth=
-# # XSL files and parameters
 # # note: the URL is used as identifier, no HTTP is used!
 # DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 VERBOSE	:=
@@ -58,24 +62,24 @@ LANGPO	:=	ja
 LANGNEW	:=
 LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
 
-ifneq ($PDIR,doc)
 #########################################################################
-# Local raw XML file generated from local asciidoc prior to the build
-# This is cleaned after "make clean"
+# Local raw XML files and base data                                 LOCAL
 #########################################################################
+ifneq ($PDIR,ddp-svn)
 
+# -----------------------------------------------------------------------
+# This is cleaned after "make clean"
 # create a raw XML source from asciidoc source
 $(DOCNAME).raw.xml: $(ASCSRCS)
 	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  > $@
 
-#########################################################################
+# -----------------------------------------------------------------------
 # Remotely fetched files prior to the build after "make distclean"
 # These are cleaned after "make clean"
 # These will not be a part of source except datadate{pop|size}.ent
 # datadate{pop|size}.ent are generated as secondary side effects
-#########################################################################
 
 all-popcon-results.txt:
 	wget -O - $(UPOPC) | zcat - > all-popcon-results.txt
@@ -107,17 +111,12 @@ packages.txt:
 pkg.lst: $(DOCNAME).raw.xml
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
 
-
-endif
-
-#########################################################################
+# -----------------------------------------------------------------------
 # Create final XML sources
 # This is not cleaned after "make clean" but cleaned by "make distclean"
-#########################################################################
 
 # replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
 # fix URL referencees and table ID.
-ifneq ($PDIR,doc)
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
@@ -163,22 +162,18 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
-endif
-
-.PHONY: xml
-xml:	$(XMLSRCS) $(addsufix, .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-#########################################################################
+# -----------------------------------------------------------------------
 # Create new PO file in $(PODOC)
 # Use with "make LANGNEW=<language> newpo" while <language>= ja, fr, ...
-#########################################################################
+.PHONY: xml
+xml:	$(XMLSRCS) $(addsufix, .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 .PHONY: newpo
 newpo: $(DOCNAME).en.xml
 	if [ -z "$(LANGNEW)" ] || [ -f "$(PODOC)/$(DOCNAME).$(LANGNEW).po" ] ; then exit 1; fi
 	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$(LANGNEW).po
 
-#########################################################################
+# -----------------------------------------------------------------------
 # Update PO files and translate English XML file
-#########################################################################
 .PHONY: updatepo
 updatepo: $(DOCNAME).en.xml 
 	$(UPDATEPO)  -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).ja.po
@@ -188,8 +183,9 @@ $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 	$(UPDATEPO)  -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po
 	$(TRANSLATE) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po -l $(DOCNAME).$*.xml
 
+endif
 #########################################################################
-# Create HTML files
+# Create HTML files                                                   ALL
 #########################################################################
 .PHONY: css
 css:
@@ -223,8 +219,8 @@ $(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
 	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
 
 
-#######################################################################
-# Utility targets
+#########################################################################
+# Utility targets                                                     ALL
 #########################################################################
 # Replicate
 REMOTE  := people.debian.org:public_html/pub/po4a/
@@ -259,7 +255,7 @@ guide-line.en.html: guide-line.xml
                 xslt/style-onehtml.xsl $<
 
 #######################################################################
-# Update source using remotely fetched data
+# Update source using remotely fetched data                         ALL
 #######################################################################
 .PHONY: update
 update:
@@ -268,7 +264,7 @@ update:
 	endif$(MAKE) clean
 
 #######################################################################
-# Build html for web (DDP or alioth)
+# Build html for web (DDP or alioth)                                ALL
 #######################################################################
 .PHONY: publish
 
@@ -286,7 +282,7 @@ all:
 	$(MAKE) rsync
 
 #######################################################################
-# Clean targets
+# Clean targets                                                     ALL
 #######################################################################
 .PHONY: clean distclean
 
