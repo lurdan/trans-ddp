@@ -65,7 +65,7 @@ LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
 #########################################################################
 # Local raw XML files and base data                                 LOCAL
 #########################################################################
-ifneq ($PDIR,ddp-svn)
+ifneq ($(PDIR),ddp-svn)
 
 # -----------------------------------------------------------------------
 # This is cleaned after "make clean"
@@ -118,6 +118,7 @@ pkg.lst: $(DOCNAME).raw.xml
 # replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
+	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -291,7 +292,7 @@ clean:
 	-rm -rf $(PUBLISHDIR)
 	# just this time
 
-ifneq ($PDIR,doc)
+ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).ja.xml
 	-rm -f $(DOCNAME).raw.xml
@@ -301,7 +302,7 @@ endif
 distclean: clean
 	-rm -f *.html
 	-rm -f $(ENTSRCS)
-ifeq ($PDIR,doc)
+ifeq ($PDIR,ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
