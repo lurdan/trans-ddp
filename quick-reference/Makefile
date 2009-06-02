@@ -11,7 +11,8 @@ PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
 # if $(PDIR) is ddp-svn -> normal build -> scp to ~osamu
 
 ifeq ($(PDIR),ddp-svn)
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals/reference
+# $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
+PUBLISHDIR := $(PUBLISHDIR)/reference
 else
 PUBLISHDIR := $(CURDIR)/html
 endif
