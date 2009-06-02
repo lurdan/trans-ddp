@@ -12,6 +12,7 @@ PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
 
 ifeq ($(PDIR),ddp-svn)
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
+XPUBLISHDIR := $(PUBLISHDIR)
 PUBLISHDIR := $(PUBLISHDIR)/reference
 else
 PUBLISHDIR := $(CURDIR)/html
@@ -291,6 +292,43 @@ all:
 clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf $(PUBLISHDIR)
+	# correct error
+	-rm -rf $(XPUBLISHDIR)/images
+	-rm -f $(XPUBLISHDIR)/apa.*.html
+	-rm -f $(XPUBLISHDIR)/ap-appendix.*.html
+	-rm -f $(XPUBLISHDIR)/ch01.*.html
+	-rm -f $(XPUBLISHDIR)/ch02.*.html
+	-rm -f $(XPUBLISHDIR)/ch03.*.html
+	-rm -f $(XPUBLISHDIR)/ch04.*.html
+	-rm -f $(XPUBLISHDIR)/ch05.*.html
+	-rm -f $(XPUBLISHDIR)/ch06.*.html
+	-rm -f $(XPUBLISHDIR)/ch07.*.html
+	-rm -f $(XPUBLISHDIR)/ch08.*.html
+	-rm -f $(XPUBLISHDIR)/ch09.*.html
+	-rm -f $(XPUBLISHDIR)/ch10.*.html
+	-rm -f $(XPUBLISHDIR)/ch11.*.html
+	-rm -f $(XPUBLISHDIR)/ch12.*.html
+	-rm -f $(XPUBLISHDIR)/ch-edit.*.html
+	-rm -f $(XPUBLISHDIR)/ch-gateway.*.html
+	-rm -f $(XPUBLISHDIR)/ch-gnupg.*.html
+	-rm -f $(XPUBLISHDIR)/ch-install.*.html
+	-rm -f $(XPUBLISHDIR)/ch-kernel.*.html
+	-rm -f $(XPUBLISHDIR)/ch-package.*.html
+	-rm -f $(XPUBLISHDIR)/ch-preface.*.html
+	-rm -f $(XPUBLISHDIR)/ch-program.*.html
+	-rm -f $(XPUBLISHDIR)/ch-support.*.html
+	-rm -f $(XPUBLISHDIR)/ch-system.*.html
+	-rm -f $(XPUBLISHDIR)/ch-tips.*.html
+	-rm -f $(XPUBLISHDIR)/ch-tune.*.html
+	-rm -f $(XPUBLISHDIR)/ch-tutorial.*.html
+	-rm -f $(XPUBLISHDIR)/ch-vcs.*.html
+	-rm -f $(XPUBLISHDIR)/ch-woody.*.html
+	-rm -f $(XPUBLISHDIR)/debian-reference.css
+	-rm -f $(XPUBLISHDIR)/debian-reference.*.html
+	-rm -f $(XPUBLISHDIR)/debian-reference.*.txt
+	-rm -f $(XPUBLISHDIR)/footnotes.*.html
+	-rm -f $(XPUBLISHDIR)/index.*.html
+	-rm -f $(XPUBLISHDIR)/pr01.*.html
 	# just this time
 
 ifneq ($(PDIR),ddp-svn)
