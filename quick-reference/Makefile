@@ -13,7 +13,7 @@ PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
 ifeq ($(PDIR),ddp-svn)
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
 XPUBLISHDIR := $(PUBLISHDIR)
-PUBLISHDIR := $(PUBLISHDIR)/reference
+PUBLISHDIR := $(PUBLISHDIR)/debian-reference
 else
 PUBLISHDIR := $(CURDIR)/html
 endif
