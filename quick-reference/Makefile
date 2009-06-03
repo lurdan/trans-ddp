@@ -271,9 +271,11 @@ update:
 .PHONY: publish
 
 publish:
+	rm -rf $(DRPUBLISHDIR)
+	rm -rf $(PUBLISHDIR)/reference
 	mkdir -p $(DRPUBLISHDIR)
-	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
-#	$(MAKE) bugfix PUBLISHDIR=$(PUBLISHDIR) DRPUBLISHDIR=$(DRPUBLISHDIR) PDIR=$(PDIR)
+	ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
+	ls -lR
 	$(MAKE) html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
@@ -289,52 +291,7 @@ all:
 #######################################################################
 # Clean targets                                                     ALL
 #######################################################################
-.PHONY: bugfix clean distclean
-
-bugfix:
-#	echo "PDIR=$(PDIR)"
-#	ls -lR $(PUBLISHDIR)
-#	-rm -rf $(DRPUBLISHDIR)
-#	# remove old and create symlink
-#	-rm -rf $(PUBLISHDIR)/reference
-#	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
-#	# correct error
-#	-rm -rf $(PUBLISHDIR)/images
-#	-rm -f $(PUBLISHDIR)/apa.*.html
-#	-rm -f $(PUBLISHDIR)/ap-appendix.*.html
-#	-rm -f $(PUBLISHDIR)/ch01.*.html
-#	-rm -f $(PUBLISHDIR)/ch02.*.html
-#	-rm -f $(PUBLISHDIR)/ch03.*.html
-#	-rm -f $(PUBLISHDIR)/ch04.*.html
-#	-rm -f $(PUBLISHDIR)/ch05.*.html
-#	-rm -f $(PUBLISHDIR)/ch06.*.html
-#	-rm -f $(PUBLISHDIR)/ch07.*.html
-#	-rm -f $(PUBLISHDIR)/ch08.*.html
-#	-rm -f $(PUBLISHDIR)/ch09.*.html
-#	-rm -f $(PUBLISHDIR)/ch10.*.html
-#	-rm -f $(PUBLISHDIR)/ch11.*.html
-#	-rm -f $(PUBLISHDIR)/ch12.*.html
-#	-rm -f $(PUBLISHDIR)/ch-edit.*.html
-#	-rm -f $(PUBLISHDIR)/ch-gateway.*.html
-#	-rm -f $(PUBLISHDIR)/ch-gnupg.*.html
-#	-rm -f $(PUBLISHDIR)/ch-install.*.html
-#	-rm -f $(PUBLISHDIR)/ch-kernel.*.html
-#	-rm -f $(PUBLISHDIR)/ch-package.*.html
-#	-rm -f $(PUBLISHDIR)/ch-preface.*.html
-#	-rm -f $(PUBLISHDIR)/ch-program.*.html
-#	-rm -f $(PUBLISHDIR)/ch-support.*.html
-#	-rm -f $(PUBLISHDIR)/ch-system.*.html
-#	-rm -f $(PUBLISHDIR)/ch-tips.*.html
-#	-rm -f $(PUBLISHDIR)/ch-tune.*.html
-#	-rm -f $(PUBLISHDIR)/ch-tutorial.*.html
-#	-rm -f $(PUBLISHDIR)/ch-vcs.*.html
-#	-rm -f $(PUBLISHDIR)/ch-woody.*.html
-#	-rm -f $(PUBLISHDIR)/debian-reference.css
-#	-rm -f $(PUBLISHDIR)/debian-reference.*.html
-#	-rm -f $(PUBLISHDIR)/debian-reference.*.txt
-#	-rm -f $(PUBLISHDIR)/footnotes.*.html
-#	-rm -f $(PUBLISHDIR)/index.*.html
-#	-rm -f $(PUBLISHDIR)/pr01.*.html
+.PHONY: clean distclean
 
 clean:
 	-rm -f *.swp *~ *.tmp
