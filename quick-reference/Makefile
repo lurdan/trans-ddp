@@ -12,10 +12,9 @@ PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
 
 ifeq ($(PDIR),ddp-svn)
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
-XPUBLISHDIR := $(PUBLISHDIR)
-PUBLISHDIR := $(PUBLISHDIR)/debian-reference
+DRPUBLISHDIR := $(PUBLISHDIR)/debian-reference
 else
-PUBLISHDIR := $(CURDIR)/html
+DRPUBLISHDIR := $(CURDIR)/html
 endif
 # Please note package build script overides $(PUBLISHDIR)
 
@@ -192,34 +191,40 @@ endif
 #########################################################################
 .PHONY: css
 css:
-	-rm -rf $(PUBLISHDIR)/images
-	mkdir -p $(PUBLISHDIR)/images
-	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
-	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
+	echo "PDIR=$(PDIR)"
+	ls -lR $(PUBLISHDIR)
+ifeq ($(PDIR),ddp-svn)
+	-rm -r $(PUBLISHDIR)/reference
+	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
+endif
+	-rm -rf $(DRPUBLISHDIR)/images
+	mkdir -p $(DRPUBLISHDIR)/images
+	cp -f $(PXSLT)/$(DOCNAME).css $(DRPUBLISHDIR)/$(DOCNAME).css
+	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(DRPUBLISHDIR)/images
 
 .PHONY: html
-html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
+html:	$(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/index.$(lang).html)
 
-$(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
+$(DRPUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
 	$(XP)   --stringparam root.filename $(DOCNAME) \
-		--stringparam base.dir $(PUBLISHDIR)/ \
+		--stringparam base.dir $(DRPUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
                 --stringparam html.stylesheet $(DOCNAME).css \
                 xslt/style-onehtml.xsl $<
 
-$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(ENTSRCS)
+$(DRPUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(ENTSRCS)
 	$(XP)   --stringparam root.filename index \
-		--stringparam base.dir $(PUBLISHDIR)/ \
+		--stringparam base.dir $(DRPUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
                 --stringparam html.stylesheet $(DOCNAME).css \
                 xslt/style-html.xsl $<
 
 .PHONY: txt
-txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
+txt:	$(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/$(DOCNAME).$(lang).txt)
 #  Build rule for TXT (non-English)
 #  #  (UTF-8 compatibility of debiandoc2text is limitted)
-$(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
-	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
+$(DRPUBLISHDIR)/$(DOCNAME).%.txt: $(DRPUBLISHDIR)/$(DOCNAME).%.html
+	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(DRPUBLISHDIR)/$(DOCNAME).$*.html >$@
 
 
 #########################################################################
@@ -252,7 +257,7 @@ guide-line.xml: guide-line.txt
 
 guide-line.en.html: guide-line.xml
 	$(XP)   --stringparam root.filename guide-line \
-		--stringparam base.dir $(PUBLISHDIR)/ \
+		--stringparam base.dir $(DRPUBLISHDIR)/ \
                 --stringparam html.ext .en.html \
                 --stringparam html.stylesheet xslt/$(DOCNAME).css \
                 xslt/style-onehtml.xsl $<
@@ -273,13 +278,13 @@ update:
 
 publish:
 	$(MAKE) html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
 .PHONY: all
 
 all:
 	$(MAKE) html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	# skip if DDP
 	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
 	$(MAKE) rsync
@@ -291,44 +296,46 @@ all:
 
 clean:
 	-rm -f *.swp *~ *.tmp
-	-rm -rf $(PUBLISHDIR)
+	-rm -rf $(DRPUBLISHDIR)
 	# correct error
-	-rm -rf $(XPUBLISHDIR)/images
-	-rm -f $(XPUBLISHDIR)/apa.*.html
-	-rm -f $(XPUBLISHDIR)/ap-appendix.*.html
-	-rm -f $(XPUBLISHDIR)/ch01.*.html
-	-rm -f $(XPUBLISHDIR)/ch02.*.html
-	-rm -f $(XPUBLISHDIR)/ch03.*.html
-	-rm -f $(XPUBLISHDIR)/ch04.*.html
-	-rm -f $(XPUBLISHDIR)/ch05.*.html
-	-rm -f $(XPUBLISHDIR)/ch06.*.html
-	-rm -f $(XPUBLISHDIR)/ch07.*.html
-	-rm -f $(XPUBLISHDIR)/ch08.*.html
-	-rm -f $(XPUBLISHDIR)/ch09.*.html
-	-rm -f $(XPUBLISHDIR)/ch10.*.html
-	-rm -f $(XPUBLISHDIR)/ch11.*.html
-	-rm -f $(XPUBLISHDIR)/ch12.*.html
-	-rm -f $(XPUBLISHDIR)/ch-edit.*.html
-	-rm -f $(XPUBLISHDIR)/ch-gateway.*.html
-	-rm -f $(XPUBLISHDIR)/ch-gnupg.*.html
-	-rm -f $(XPUBLISHDIR)/ch-install.*.html
-	-rm -f $(XPUBLISHDIR)/ch-kernel.*.html
-	-rm -f $(XPUBLISHDIR)/ch-package.*.html
-	-rm -f $(XPUBLISHDIR)/ch-preface.*.html
-	-rm -f $(XPUBLISHDIR)/ch-program.*.html
-	-rm -f $(XPUBLISHDIR)/ch-support.*.html
-	-rm -f $(XPUBLISHDIR)/ch-system.*.html
-	-rm -f $(XPUBLISHDIR)/ch-tips.*.html
-	-rm -f $(XPUBLISHDIR)/ch-tune.*.html
-	-rm -f $(XPUBLISHDIR)/ch-tutorial.*.html
-	-rm -f $(XPUBLISHDIR)/ch-vcs.*.html
-	-rm -f $(XPUBLISHDIR)/ch-woody.*.html
-	-rm -f $(XPUBLISHDIR)/debian-reference.css
-	-rm -f $(XPUBLISHDIR)/debian-reference.*.html
-	-rm -f $(XPUBLISHDIR)/debian-reference.*.txt
-	-rm -f $(XPUBLISHDIR)/footnotes.*.html
-	-rm -f $(XPUBLISHDIR)/index.*.html
-	-rm -f $(XPUBLISHDIR)/pr01.*.html
+ifeq ($(PDIR),ddp-svn)
+	-rm -rf $(PUBLISHDIR)/images
+	-rm -f $(PUBLISHDIR)/apa.*.html
+	-rm -f $(PUBLISHDIR)/ap-appendix.*.html
+	-rm -f $(PUBLISHDIR)/ch01.*.html
+	-rm -f $(PUBLISHDIR)/ch02.*.html
+	-rm -f $(PUBLISHDIR)/ch03.*.html
+	-rm -f $(PUBLISHDIR)/ch04.*.html
+	-rm -f $(PUBLISHDIR)/ch05.*.html
+	-rm -f $(PUBLISHDIR)/ch06.*.html
+	-rm -f $(PUBLISHDIR)/ch07.*.html
+	-rm -f $(PUBLISHDIR)/ch08.*.html
+	-rm -f $(PUBLISHDIR)/ch09.*.html
+	-rm -f $(PUBLISHDIR)/ch10.*.html
+	-rm -f $(PUBLISHDIR)/ch11.*.html
+	-rm -f $(PUBLISHDIR)/ch12.*.html
+	-rm -f $(PUBLISHDIR)/ch-edit.*.html
+	-rm -f $(PUBLISHDIR)/ch-gateway.*.html
+	-rm -f $(PUBLISHDIR)/ch-gnupg.*.html
+	-rm -f $(PUBLISHDIR)/ch-install.*.html
+	-rm -f $(PUBLISHDIR)/ch-kernel.*.html
+	-rm -f $(PUBLISHDIR)/ch-package.*.html
+	-rm -f $(PUBLISHDIR)/ch-preface.*.html
+	-rm -f $(PUBLISHDIR)/ch-program.*.html
+	-rm -f $(PUBLISHDIR)/ch-support.*.html
+	-rm -f $(PUBLISHDIR)/ch-system.*.html
+	-rm -f $(PUBLISHDIR)/ch-tips.*.html
+	-rm -f $(PUBLISHDIR)/ch-tune.*.html
+	-rm -f $(PUBLISHDIR)/ch-tutorial.*.html
+	-rm -f $(PUBLISHDIR)/ch-vcs.*.html
+	-rm -f $(PUBLISHDIR)/ch-woody.*.html
+	-rm -f $(PUBLISHDIR)/debian-reference.css
+	-rm -f $(PUBLISHDIR)/debian-reference.*.html
+	-rm -f $(PUBLISHDIR)/debian-reference.*.txt
+	-rm -f $(PUBLISHDIR)/footnotes.*.html
+	-rm -f $(PUBLISHDIR)/index.*.html
+	-rm -f $(PUBLISHDIR)/pr01.*.html
+endif
 	# just this time
 
 ifneq ($(PDIR),ddp-svn)
@@ -341,7 +348,7 @@ endif
 distclean: clean
 	-rm -f *.html
 	-rm -f $(ENTSRCS)
-ifeq ($PDIR,ddp-svn)
+ifeq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
