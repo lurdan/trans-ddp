@@ -271,6 +271,7 @@ update:
 .PHONY: publish
 
 publish:
+	$(MAKE) bugfix PUBLISHDIR=$(PUBLISHDIR) DRPUBLISHDIR=$(DRPUBLISHDIR) PDIR=$(PDIR)
 	$(MAKE) html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
@@ -286,14 +287,13 @@ all:
 #######################################################################
 # Clean targets                                                     ALL
 #######################################################################
-.PHONY: clean distclean
+.PHONY: bugfix clean distclean
 
-clean:
+bugfix:
 	echo "PDIR=$(PDIR)"
 	ls -lR $(PUBLISHDIR)
 	-rm -f *.swp *~ *.tmp
 	-rm -rf $(DRPUBLISHDIR)
-ifeq ($(PDIR),ddp-svn)
 	# remove old and create symlink
 	-rm -rf $(PUBLISHDIR)/reference
 	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
@@ -334,9 +334,8 @@ ifeq ($(PDIR),ddp-svn)
 	-rm -f $(PUBLISHDIR)/footnotes.*.html
 	-rm -f $(PUBLISHDIR)/index.*.html
 	-rm -f $(PUBLISHDIR)/pr01.*.html
-endif
-	# just this time
 
+clean:
 ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).ja.xml
