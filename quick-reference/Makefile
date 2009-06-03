@@ -191,12 +191,6 @@ endif
 #########################################################################
 .PHONY: css
 css:
-	echo "PDIR=$(PDIR)"
-	ls -lR $(PUBLISHDIR)
-ifeq ($(PDIR),ddp-svn)
-	-rm -r $(PUBLISHDIR)/reference
-	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
-endif
 	-rm -rf $(DRPUBLISHDIR)/images
 	mkdir -p $(DRPUBLISHDIR)/images
 	cp -f $(PXSLT)/$(DOCNAME).css $(DRPUBLISHDIR)/$(DOCNAME).css
@@ -295,10 +289,15 @@ all:
 .PHONY: clean distclean
 
 clean:
+	echo "PDIR=$(PDIR)"
+	ls -lR $(PUBLISHDIR)
 	-rm -f *.swp *~ *.tmp
 	-rm -rf $(DRPUBLISHDIR)
-	# correct error
 ifeq ($(PDIR),ddp-svn)
+	# remove old and create symlink
+	-rm -rf $(PUBLISHDIR)/reference
+	ln -sf $(PUBLISHDIR)/reference $(DRPUBLISHDIR)
+	# correct error
 	-rm -rf $(PUBLISHDIR)/images
 	-rm -f $(PUBLISHDIR)/apa.*.html
 	-rm -f $(PUBLISHDIR)/ap-appendix.*.html
