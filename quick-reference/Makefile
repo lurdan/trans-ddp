@@ -271,13 +271,13 @@ update:
 .PHONY: publish
 
 publish:
-	rm -rf $(DRPUBLISHDIR)
-	rm -rf $(PUBLISHDIR)/reference
+#	rm -rf $(DRPUBLISHDIR)
+#	rm -rf $(PUBLISHDIR)/reference
 	mkdir -p $(DRPUBLISHDIR)
 	ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
-	ls -lR
 	$(MAKE) html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	ls -lR $(PUBLISHDIR)
 
 .PHONY: all
 
