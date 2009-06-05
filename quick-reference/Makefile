@@ -14,7 +14,8 @@ ifeq ($(PDIR),ddp-svn)
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
 DRPUBLISHDIR := $(PUBLISHDIR)/debian-reference
 else
-DRPUBLISHDIR := $(CURDIR)/html
+PUBLISHDIR := $(CURDIR)/html
+DRPUBLISHDIR := $(PUBLISHDIR)
 endif
 # Please note package build script overides $(PUBLISHDIR)
 
@@ -49,24 +50,29 @@ UPOPC	:=	http://popcon.debian.org/all-popcon-results.txt.gz
 CODE	:=	sid
 ARCH	:=	amd64
 UDEBA	:=	$(DEBM)/$(CODE)
-# AsciiDoc source files in $(ADOC) directories
-ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
-		03_sysinit.txt 04_auth.txt 05_network.txt 06_netapp.txt \
-		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
-		11_dataconv.txt 12_program.txt 99_appendix.txt
-# source files
-ASCSRCS :=	$(ADOC)/$(DOCNAME).txt $(addprefix $(ADOC)/, $(ASCSRC))
-ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	:=	$(DOCNAME).en.xml $(ENTSRCS)
+# language defaults
 LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
 LANGPO	:=	ja
 LANGNEW	:=
 LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
 
+# AsciiDoc source files in $(ADOC) directories
+ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
+		03_sysinit.txt 04_auth.txt 05_network.txt 06_netapp.txt \
+		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
+		11_dataconv.txt 12_program.txt 99_appendix.txt \
+		copyright.txt header.txt $(DOCNAME).txt
+# source files
+ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
+ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
+XMLSRCS	:=	$(DOCNAME).en.xml $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO))) $(ENTSRCS)
+
 #########################################################################
 # Local raw XML files and base data                                 LOCAL
 #########################################################################
 ifneq ($(PDIR),ddp-svn)
+
+.SECONDARY: $(XMLSRCS) $(ENTSRCS)
 
 # -----------------------------------------------------------------------
 # This is cleaned after "make clean"
@@ -168,7 +174,7 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # Create new PO file in $(PODOC)
 # Use with "make LANGNEW=<language> newpo" while <language>= ja, fr, ...
 .PHONY: xml
-xml:	$(XMLSRCS) $(addsufix, .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
+xml:	$(XMLSRCS)
 .PHONY: newpo
 newpo: $(DOCNAME).en.xml
 	if [ -z "$(LANGNEW)" ] || [ -f "$(PODOC)/$(DOCNAME).$(LANGNEW).po" ] ; then exit 1; fi
@@ -271,10 +277,9 @@ update:
 .PHONY: publish
 
 publish:
-#	rm -rf $(DRPUBLISHDIR)
-#	rm -rf $(PUBLISHDIR)/reference
-	mkdir -p $(DRPUBLISHDIR)
-	ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
+	-mkdir -p $(DRPUBLISHDIR)
+	-rm -f $(DRPUBLISHDIR)/debian-reference
+	-ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
 	$(MAKE) html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	ls -lR $(PUBLISHDIR)
@@ -286,7 +291,7 @@ all:
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 	# skip if DDP
 	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
-	$(MAKE) rsync
+	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
 
 #######################################################################
 # Clean targets                                                     ALL
@@ -295,9 +300,9 @@ all:
 
 clean:
 	-rm -f *.swp *~ *.tmp
+	-rm -rf html
 ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
-	-rm -f $(DOCNAME).ja.xml
 	-rm -f $(DOCNAME).raw.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
 endif
