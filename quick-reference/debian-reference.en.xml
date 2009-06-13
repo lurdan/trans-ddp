@@ -10178,7 +10178,7 @@ ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts</screen>
         <simpara>Here the &lt;host_name&gt; in this matches the own hostname defined in the "<literal>/etc/hostname</literal>".  The &lt;domain_name&gt; in this is the <ulink url="&fullyqualifieddomainnamefqdn;">fully qualified domain name (FQDN)</ulink> of this host.</simpara>
         <tip>
-          <simpara>I sometimes use bogus domain name for &lt;domain_name&gt;, such as "<literal>invalid</literal>" in this configuration for the mobile PC.</simpara>
+          <simpara>For the mobile PC without real FQDN, you may pick a TLD such as bogus "<literal>invalid</literal>" or mDNS "<literal>local</literal>" as the TLD part of &lt;domain_name&gt; in this configuration.</simpara>
         </tip>
         <simpara>The "<literal>/etc/resolv.conf</literal>" is a static file if the <literal>resolvconf</literal> package is not installed.  If installed, it is a symbolic link.  Either way, it contains information that initialize the resolver routines. If the DNS is found at IP="<literal>192.168.11.1</literal>", it contains:</simpara>
         <screen>nameserver 192.168.11.1</screen>
@@ -16089,14 +16089,15 @@ Press ^D to terminating ssh-agent session.
       <simpara>See <literal>xorg</literal>(1) for X server information.</simpara>
       <section id="_the_re_configuration_of_the_x_server">
         <title>The (re)configuration of the X server</title>
+        <note>
+          <simpara>X server (post-<literal>lenny</literal>) is rewitten to use more information from standardized OS services such as <ulink url="&hal;">HAL</ulink> and <ulink url="&dbus;">D-bus</ulink>, for its configuration than that from "<literal>/etc/X11/xorg.conf</literal>".  So contents in "<literal>/etc/X11/xorg.conf</literal>" are getting less.  You may need to <ulink url="&workaroundtransiroblemsofxserver;">work around transitional problems of X server</ulink>.</simpara>
+        </note>
         <simpara>To (re)configure an X server,</simpara>
         <screen># dpkg-reconfigure --priority=low x11-common
 # dpkg-reconfigure --priority=low xserver-xorg</screen>
         <simpara>will generate a new "<literal>/etc/X11/xorg.conf</literal>" file using <literal>dexconf</literal>(1).</simpara>
-        <simpara>If you have manually edited this "<literal>/etc/X11/xorg.conf</literal>" file but would like it to be automatically updated again, run the following command:
-<literal>
-# sudo dpkg-reconfigure -phigh xserver-xorg
-</literal></simpara>
+        <simpara>If you have manually edited this "<literal>/etc/X11/xorg.conf</literal>" file but would like it to be automatically updated again, run the following command:</simpara>
+        <screen># sudo dpkg-reconfigure -phigh xserver-xorg</screen>
         <simpara>Please check your X configuration  with respect to the specification of your monitor carefully.  For the large high resolution CRT monitor, it is a good idea to set the refresh rate as high as your monitor can handle (85 Hz is great, 75 Hz is OK) to reduce flicker.  For the LCD monitor, slower standard refresh rate (60Hz) is usually fine due to its slow response.</simpara>
         <note>
           <simpara>Be careful not to use too high refresh rate which may cause fatal hardware failure of your monitor system.</simpara>
@@ -21709,9 +21710,6 @@ run a program under virturized environment.  Most basic method is provided by <u
         <caution>
           <simpara>Examples below assumes both parent system and chroot system share the same CPU architecture.</simpara>
         </caution>
-        <tip>
-          <simpara>Similar <literal>schroot</literal> package may give you an idea to run <literal>i386</literal> chroot system under <literal>amd64</literal> parent system.</simpara>
-        </tip>
         <simpara>You can learn how to setup and use <literal>chroot</literal>(8) by running <literal>pbuilder</literal>(8) program under <literal>script</literal>(1) as follows.</simpara>
         <screen>$ sudo pbuilder --create --no-targz --debug</screen>
         <simpara>You will see how <literal>debootstrap</literal>(8) or <literal>debootstrap</literal>(1) populate system data for <literal>sid</literal> environment under "<literal>/var/cache/pbuilder/builds/</literal>".</simpara>
@@ -21738,7 +21736,7 @@ mounting <literal>"/dev/pts</literal>" filesystem
           </listitem>
           <listitem>
             <simpara>
-"<literal>policy-rc.d</literal>" created (in "<literal>/usr/sbin/</literal>", it always exits with 101)
+"<literal>/usr/sbin/policy-rc.d</literal>" created (this always exits with 101)
 </simpara>
           </listitem>
           <listitem>
@@ -21747,7 +21745,18 @@ run "<literal>chroot /var/cache/pbuilder/build/ bin/bash -c <emphasis>exec -a -b
 </simpara>
           </listitem>
         </itemizedlist>
-        <simpara>For "<literal>policy-rc.d</literal>", see "<literal>/usr/share/doc/sysv-rc/README.policy-rc.d.gz</literal>".</simpara>
+        <tip>
+          <simpara>The "<literal>/usr/sbin/policy-rc.d</literal>" file prevents daemon programs to be started automatically on Debian system.  See "<literal>/usr/share/doc/sysv-rc/README.policy-rc.d.gz</literal>".</simpara>
+        </tip>
+        <tip>
+          <simpara>The original purpose of the specialized chroot package, <literal>pbuilder</literal> is to construct a chroot system and builds a package inside the chroot.  It is an ideal system to use to check that a package's build-dependencies are correct, and to be sure that unnecessary and wrong build dependencies will not exist in the resulting package.</simpara>
+        </tip>
+        <tip>
+          <simpara>Similar <literal>schroot</literal> package may give you an idea to run <literal>i386</literal> chroot system under <literal>amd64</literal> parent system.</simpara>
+        </tip>
+        <tip>
+          <simpara>By installing a system into a separate partition using the installer of other distributions and using this system for <literal>chroot</literal>(8), you can run other distributions under <literal>chroot</literal>(8).</simpara>
+        </tip>
       </section>
       <section id="_setting_up_login_for_chroot">
         <title>Setting up login for chroot</title>
@@ -21761,82 +21770,6 @@ reload init
 </simpara>
           </listitem>
         </itemizedlist>
-      </section>
-      <section id="_setting_up_x_for_chroot">
-        <title>Setting up X for chroot</title>
-        <warning>
-          <simpara>XXX FIXME XXX: This section may need to be updated for <literal>lenny</literal>/<literal>squeeze</literal>.</simpara>
-        </warning>
-        <simpara>Do you want to run the latest X and GNOME safely in your chroot?  That's entirely possible!  The following example will make GDM run on virtual terminal <literal>vt9</literal>.</simpara>
-        <simpara>First install a chroot system.  From the root of the main system, copy key configuration files to the chroot system.</simpara>
-        <screen>main # cp /etc/X11/xorg.conf /sid-root/etc/X11/xorg.conf
-main # chroot /sid-root</screen>
-        <itemizedlist>
-          <listitem>
-            <simpara>
-copy local configuration (<literal>"/etc/hosts</literal>", <literal>"/etc/hostname</literal>", <literal>"/etc/resolv.conf</literal>")
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-mount "<literal>/proc</literal>" filesystem
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-mount <literal>"/dev/pts</literal>" filesystem
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-create "<literal>policy-rc.d</literal>" (in "<literal>/usr/sbin/</literal>", it always exits with 101)
-</simpara>
-          </listitem>
-        </itemizedlist>
-        <screen>chroot # aptitude install gdm gnome xorg
-chroot # vim /etc/gdm/gdm.conf</screen>
-        <itemizedlist>
-          <listitem>
-            <simpara>
-change "<literal>[servers]</literal>" section with "<literal>s/vt7/vt9/</literal>" to make the first virtual console in the chroot from <literal>vt7</literal> to <literal>vt9</literal>.
-</simpara>
-          </listitem>
-        </itemizedlist>
-        <screen>chroot # /etc/init.d/gdm start</screen>
-        <simpara>Now you can easily switch back and forth between full X environments in your chroot and your main system just by switching between Linux virtual terminals; e.g.  by using Ctrl-Alt-F7 and Ctrl-Alt-F9.  Have fun!</simpara>
-      </section>
-      <section id="_run_other_distributions_with_chroot">
-        <title>Run other distributions with chroot</title>
-        <simpara>A chroot environment for another Linux distribution can easily be created. You install a system into separate partitions using the installer of the other distribution.  If its root partition is in "<literal>/dev/hda9</literal>":</simpara>
-        <screen>main # cd / ; mkdir /other-dist
-main # mount -t ext3 /dev/hda9 /other-dist</screen>
-        <itemizedlist>
-          <listitem>
-            <simpara>
-copy local configuration (<literal>"/etc/hosts</literal>", <literal>"/etc/hostname</literal>", <literal>"/etc/resolv.conf</literal>")
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-mount "<literal>/proc</literal>" filesystem
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-mount <literal>"/dev/pts</literal>" filesystem
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-create "<literal>policy-rc.d</literal>" (in "<literal>/usr/sbin/</literal>", it always exits with 101)
-</simpara>
-          </listitem>
-        </itemizedlist>
-        <screen>main # chroot /other-dist /bin/bash</screen>
-      </section>
-      <section id="_build_packages_under_chroot">
-        <title>Build packages under chroot</title>
-        <simpara>The original purpose of the specialized chroot package, <literal>pbuilder</literal> is to construct a chroot system and builds a package inside the chroot.  It is an ideal system to use to check that a package's build-dependencies are correct, and to be sure that unnecessary and wrong build dependencies will not exist in the resulting package.</simpara>
       </section>
     </section>
   </chapter>
