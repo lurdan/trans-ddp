@@ -287,12 +287,14 @@ publish:
 
 .PHONY: all
 
+# for test build
+
 all:
 	$(MAKE) html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
-	# skip if DDP
-	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
-	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
+#	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+#	# skip if DDP
+#	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
+#	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
 
 #######################################################################
 # Clean targets                                                     ALL
