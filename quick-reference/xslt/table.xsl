@@ -12,7 +12,7 @@ Process raw XML file:
 -->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
 
-<xsl:variable name="uletters">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !#$%()=-~^|\/+*,.?;:@`&quot;&apos;&amp;&gt;&lt;</xsl:variable>
+<xsl:variable name="uletters">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !#$%()=-~^|\/+*,.?;:@`&quot;&apos;&amp;&gt;&lt;’</xsl:variable>
 <xsl:variable name="lletters">abcdefghijklmnopqrstuvwxyzabcdefghij</xsl:variable>
 <!-- I will use max 32 characters for href references and id references -->
 
