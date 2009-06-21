@@ -14,6 +14,7 @@ ifeq ($(PDIR),ddp-svn)
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
 DRPUBLISHDIR := $(PUBLISHDIR)/debian-reference
 else
+# if $(PUBLISHDIR) is not set, set it
 PUBLISHDIR := $(CURDIR)/html
 DRPUBLISHDIR := $(PUBLISHDIR)
 endif
@@ -37,7 +38,7 @@ XP	:=	xsltproc --nonet --novalid --xinclude
 THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD)
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
-UPDATEPO:=	po4a-updatepo   -M utf-8          --format docbook
+UPDATEPO:=	msgmerge --update --previous
 # # note: the URL is used as identifier, no HTTP is used!
 # DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 VERBOSE	:=
@@ -113,30 +114,6 @@ packages.txt:
 	echo "<!ENTITY pkgsize-date \"$(shell date -u +'%F %T %Z')\">"					>> datadatesize.ent
 	rm packages.main packages.contrib packages.non-free
 
-# package name list for popcon and size ent file generation
-# This file is not part of source
-pkg.lst: $(DOCNAME).raw.xml
-	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
-
-# -----------------------------------------------------------------------
-# Create final XML sources
-# This is not cleaned after "make clean" but cleaned by "make distclean"
-
-# replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
-# fix URL referencees and table ID.
-$(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	
-	# use asciidoc generated xml file as main contents 
-	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
-	$(PBIN)/colspec.py  |\
-	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
-	sed -f bin/replace > $@
-
-# trick to allow building source w/o regenerating urls.ent unneededly
-urls.ent:  $(ASCSRCS)
-	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
-	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq | sed -f bin/replace	> $@
-
 # trick to allow building source w/o all-popcon-results.txt
 datadatepop.ent:
 	$(MAKE) all-popcon-results.txt
@@ -171,25 +148,46 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
 # -----------------------------------------------------------------------
-# Create new PO file in $(PODOC)
-# Use with "make LANGNEW=<language> newpo" while <language>= ja, fr, ...
-.PHONY: xml
-xml:	$(XMLSRCS)
-.PHONY: newpo
-newpo: $(DOCNAME).en.xml
-	if [ -z "$(LANGNEW)" ] || [ -f "$(PODOC)/$(DOCNAME).$(LANGNEW).po" ] ; then exit 1; fi
-	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$(LANGNEW).po
+# Create final XML sources
+# This is not cleaned after "make clean" but cleaned by "make distclean"
+
+# replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
+# fix URL referencees and table ID.
+$(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
+	
+	# use asciidoc generated xml file as main contents 
+	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
+	$(PBIN)/colspec.py  |\
+	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
+	sed -f bin/replace > $@
+
+# trick to allow building source w/o regenerating urls.ent unneededly
+urls.ent:  $(ASCSRCS)
+	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
+	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq | sed -f bin/replace	> $@
+
+# package name list for popcon and size ent file generation
+# This file is not part of source
+pkg.lst: $(DOCNAME).raw.xml
+	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
 
 # -----------------------------------------------------------------------
-# Update PO files and translate English XML file
-.PHONY: updatepo
-updatepo: $(DOCNAME).en.xml 
-	$(UPDATEPO)  -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).ja.po
+# Create new POT file in $(PODOC)
+.PHONY: pot
+pot: $(PODOC)/$(DOCNAME).pot
+$(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xml
+	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
+
+$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
+	$(UPDATEPO) $(PODOC)/$(DOCNAME).ja.po $(PODOC)/$(DOCNAME).pot
 
 # create translated XML file while updating PO file
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
-	$(UPDATEPO)  -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po
 	$(TRANSLATE) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po -l $(DOCNAME).$*.xml
+
+# -----------------------------------------------------------------------
+.PHONY: xml
+xml:	$(XMLSRCS)
 
 endif
 #########################################################################
