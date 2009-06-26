@@ -112,7 +112,7 @@ clean:
 	-rm  -f $(SRCX)
 	-rm -f `find . -name "*~" -o -name "*.bak" -o -name "*.rej" -o -name "*.orig" -o -name ".#*"`
 	-rm -f core
-.PHONY: distclean purgeclean
+.PHONY: distclean
 distclean: clean
 	-rm  -f $(TARGETS)
 	-rm  -rf $(PUBLISHDIR)

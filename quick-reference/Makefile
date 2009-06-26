@@ -4,20 +4,21 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
+BUILD_MODE=xml
 # parent dir name of the SVN source checkout location
 # make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
 PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
-# if $(PDIR) is ddp-svn -> DDP build
-# if $(PDIR) is ddp-svn -> normal build -> scp to ~osamu
-
 ifeq ($(PDIR),ddp-svn)
+# Building www.debian.org
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
 DRPUBLISHDIR := $(PUBLISHDIR)/debian-reference
 else
+# Normally
 # if $(PUBLISHDIR) is not set, set it
 PUBLISHDIR := $(CURDIR)/html
 DRPUBLISHDIR := $(PUBLISHDIR)
 endif
+
 # Please note package build script overides $(PUBLISHDIR)
 
 #######################################################################
@@ -63,17 +64,19 @@ ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
 		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
 		11_dataconv.txt 12_program.txt 99_appendix.txt \
 		copyright.txt header.txt $(DOCNAME).txt
-# source files
+# source files (local update requires these)
 ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
+RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt
+# source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	:=	$(DOCNAME).en.xml $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO))) $(ENTSRCS)
+XMLSRCS	:=	$(DOCNAME).en.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
 
 #########################################################################
-# Local raw XML files and base data                                 LOCAL
+# Local raw XML files and base data created from asciidoc in lenny  LOCAL
 #########################################################################
-ifneq ($(PDIR),ddp-svn)
+ifeq ($(BUILD_MODE),asciidoc)
 
-.SECONDARY: $(XMLSRCS) $(ENTSRCS)
+.SECONDARY: $(XMLSRCS)
 
 # -----------------------------------------------------------------------
 # This is cleaned after "make clean"
@@ -171,25 +174,37 @@ urls.ent:  $(ASCSRCS)
 pkg.lst: $(DOCNAME).raw.xml
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
 
-# -----------------------------------------------------------------------
-# Create new POT file in $(PODOC)
+endif
+
+#########################################################################
+# POT/PO file operations                                            LOCAL
+#########################################################################
+# Create new POT file in $(PODOC) matching $(DOCNAME).en.xml
 .PHONY: pot
 pot: $(PODOC)/$(DOCNAME).pot
 $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xml
 	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
 
-$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
-	$(UPDATEPO) $(PODOC)/$(DOCNAME).ja.po $(PODOC)/$(DOCNAME).pot
+# Update new PO file in $(PODOC) by POT file
+$(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
+	$(UPDATEPO) $(PODOC)/$(DOCNAME).$*.po $(PODOC)/$(DOCNAME).pot
 
-# create translated XML file while updating PO file
+# Update new PO file in $(PODOC) by POT file for English typo fix
+.PHONY: typo
+typo:
+	-rm -f $(PODOC)/$(DOCNAME).pot.old
+	cp $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).pot.old
+	$(MAKE) BUILD_MODE=asciidoc  $(DOCNAME).en.xml
+	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
+	# repeat for all languages
+	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).ja.po
+
+#########################################################################
+# Translate XML files                                                 ALL
+#########################################################################
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 	$(TRANSLATE) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po -l $(DOCNAME).$*.xml
-
-# -----------------------------------------------------------------------
-.PHONY: xml
-xml:	$(XMLSRCS)
-
-endif
+	
 #########################################################################
 # Create HTML files                                                   ALL
 #########################################################################
@@ -248,18 +263,6 @@ url-check: urls.lst
 	@sed -ne "s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $< | uniq | xargs -n 1 wget -O /dev/null -nv
 	@echo "----- URL check (end) -----"
 
-.PHONY: test
-test: guide-line.en.html
-guide-line.xml: guide-line.txt
-	asciidoc -a 'newline=\n' -b docbook -d book -o - $< > $@
-
-guide-line.en.html: guide-line.xml
-	$(XP)   --stringparam root.filename guide-line \
-		--stringparam base.dir $(DRPUBLISHDIR)/ \
-                --stringparam html.ext .en.html \
-                --stringparam html.stylesheet xslt/$(DOCNAME).css \
-                xslt/style-onehtml.xsl $<
-
 #######################################################################
 # Update source using remotely fetched data                         ALL
 #######################################################################
@@ -267,7 +270,7 @@ guide-line.en.html: guide-line.xml
 update:
 	$(MAKE) distclean
 	$(MAKE) $(ENTSRCS)
-	endif$(MAKE) clean
+	$(MAKE) clean
 
 #######################################################################
 # Build html for web (DDP or alioth)                                ALL
@@ -279,17 +282,21 @@ publish:
 #	-rm -rf $(DRPUBLISHDIR)/debian-reference
 	-rm -f $(PUBLISHDIR)/reference
 	-ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
-	$(MAKE) html txt css
+	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR)
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	ls -lR $(PUBLISHDIR)
 
+#######################################################################
+# Build xml/html for testing source (local)                         ALL
+#######################################################################
+.PHONY: xml
+xml:	
+	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS)
+
 .PHONY: all
-
-# for test build
-
 all:
-	$(MAKE) html txt css
-#	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) BUILD_MODE=asciidoc html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	# skip if DDP
 #	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
 #	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
@@ -302,10 +309,12 @@ all:
 clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf html
+	-rm -f $(PODOC)/*~
 ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
+	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).raw.xml
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
+	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
 
 distclean: clean
@@ -314,6 +323,6 @@ distclean: clean
 ifeq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)"
+	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
 
