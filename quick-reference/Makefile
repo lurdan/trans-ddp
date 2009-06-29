@@ -159,7 +159,8 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	
+	if [ $(< /etc/debian_version sed -n "s/^\([^.]*\.[^.]*\).*$/\1/p") != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -168,6 +169,8 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
+	if [ $(< /etc/debian_version sed -n "s/^\([^.]*\.[^.]*\).*$/\1/p") != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq | sed -f bin/replace	> $@
 
@@ -182,7 +185,7 @@ else
 #=======================================================================#
 # To avoid circular dependency
 $(DOCNAME).en.xml:
-	echo "You need to run \"make xml\""
+	echo "You need to run \"make xml\" in lenny environment"
 	exit
 
 #=======================================================================#
@@ -210,7 +213,9 @@ typo:
 	$(MAKE) BUILD_MODE=asciidoc  $(DOCNAME).en.xml
 	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
 	# repeat for all languages
-	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).ja.po
+	for $$xx in $(LANGPO) ; do \
+	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).$$xx.po ;\
+	done
 
 #########################################################################
 # Translate XML files                                                 ALL
