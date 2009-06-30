@@ -1,77 +1,251 @@
-Note for building package.
+==============================================================================
+#         README.sources for debian-reference (Version 2 series)             #
+#                    Mon Jun 29 14:21:25 UTC 2009                            #
+#                    Osamu Aoki, osamu at debian dot org                     #
+==============================================================================
 
-For English source, debian-reference.en.xml is considered as the prefferred source to build documentation.
+I will touch on following topics.
 
-For other languages, po4a/debian-reference.??.po are considered as the prefferred source to build documentation.
+ * Basics of build process
+ * Making copy of SVN contents
+ * Updating contents in Englsh XML source
+ * Fixing typo in Englsh XML source
+ * Updating remote data contents
+ * Creating Translation PO for a new language
+ * Updating Translation PO
+ * Updating for new release (squeeze --> squeeze+1)
+ * VCS locations and history
 
-For now, XML files for English is generated from asciidoc source using lenny version of it to save typing.
+== Basics of build process ==
 
-all the asciidoc/*.txt files
- -> debian-reference.raw.xml
-  -> debian-reference.en.xml
-   -> debian-reference.pot
+You must have lenny system with folllowing packages installed:
+ * subversion
+ * pbuilder
+ * libxml2-utils
+ * devscripts
+ * wget
+ * dctrl-tools
 
-You can not use squeeze version of asciidoc due to grammar difference.
+Basic flow of build process can be summarized as:
 
-I have a plan to switch starting source to other pre-XML format or make debian-reference.raw.xml as the starting one.
+       all the asciidoc/*.txt files and remotely fetched files by wget
+                   :(lenny version of asciidoc)
+                   v
+       debian-reference.raw.xml --> url.ent etc.
+                   :(build these in advance by "make xml")
+                   v
+    * debian-reference.en.xml -->  all English final formats (HTML, text)
+                   |         \
+                   v          \
+       debian-reference.pot    +--> debian-reference.ja.xml
+                   |          /           |
+                   v         /            v
+    * debian-reference.ja.po       all Japanese final formats (HTML, text)
 
-wget command is needed for remote data update.
+Please note po files are generated from English xml file.
 
-= Update guide =
+Please note actual build process starts from debian-reference.en.xml and
+debian-reference.ja.po files.  These are "REAL" source files as far as package
+build process and www.debian.org web page building process by ddp are
+concerned.
 
-English contents: (for now, use these to update English contents and typo fixes in it)
- * Edit files in "./asciidoc/"
+Due to asciidoc conversion logic differences, we must use lenny version of
+asciidoc for this source.
 
-Translation contents:
- * Edit files in "./po4a/"
+Please note Makefile has few key parameters which affects build process.
 
-Update procedure basics:
- * "make xml" to update source change with content.
-   * It runs msgmerge for you.
-   * remove newly created "fuzzy" by editor afterwards.
- * "make typo" to update source for english typos change.
-   * Fix typo in asciidoc/*.txt before
- * "make all" for test build html
-   * It does "make xml" first.
- * For updating po, use specialized po file editor such as poedit.
-   "make xml" to update afterwards.
- * For update with remote date
-   * "make distclean && make all".
- * For change in translation *.po files:
-   Use specialized po file editor such as poedit
- * Clean source as needed with "make clean".
- * When updating whole tree, it is good idea to run "make distclean"
-   which will update all popcon/size/url information.
- * Test build of package by "debuild".
+  BUILD_MODE := xml       (normal-build-from-xml mode, default)
+  BUILD_MODE := asciidoc  (build-from-asciidoc mode)
 
-After "make distclean", you need remote connection to update with "make xml" and "make clean" to get clean updated source with new popcon data.
+  PDIR       := something   for normal build
+  PDIR       := ddp-svn     for /org/www.debian.org/ddp-svn/trunk/quick-reference
 
-= From root of source tree =
+  PUBLISHDIR := build result file location
+
+  LANGALL    := language list for all
+  LANGPO     := language list for PO based translation
+  LANGSGML   := language list for SGML based old translation (calculated)
+
+Please note following targets:
 
 make all
-	Do not require remote connection.
+        Update source from asciidoc
 	Results are in $(PUBLISHDIR)
+	Do not require remote connection if you already have done so.
 
 make publish
 	Used by DDP for www.debian.org
+	Do not require remote connection nor asciidoc
 
 make xml
-	Create XML/PO source files from asciidoc etc.
+	Create XML/PO source files
 
-make updatepo
-	Update po file contents using new English XML
+make html
+	Create html files
 
-make translate
-	Create Translated XML source files 
-	for $(LANGA) from po and English XML
+make txt
+	Create txt files
+
+make css
+	Create css files
 
 make clean
-	Clean source to be ready for packaging
+	Clean source to make it ready for packaging
 
 make distclean
-	Clean source to be updated remotely
+	Clean source to make it ready to be updated remotely
 
-make rsync
-	Copy entire source and html files to remote site
+make update
+	Update source with remote data.
+
+Please note old translated documents are in SGML and its content is loosely
+related to current English content.  In order to recycle as much old content,
+I usually use followings:
+   
+ * "poedit" to edit debian-reference.??.po file to be updated.
+ * browser to display debian-reference.??.html from lenny package
+ * copy-and-paste
+ * add tags.
+
+Please note that for http://www.debian.org/ web site publishing, XML/PO files
+are used to build pages.  So before commiting, you should commit generated
+XML/PO to SVN using "make xml" at least.
+
+== Making copy of SVN contents  ==
+
+If you just need readonly access to SVN contents, you can do this  with:
+ $ mkdir -p path/to/use/
+ $ cd path/to/use/
+ $ svn co svn://svn.debian.org/svn/ddp/manuals/trunk/quick-reference qref
+
+If you need read/write access, please follow me ...
+
+DR is part of Debian Documentation Project (DDP) at http://www.debian.org/doc/ddp . 
+
+DDP uses alioth service.  
+
+If you do not have alioth account (i.e. non DD), you can set up by clicking
+"New account" at the top right corner.
+
+You can join DDP by clicking [Request to join] at
+http://alioth.debian.org/projects/ddp/ and send your request to join.  You
+should send short reminder to debian-doc@lists.debian.org .  Then you can get
+alioth account activated for DDP.  Please use English page etc.  (Otherwise we
+get non-English message)
+
+You should set up SSH (passwordless login).  Then:
+
+ $ mkdir -p path/to/use/
+ $ cd path/to/use/
+ $ svn co svn+ssh://svn.debian.org/svn/ddp/manuals/trunk/qick-reference qref
+
+== Updating contents in Englsh XML source ==
+
+Typical work flow of creating latest XML source from asciidoc/po4a is:
+
+ * Get latest source with "svn up" to sync with latest upstream.
+ * Edit "asciidoc/*.txt" files to update English contents if needed.
+ * Run "make xml".
+   -->  It runs msgmerge for you.
+ * Edit "po4a/debian-reference.??.po" to update translation if needed.
+   --> remove "fuzzy" while fixing translation.
+ * Run "make all" for test build html,
+   --> If error, back to Edit "asciidoc/*.txt" files.
+ * Save updated XML source with "svn ci".
+
+ * Clean source as needed with "make clean".
+
+ * Test build package using "debuild" and "pdebuild".
+
+For editting "po4a/debian-reference.??.po", use specialized po file 
+editor such as poedit for ease.
+
+== Fixing typo in Englsh XML source ==
+
+If you find typo in English and you know its fix should not affects
+translation, you can do following:
+
+ * Get latest source with "svn up".
+ * Run "make xml" to be sure.
+   -->  It runs msgmerge for you.
+ * Save updated XML source with "svn ci".
+ * Edit "asciidoc/*.txt" files to typo English contents if needed.
+ * Run "make typo".
+   -->  It runs msguntypot for you.
+ * Run "make all" for test build html
+   --> If error, back to Edit "asciidoc/*.txt" files.
+ * Save updated XML source with "svn ci".
+
+== Updating remote data contents ==
+
+You need remote connection to update popcon, package size, and other remotely
+fetched data.
+
+ * Get latest source with "svn up".
+ * Run "make distclean" to remove remote data contents.
+ * Run "make all" for test build html
+ * Save updated XML source with "svn ci".
+
+== Creating Translation PO for a new language ==
+
+ * Get latest source with "svn up".
+ * Run "make xml" to be sure.
+ * Run "cd po4a; cp debian-reference.pot debian-reference.??.po".
+ * Save updated XML source with "svn ci".
+
+== Updating Translation PO ==
+
+ * Get latest source with "svn up".
+ * Run "make xml" to be sure.
+ * Edit "po4a/debian-reference.??.po" to update translation if needed.
+ * Run "make all" for test build html,
+   --> If error, back to Edit "po4a/debian-reference.??.po" files.
+ * Save updated XML source with "svn ci".
+
+== Updating for new release (squeeze --> squeeze+1) ==
+
+ * Update common.ent target in Makefile to new release names.
+ * Change English source to debian-reference.raw.xml or other pre-XML 
+   format.
+
+== VCS locations and history ==
+
+This DR source is maintained in alioth ddp SVN repository now.
+
+VCS usage of Debian Reference (DR) have been changed with time.
+This can be summarized aproximately as follows:
+
+ 1. DR ver 1 (ALL SGML source)
+  * Souceforge CVS as primary
+  * ddp CVS having copy of Souceforge CVS
+ 2. DR ver 2 (lenny) (XML=English source, SGML=other sources)
+  * Souceforge CVS stalled
+  * ddp CVS having copy of old Souceforge CVS
+    --> This was moved to ddp SVN
+  * git.debian.org having latest source
+ 3. DR ver 2 (squeeze) (XML=English Japanese sources, SGML=other sources)
+  * Souceforge CVS stalled
+  * ddp SVN latest content
+  * git.debian.org stalled
+
+Latest SVN repository contents can be inspected/cloned as:
+ $ svn co svn://svn.debian.org/svn/ddp/manuals/trunk manuals     # SVN     (ro)
+ $ svn co svn+ssh://svn.debian.org/svn/ddp/manuals/trunk manuals # SVN+SSH (r/w)
+ http://svn.debian.org/wsvn/ddp/manuals/trunk/quick-reference/
+ http://www-master.debian.org/build-logs/ddp/                  DDP build results
+
+Latest source source package can be downloaded by
+ $ apt-get source debian-reference
+
+Older lenny GIT repository contents can be inspected/cloned as:
+ $ sensible-browser http://git.debian.org/?p=users/osamu/debian-reference.git              # web
+ $ git clone  ssh://git.debian.org/~osamu/public_git/debian-reference.git debian-reference # r/w
+ $ git clone  ssh://git.debian.org/git/users/osamu/debian-reference.git   debian-reference # r/w
+ $ git clone  git://git.debian.org/~osamu/debian-reference.git            debian-reference # ro
+ $ git clone  git://git.debian.org/git/users/osamu/debian-reference.git   debian-reference # ro
+ $ git clone http://git.debian.org/git/users/osamu/debian-reference.git   debian-reference # ro
 
 
+Osamu
+
+# vim: set tw=78 sts=2 ai expandtab:

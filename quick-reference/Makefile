@@ -4,19 +4,19 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
-BUILD_MODE=xml
+BUILD_MODE	:= xml
 # parent dir name of the SVN source checkout location
 # make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
-PDIR	:=	$(notdir $(realpath $(CURDIR)/../..))
+PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
 ifeq ($(PDIR),ddp-svn)
 # Building www.debian.org
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
-DRPUBLISHDIR := $(PUBLISHDIR)/debian-reference
+DRPUBLISHDIR	:= $(PUBLISHDIR)/debian-reference
 else
 # Normally
 # if $(PUBLISHDIR) is not set, set it
-PUBLISHDIR := $(CURDIR)/html
-DRPUBLISHDIR := $(PUBLISHDIR)
+PUBLISHDIR	:= $(CURDIR)/html
+DRPUBLISHDIR	:= $(PUBLISHDIR)
 endif
 
 # Please note package build script overides $(PUBLISHDIR)
