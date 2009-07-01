@@ -4,16 +4,14 @@
 """
 colspec.py - set colspec in XML to correct values
 
-Design: Convert text depending on cols:
+Design: Convert text depending on % of width:
 
-   72pt = 1 inch, 7 inch = 504pt
-
- 2 cols = 2,5                    = 144,360 
- 3 cols = 1.5,1.5 ,4             = 108,108,288
- 4 cols = 1,1,1,4                = 72,72,72,288
- 5 cols = 1,1,1,1,3              = 72,72,72,72,216
- 6 cols = 1,1,1,1,1,2            = 72,72,72,72,72,144
- 7 cols = 1,1,1,1,1,1,1          = 72,72,72,72,72,72,72
+ 2 cols = 30,70
+ 3 cols = 30,30,40
+ 4 cols = 20,20,20,40
+ 5 cols = 15,15,15,15,40
+ 6 cols = 10,10,10,10,10,50
+ 7 cols = 10,10,10,10,10,10,40
 
 Copyright (C) 2009 Osamu Aoki, GPL
 """
@@ -40,24 +38,26 @@ if __name__ == '__main__':
 #            print "tgroup_cols =", tgroup_cols
             cols = 0
             if tgroup_cols == 2:
-                colwidth = (144,360)
+                colwidth = (30,70)
             elif tgroup_cols == 3:
-                colwidth = (108,108,288)
+                colwidth = (30,30,40)
             elif tgroup_cols == 4:
-                colwidth = (72,72,72,288)
+                colwidth = (20,20,20,40)
             elif tgroup_cols == 5:
-                colwidth = (72,72,72,72,216)
+                colwidth = (10,10,10,10,60)
             elif tgroup_cols == 6:
-                colwidth = (72,72,72,72,72,144)
+                colwidth = (10,10,10,10,10,50)
             elif tgroup_cols == 7:
-                colwidth = (72,72,72,72,72,72,72)
-            if table_id == "bogus":
-                colwidth = (72,72,72,72,144,72)
+                colwidth = (10,10,10,10,10,10,40)
+            if table_id == "listofinsecureanservicesandports":
+                colwidth = (25,25,25,25)
 
-        if re.match('.*colspec colwidth="', line):
-            x = str(colwidth[cols])
+        if re.match('.*table pgwide="', line):
+            print re.sub(r'(.*table pgwide=)"0"(.*)',r'\1"1"\2',line)
+        elif re.match('.*colspec colwidth="', line):
+            x = str(colwidth[cols])+"%"
             cols += 1
-            print re.sub(r'(.*colspec colwidth=").*',r'\1',line)+str(x)+re.sub(r'.*colspec colwidth="[^"]*(".*)',r'\1',line)
+            print re.sub(r'(.*colspec colwidth=").*',r'\1',line)+str(x)+"*"+re.sub(r'.*colspec colwidth="[^"]*(".*)',r'\1',line)
         else:
             print line
 
