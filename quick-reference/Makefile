@@ -287,7 +287,7 @@ url-check: urls.lst
 .PHONY: update
 update:
 	$(MAKE) distclean
-	$(MAKE) $(ENTSRCS)
+	$(MAKE) xml
 	$(MAKE) clean
 
 #######################################################################
@@ -300,7 +300,7 @@ publish:
 #	-rm -rf $(DRPUBLISHDIR)/debian-reference
 	-rm -f $(PUBLISHDIR)/reference
 	-ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
-	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR)
+	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR) "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	ls -lR $(PUBLISHDIR)
 
@@ -309,7 +309,7 @@ publish:
 #######################################################################
 .PHONY: xml
 xml:	
-	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS)
+	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
 all:
