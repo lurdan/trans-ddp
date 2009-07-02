@@ -56,7 +56,7 @@ UDEBA	:=	$(DEBM)/$(CODE)
 LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
 LANGPO	:=	ja
 LANGNEW	:=
-LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
+LANGSGML =	$(filter-out en $(LANGPO), $(LANGALL))
 
 # AsciiDoc source files in $(ADOC) directories
 ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
@@ -69,7 +69,7 @@ ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
 RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt
 # source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	:=	$(DOCNAME).en.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
+XMLSRCS	 =	$(DOCNAME).en.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -159,7 +159,8 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+	# $$ in following becomes $ under make: 5.0.2 -> 5.0
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
 		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
@@ -169,7 +170,8 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+	# $$ in following becomes $ under make: 5.0.2 -> 5.0
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
 		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq | sed -f bin/replace	> $@
@@ -313,7 +315,7 @@ xml:
 
 .PHONY: all
 all:
-	$(MAKE) BUILD_MODE=asciidoc html txt css
+	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	# skip if DDP
 #	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
