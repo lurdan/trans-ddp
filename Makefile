@@ -62,16 +62,16 @@ all: $(SUBDIRS)
 publish::
 	[ -d $(PUBLISHDIR) ] || mkdir -p $(PUBLISHDIR)
 publish:: $(SUBDIRS-publish)
-
+ 
 clean: $(SUBDIRS-clean)
 
 $(SUBDIRS):
 	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
-	  $(MAKE) -C $@
+	  COLUMNS=1000 $(MAKE) -C $@
 
 $(SUBDIRS-publish):
 	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
-	  $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
+	  COLUMNS=1000 $(MAKE) -C $(subst -publish,,$@) publish $(publish_args)
 
 $(SUBDIRS-clean):
 	-/usr/bin/time -f "%C took %E real, %U user, %S sys time" \
