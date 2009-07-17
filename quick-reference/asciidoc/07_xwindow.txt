@@ -63,7 +63,6 @@ TIP: You may need to do the similar for other modern desktop environments which 
 
 The X window system is activated as a combination of the server and client programs. The meaning for the words **server** and **client** with respect to the words **local** and **remote** requires attention here:
 
-
 .List of server/client terminology.
 [grid="all"]
 `----------------------`-------------------------------------------------------------------------------------
@@ -81,7 +80,7 @@ See `xorg`(1) for X server information.
 
 ==== The (re)configuration of the X server
 
-NOTE: X server (post-`lenny`) is rewitten to use more information from standardized OS services such as http://en.wikipedia.org/wiki/HAL_(software)[HAL] and http://en.wikipedia.org/wiki/D-Bus[D-bus], for its configuration than that from "`/etc/X11/xorg.conf`".  So contents in "`/etc/X11/xorg.conf`" are getting less.  You may need to http://wiki.debian.org/XStrikeForce/InputHotplugGuide[work around transitional problems of X server].
+NOTE: X server (post-`lenny`) is rewritten to use more information from standardized OS services such as http://en.wikipedia.org/wiki/HAL_(software)[HAL] and http://en.wikipedia.org/wiki/D-Bus[D-bus], for its configuration than that from "`/etc/X11/xorg.conf`".  So contents in "`/etc/X11/xorg.conf`" are getting less.  You may need to http://wiki.debian.org/XStrikeForce/InputHotplugGuide[work around transitional problems of X server].
 
 The following will (re)configure an X server by generating a new "`/etc/X11/xorg.conf`" file using `dexconf`(1).
 
@@ -142,7 +141,7 @@ TIP: The start up script for the display manager daemons checks the content of t
 
 TIP: See <<_specific_locale_only_under_x_window>> for initial environment variables of the X display manager.
 
-Essentially, all these programs execute the "`/etc/X11/Xsession`" script.  Then the "`/etc/X11/Xsession`" script performs run-parts like action to execute scripts in the "`/etc/X11/Xsession.d/`" directory. This is essentially an execution of a first program which is found in the following order with the `exec` builtin command:
+Essentially, all these programs execute the "`/etc/X11/Xsession`" script.  Then the "`/etc/X11/Xsession`" script performs `run-parts`(8) like action to execute scripts in the "`/etc/X11/Xsession.d/`" directory. This is essentially an execution of a first program which is found in the following order with the `exec` builtin command:
 
 1. The script specified as the argument of "`/etc/X11/Xsession`" by the X display manager, if it is defined.
 2. The "`\~/.xsession`" or "`\~/.Xsession`" script, if it is defined.
@@ -164,11 +163,11 @@ Language=ja_JP.UTF-8
 
 ==== Customizing the X session (classic method)
 
-On a system where "`/etc/X11/Xsession.options`" contains a line "`allow-user-xsession`" without preceding "`#`" characters, any user who defines "`\~/.xsession`" or "`\~/.Xsession`" will be able to customize the action of "`/etc/X11/Xsession`" by completely overiding the system code. The last command in the "`\~/.xsession`" file should use form of "`exec some-window/session-manager`" to start your favorite X window/session managers.
+On a system where "`/etc/X11/Xsession.options`" contains a line "`allow-user-xsession`" without preceding "`#`" characters, any user who defines "`\~/.xsession`" or "`\~/.Xsession`" will be able to customize the action of "`/etc/X11/Xsession`" by completely overriding the system code. The last command in the "`\~/.xsession`" file should use form of "`exec some-window/session-manager`" to start your favorite X window/session managers.
 
 ==== Customizing the X session (new method)
 
-Here are new methods to customize the X session without completely overiding the system code as above.
+Here are new methods to customize the X session without completely overriding the system code as above.
 
 
 - The display manager `gdm` can select a specific session and set it as the argument of "`/etc/X11/Xsession`".
@@ -179,7 +178,6 @@ Here are new methods to customize the X session without completely overiding the
 ==== Connecting a remote X client via SSH
 
 The use of "`ssh -X`" enables a secure connection from a local X server to a remote application server.
-
 
 - Set "`X11Forwarding`" entries to "`yes`" in "`/etc/ssh/sshd_config`" of the remote host, if you want to avoid "`-X`" command-line option.
 - Start the X server on the local host.
@@ -226,6 +224,7 @@ echo "Connecting to "$TARGETHOST" with $TARGETSESSION"
 /usr/bin/ssh -A -X -T -n "$TARGETHOST" "$TARGETSESSION"
 #SSH_ASKPASS=/usr/bin/ssh-askpass /usr/bin/ssh -A -X -T -n "$TARGETHOST" "$TARGETSESSION"
 --------------------
+
 Then add followings to "`/etc/dm/Sessions/ssh.desktop`":
 
 --------------------
@@ -239,40 +238,55 @@ Type=Application
 
 === Fonts in the X window
 
-X window on the Debian system support two mechanisms for font management: 
 
-- server side font management: the original core X11 font system and
-- client side font management: the new http://en.wikipedia.org/wiki/Xft[Xft] 2 font system.
+The font configuration on Debian system can be summarized with historical perspective as follows:
 
-The core X11 font system provides backward compatibility with older applications such as Xterm with bitmap fonts.  It is supported by installing pertinent font packages which trigger `defoma`(1) scripts to generate required files such as "`fonts.dir`".
+- Each application used to require specific manual operation to configure installed fonts before `woody`.
+- http://packages.debian.org/sid/defoma[Debian Font Manager (defome)] was created to automate this font configuration by providing a Debian specific glue layer in 2000.  
+ * Each font package publishes application independent font data to defoma.
+ * Each application uses these data to configure each installed font via its installation script.
+ * For X server, the actual program to configure TrueType fonts and CID fonts (as well as CMaps) was packaged as http://packages.debian.org/sid/x-ttcidfont-conf[x-ttcidfont-conf].
+- http://en.wikipedia.org/wiki/Fontconfig[Fontconfig 2.0] was created to provide a distribution independent library for configuring and customizing font access in 2002.
+ * As of `lenny` release, almost all programs which access font data seem to use this system.
 
-The Xft2 font system is used by all modern applications such as ones from GNOME, KDE, OpenOffice.org, etc..  It supports all fonts listed below (<<_basic_fonts>>, <<_additional_fonts>>, and <<_cjk_fonts>>) with advanced features such as anti-aliasing.  It has no configuration mechanism itself, rather it relies upon the http://en.wikipedia.org/wiki/Fontconfig[fontconfig library] to configure and customize fonts as described in `fonts.conf`(5).  Actual rasterization is supported by the FreeType 2 font engine.  These new X clients using Xft2 font system can talk to modern X server via  http://en.wikipedia.org/wiki/XRender[the X Rendering Extension].
+Font supports on X window system can be summarized as follows:
 
+- Legacy X server side font support system
+ * The original core X11 font system provides backward compatibility for older version of X client applications.
+ * The original core X11 fonts are installed on the X server.
+- Modern X client side font support system
+ * Modern X system supports all fonts listed below (<<_basic_fonts>>, <<_additional_fonts>>, and <<_cjk_fonts>>) with advanced features such as anti-aliasing.
+ * http://en.wikipedia.org/wiki/Xft[Xft] 2.0 connects modern X applications such as ones from http://en.wikipedia.org/wiki/GNOME[GNOME], http://en.wikipedia.org/wiki/KDE[KDE], and http://en.wikipedia.org/wiki/OpenOffice.org[OpenOffice.org] with http://freetype.sourceforge.net/index.html[FreeType] 2.0 library.
+ * http://freetype.sourceforge.net/index.html[FreeType] 2.0 provides font rasterization library.
+ * http://en.wikipedia.org/wiki/Fontconfig[Fontconfig] is used for font specification resolution for http://en.wikipedia.org/wiki/Xft[Xft] 2.0.  Its configuration is described in `fonts.conf`(5).
+ * All modern X applications using http://en.wikipedia.org/wiki/Xft[Xft] 2.0 can talk to modern X server using http://en.wikipedia.org/wiki/XRender[the X Rendering Extension].
+ * The http://en.wikipedia.org/wiki/XRender[X Rendering Extension] moves font access and glyph image generation from the X server to the X client.
 
 .Table of packages to support X window font systems.
 [grid="all"]
 `-------------------`-------------`------------`----------------------------------------------------------------------------------------------
 package             popcon        size         description                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------
-`xfonts-utils`      @@@popcon1@@@ @@@psize1@@@ X Window System font utility programs                                                          
-`libxft2`           @@@popcon1@@@ @@@psize1@@@ Xft: FreeType-based font drawing library for X                                                 
-`libfreetype6`      @@@popcon1@@@ @@@psize1@@@ http://freetype.sourceforge.net/index.html[FreeType] 2 font engine, shared library files       
-`fontconfig`        @@@popcon1@@@ @@@psize1@@@ http://en.wikipedia.org/wiki/Fontconfig[generic font configuration library] - support binaries 
-`fontconfig-config` @@@popcon1@@@ @@@psize1@@@ generic font configuration library - configuration                                             
-`defoma`            @@@popcon1@@@ @@@psize1@@@ Debian Font Manager -- automatic font configuration framework                                  
-`x-ttcidfont-conf`  @@@popcon1@@@ @@@psize1@@@ TrueType configuration for X (for CJK support)                                                 
+`xfonts-utils`      @@@popcon1@@@ @@@psize1@@@ X Window System font utility programs
+`libxft2`           @@@popcon1@@@ @@@psize1@@@ Xft, a library that connects X applications with the FreeType font rasterization library
+`libfreetype6`      @@@popcon1@@@ @@@psize1@@@ http://freetype.sourceforge.net/index.html[FreeType] 2.0 font rasterization library
+`fontconfig`        @@@popcon1@@@ @@@psize1@@@ http://en.wikipedia.org/wiki/Fontconfig[Fontconfig], a generic font configuration library -- support binaries
+`fontconfig-config` @@@popcon1@@@ @@@psize1@@@ http://en.wikipedia.org/wiki/Fontconfig[Fontconfig], a generic font configuration library -- configuration data
+`defoma`            @@@popcon1@@@ @@@psize1@@@ Debian Font Manager -- automatic font configuration framework 
+`x-ttcidfont-conf`  @@@popcon1@@@ @@@psize1@@@ TrueType configuration for X (for CJK support)
 ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// I removed CID reference in x-ttcidfont-conf since I see no CID font used by X.  
+// I removed CID reference in x-ttcidfont-conf since I see no CID font used by X.
 
-You can check actual font path for:
+You can check font configuration information on:
 
-- core X11 font path with "`xset q`"
-- fontconfig font default: "`fc-match`" 
+- core X11 font path by "`xset q`"
+- fontconfig font default by: "`fc-match`"
+- available fontconfig fonts by: "`fc-list`"
 
 TIP: "http://unifont.org/iuc27/html/ICUPresentation.html[The Penguin and Unicode]" is a good overview of modern X Window system. Other documentations at http://unifont.org/[http://unifont.org/] should provide good information on Unicode fonts, Unicode-enabled software, internationalization, and Unicode usability issues on http://en.wikipedia.org/wiki/Free_and_open_source_software[free/libre/open source (FLOSS)] operating systems.
 
-TIP: You should rely on http://en.wikipedia.org/wiki/Fontconfig[fontconfig] infrastructure to configure fonts on the Debian system.  Debian Font Manager (`defoma`(1)) is only useful as font installation such as http://en.wikipedia.org/wiki/X_logical_font_description[X logical font description (XLFD)] data.
+TIP: You should rely on http://en.wikipedia.org/wiki/Fontconfig[fontconfig] infrastructure to configure fonts on the Debian system.  Debian Font Manager (`defoma`(1)) is only useful for font installation and http://en.wikipedia.org/wiki/X_logical_font_description[X logical font description (XLFD)] data registration.
 
 ==== Basic fonts
 
