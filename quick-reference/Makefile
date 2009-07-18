@@ -311,6 +311,8 @@ publish:
 #######################################################################
 .PHONY: xml
 xml:	
+	# making sure to rebuild all
+	touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
