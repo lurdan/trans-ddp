@@ -242,6 +242,9 @@ $(DRPUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
 	$(XP)   --stringparam root.filename $(DOCNAME) \
 		--stringparam base.dir $(DRPUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
+                --stringparam admon.graphics 0 \
+                --stringparam callout.graphics 0 \
+                --stringparam navig.graphics 0 \
                 --stringparam html.stylesheet $(DOCNAME).css \
                 xslt/style-onehtml.xsl $<
 
