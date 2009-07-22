@@ -304,7 +304,7 @@ publish:
 	-mkdir -p $(DRPUBLISHDIR)
 #	-rm -rf $(DRPUBLISHDIR)/debian-reference
 	-rm -f $(PUBLISHDIR)/reference
-	-ln -sf $(DRPUBLISHDIR) $(PUBLISHDIR)/reference
+	-ln -sf debian-reference $(PUBLISHDIR)/reference
 	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR) "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	ls -lR $(PUBLISHDIR)
