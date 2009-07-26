@@ -52,6 +52,7 @@ UPOPC	:=	http://popcon.debian.org/all-popcon-results.txt.gz
 CODE	:=	sid
 ARCH	:=	amd64
 UDEBA	:=	$(DEBM)/$(CODE)
+UDEBB	:=	$(DEBM)/experimental
 # language defaults
 LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
 LANGPO	:=	ja
@@ -66,7 +67,7 @@ ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
 		copyright.txt header.txt $(DOCNAME).txt
 # source files (local update requires these)
 ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
-RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt
+RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
 # source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
 XMLSRCS	 =	$(DOCNAME).en.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
@@ -108,6 +109,9 @@ packages.txt:
 	wget -O - $(UDEBA)/non-free/binary-$(ARCH)/Packages.bz2  | bzcat - > packages.non-free.tmp
 	grep-dctrl -e -sPackage,Installed-Size -P "." packages.non-free.tmp > packages.non-free
 	rm packages.non-free.tmp
+	wget -O - $(UDEBB)/main/binary-$(ARCH)/Packages.bz2      | bzcat - > packages.main.tmp
+	grep-dctrl -e -sPackage,Installed-Size -P "." packages.main.tmp > packages.backup.txt
+	rm packages.main.tmp
 	#sync
 	#sleep 1
 	cat packages.main packages.contrib packages.non-free >$@
@@ -118,6 +122,11 @@ packages.txt:
 	echo "<!ENTITY non-free-packages \"$$(grep -e '^Package:' packages.non-free | wc -l)\">"	>> datadatesize.ent
 	echo "<!ENTITY pkgsize-date \"$(shell date -u +'%F %T %Z')\">"					>> datadatesize.ent
 	rm packages.main packages.contrib packages.non-free
+
+packages.bkup.txt:
+	wget -O - $(UDEBB)/main/binary-$(ARCH)/Packages.bz2      | bzcat - > packages.bkup.tmp
+	grep-dctrl -e -sPackage,Installed-Size -P "." packages.bkup.tmp > $@
+	rm packages.bkup.tmp
 
 # trick to allow building source w/o all-popcon-results.txt
 datadatepop.ent:
@@ -137,11 +146,12 @@ popcon.ent:
 	TOTAL=$(shell sed -n -e 's/^Submissions: *\([^ ]*\) *$$/\1/p' < all-popcon-results.txt) ;\
 	grep -e '^Package:' all-popcon-results.txt | grep -f pkg.lst | $(PBIN)/popconent $$TOTAL				>> $@
 
-# trick to allow building source w/o packages.txt and pkg.lst
+# trick to allow building source w/o packages.txt and packages.bkup.txt and pkg.lst
 pkgsize.ent:
 	if ! [ -f packages.txt ]; then $(MAKE) packages.txt ; fi
+	if ! [ -f packages.bkup.txt ]; then $(MAKE) packages.bkup.txt ; fi
 	if ! [ -f pkg.lst ]; then $(MAKE) pkg.lst ; fi
-	$(PBIN)/sizeent packages.txt < pkg.lst	> $@
+	$(PBIN)/sizeent packages.txt packages.bkup.txt < pkg.lst	> $@
 
 # change if there have been some change in source
 common.ent: $(filter-out common.ent, $(XMLSRCS))
@@ -271,7 +281,7 @@ REMOTE  := people.debian.org:public_html/pub/po4a/
 
 .PHONY: rsync
 rsync:
-	rsync --exclude=all-popcon-results.txt --exclude=packages.txt --exclude=pkg.lst --exclude="debian-reference.*.xml" \
+	rsync --exclude=all-popcon-results.txt --exclude=packages.txt --exclude=packages.bkup.txt --exclude=pkg.lst --exclude="debian-reference.*.xml" \
 		-rpt --delete-after . $(REMOTE)
 	# somehow rsync does 700, fixit
 	ssh people.debian.org "chmod ugo+rX public_html/pub/po4a"
@@ -304,6 +314,7 @@ publish:
 	-mkdir -p $(DRPUBLISHDIR)
 #	-rm -rf $(DRPUBLISHDIR)/debian-reference
 	-rm -f $(PUBLISHDIR)/reference
+	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
 	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR) "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
@@ -338,7 +349,7 @@ clean:
 	-rm -rf html
 	-rm -f $(PODOC)/*~
 ifneq ($(PDIR),ddp-svn)
-	-rm -f all-popcon-results.txt packages.txt pkg.lst
+	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).raw.xml
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
@@ -348,7 +359,7 @@ distclean: clean
 	-rm -f *.html
 	-rm -f $(ENTSRCS)
 ifeq ($(PDIR),ddp-svn)
-	-rm -f all-popcon-results.txt packages.txt pkg.lst
+	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt packages.bkup.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
 	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
