@@ -109,11 +109,6 @@ packages.txt:
 	wget -O - $(UDEBA)/non-free/binary-$(ARCH)/Packages.bz2  | bzcat - > packages.non-free.tmp
 	grep-dctrl -e -sPackage,Installed-Size -P "." packages.non-free.tmp > packages.non-free
 	rm packages.non-free.tmp
-	wget -O - $(UDEBB)/main/binary-$(ARCH)/Packages.bz2      | bzcat - > packages.main.tmp
-	grep-dctrl -e -sPackage,Installed-Size -P "." packages.main.tmp > packages.backup.txt
-	rm packages.main.tmp
-	#sync
-	#sleep 1
 	cat packages.main packages.contrib packages.non-free >$@
 	#
 	echo "<!ENTITY all-packages \"$$(grep -e '^Package:' packages.txt | wc -l)\">"			>  datadatesize.ent
