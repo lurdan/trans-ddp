@@ -39,7 +39,7 @@ XP	:=	xsltproc --nonet --novalid --xinclude
 THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD)
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
-UPDATEPO:=	msgmerge --update --previous
+UPDATEPO:=	msgmerge --update --previous --no-wrap
 # # note: the URL is used as identifier, no HTTP is used!
 # DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 VERBOSE	:=
@@ -70,7 +70,7 @@ ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
 RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
 # source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	 =	$(DOCNAME).en.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
+XMLSRCS	 =	$(DOCNAME).en.xml $(DOCNAME).en.xmlt $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -173,6 +173,18 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
 	sed -f bin/replace > $@
 
+# replace table contents with @@@popcon*@@@ and @@@psize*@@@ with dummy text and 
+# fix URL referencees and table ID as template for translation.
+$(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
+	# $$ in following becomes $ under make: 5.0.2 -> 5.0
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
+	# use asciidoc generated xml file as main contents 
+	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
+	$(PBIN)/colspec.py  |\
+	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
+	sed -f bin/replace > $@
+
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
@@ -205,8 +217,8 @@ endif
 # Create new POT file in $(PODOC) matching $(DOCNAME).en.xml
 .PHONY: pot
 pot: $(PODOC)/$(DOCNAME).pot
-$(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xml
-	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
+$(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
+	$(GETTEXT) -m $(DOCNAME).en.xmlt -p $(PODOC)/$(DOCNAME).pot
 
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
@@ -217,8 +229,8 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 typo:
 	-rm -f $(PODOC)/$(DOCNAME).pot.old
 	cp $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).pot.old
-	$(MAKE) BUILD_MODE=asciidoc  $(DOCNAME).en.xml
-	$(GETTEXT) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).pot
+	$(MAKE) BUILD_MODE=asciidoc  $(DOCNAME).en.xmlt
+	$(GETTEXT) -m $(DOCNAME).en.xmlt -p $(PODOC)/$(DOCNAME).pot
 	# repeat for all languages
 	for $$xx in $(LANGPO) ; do \
 	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).$$xx.po ;\
@@ -356,6 +368,7 @@ distclean: clean
 ifeq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt packages.bkup.txt pkg.lst
 	-rm -f $(DOCNAME).*.xml
+	-rm -f $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
 

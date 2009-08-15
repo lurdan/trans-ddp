@@ -20,13 +20,18 @@ Process raw XML file:
 
 <!-- xsl:strip-space elements="*"/ -->
 
+
+<!-- column 1 -->
 <xsl:template match="//tbody/row/entry[1]">
   <xsl:choose>
     <xsl:when test="contains(../entry[2], '@@@popcon1@@@')">
+      <!-- column 1 is package name -->
       <xsl:copy>
       <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://packages.debian.org/sid/", normalize-space(.), "@@@dq@@@@@@gt@@@")'/>
       <xsl:apply-templates select="@*|node()"/>
-      <xsl:text disable-output-escaping="yes">&lt;/ulink&gt;</xsl:text>
+      <xsl:text disable-output-escaping="yes">&lt;/ulink&gt; </xsl:text>
+      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://bugs.debian.org/", normalize-space(.), "@@@dq@@@@@@gt@@@")'/>
+      <xsl:text disable-output-escaping="yes">*&lt;/ulink&gt;</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -37,18 +42,23 @@ Process raw XML file:
   </xsl:choose>
 </xsl:template>
 
+<!-- column 2 -->
 <xsl:template match="//tbody/row/entry[2]">
   <xsl:choose>
     <xsl:when test="contains(../entry[3], '@@@popcon2@@@')">
+      <!-- column 2 is package name -->
       <xsl:copy>
       <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://packages.debian.org/sid/", normalize-space(.), "@@@dq@@@@@@gt@@@")'/>
       <xsl:apply-templates select="@*|node()"/>
-      <xsl:text disable-output-escaping="yes">&lt;/ulink&gt;</xsl:text>
+      <xsl:text disable-output-escaping="yes">&lt;/ulink&gt; </xsl:text>
+      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://bugs.debian.org/", normalize-space(.), "@@@dq@@@@@@gt@@@")'/>
+      <xsl:text disable-output-escaping="yes">*&lt;/ulink&gt;</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:when test="contains(., '@@@popcon1@@@')">
+      <!-- column 2 is popcon -->
       <xsl:copy>
-      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://bugs.debian.org/", normalize-space(../entry[1]), "@@@dq@@@@@@gt@@@")'/>
+      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://qa.debian.org/popcon.php?package=", normalize-space(../entry[1]), "@@@dq@@@@@@gt@@@")'/>
       <xsl:text disable-output-escaping="yes">&amp;pop-</xsl:text>
       <xsl:value-of select="translate( normalize-space(../entry[1]), $uletters, $lletters)"/>
       <xsl:value-of select="';'"/>
@@ -63,11 +73,13 @@ Process raw XML file:
   </xsl:choose>
 </xsl:template>
 
+<!-- column 3 -->
 <xsl:template match="//tbody/row/entry[3]">
   <xsl:choose>
     <xsl:when test="contains(., '@@@popcon2@@@')">
+      <!-- column 3 is popcon -->
       <xsl:copy>
-      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://bugs.debian.org/", normalize-space(../entry[2]), "@@@dq@@@@@@gt@@@")'/>
+      <xsl:value-of select='concat("@@@lt@@@ulink url=@@@dq@@@http://qa.debian.org/popcon.php?package=", normalize-space(../entry[2]), "@@@dq@@@@@@gt@@@")'/>
       <xsl:text disable-output-escaping="yes">&amp;pop-</xsl:text>
       <xsl:value-of select="translate( normalize-space(../entry[2]), $uletters, $lletters)"/>
       <xsl:value-of select="';'"/>
@@ -75,6 +87,7 @@ Process raw XML file:
       </xsl:copy>
     </xsl:when>
     <xsl:when test="contains(., '@@@psize1@@@')">
+      <!-- column 3 is size -->
       <xsl:copy>
       <xsl:choose>
         <xsl:when test="starts-with(normalize-space(../entry[1]), 'lib')">
@@ -94,13 +107,6 @@ Process raw XML file:
       </xsl:choose>
       </xsl:copy>
     </xsl:when>
-    <xsl:when test="contains(., '@@@popcon2@@@')">
-      <xsl:copy>
-      <xsl:text disable-output-escaping="yes">&amp;pop-</xsl:text>
-      <xsl:value-of select="translate( normalize-space(../entry[2]), $uletters, $lletters)"/>
-      <xsl:value-of select="';'"/>
-      </xsl:copy>
-    </xsl:when>
     <xsl:otherwise>
       <xsl:copy>
       <xsl:apply-templates select="@*|node()"/>
@@ -109,9 +115,11 @@ Process raw XML file:
   </xsl:choose>
 </xsl:template>
 
+<!-- column 3 -->
 <xsl:template match="//tbody/row/entry[4]">
   <xsl:choose>
     <xsl:when test="contains(., '@@@psize2@@@')">
+      <!-- column 4 is size -->
       <xsl:copy>
       <xsl:choose>
         <xsl:when test="starts-with(normalize-space(../entry[2]), 'lib')">
