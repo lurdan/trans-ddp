@@ -252,6 +252,14 @@ update-po: updatepo
 updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po-force,$(wildcard en/*.dbk))
 # The next is just a PHONY target and forcible updates the PO files
 $(LINGUA)/%.po-force: FORCE
+	@po4a_version=$$(dpkg-query -W -f '$${Version}\n' po4a); \
+	if [ "$$po4a_version" != "0.34-2" ]; then \
+	    echo "po4a version: '$$po4a_version'"; \
+	    echo ""; \
+	    echo "PO files must be updated with po4a 0.34-2 (Lenny)!"; \
+	    echo ""; \
+	    exit 1; \
+	fi
 	$(UPDATEPO) --master en/$*.dbk --po $(LINGUA)/$*.po
 
 validate:	$(patsubst en/%,$(LINGUA)/%,$(SOURCES))
