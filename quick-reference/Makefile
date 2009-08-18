@@ -4,7 +4,10 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
-BUILD_MODE	:= xml
+# Build from xml only as default (package) -- commented out
+#BUILD_MODE	:= xml
+# Build from asciidoc as default (package)
+BUILD_MODE	:= asciidoc
 # parent dir name of the SVN source checkout location
 # make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
 PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
@@ -165,8 +168,8 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
+	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -177,8 +180,8 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 # fix URL referencees and table ID as template for translation.
 $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
+	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
