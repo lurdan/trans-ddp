@@ -5,9 +5,9 @@
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
 # Build from xml only as default (package) -- commented out
-#BUILD_MODE	:= xml
-# Build from asciidoc as default (package)
-BUILD_MODE	:= asciidoc
+BUILD_MODE	:= xml
+# Build from asciidoc as default (package) --- xmllint is not there
+#BUILD_MODE	:= asciidoc
 # parent dir name of the SVN source checkout location
 # make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
 PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
