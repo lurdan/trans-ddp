@@ -90,7 +90,8 @@ ifeq ($(BUILD_MODE),asciidoc)
 $(DOCNAME).raw.xml: $(ASCSRCS)
 	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
-	xmllint --format -  > $@
+	xmllint --format -  |\
+	sed -f bin/replace > $@
 
 # -----------------------------------------------------------------------
 # Remotely fetched files prior to the build after "make distclean"
@@ -164,7 +165,7 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # Create final XML sources
 # This is not cleaned after "make clean" but cleaned by "make distclean"
 
-# replace table contents with @@@popcon*@@@ and @@@psize*@@@ and 
+# replace table contents with @-@popcon*@@@ and @@@psize*@-@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
@@ -174,9 +175,9 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
 	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
-	sed -f bin/replace > $@
+	sed -e 's/@-@amp@-@/\&/g' -e 's/@-@\([^@]\+\)@-@/\&\1;/g' > $@
 
-# replace table contents with @@@popcon*@@@ and @@@psize*@@@ with dummy text and 
+# replace table contents with @-@popcon*@-@ and @-@psize*@-@ with dummy text and 
 # fix URL referencees and table ID as template for translation.
 $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
@@ -186,15 +187,16 @@ $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
 	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
-	sed -f bin/replace > $@
+	sed -e 's/@-@amp@-@/\&/g' -e 's/@-@\([^@]\+\)@-@/\&\1;/g' > $@
 
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
+	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
-	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq | sed -f bin/replace	> $@
+	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
+	sed -e "s/&/\&amp;/g" > $@
 
 # package name list for popcon and size ent file generation
 # This file is not part of source

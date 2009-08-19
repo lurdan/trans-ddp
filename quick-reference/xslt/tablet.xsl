@@ -5,14 +5,14 @@ Process raw XML file:
  * to add URL attribute as "&url-*;"
  * to add ID  attribute to valid name from title for tables
  * to add popcon and package size as &pkgsize-***; and &pop-***; 
-     package_name @@@popcon1@@@ @@@psize1@@@  ...
-     something    package_name  @@@popcon2@@@ @@@psize2@@@ ...
+     package_name @-@popcon1@-@ @-@psize1@-@  ...
+     something    package_name  @-@popcon2@-@ @-@psize2@-@ ...
  * Debian URL links are provided for package lists using non-translating parts for reason.
  * Do not add link to translatable strings.
 -->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
 
-<xsl:variable name="uletters">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !#$%()=-~^|\/+*,.?;:@`&quot;&apos;&amp;&gt;&lt;’</xsl:variable>
+<xsl:variable name="uletters">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !#$%()=-~^|\/+*,.?;:@`&quot;&apos;@-&amp;-@&gt;&lt;’</xsl:variable>
 <xsl:variable name="lletters">abcdefghijklmnopqrstuvwxyzabcdefghij</xsl:variable>
 <!-- I will use max 32 characters for href references and id references -->
 
@@ -24,10 +24,10 @@ Process raw XML file:
 <!-- column 1 -->
 <xsl:template match="//tbody/row/entry[1]">
   <xsl:choose>
-    <xsl:when test="contains(../entry[2], '@@@popcon1@@@')">
+    <xsl:when test="contains(../entry[2], '@-@popcon1@-@')">
       <!-- column 1 is package name -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+        <xsl:text>DUMMY</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -41,16 +41,16 @@ Process raw XML file:
 <!-- column 2 -->
 <xsl:template match="//tbody/row/entry[2]">
   <xsl:choose>
-    <xsl:when test="contains(../entry[3], '@@@popcon2@@@')">
+    <xsl:when test="contains(../entry[3], '@-@popcon2@-@')">
       <!-- column 2 is package name -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+        <xsl:text>DUMMY</xsl:text>
       </xsl:copy>
     </xsl:when>
-    <xsl:when test="contains(., '@@@popcon1@@@')">
+    <xsl:when test="contains(., '@-@popcon1@-@')">
       <!-- column 2 is popcon -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+        <xsl:text>DUMMY</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -64,16 +64,25 @@ Process raw XML file:
 <!-- column 3 -->
 <xsl:template match="//tbody/row/entry[3]">
   <xsl:choose>
-    <xsl:when test="contains(., '@@@popcon2@@@')">
+    <xsl:when test="contains(., '@-@popcon2@-@')">
       <!-- column 3 is popcon -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+        <xsl:text>DUMMY</xsl:text>
       </xsl:copy>
     </xsl:when>
-    <xsl:when test="contains(., '@@@psize1@@@')">
+    <xsl:when test="contains(., '@-@psize1@-@')">
       <!-- column 3 is size -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+      <xsl:choose>
+        <xsl:when test="starts-with(normalize-space(../entry[1]), 'lib')">
+          <!-- library -->
+          <xsl:text>DUMMY</xsl:text>
+        </xsl:when>
+        <xsl:otherwise>
+          <!-- non-library -->
+          <xsl:text>DUMMY</xsl:text>
+        </xsl:otherwise>
+      </xsl:choose>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -87,10 +96,19 @@ Process raw XML file:
 <!-- column 3 -->
 <xsl:template match="//tbody/row/entry[4]">
   <xsl:choose>
-    <xsl:when test="contains(., '@@@psize2@@@')">
+    <xsl:when test="contains(., '@-@psize2@-@')">
       <!-- column 4 is size -->
       <xsl:copy>
-      <xsl:text>DUMMY</xsl:text>
+      <xsl:choose>
+        <xsl:when test="starts-with(normalize-space(../entry[2]), 'lib')">
+          <!-- library -->
+          <xsl:text>DUMMY</xsl:text>
+        </xsl:when>
+        <xsl:otherwise>
+          <!-- non-library -->
+          <xsl:text>DUMMY</xsl:text>
+        </xsl:otherwise>
+      </xsl:choose>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -110,7 +128,7 @@ Process raw XML file:
     <xsl:otherwise>
       <xsl:copy>
         <xsl:attribute name="url">
-          <xsl:text>@@@ampbare@@@</xsl:text>
+          <xsl:text disable-output-escaping="yes">@-@amp@-@</xsl:text>
           <xsl:choose>
             <xsl:when test="string-length(.) = 0">
               <xsl:choose>
