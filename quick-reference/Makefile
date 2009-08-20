@@ -15,7 +15,7 @@ ifeq ($(PDIR),ddp-svn)
 # Building www.debian.org
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
 DRPUBLISHDIR	:= $(PUBLISHDIR)/debian-reference
-# ddp does not have xmllint yet
+# ddp does not have xmllint yet -- force to use raw.xml and po only
 BUILD_MODE	:= xml
 else
 # Normally
