@@ -4,10 +4,10 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
-# Build from xml only as default (package) -- commented out
-#BUILD_MODE	:= xml
-# Build from asciidoc as default (package)
-BUILD_MODE	:= asciidoc
+# Build from xml only as default (package) -- for squeeze
+BUILD_MODE	:= xml
+# Build from asciidoc as default (package) -- for lenny
+#BUILD_MODE	:= asciidoc
 # parent dir name of the SVN source checkout location
 # make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
 PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
@@ -75,7 +75,8 @@ ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
 RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
 # source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	 =	$(DOCNAME).en.xml $(DOCNAME).en.xmlt $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(ENTSRCS)
+XMLSRCS	 =	$(ENTSRCS) $(DOCNAME).raw.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO)))
+#               $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGALL)))
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -163,7 +164,12 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
-# -----------------------------------------------------------------------
+#=======================================================================#
+endif
+#=======================================================================#
+#########################################################################
+# XML file operations                                                LOCAL
+#########################################################################
 # Create final XML sources
 # This is not cleaned after "make clean" but cleaned by "make distclean"
 
@@ -171,8 +177,8 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -183,8 +189,8 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 # fix URL referencees and table ID as template for translation.
 $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -194,8 +200,8 @@ $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
 	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	#if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-	#	echo "You must be running lenny">&2 ; exit 1 ; fi	
+	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
 	sed -e "s/&/\&amp;/g" > $@
@@ -205,15 +211,13 @@ urls.ent:  $(ASCSRCS)
 pkg.lst: $(DOCNAME).raw.xml
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/pkg.xsl $< > $@
 
-
 #=======================================================================#
-else
+ifneq ($(BUILD_MODE),asciidoc)
 #=======================================================================#
-# To avoid circular dependency
-$(DOCNAME).en.xml:
+# To avoid ependency $(DOCNAME).raw.xml: $(PODOC)/$(DOCNAME).raw.po $(DOCNAME).en.xml
+$(DOCNAME).raw.xml:
 	echo "You need to run \"make xml\" in lenny environment"
 	exit
-
 #=======================================================================#
 endif
 #=======================================================================#
@@ -362,10 +366,11 @@ clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf html
 	-rm -f $(PODOC)/*~
+	-rm -f urls.ent pkg.lst
 ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-	-rm -f $(DOCNAME).raw.xml
+	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
 
@@ -373,9 +378,9 @@ distclean: clean
 	-rm -f *.html
 	-rm -f $(ENTSRCS)
 ifeq ($(PDIR),ddp-svn)
-	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt packages.bkup.txt pkg.lst
-	-rm -f $(DOCNAME).*.xml
-	-rm -f $(DOCNAME).en.xmlt
+	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
+	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
+	-rm -f $(DOCNAME).*.xml -rm -f $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
 endif
 
