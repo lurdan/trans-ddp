@@ -91,6 +91,9 @@ ifeq ($(BUILD_MODE),asciidoc)
 # This is cleaned after "make clean"
 # create a raw XML source from asciidoc source
 $(DOCNAME).raw.xml: $(ASCSRCS)
+	# $$ in following becomes $ under make: 5.0.2 -> 5.0
+	if [ "$$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version)" != "5.0" ]; then \
+		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
@@ -176,9 +179,6 @@ endif
 # replace table contents with @-@popcon*@@@ and @@@psize*@-@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -188,9 +188,6 @@ $(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
 # replace table contents with @-@popcon*@-@ and @-@psize*@-@ with dummy text and 
 # fix URL referencees and table ID as template for translation.
 $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
-	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -199,9 +196,6 @@ $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
 
 # trick to allow building source w/o regenerating urls.ent unneededly
 urls.ent:  $(ASCSRCS)
-	# $$ in following becomes $ under make: 5.0.2 -> 5.0
-	if [ $$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version) != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
 	sed -e "s/&/\&amp;/g" > $@
