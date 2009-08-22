@@ -338,13 +338,13 @@ publish:
 .PHONY: xml
 xml:	
 	# making sure to rebuild all
-	touch asciidoc/00_preface.txt
+	#touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
 all:
 	# making sure to rebuild all
-	touch asciidoc/00_preface.txt
+	#touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	# skip if DDP
