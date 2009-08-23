@@ -6,18 +6,43 @@
 
 I will touch on following topics.
 
+ * Quick guide
  * Document style
  * Basics of build process
  * What is @@@ in asciidoc
  * What is @-@ in asciidoc and raw XML
  * Making copy of SVN contents
- * Updating contents in Englsh XML source
- * Fixing typo in Englsh XML source
+ * Updating contents in English XML source
+ * Fixing typo in English XML source
  * Updating remote data contents
  * Creating Translation PO for a new language
  * Updating Translation PO
  * Updating for new release (squeeze --> squeeze+1)
  * VCS locations and history
+
+== Quick guide ==
+
+Please note that for http://www.debian.org/ web site publishing, XML/PO
+files are used to build pages.  Before committing, please do this.
+
+ * Update from SVN to get the latest source: "svn co" or "svn up"
+ * Fix fuzzy in PO using via poedit GUI etc.
+ * Update XML/PO files.
+   * If updated English ascoodoc: "make xml"
+   * If updated translation PO only: "make po"
+ * Fix fuzzy in PO using via poedit GUI etc.
+ * Generate HTML to check result.
+   * If updated English ascoodoc: "make all"
+   * If updated translation PO only: "make po-test"
+
+Please note old translated documents are in SGML and its content is very
+loosely related to current English content.  In order to recycle as much
+old content, I usually use followings:
+   
+ * "poedit" to edit debian-reference.??.po file to be updated.
+ * browser to display debian-reference.??.html from sage/lenny package
+ * copy-and-paste to po file (via poedit GUI)
+ * add XML tags as needed
 
 == Document style ==
 
@@ -31,15 +56,15 @@ Currently, there is big gap.  I will slowly polish this document to be
 compliant as possible.
 
 There are exceptions. 
- * I use latin acronyms: e.g., etc., i.e., read/write
+ * I use Latin acronyms: e.g., etc., i.e., read/write
  * I use lines starting with number
 
 == Basics of build process ==
 
-You must have lenny system with folllowing packages installed:
+You must have lenny system with following packages installed:
  * subversion
  * pbuilder
- * asciidoc
+ * asciidoc (only if you update English)
  * libxml2-utils
  * devscripts
  * wget
@@ -49,21 +74,28 @@ You must have lenny system with folllowing packages installed:
 Basic flow of build process can be summarized as:
 
        all the asciidoc/*.txt files and remotely fetched files by wget
-                   :(asciidoc)        :
-                   v                  v
-  >>> debian-reference.raw.xml --> url.ent etc.
-                   :(build only this by "make xml")
+                   :(asciidoc @ lenny version)       :
+                   :(build from asciidoc by          :
+                   : "make xml" or "make all")       :
+                   v                                 v
+  >>> debian-reference.raw.xml --> url.ent and other *.ent
+      (source XML) :(build from raw.xml by "make po" or "make po-test")
                    v
       debian-reference.en.xml -->  all English final formats (HTML, text)
       debian-reference.en.xmlt \   (This removes untranslating part)  
-                   |         \  \
+      (XML file)   |         \  \
                    v          \  \
       debian-reference.pot     +--+-> debian-reference.ja.xml
-                   |          /           |
+      (POT file)   |          /           |
                    v         /            v
   >>> debian-reference.ja.po       all Japanese final formats (HTML, text)
+      (PO file)
 
-Please note po files are generated from English xml file.
+Please note po files are generated from English
+debian-reference.en.xmlt.  This debian-reference.en.xmlt is an XML file
+very similar to debian-reference.en.xml which isalso XML file.
+Untranslatable contents in debian-reference.en.xml is replaced by
+"DUMMY" to reduce clutter in PO file.
 
 Please note actual build process starts from debian-reference.raw.xml and
 debian-reference.ja.po files.  These are "REAL" source files as far as
@@ -75,15 +107,15 @@ source with minimum typing.   This will be dropped once squeeze is out.
 After squeeze release, debian-reference.raw.xml will be the source.
 
 Due to asciidoc conversion logic differences, we must use lenny version
-of asciidoc for this source.  Otherwise you get different output to
-break all the po files.
+of asciidoc for this source.  Otherwise you get different output to the
+raw.xml and break all the po files.
 
 Please note Makefile has few key parameters which affects build process.
 
   BUILD_MODE := xml       (normal-build-from-raw-xml mode, default)
-  BUILD_MODE := asciidoc  (build-from-asciidoc mode, enable if only in lenny)
+  BUILD_MODE := asciidoc  (build-from-asciidoc mode, use this via "all" "xml" target in lenny)
 
-  PDIR       := something   for normal build
+  PDIR       := something   for normal build situation
   PDIR       := ddp-svn     for /org/www.debian.org/ddp-svn/trunk/quick-reference
 
   PUBLISHDIR := build result file location
@@ -99,12 +131,19 @@ make all
 	Results are in $(PUBLISHDIR)
 	Do not require remote connection if you already have done so.
 
+make xml
+	Create XML/PO source files from asciidoc
+
+make po-test
+	Results are in $(PUBLISHDIR)
+	Build html etc using current raw.xml and po files
+
+make po
+	Update PO files from raw.xml
+
 make publish
 	Used by DDP for www.debian.org
 	Do not require remote connection nor asciidoc
-
-make xml
-	Create XML/PO source files
 
 make html
 	Create html files
@@ -124,27 +163,10 @@ make distclean
 make update
 	Update source with remote data.
 
-Please note old translated documents are in SGML and its content is very
-loosely related to current English content.  In order to recycle as much
-old content, I usually use followings:
-   
- * "poedit" to edit debian-reference.??.po file to be updated.
- * browser to display debian-reference.??.html from sage/lenny package
- * copy-and-paste to po file (via poedit GUI)
- * add XML tags as needed
-
-Please note that for http://www.debian.org/ web site publishing, XML/PO
-files are used to build pages.  So before commiting,
-
- * update SVN to get latest source
- * run "make xml" at least to keep consistence between xml and asciidoc
- * fix fuzzy in PO
- * run "make all" to see it generates expected page.
-
 == What is @@@ in asciidoc ==
 
 You see quite a bit of @@@ in asciidoc source.  That is placed there
-when idiosyncracy of asciidoc hit me.  Asciidoc to raw.xml convrsion
+when idiosyncrasy of asciidoc hit me.  Asciidoc to raw.xml conversion
 result is filtered with sed script bin/replace to get right characters
 into a resulting XML file (debian-reference.en.raw) without worrying
 about asciidoc converting to something funny.
@@ -152,13 +174,14 @@ about asciidoc converting to something funny.
 For example: @@@sq@@@ is converted to ' 
 
 These conversion occur right after asciidoc conversion but before
-storing to raw.xml files.
+storing to raw.xml files.  So this is purely work around for asciidoc
+idiosyncrasies.
 
 == What is @-@ in asciidoc and raw XML ==
 
 You see quite a bit of @-@ in asciidoc and generated XML source.  That
-is placed there when autogenerated data replaces them as entity in the
-final form.
+is placed there when auto-generated data replaces them as entity in the
+final form (*.xml, *.po, *.tml, ...).
 
 For example: @-@foo@-@     is converted to &foo;
              @-@popcon1@-@ is converted to popcon value and URL link of
@@ -202,7 +225,7 @@ You should set up SSH (passwordless login).  Then:
  $ cd path/to/use/
  $ svn co svn+ssh://svn.debian.org/svn/ddp/manuals/trunk/qick-reference qref
 
-== Updating contents in Englsh XML source ==
+== Updating contents in English XML source ==
 
 Typical work flow of creating latest XML source from asciidoc/po4a is:
 
@@ -220,10 +243,10 @@ Typical work flow of creating latest XML source from asciidoc/po4a is:
 
  * Test build package using "debuild" and "pdebuild".
 
-For editting "po4a/debian-reference.??.po", use specialized po file 
+For editing "po4a/debian-reference.??.po", use specialized po file 
 editor such as poedit for ease.
 
-== Fixing typo in Englsh XML source ==
+== Fixing typo in English XML source ==
 
 If you find typo in English and you know its fix should not affects
 translation, you can do following:
@@ -231,7 +254,7 @@ translation, you can do following:
  * Get latest source with "svn up".
  * Fix source as neeeded for merge errors.
  * Run "make xml" to be sure.
-   -->  It runs msgmerge for you.
+   via poedit GUI-->  It runs msgmerge for you.
  * Save updated XML source with "svn ci" to sync with upstream.
  * Edit "asciidoc/*.txt" files to typo English contents if needed.
  * Run "make typo".
@@ -282,7 +305,7 @@ include ?? .
 This DR source is maintained in alioth ddp SVN repository now.
 
 VCS usage of Debian Reference (DR) have been changed with time.
-This can be summarized aproximately as follows:
+This can be summarized approximately as follows:
 
  1. DR ver 1 (ALL SGML source)
   * Souceforge CVS as primary

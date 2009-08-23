@@ -5,27 +5,19 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
-# Build from xml only as default (package) -- for squeeze
+# Build from xml only as default (package) -- for squeeze (package)
 BUILD_MODE	:= xml
 # Build from asciidoc as default (package) -- for lenny
+# Use "all" "xml" target to use this.
 #BUILD_MODE	:= asciidoc
-# parent dir name of the SVN source checkout location
-# make[1]: Entering directory `/org/www.debian.org/ddp-svn/trunk/quick-reference'
-PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
-ifeq ($(PDIR),ddp-svn)
-# Building www.debian.org
-# $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals
-DRPUBLISHDIR	:= $(PUBLISHDIR)/debian-reference
-# ddp does not have xmllint yet -- force to use raw.xml and po only
-BUILD_MODE	:= xml
-else
-# Normally
-# if $(PUBLISHDIR) is not set, set it
-PUBLISHDIR	:= $(CURDIR)/html
-DRPUBLISHDIR	:= $(PUBLISHDIR)
-endif
 
-# Please note package build script overides $(PUBLISHDIR)
+# This is to identify DDP build site "ddp-svn" for clean/distclean
+PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
+
+# Please note package build and ddp script overides $(PUBLISHDIR)
+# if $(PUBLISHDIR) is not set, set it here for testing
+PUBLISHDIR	:= $(CURDIR)/html
+
 
 #######################################################################
 ### basic parameters (build condition independent)                  ALL
@@ -92,7 +84,7 @@ ifeq ($(BUILD_MODE),asciidoc)
 # This is cleaned after "make clean"
 # create a raw XML source from asciidoc source
 $(DOCNAME).raw.xml: $(ASCSRCS)
-	# $$ in following becomes $ under make: 5.0.2 -> 5.0
+	# $$ in following becomes single dollor under make: 5.0.2 -> 5.0
 	if [ "$$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version)" != "5.0" ]; then \
 		echo "You must be running lenny">&2 ; exit 1 ; fi	
 	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
@@ -253,17 +245,17 @@ $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 #########################################################################
 .PHONY: css
 css:
-	-rm -rf $(DRPUBLISHDIR)/images
-	mkdir -p $(DRPUBLISHDIR)/images
-	cp -f $(PXSLT)/$(DOCNAME).css $(DRPUBLISHDIR)/$(DOCNAME).css
-	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(DRPUBLISHDIR)/images
+	-rm -rf $(PUBLISHDIR)/images
+	mkdir -p $(PUBLISHDIR)/images
+	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
+	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
 
 .PHONY: html
-html:	$(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/index.$(lang).html)
+html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
 
-$(DRPUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
+$(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
 	$(XP)   --stringparam root.filename $(DOCNAME) \
-		--stringparam base.dir $(DRPUBLISHDIR)/ \
+		--stringparam base.dir $(PUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
                 --stringparam admon.graphics 0 \
                 --stringparam callout.graphics 0 \
@@ -271,19 +263,19 @@ $(DRPUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
                 --stringparam html.stylesheet $(DOCNAME).css \
                 xslt/style-onehtml.xsl $<
 
-$(DRPUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(ENTSRCS)
+$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(ENTSRCS)
 	$(XP)   --stringparam root.filename index \
-		--stringparam base.dir $(DRPUBLISHDIR)/ \
+		--stringparam base.dir $(PUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
                 --stringparam html.stylesheet $(DOCNAME).css \
                 xslt/style-html.xsl $<
 
 .PHONY: txt
-txt:	$(foreach lang, en $(LANGPO), $(DRPUBLISHDIR)/$(DOCNAME).$(lang).txt)
+txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
 #  Build rule for TXT (non-English)
 #  #  (UTF-8 compatibility of debiandoc2text is limitted)
-$(DRPUBLISHDIR)/$(DOCNAME).%.txt: $(DRPUBLISHDIR)/$(DOCNAME).%.html
-	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(DRPUBLISHDIR)/$(DOCNAME).$*.html >$@
+$(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
+	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
 
 
 #########################################################################
@@ -323,23 +315,34 @@ update:
 #######################################################################
 .PHONY: publish
 
+# $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals for master-www
 publish:
-	-mkdir -p $(DRPUBLISHDIR)
-#	-rm -rf $(DRPUBLISHDIR)/debian-reference
+	-mkdir -p $(PUBLISHDIR)/debian-reference
 	-rm -f $(PUBLISHDIR)/reference
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
-	$(MAKE) html txt css PUBLISHDIR=$(PUBLISHDIR) "LANGPO=$(LANGPO)"
-	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) html txt css BUILD_MODE=xml PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANG_ALL=$(LANGSGML)"
 #	ls -lR $(PUBLISHDIR)
 
 #######################################################################
 # Build xml/html for testing source (local)                         ALL
 #######################################################################
+.PHONY: po
+po:	
+	# update po files from updated raw.xml
+	$(MAKE) BUILD_MODE=xml $(XMLSRCS) "LANGPO=$(LANGPO)"
+
+.PHONY: po-test
+po-test:	
+	# build translated html/text pages from from raw.xml and po
+	# This is to test result of translation quickly
+	$(MAKE) BUILD_MODE=xml html txt css "LANGPO=$(LANGPO)"
+
 .PHONY: xml
 xml:	
-	# making sure to rebuild all
-	#touch asciidoc/00_preface.txt
+	# update raw.xml and po files
+	touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
@@ -347,7 +350,7 @@ all:
 	# making sure to rebuild all
 	#touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
-	$(MAKE) -C sgml all PUBLISHDIR=$(DRPUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	# skip if DDP
 #	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
 #	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
@@ -366,7 +369,7 @@ ifneq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
+	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
 endif
 
 distclean: clean
@@ -375,7 +378,7 @@ distclean: clean
 ifeq ($(PDIR),ddp-svn)
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-	-rm -f $(DOCNAME).*.xml -rm -f $(DOCNAME).en.xmlt
-	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(DRPUBLISHDIR)
+	-rm -f $(DOCNAME).en.xml -rm -f $(DOCNAME).en.xmlt
+	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)/debian-reference
 endif
 
