@@ -7,17 +7,13 @@
 #######################################################################
 # Build from xml only as default (package) -- for squeeze (package)
 BUILD_MODE	:= xml
-# Build from asciidoc as default (package) -- for lenny
-# Use "all" "xml" target to use this.
+# Build from asciidoc as default (package) -- for lenny (local, DDP)
+# Use "all" "xml" "publish" target to use this.
 #BUILD_MODE	:= asciidoc
-
-# This is to identify DDP build site "ddp-svn" for clean/distclean
-PDIR		:= $(notdir $(realpath $(CURDIR)/../..))
 
 # Please note package build and ddp script overides $(PUBLISHDIR)
 # if $(PUBLISHDIR) is not set, set it here for testing
 PUBLISHDIR	:= $(CURDIR)/html
-
 
 #######################################################################
 ### basic parameters (build condition independent)                  ALL
@@ -307,7 +303,7 @@ url-check: urls.lst
 .PHONY: update
 update:
 	$(MAKE) distclean
-	$(MAKE) xml
+	$(MAKE) BUILD_MODE=asciidoc xml
 	$(MAKE) clean
 
 #######################################################################
@@ -321,7 +317,7 @@ publish:
 	-rm -f $(PUBLISHDIR)/reference
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
-	$(MAKE) html txt css BUILD_MODE=xml PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
+	$(MAKE) html txt css BUILD_MODE=asciidoc PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANG_ALL=$(LANGSGML)"
 #	ls -lR $(PUBLISHDIR)
 
@@ -341,13 +337,13 @@ po-test:
 
 .PHONY: xml
 xml:	
-	# update raw.xml and po files
+	# update raw.xml and po files from asciidoc and po
 	touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
 all:
-	# making sure to rebuild all
+	# making sure to rebuild all from asciidoc and po
 	#touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
@@ -358,27 +354,20 @@ all:
 #######################################################################
 # Clean targets                                                     ALL
 #######################################################################
-.PHONY: clean distclean
+.PHONY: clean clean-data distclean
 
 clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf html
 	-rm -f $(PODOC)/*~
 	-rm -f urls.ent pkg.lst
-ifneq ($(PDIR),ddp-svn)
-	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
-endif
 
-distclean: clean
-	-rm -f *.html
-	-rm -f $(ENTSRCS)
-ifeq ($(PDIR),ddp-svn)
+clean-data: clean
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
-	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-	-rm -f $(DOCNAME).en.xml -rm -f $(DOCNAME).en.xmlt
-	$(MAKE) -C sgml distclean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)/debian-reference
-endif
+
+distclean: clean-data
+	-rm -f $(ENTSRCS)
 

@@ -68,6 +68,7 @@ $(PUBLISHDIR)/index.%.html: $(MANUAL).%.sgml $(SRCS)
 	mkdir -p $(PUBLISHDIR)
 	cp $(MANUAL).$*.html/* $(PUBLISHDIR)/
 	rm -rf $(MANUAL).$*.html
+
 $(PUBLISHDIR)/$(MANUAL).%.html: $(MANUAL).%.sgml $(SRCS)
 	debiandoc2html $(BUILD_OPT) -1 -b $(MANUAL)-1.$* -l $*.utf-8 -C $<
 	mkdir -p $(PUBLISHDIR)
@@ -112,6 +113,7 @@ clean:
 	-rm  -f $(SRCX)
 	-rm -f `find . -name "*~" -o -name "*.bak" -o -name "*.rej" -o -name "*.orig" -o -name ".#*"`
 	-rm -f core
+
 .PHONY: distclean
 distclean: clean
 	-rm  -f $(TARGETS)
