@@ -201,7 +201,7 @@ pkg.lst: $(DOCNAME).raw.xml
 #=======================================================================#
 ifneq ($(BUILD_MODE),asciidoc)
 #=======================================================================#
-# To avoid ependency $(DOCNAME).raw.xml: $(PODOC)/$(DOCNAME).raw.po $(DOCNAME).en.xml
+# To avoid dependency $(DOCNAME).raw.xml: $(PODOC)/$(DOCNAME).raw.po $(DOCNAME).en.xml
 $(DOCNAME).raw.xml:
 	echo "You need to run \"make xml\" in lenny environment"
 	exit
