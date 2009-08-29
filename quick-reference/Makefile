@@ -58,7 +58,7 @@ ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
 		03_sysinit.txt 04_auth.txt 05_network.txt 06_netapp.txt \
 		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
 		11_dataconv.txt 12_program.txt 99_appendix.txt \
-		copyright.txt header.txt $(DOCNAME).txt
+		copyright.txt header1.txt header2.txt $(DOCNAME).txt
 # source files (local update requires these)
 ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
 RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
@@ -167,20 +167,20 @@ endif
 
 # replace table contents with @-@popcon*@@@ and @@@psize*@-@ and 
 # fix URL referencees and table ID.
-$(DOCNAME).en.xml: $(DOCNAME).raw.xml $(ADOC)/header.txt
+$(DOCNAME).en.xml: $(DOCNAME).raw.xml header.txt
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
-	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
+	sed -e '/<!DOCTYPE /d' -e "1r header.txt" |\
 	sed -e 's/@-@amp@-@/\&/g' -e 's/@-@\([^@]\+\)@-@/\&\1;/g' > $@
 
 # replace table contents with @-@popcon*@-@ and @-@psize*@-@ with dummy text and 
 # fix URL referencees and table ID as template for translation.
-$(DOCNAME).en.xmlt: $(DOCNAME).raw.xml $(ADOC)/header.txt
+$(DOCNAME).en.xmlt: $(DOCNAME).raw.xml header.txt
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/tablet.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
-	sed -e '/<!DOCTYPE /d' -e "1r $(ADOC)/header.txt" |\
+	sed -e '/<!DOCTYPE /d' -e "1r header.txt" |\
 	sed -e 's/@-@amp@-@/\&/g' -e 's/@-@\([^@]\+\)@-@/\&\1;/g' > $@
 
 # trick to allow building source w/o regenerating urls.ent unneededly
@@ -188,6 +188,9 @@ urls.ent:  $(ASCSRCS)
 	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
 	sed -e "s/&/\&amp;/g" > $@
+
+header.txt: $(ADOC)/header1.txt urls.ent $(ADOC)/header2.txt
+	cat $^ > $@
 
 # package name list for popcon and size ent file generation
 # This file is not part of source
@@ -210,13 +213,15 @@ endif
 #########################################################################
 # Create new POT file in $(PODOC) matching $(DOCNAME).en.xml
 .PHONY: pot
-pot: $(PODOC)/$(DOCNAME).pot
+pot: $(PODOC)/$(DOCNAME).pot $(PODOC)/urls.pot
+
+# create pot file from template xml
 $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
-	$(GETTEXT) -m $(DOCNAME).en.xmlt -p $(PODOC)/$(DOCNAME).pot
+	$(GETTEXT) -m $< -p $@
 
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
-	$(UPDATEPO) $(PODOC)/$(DOCNAME).$*.po $(PODOC)/$(DOCNAME).pot
+	$(UPDATEPO) $@ $<
 
 # Update new PO file in $(PODOC) by POT file for English typo fix
 .PHONY: typo
@@ -234,7 +239,7 @@ typo:
 # Translate XML files                                                 ALL
 #########################################################################
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po -l $(DOCNAME).$*.xml
+	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
 	
 #########################################################################
 # Create HTML files                                                   ALL
@@ -360,7 +365,7 @@ clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf html
 	-rm -f $(PODOC)/*~
-	-rm -f urls.ent pkg.lst
+	-rm -f urls.ent pkg.lst header.txt
 	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
