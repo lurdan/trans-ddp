@@ -95,7 +95,7 @@ $(DOCNAME).raw.xml: $(ASCSRCS)
 # datadate{pop|size}.ent are generated as secondary side effects
 
 all-popcon-results.txt:
-	wget -O - $(UPOPC) | zcat - > all-popcon-results.txt
+	wget -O - $(UPOPC) | zcat - > $@
 	echo "<!ENTITY pop-date \"$(shell date -u +'%F %T %Z')\">" > datadatepop.ent
 
 packages.txt:
@@ -217,7 +217,7 @@ pot: $(PODOC)/$(DOCNAME).pot $(PODOC)/urls.pot
 
 # create pot file from template xml
 $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
-	$(GETTEXT) -m $< -p $@
+	$(GETTEXT) -p $@ -m $<
 
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
@@ -229,7 +229,7 @@ typo:
 	-rm -f $(PODOC)/$(DOCNAME).pot.old
 	cp $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).pot.old
 	$(MAKE) BUILD_MODE=asciidoc  $(DOCNAME).en.xmlt
-	$(GETTEXT) -m $(DOCNAME).en.xmlt -p $(PODOC)/$(DOCNAME).pot
+	$(GETTEXT) -p $(PODOC)/$(DOCNAME).pot -m $(DOCNAME).en.xmlt
 	# repeat for all languages
 	for $$xx in $(LANGPO) ; do \
 	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).$$xx.po ;\
