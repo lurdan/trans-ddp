@@ -18,6 +18,7 @@ I will touch on following topics.
  * Creating Translation PO for a new language
  * Updating Translation PO
  * Updating for new release (squeeze --> squeeze+1)
+ * URL used for translation and its initialization
  * Utilities for spell check
  * Utilities of PO (split and merge and uniq PO)
  * VCS locations and history
@@ -306,81 +307,105 @@ include ?? .
  * Change English source to debian-reference.raw.xml or other pre-XML 
    format.
 
+== URL used for translation and its initialization ==
+ 
+URL related PO entries are at the top of PO files.  They are auto-generated
+from raw.xml files.  If there are more than 1 entity with the same content,
+they are listed together with comments containing accumulated line numbers and
+the first entity name only.
+
+English document should try to use URLs, whenever possible, which select
+language automatically as follows.
+
+ * http://www.debian.org/
+ * http://www.debian.org/doc/manuals/debian-reference/
+ * http://www.debian.org/doc/manuals/project-history/ch-leaders
+
+These should be kept for translation. (msgid == msgstr)
+
+  msgid "http://www.debian.org/"
+  msgstr "http://www.debian.org/"
+
+For wikipedia, you should find matching entry for translation. It does not
+work as easy as Debian documentation.  So, PO files should be used to
+translate URL as follows.
+
+For Japanese:
+  msgid "http://en.wikipedia.org/wiki/Application_binary_interface"
+  msgstr "http://ja.wikipedia.org/wiki/Application_Programming_Interface"
+
+For Japanese:
+  msgid "http://en.wikipedia.org/wiki/Wine_(software)"
+  msgstr "http://ja.wikipedia.org/wiki/Wine"
+
+For French:
+  msgid "http://en.wikipedia.org/wiki/Desktop_environment"
+  msgstr "http://fr.wikipedia.org/wiki/Environnement_de_bureau"
+
+The initialization of these URL is non-trivial.f you do this manually.  
+
+We initialize URL using English document.  Let's take French as example.
+Easiest way to update debian-reference.fr.po is as follows.
+
+$ msgen --no-wrap -o debian-reference.en.po debian-reference.pot
+$ mv debian-reference.fr.po debian-reference.fr.po.old
+$ sed -e '/msgid "en"/$d' <debian-reference.en.po |\
+  sed -e 'msgstr "http:\/\/en\./msgstr "http:\/\/fr./g' |\
+  sponge debian-reference.en.po
+$ msgcat --no-wrap --use-first -o debian-reference.fr.po debian-reference.en.po debian-reference.fr.po.old
+
+Then you check all wikipedia URLs manually for their validity while reading
+debian-reference.fr.po with vim in gnome-terminal.  Right click should give you
+easy access to "Open Link".  This should speed up your translation.
+
+Some PO editor has copy english shortcut key.  For example, poedit has Alt-C
+and ALT-U.  Use them to sort out issues.
+
+Please note that when translating "<ulink url=\"&debian;\">Debian</ulink>", do
+not change &debian; to translated URL.  But look for the following PO file
+line for URL such as "http://www.debian.org/" and translate it in msgstr "".
+For this case, automatic locale ichoice is active on this URL thus it is best
+not to change as previously stated.
+
+If you find no corresponding URL for your language, do not forget to point it
+to one of "http://en.wikipedia.org/wiki/...".
+
 == Utilities for spell check ==
 
 * spell check efficiently using "wordlist"
 
- zcat debian-reference.en.txt.gz | wordlist > word.txt
- gedit word.txt
- (autospell check)
- find bad word
- use grep to find text using it
- fix
+$ zcat debian-reference.en.txt.gz | wordlist > word.txt
+$ gedit word.txt
+ ... (autospell check)
+ ... find bad word
+ ... use grep to find text using it
+ ... fix by editor on source
 
 == Utilities of PO (split PO etc.) ==
 
  * Clean up po for duplicate
 
  mv some.po some.old.po
- msgcat --no-wrap some.old.po >some.po
+ msguniq --no-wrap some.old.po >some.po
 
  * Merge 2 POs
 
+ PO files do not merge will if you do "svn up".  In such case, you need to
+ merge old and your local one using gettext tools.
+
  If you have no order of preference.
- msgcat --no-wrap some1.po some2.po >some.po
+
+$ msgcat --no-wrap some1.po some2.po >some.po
 
  Look for #-#-#-#-# where manual resolution is needed.
 
  If you line some1.po better than some2.po.
- msgcat --no-wrap --use-first some1.po some2.po >some.po
+
+$ msgcat --no-wrap --use-first some1.po some2.po >some.po
 
 * "po4a-split" to split PO file into several chunks
 
- po4a-split <chunks> file.po
-
-* Translation of URL and its initialization
-
- URL related PO entries are at the top of PO files.
-
- For URL, it is sometimes better to start with copy of English document as the
- starting point.  Easiest way to update some.fr.po is as follows.
-
- msgen --no-wrap -o some.en.po some.pot
- mv some.fr.po some.fr.po.old
-
- Open English some.en.po file and remove "fuzzy" at the top 
- and Look for line as follows way down in the document using /msgid "en".
-
----
-msgid "en"
----
-
-You erase around that block to the end by ":.,$d" in vim to get only PO for 
-URL.
-
- msgcat --no-wrap --use-first -o some.fr.po some.en.po some.fr.po.old
-
-Then you start with no fuzzy for URL.  If this is too much, some PO editor has
-copy english shortcut key.  For example, poedit has Alt-C and ALT-U.  Use them
-to sort out issues.
-
-Please note that when translating "<ulink url=\"&debian;\">Debian</ulink>", do
-not change &debian; to translated URL.  But look for the following PO file
-line for URL.
-
-msgid "http://www.debian.org"
-
-and translate it in msgstr "".  For this case, automatic locale ichoice is 
-active on this URL thus it is best not to change the URL as follows.
-
-msgid "http://www.debian.org"
-msgstr "http://www.debian.org"
-
-But for site such as "http://en.wikipedia.org/wiki/Desktop_environment", you
-may set as follows.
-
-msgid "http://en.wikipedia.org/wiki/Desktop_environment"
-msgstr "http://fr.wikipedia.org/wiki/Environnement_de_bureau"
+$ po4a-split <chunks> file.po
 
 == VCS locations and history ==
 
