@@ -294,13 +294,16 @@ rsync:
 
 .PHONY: url-check
 # sanity check for url
-url-check: urls.lst
+url-check: $(DOCNAME).en.xml $(DOCNAME).ja.xml
 	@echo "----- Duplicate URL references (start) -----"
-	-sed -ne "s/<\!ENTITY \([^ ]*\) .*$$/\" \1 \"/p"  < $< | uniq -d | xargs -n 1 grep $< -e  
+	-sed -ne "/^<\!ENTITY/s/<\!ENTITY \([^ ]*\) .*$$/\" \1 \"/p"  < $< | uniq -d | xargs -n 1 grep $< -e  | grep -e "^<\!ENTITY"
 	@echo "----- Duplicate URL references (end) -----"
-	@echo "----- URL check (start) -----"
-	@sed -ne "s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $< | uniq | xargs -n 1 wget -O /dev/null -nv
-	@echo "----- URL check (end) -----"
+	@echo "----- URL check en (start) -----"
+	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $(DOCNAME).en.xml | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
+	@echo "----- URL check en (end) -----"
+	@echo "----- URL check ja (start) -----"
+	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $(DOCNAME).ja.xml | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
+	@echo "----- URL check ja (end) -----"
 
 #######################################################################
 # Update source using remotely fetched data                         ALL
