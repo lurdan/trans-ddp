@@ -292,18 +292,29 @@ rsync:
 	# somehow rsync does 700, fixit
 	ssh people.debian.org "chmod ugo+rX public_html/pub/po4a"
 
-.PHONY: url-check
-# sanity check for url
-url-check: $(DOCNAME).en.xml $(DOCNAME).ja.xml
+.PHONY: url 
+
+# check url for everything
+url: url-sanity url-ja url-check-en url-check-ja
+
+# check url sanity
+url-sanity: $(DOCNAME).en.xml
 	@echo "----- Duplicate URL references (start) -----"
 	-sed -ne "/^<\!ENTITY/s/<\!ENTITY \([^ ]*\) .*$$/\" \1 \"/p"  < $< | uniq -d | xargs -n 1 grep $< -e  | grep -e "^<\!ENTITY"
 	@echo "----- Duplicate URL references (end) -----"
-	@echo "----- URL check en (start) -----"
-	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $(DOCNAME).en.xml | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
-	@echo "----- URL check en (end) -----"
-	@echo "----- URL check ja (start) -----"
-	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $(DOCNAME).ja.xml | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
-	@echo "----- URL check ja (end) -----"
+
+#	<!ENTITY abi "http://en.
+url-ja: $(DOCNAME).ja.xml
+	@echo "-----  Wikipedia URL references (start) -----"
+	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/en\." < $< | wc -l
+	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/$*\." < $< | wc -l
+	@echo "----- Wikipedia URL references (end) -----"
+
+# sanity check for url
+url-check-%: $(DOCNAME).%.xml
+	@echo "----- URL check $* (start) -----"
+	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $< | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
+	@echo "----- URL check $* (end) -----"
 
 #######################################################################
 # Update source using remotely fetched data                         ALL
