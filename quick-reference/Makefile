@@ -160,7 +160,7 @@ common.ent: $(filter-out common.ent, $(XMLSRCS))
 endif
 #=======================================================================#
 #########################################################################
-# XML file operations                                                LOCAL
+# XML file operations                                                 ALL
 #########################################################################
 # Create final XML sources
 # This is not cleaned after "make clean" but cleaned by "make distclean"
@@ -209,7 +209,7 @@ endif
 #=======================================================================#
 
 #########################################################################
-# POT/PO file operations                                            LOCAL
+# POT/PO file operations                                              ALL
 #########################################################################
 # Create new POT file in $(PODOC) matching $(DOCNAME).en.xml
 .PHONY: pot
