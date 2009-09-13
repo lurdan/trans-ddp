@@ -238,6 +238,9 @@ typo:
 #########################################################################
 # Translate XML files                                                 ALL
 #########################################################################
+$(DOCNAME).ja.xml: $(PODOC)/$(DOCNAME).ja.po $(PODOC)/addendum1.ja $(DOCNAME).en.xml
+	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.ja -p $< -l $@
+
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
 	
