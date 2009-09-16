@@ -223,6 +223,22 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
 
+# Make list of all "http://en.wikipedia.org/wiki/..."
+$(PODOC)/wikipedia.list: $(PODOC)/$(DOCNAME).pot
+	sed -ne "s/^msgid \"\(http:\/\/en\.wikipedia\.org\/wiki\/.*\)\"/\1/p" < $< > $@
+
+# Make list of untranslated "http://en.wikipedia.org/wiki/..."
+$(PODOC)/wikipedia.%.list: $(PODOC)/$(DOCNAME).%.po
+	sed -ne "s/^msgstr \"\(http:\/\/en\.wikipedia\.org\/wiki\/.*\)\"/\1/p" < $< > $@
+
+# Translate all
+$(PODOC)/wikipedia.%.pot: $(PODOC)/wikipedia.list
+	bin/interwiki $* < $< > $@
+
+# Translate untranslated
+$(PODOC)/wikipedia.%.po: $(PODOC)/wikipedia.%.list
+	bin/interwiki $* < $< > $@
+
 # Update new PO file in $(PODOC) by POT file for English typo fix
 .PHONY: typo
 typo:
