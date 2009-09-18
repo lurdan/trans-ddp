@@ -42,7 +42,6 @@ SRCS	:= $(foreach lang, $(LANG_ALL), $(MANUAL).$(lang).sgml) \
 SRCX	:= $(foreach lang, $(LANG_ALL), $(MANUAL).$(lang).sgml)
 # List of html stamp files to be built
 HTML	:= $(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/index.$(lang).html) \
-	$(foreach page,$(HTML_PAGES),$(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(page).$(lang).html)) \
 	$(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(MANUAL).$(lang).html)
 # List of txt to be built
 TXT	:= $(foreach lang,$(LANG_ALL),$(PUBLISHDIR)/$(MANUAL).$(lang).txt)
