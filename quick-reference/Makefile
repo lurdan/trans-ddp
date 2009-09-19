@@ -233,11 +233,11 @@ $(PODOC)/wikipedia.%.list: $(PODOC)/$(DOCNAME).%.po
 
 # Translate all
 $(PODOC)/wikipedia.%.pot: $(PODOC)/wikipedia.list
-	bin/interwiki $* < $< > $@
+	bin/interwiki $* "PRINT" < $< > $@
 
 # Translate untranslated
 $(PODOC)/wikipedia.%.po: $(PODOC)/wikipedia.%.list
-	bin/interwiki $* < $< > $@
+	bin/interwiki $* "NO"   < $< > $@
 
 # Update new PO file in $(PODOC) by POT file for English typo fix
 .PHONY: typo
