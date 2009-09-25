@@ -362,6 +362,11 @@ publish:
 #######################################################################
 # Build xml/html for testing source (local)                         ALL
 #######################################################################
+.PHONY: new
+new:
+	# making sure to rebuild all from asciidoc and po
+	touch asciidoc/00_preface.txt
+
 .PHONY: po
 po:	
 	# update po files from updated raw.xml
@@ -374,15 +379,11 @@ po-test:
 	$(MAKE) BUILD_MODE=xml html txt css "LANGPO=$(LANGPO)"
 
 .PHONY: xml
-xml:	
-	# update raw.xml and po files from asciidoc and po
-	touch asciidoc/00_preface.txt
+xml: new
 	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
 
 .PHONY: all
 all:
-	# making sure to rebuild all from asciidoc and po
-	#touch asciidoc/00_preface.txt
 	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 #	# skip if DDP
