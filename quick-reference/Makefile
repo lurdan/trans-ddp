@@ -6,7 +6,12 @@
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
 # Build from xml only as default (package) -- for squeeze (package)
-BUILD_MODE	:= xml
+# to avoid regression caused by asciidoc 8.4.1
+#BUILD_MODE	:= xml
+#
+# This has been addressed so no more.
+BUILD_MODE	:= asciidoc
+
 # Build from asciidoc as default (package) -- for lenny (local, DDP)
 # Use "all" "xml" "publish" target to use this.
 #BUILD_MODE	:= asciidoc
@@ -80,10 +85,8 @@ ifeq ($(BUILD_MODE),asciidoc)
 # This is cleaned after "make clean"
 # create a raw XML source from asciidoc source
 $(DOCNAME).raw.xml: $(ASCSRCS)
-	# $$ in following becomes single dollor under make: 5.0.2 -> 5.0
-	if [ "$$(sed -n "s/^\([^.]*\.[^.]*\).*$$/\1/p" < /etc/debian_version)" != "5.0" ]; then \
-		echo "You must be running lenny">&2 ; exit 1 ; fi	
-	asciidoc -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
+	# Regression caused by asciidoc 8.4.1 addressed by "-a no-inline-literal"
+	asciidoc -a no-inline-literal -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
 	sed -f bin/replace > $@
@@ -222,6 +225,7 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
+	echo ">>> $@: $(grep '^#.*fuzzy' $@ |wc -l) fuzzy translation"
 
 # Make list of all "http://en.wikipedia.org/wiki/..."
 $(PODOC)/wikipedia.list: $(PODOC)/$(DOCNAME).pot
