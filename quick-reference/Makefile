@@ -225,7 +225,7 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
-	echo ">>> $@: $(grep '^#.*fuzzy' $@ |wc -l) fuzzy translation"
+	echo ">>> $@: $$(grep '^#.*fuzzy' $@ |wc -l) fuzzy translation"
 
 # Make list of all "http://en.wikipedia.org/wiki/..."
 $(PODOC)/wikipedia.list: $(PODOC)/$(DOCNAME).pot
