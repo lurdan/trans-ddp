@@ -7,10 +7,10 @@
 #######################################################################
 # Build from xml only as default (package) -- for squeeze (package)
 # to avoid regression caused by asciidoc 8.4.1
-#BUILD_MODE	:= xml
+BUILD_MODE	:= xml
 #
 # This has been addressed so no more.
-BUILD_MODE	:= asciidoc
+#BUILD_MODE	:= asciidoc
 
 # Build from asciidoc as default (package) -- for lenny (local, DDP)
 # Use "all" "xml" "publish" target to use this.
