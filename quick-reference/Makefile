@@ -9,7 +9,7 @@
 # to avoid regression caused by asciidoc 8.4.1
 BUILD_MODE	:= xml
 #
-# This has been addressed so no more.
+# If this has been addressed, enable this.
 #BUILD_MODE	:= asciidoc
 
 # Build from asciidoc as default (package) -- for lenny (local, DDP)
@@ -69,8 +69,7 @@ ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
 RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
 # source files (build prcess requires these)
 ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	 =	$(ENTSRCS) $(DOCNAME).raw.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO)))
-#               $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGALL)))
+XMLSRCS	 =	$(ENTSRCS) $(DOCNAME).raw.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(addsuffix .xml, $(addprefix  $(DOCNAME)., en $(LANGPO)))
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -84,8 +83,9 @@ ifeq ($(BUILD_MODE),asciidoc)
 # -----------------------------------------------------------------------
 # This is cleaned after "make clean"
 # create a raw XML source from asciidoc source
+# Regression caused by asciidoc 8.4.1 should be addressed by 
+# "-a no-inline-literal" but .... does not work.  Use lenny:
 $(DOCNAME).raw.xml: $(ASCSRCS)
-	# Regression caused by asciidoc 8.4.1 addressed by "-a no-inline-literal"
 	asciidoc -a no-inline-literal -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
@@ -413,4 +413,5 @@ clean-data: clean
 
 distclean: clean-data
 	-rm -f $(ENTSRCS)
+
 
