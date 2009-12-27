@@ -225,8 +225,8 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
-	@echo ">>> $@:      $$(msgattrib --fuzzy        $@ |grep '^msgid'|wc -l) fuzzy translation"
-	@echo ">>> $@: $$(( $$(msgattrib --untranslated $@ |grep '^msgid'|wc -l) - 1 )) untranslated"
+	@echo ">>> $@: $$(msgattrib --fuzzy        $@ |grep '^msgid'|wc -l) fuzzy translation"
+	@echo ">>> $@: $$(msgattrib --untranslated $@ |grep '^msgid'|wc -l) untranslated"
 
 # Make list of all "http://en.wikipedia.org/wiki/..."
 $(PODOC)/wikipedia.list: $(PODOC)/$(DOCNAME).pot
