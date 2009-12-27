@@ -5,6 +5,8 @@
 
 Tools and tips for managing binary and text data on the Debian system are described.
 
+WARNING:  The uncoordinated write access to actively accessed devices and files from multiple processes must not be done to avoid the http://en.wikipedia.org/wiki/Race_condition[race condition].  http://en.wikipedia.org/wiki/File_locking[File locking] mechanisms using `flock`(1) may be used to avoid it.
+
 === Sharing, copying, and archiving
 
 The security of the data and its controlled sharing have several aspects.
@@ -512,9 +514,9 @@ TIP: Since CD/DVD-R and paper have only 1 write cycle, they inherently prevent a
 
 TIP: If you need fast and frequent backup of large amount of data, a hard disk on a remote host linked by a fast network connection, may be the only realistic option.
 
-=== The binary data
+=== The disk image
 
-Here, we discuss direct manipulation of the binary data on storage media.  See <<_data_storage_tips>>, too.
+Here, we discuss manipulations of the disk image.  See <<_data_storage_tips>>, too.
 
 ==== Making the disk image file
 
@@ -549,47 +551,210 @@ The disk image file, "`disk.img`" can be written to an unmounted device, e.g., t
 # dd if=disk.img of=/dev/sdb
 --------------------
 
-Similarly, the disk partition image file, "`disk.img`" can be written to an unmounted partition, e.g., the first partition of the second SCSI drive "`/dev/sdb1`" with matching size, by the following.
+Similarly, the disk partition image file, "`partition.img`" can be written to an unmounted partition, e.g., the first partition of the second SCSI drive "`/dev/sdb1`" with matching size, by the following.
 
 --------------------
-# dd if=disk.img of=/dev/sdb1
+# dd if=partition.img of=/dev/sdb1
 --------------------
 
 ==== Mounting the disk image file
 
-If "`disk.img`" contains an image of the disk contents and the original disk had a disk configuration which gives `xxxx = (bytes/sector) \* (sectors/cylinder)`, then the following mounts it to "`/mnt`".
+The disk image "`partition.img`" containing a single partition image can be mounted and unmounted by using the http://en.wikipedia.org/wiki/Loop_device[loop device] as follows.
 
 --------------------
-# mount -o loop,offset=xxxx disk.img /mnt
+# losetup -v -f partition.img
+Loop device is /dev/loop0
+# mkdir -p /mnt/loop0
+# mount -t auto /dev/loop0 /mnt/loop0
+...hack...hack...hack
+# umount /dev/loop0
+# losetup -d /dev/loop0
 --------------------
 
-NOTE: Most hard disks have 512 bytes/sector.  
-
-This offset is to skip http://en.wikipedia.org/wiki/Master_boot_record[MBR] of the hard disk.  You can skip this offset in the above example, if "`disk.img`" contains only the following.
-
-- An image of a disk partition of the original hard disk
-- An image of the original floppy disk
-
-==== Making an empty disk image file
-
-An empty disk image file, "`sparse`", which can grow up to 5MiB can be made using `dd`(1) and `mke2fs`(8) by the following.
+This can be simplified as follows.
 
 --------------------
-$ dd bs=1 count=0 if=/dev/zero of=sparse seek=5G
-$ /sbin/mke2fs sparse
-mke2fs 1.41.3 (12-Oct-2008)
-sparse is not a block special device.
-Proceed anyway? (y,n) y
+# mkdir -p /mnt/loop0
+# mount -t auto -o loop partition.img /mnt/loop0
+...hack...hack...hack
+# umount partition.img
+--------------------
+
+Each partition of the disk image "`disk.img`" containing multiple partitions can be mounted by using the http://en.wikipedia.org/wiki/Loop_device[loop device].  Since the loop device does not manage partitions by default, we need to reset it as follows.
+
+--------------------
+# modinfo -p loop # verify kernel capability
+max_part:Maximum number of partitions per loop device
+max_loop:Maximum number of loop devices
+# losetup -a # verify nothing using the loop device
+# rmmod loop
+# modprobe loop max_part=16
+--------------------
+
+Now, the loop device can manage up to 16 partitions.
+
+--------------------
+# losetup -v -f disk.img
+Loop device is /dev/loop0
+# fdisk -l /dev/loop0
+
+Disk /dev/loop0: 5368 MB, 5368709120 bytes
+255 heads, 63 sectors/track, 652 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Disk identifier: 0x452b6464
+
+      Device Boot      Start         End      Blocks   Id  System
+/dev/loop0p1               1         600     4819468+  83  Linux
+/dev/loop0p2             601         652      417690   83  Linux
+# mkdir -p /mnt/loop0p1
+# mount -t ext3 /dev/loop0p1 /mnt/loop0p1
+# mkdir -p /mnt/loop0p2
+# mount -t ext3 /dev/loop0p2 /mnt/loop0p2
+...hack...hack...hack
+# umount /dev/loop0p1
+# umount /dev/loop0p2
+# losetup -d /dev/loop0
+--------------------
+
+Alternatively, similar effects can be done by using the http://en.wikipedia.org/wiki/Device_mapper[device mapper] devices created by `kpartx`(8) from the `kpartx` package as follows.
+
+--------------------
+# kpartx -a -v disk.img
 ...
-$ du  --apparent-size -h sparse
-5.0G  sparse
-$ du -h sparse
-83M sparse
+# mkdir -p /mnt/loop0p2
+# mount -t ext3 /dev/mapper/loop0p2 /mnt/loop0p2
+...
+...hack...hack...hack
+# umount /dev/mapper/loop0p2
+...
+# kpartx -d /mnt/loop0
 --------------------
 
-For "`sparse`", its file size is 5.0 GiB and its actual disk usage is mere 83MiB.  This discrepancy is possible since http://en.wikipedia.org/wiki/Ext2[ext2fs] can hold http://en.wikipedia.org/wiki/Sparse_file[sparse file]. 
+NOTE: You can mount a single partition of such disk image with http://en.wikipedia.org/wiki/Loop_device[loop device] using offset to skip http://en.wikipedia.org/wiki/Master_boot_record[MBR] etc., too.  But this is more error prone.
+
+==== Cleaning a disk image file
+
+A disk image file, "`disk.img`" can be cleaned of all removed files into clean sparse image "`new.img`" by the following.
+
+--------------------
+# mkdir old; mkdir new
+# mount -t auto -o loop disk.img old
+# dd bs=1 count=0 if=/dev/zero of=new.img seek=5G
+# mount -t auto -o loop new.img new
+# cd old
+# cp -a --sparse=always ./ ../new/
+# cd ..
+# umount new.img
+# umount disk.img
+--------------------
+
+If "`disk.img`" is in ext2 or ext3, you can also use `zerofree`(8) from the `zerofree` package as follows.
+
+--------------------
+# losetup -f -v disk.img
+Loop device is /dev/loop3
+# zerofree /dev/loop3
+# cp --sparse=always disk.img new.img
+--------------------
+
+==== Making the empty disk image file
+
+The empty disk image "`disk.img`" which can grow up to 5MiB can be made using `dd`(1) as follows.
+
+--------------------
+$ dd bs=1 count=0 if=/dev/zero of=disk.img seek=5G
+--------------------
+
+You can create an ext3 filesystem on this disk image "`disk.img`" using the http://en.wikipedia.org/wiki/Loop_device[loop device] as follows.
+
+--------------------
+# losetup -f -v disk.img
+Loop device is /dev/loop1
+# mkfs.ext3 /dev/loop1
+...hack...hack...hack
+# losetup -d /dev/loop1 
+$ du  --apparent-size -h disk.img
+5.0G  disk.img
+$ du -h disk.img
+83M disk.img
+--------------------
+
+For "`disk.img`", its file size is 5.0 GiB and its actual disk usage is mere 83MiB.  This discrepancy is possible since http://en.wikipedia.org/wiki/Ext3[ext2fs] can hold http://en.wikipedia.org/wiki/Sparse_file[sparse file]. 
 
 TIP: The actual disk usage of http://en.wikipedia.org/wiki/Sparse_file[sparse file] grows with data which are written to it.
+
+Using similar operation on devices created by the http://en.wikipedia.org/wiki/Loop_device[loop device] or the http://en.wikipedia.org/wiki/Device_mapper[device mapper] devices as  <<_mounting_the_disk_image_file>>, you can partition this disk image "`disk.img`" using `parted`(8) or `fdisk`(8), and can create filesystem on it using `mkfs.ext3`(8), `mkswap`(8), etc. 
+
+==== Making the ISO9660 image file
+
+The http://en.wikipedia.org/wiki/ISO_9660[ISO9660] image file, "`cd.iso`", from the source directory tree at "`source_directory`" can be made using `genisoimage`(1) provided by http://en.wikipedia.org/wiki/Cdrkit[cdrkit] by the following.
+
+--------------------
+#  genisoimage -r -J -T -V volume_id -o cd.iso source_directory
+--------------------
+
+Similarly, the bootable ISO9660 image file, "`cdboot.iso`", can be made from `debian-installer` like directory tree at "`source_directory`" by the following.
+
+--------------------
+#  genisoimage -r -o cdboot.iso -V volume_id \
+   -b isolinux/isolinux.bin -c isolinux/boot.cat \
+   -no-emul-boot -boot-load-size 4 -boot-info-table source_directory
+--------------------
+
+Here http://en.wikipedia.org/wiki/SYSLINUX[Isolinux boot loader] (see <<_stage_2_the_boot_loader>>) is used for booting.
+
+You can calculate the md5sum value and make the ISO9660 image directly from the CD-ROM device as follows.
+
+-------------------
+$ isoinfo -d -i /dev/cdrom
+CD-ROM is in ISO 9660 format
+...
+Logical block size is: 2048
+Volume size is: 23150592
+...
+# dd if=/dev/cdrom bs=2048 count=23150592 conv=notrunc,noerror | md5sum
+# dd if=/dev/cdrom bs=2048 count=23150592 conv=notrunc,noerror > cd.iso
+-------------------
+
+WARNING: You must carefully avoid ISO9660 filesystem read ahead bug of Linux as above to get the right result.
+
+==== Writing directly to the CD/DVD-R/RW
+
+TIP: DVD is only a large CD to `wodim`(1) provided by http://en.wikipedia.org/wiki/Cdrkit[cdrkit].
+
+You can find a usable device by the following.
+
+--------------------
+# wodim --devices
+--------------------
+
+Then the blank CD-R is inserted to the CD drive, and the ISO9660 image file, "`cd.iso`" is written to this device, e.g., "`/dev/hda`", using `wodim`(1) by the following.
+
+--------------------
+# wodim -v -eject dev=/dev/hda cd.iso
+--------------------
+
+If CD-RW is used instead of CD-R, do this instead by the following.
+
+--------------------
+# wodim -v -eject blank=fast dev=/dev/hda cd.iso
+--------------------
+
+TIP: If your desktop system mounts CD automatically, unmount it by "`sudo unmount /dev/hda`" before using `wodim`(1).
+
+==== Mounting the ISO9660 image file
+
+If "`cd.iso`" contains an ISO9660 image, then the following manually mounts it to "`/cdrom`".
+
+--------------------
+# mount -t iso9660 -o ro,loop cd.iso /cdrom
+--------------------
+
+TIP: Modern desktop system mounts removable media automatically (see <<_removable_storage_device>>).
+
+=== The binary data
+
+Here, we discuss direct manipulations of the binary data on storage media.  See <<_data_storage_tips>>, too.
 
 ==== Viewing and editing binary data
 
@@ -639,7 +804,6 @@ package      popcon        size         description
 --------------------------------------------------------------------------------------------------------
 `par2`       @-@popcon1@-@ @-@psize1@-@ Parity Archive Volume Set, for checking and repair of files
 `dvdisaster` @-@popcon1@-@ @-@psize1@-@ data loss/scratch/aging protection for CD/DVD media
-`ras`        @-@popcon1@-@ @-@psize1@-@ utility to add redundancy files to archives for data recovery
 `dvbackup`   @-@popcon1@-@ @-@psize1@-@ backup tool using MiniDV camcorders (providing `rsbep`(1))
 `vdmfec`     @-@popcon1@-@ @-@psize1@-@ recover lost blocks using Forward Error Correction
 --------------------------------------------------------------------------------------------------------
@@ -668,64 +832,6 @@ package         popcon        size         description
 `dcfldd`        @-@popcon1@-@ @-@psize1@-@ enhanced version of `dd` for forensics and security
 `rdd`           @-@popcon1@-@ @-@psize1@-@ forensic copy program
 -----------------------------------------------------------------------------------------------
-
-==== Making the ISO9660 image file
-
-The http://en.wikipedia.org/wiki/ISO_9660[ISO9660] image file, "`cd.iso`", from the source directory tree at "`source_directory`" can be made using `genisoimage`(1) provided by http://en.wikipedia.org/wiki/Cdrkit[cdrkit] by the following.
-
---------------------
-#  genisoimage -r -J -T -V volume_id -o cd.iso source_directory
---------------------
-
-Similary, the bootable ISO9660 image file, "`cdboot.iso`", can be made from `debian-installer` like directory tree at "`source_directory`" by the following.
-
---------------------
-#  genisoimage -r -o cdboot.iso -V volume_id \
-   -b isolinux/isolinux.bin -c isolinux/boot.cat \
-   -no-emul-boot -boot-load-size 4 -boot-info-table source_directory
---------------------
-
-Here http://en.wikipedia.org/wiki/SYSLINUX[Isolinux boot loader] (see <<_stage_2_the_boot_loader>>) is used for booting.
-
-To make the disk image directly from the CD-ROM device using `cp`(1) or `dd`(1) has a few problems. The first run of `dd`(1) may cause an error message and may yield a shorter disk image with a lost tail-end. The second run of `dd`(1) may yield a larger disk image with garbage data attached at the end on some systems if the data size is not specified. Only the second run of `dd`(1) with the correct data size specified, and without ejecting the CD after an error message, seems to avoid these problems. If for example the image size displayed by `df`(1) is 46301184 blocks, use the following command twice to get the right image (this is my empirical information).
-
---------------------
-# dd if=/dev/cdrom of=cd.iso bs=2048 count=$((46301184/2))
---------------------
-
-==== Writing directly to the CD/DVD-R/RW
-
-TIP: DVD is only a large CD to `wodim`(1) provided by http://en.wikipedia.org/wiki/Cdrkit[cdrkit].
-
-You can find a usable device by the following.
-
---------------------
-# wodim --devices
---------------------
-
-Then the blank CD-R is inserted to the CD drive, and the ISO9660 image file, "`cd.iso`" is written to this device, e.g., "`/dev/hda`", using `wodim`(1) by the following.
-
---------------------
-# wodim -v -eject dev=/dev/hda cd.iso
---------------------
-
-If CD-RW is used instead of CD-R, do this instead by the following.
-
---------------------
-# wodim -v -eject blank=fast dev=/dev/hda cd.iso
---------------------
-
-TIP: If your desktop system mounts CD automatically, unmount it by "`sudo unmount /dev/hda`" before using `wodim`(1).
-
-==== Mounting the ISO9660 image file
-
-If "`cd.iso`" contains an ISO9660 image, then the following manually mounts it to "`/cdrom`".
-
---------------------
-# mount -t iso9660 -o ro,loop cd.iso /cdrom
---------------------
-
-TIP: Modern desktop system mounts removable media automatically (see <<_removable_storage_device>>).
 
 ==== Splitting a large file into small files
 
@@ -809,6 +915,22 @@ Since `dd`(1) is available from the shell of many bootable Linux CDs such as Deb
 //# 0.00user 12.04system 1:30.57elapsed 13%CPU (0avgtext+0avgdata 0maxresident)k
 //# 0inputs+126848outputs (0major+226minor)pagefaults 0swaps
 
+==== Erasing unused area of an hard disk
+
+Unused area on an hard disk (or USB memory stick), e.g. "`/dev/sdb1`" may still contain erased data themselves since they are only unlinked from the filesystem.  These can be cleaned by overwriting them.
+
+--------------------
+# mount -t auto /dev/sdb1 /mnt/foo
+# cd /mnt/foo
+# dd if=/dev/zero of=junk
+dd: writing to `junk': No space left on device
+... 
+# sync
+# umount /dev/sdb1
+--------------------
+
+WARNING: This is usually a good enough for your USB memory stick.  But this is not perfect.  Most parts of erased filenames and their attributes may be hidden and remain in the filesystem.
+
 ==== Undeleting deleted but still open files
 
 Even if you have accidentally deleted a file, as long as that file is still being used by some application (read or write mode), it is possible to recover such a file.
@@ -859,7 +981,7 @@ total 0
 2738404 -rw-r--r-- 2 root root 0 2008-09-15 20:21 foo
 --------------------
 
-Both "`baz`" and "`foo`" have link counts of "2" (>1) showing them to have hardlinks.  Their inode numbers are common "2738404".  This means they are the same hardlinked file.  If you do not happen to find all hardlinked files by chance, you can search it by the inode, e.g., "2738404" as the following.
+Both "`baz`" and "`foo`" have link counts of "2" (>1) showing them to have hardlinks.  Their http://en.wikipedia.org/wiki/Inode[inode] numbers are common "2738404".  This means they are the same hardlinked file.  If you do not happen to find all hardlinked files by chance, you can search it by the http://en.wikipedia.org/wiki/Inode[inode], e.g., "2738404" as the following.
 
 --------------------
 # find /path/to/mount/point -xdev -inum 2738404 
@@ -885,7 +1007,7 @@ command              package          popcon        size         description
 `gpg`(1)             `gnupg`          @-@popcon2@-@ @-@psize2@-@ http://en.wikipedia.org/wiki/GNU_Privacy_Guard[GNU Privacy Guard] -  OpenPGP encryption and signing tool
 N/A                  `gnupg-doc`      @-@popcon2@-@ @-@psize2@-@ GNU Privacy Guard documentation
 `gpgv`(1)            `gpgv`           @-@popcon2@-@ @-@psize2@-@ GNU Privacy Guard - signature verification tool
-`paperkey`(1)        `paperkey`       @-@popcon2@-@ @-@psize2@-@ extract just the secret information out ouf OpenPGP secret keys
+`paperkey`(1)        `paperkey`       @-@popcon2@-@ @-@psize2@-@ extract just the secret information out of OpenPGP secret keys
 `cryptsetup`(8), ... `cryptsetup`     @-@popcon2@-@ @-@psize2@-@ utilities for http://en.wikipedia.org/wiki/Dm-crypt[dm-crypto] block device encryption supporting http://en.wikipedia.org/wiki/Linux_Unified_Key_Setup[LUKS]
 `ecryptfs`(7), ...   `ecryptfs-utils` @-@popcon2@-@ @-@psize2@-@ utilities for http://ecryptfs.sourceforge.net/[ecryptfs] stacked filesystem encryption
 `md5sum`(1)          `coreutils`      @-@popcon2@-@ @-@psize2@-@ compute and check MD5 message digest
@@ -968,7 +1090,7 @@ Here are examples for using http://en.wikipedia.org/wiki/GNU_Privacy_Guard[GNU P
 `-------------------------------------------------------`---------------------------------------------------------------------------------
 command                                                 description
 ------------------------------------------------------------------------------------------------------------------------------------------
-`gpg -a -s file`                                        sign file into ascii armored file.asc
+`gpg -a -s file`                                        sign file into http://en.wikipedia.org/wiki/ASCII[ASCII] armored file.asc
 `gpg --armor --sign file`                               , ,
 `gpg --clearsign file`                                  clear-sign message
 `gpg --clearsign --not-dash-escaped patchfile`          clear-sign patchfile
@@ -978,10 +1100,10 @@ command                                                 description
 `gpg --verify file.sig file`                            verify file with file.sig
 `gpg -o crypt_file.gpg -r name -e file`                 public-key encryption intended for name from file to binary crypt_file.gpg
 `gpg -o crypt_file.gpg --recipient name --encrypt file` , ,
-`gpg -o crypt_file.asc -a -r name -e file`              public-key encryption intended for name from file to ASCII armored crypt_file.asc
+`gpg -o crypt_file.asc -a -r name -e file`              public-key encryption intended for name from file to http://en.wikipedia.org/wiki/ASCII[ASCII] armored crypt_file.asc
 `gpg -o crypt_file.gpg -c file`                         symmetric encryption from file to crypt_file.gpg
 `gpg -o crypt_file.gpg --symmetric file`                , ,
-`gpg -o crypt_file.asc -a -c file`                      symmetric encryption intended for name from file to ASCII armored crypt_file.asc
+`gpg -o crypt_file.asc -a -c file`                      symmetric encryption intended for name from file to http://en.wikipedia.org/wiki/ASCII[ASCII] armored crypt_file.asc
 `gpg -o file -d crypt_file.gpg -r name`                 decryption
 `gpg -o file --decrypt crypt_file.gpg`                  , ,
 ------------------------------------------------------------------------------------------------------------------------------------------
