@@ -72,11 +72,11 @@ SRC_ASC :=	$(addprefix $(ADOC)/, $(ASC_NM))
 
 
 # source XML inclusion files (build prcess requires these)
-SRC_ENT	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
+SRC_ENT	:=	datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
 # source PO files (build prcess requires these)
 SRC_PO	:=	$(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO)))
 # source XML file (package build requires these)
-SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
+SRC_XML	 =	$(DOCNAME).raw.xml header.txt $(SRC_ENT) $(SRC_PO)
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -199,12 +199,11 @@ common.ent: $(filter-out common.ent, $(SRC_XML))
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
 # Update from $(DOCNAME).raw.xml
-urls.ent: $(DOCNAME).raw.xml
+header.txt: $(ADOC)/header1.txt $(DOCNAME).raw.xml $(ADOC)/header2.txt
+	cat $(ADOC)/header1.txt >  $@
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
-	sed -e "s/&/\&amp;/g" > $@
-
-header.txt: $(ADOC)/header1.txt urls.ent $(ADOC)/header2.txt
-	cat $^ > $@
+	sed -e "s/&/\&amp;/g"   >> $@
+	cat $(ADOC)/header2.txt >> $@
 
 # package name list for popcon and size ent file generation
 # This file is not part of source
@@ -363,7 +362,7 @@ clean:
 	-rm -f *.swp *~ *.tmp
 	-rm -rf html
 	-rm -f $(PODOC)/*~
-	-rm -f urls.ent pkg.lst header.txt
+	-rm -f pkg.lst
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
 	-rm -f $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
