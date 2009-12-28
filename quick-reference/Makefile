@@ -72,11 +72,11 @@ SRC_ASC :=	$(addprefix $(ADOC)/, $(ASC_NM))
 
 
 # source XML inclusion files (build prcess requires these)
-SRC_ENT	:=	datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
+SRC_ENT	:=	header.txt datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
 # source PO files (build prcess requires these)
 SRC_PO	:=	$(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO)))
 # source XML file (package build requires these)
-SRC_XML	 =	$(DOCNAME).raw.xml header.txt $(SRC_ENT) $(SRC_PO)
+SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -213,10 +213,10 @@ pkg.lst: $(DOCNAME).raw.xml
 #=======================================================================#
 ifneq ($(BUILD_MODE),asciidoc)
 #=======================================================================#
-# To avoid dependency $(DOCNAME).raw.xml: $(PODOC)/$(DOCNAME).raw.po $(DOCNAME).en.xml
-$(DOCNAME).raw.xml:
+# To avoid dependency issues:
+$(DOCNAME).raw.xml $(SRC_ENT):
 	echo "You need to run \"make xml\" in lenny environment"
-	exit
+	exit 1
 #=======================================================================#
 endif
 #=======================================================================#
