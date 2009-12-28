@@ -364,15 +364,16 @@ clean:
 	-rm -rf html
 	-rm -f $(PODOC)/*~
 	-rm -f urls.ent pkg.lst header.txt
-	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
+	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
+	-rm -f $(DOCNAME).en.xmlt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
 	# Clean files for debhelper in debian/
-	-rm debian/$(DOCNAME)-*.postinst 
-	-rm debian/$(DOCNAME)-*.postrm
-	-rm debian/$(DOCNAME)-*.dirs 
-	-rm debian/$(DOCNAME)-*.doc-base
-	-rm debian/$(DOCNAME)-*.install
+	-rm -f $(addsuffix .postinst, $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .postrm,   $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .dirs,     $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .doc-base, $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .install,  $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .postinst, $(addprefix  $(DOCNAME)., $(LANGALL)))
 ifdef DEBIAN_PACKAGE_BUILD_MODE
 	# We should clean these for debian package
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
