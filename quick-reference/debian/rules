@@ -1,160 +1,19 @@
 #!/usr/bin/make -f
-# Sample debian/rules that uses debhelper.
-# GNU copyright 1997 to 1999 by Joey Hess.
+## ----------------------------------------------------------------------
+## debian/rules : package script for debian-reference
+## ----------------------------------------------------------------------
 
-# Uncomment this to turn on verbose mode.
+# Variable to change Makefile behavior (make clean)
+DEBIAN_PACKAGE_BUILD_MODE := YES
+export DEBIAN_PACKAGE_BUILD_MODE
+
+## ----------------------------------------------------------------------
+## uncomment this to turn on verbose mode
 #export DH_VERBOSE=1
 
-# C build environmet need for perl
-export LC_ALL=C
-# UTF-8 build environmet need for w3m (see Makefile)
+## ----------------------------------------------------------------------
+## Targets
 
-#  Build multi file html, single file html, and single file text formats.
-#  Makefile for developer-reference was used as my reference.
-#
-# ------------------------------------------------------------------- #
-#                          WARNING                                    #
-#         Use with caution, aimed at lenny/squeeze system             #
-# ------------------------------------------------------------------- #
+%:
+	dh $@
 
-# do not use default suffix rules such as .tex.dvi: (uses tex, not latex!)
-.SUFFIXES:
-# =================================================================== #
-#                 Default configuration part                          #
-# =================================================================== #
-DOCNAME	:=	debian-reference
-LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
-LANGPO	:=	   ja fr
-LANGSGML:=	$(filter-out en $(LANGPO), $(LANGALL))
-# Directories (no trailing slash)
-PXSLT	:=	xslt
-PBIN	:=	bin
-ADOC	:=	asciidoc
-PODOC	:=	po4a
-IMAGES	:=	/usr/share/xml/docbook/stylesheet/nwalsh/images
-PUBLISHDIR:=	$(CURDIR)/html
-
-# =================================================================== #
-#                 Build/clean script part                             #
-# =================================================================== #
-
-build: build-stamp
-	dh build
-	touch build-stamp
-
-clean:
-	dh clean
-	# Clean generted files from document build for packaging
-	$(MAKE) "DOCNAME=$(DOCNAME)" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)" "PUBLISHDIR=$(PUBLISHDIR)" clean clean-data
-
-	# Clean html files if ever existed in html/
-	-rm -rf html
-
-	# Clean generated files for debhelper in debian/
-	-cd $(CURDIR)/debian/ ; \
-	rm -f $(DOCNAME)-common.postinst ; \
-	for xx in $(LANGALL) ; do \
-	  rm -f $(DOCNAME)-$${xx}.dirs \
-	      $(DOCNAME)-$${xx}.doc-base \
-	      $(DOCNAME)-$${xx}.postrm \
-	      $(DOCNAME)-$${xx}.postinst ; \
-	done
-
-copyfiles:
-	# Generate files for debhelper in debian/
-	cd $(CURDIR)/debian/ ; \
-	cp postinst-full     $(DOCNAME)-common.postinst ; \
-	for xx in $(LANGALL) ; do \
-	  cp postinst-full     $(DOCNAME)-$${xx}.postinst ; \
-	  cp postrm-full       $(DOCNAME)-$${xx}.postrm ; \
-	  case $$xx in \
-	    en) LANGX="English" ;;  \
-	    de) LANGX="German" ;;   \
-	    fr) LANGX="French" ;;   \
-	    fi) LANGX="Finnish" ;;  \
-	    es) LANGX="Spanish" ;;  \
-	    it) LANGX="Italian" ;;  \
-	    ja) LANGX="Japanese" ;; \
-	    pl) LANGX="Polish" ;; \
-	    pt-br) LANGX="Portuguese (Brazil)" ;; \
-	    zh-tw) LANGX="Chinese (Traditional)" ;; \
-	    zh-cn) LANGX="Chinese (Simplified)" ;; \
-	  esac ; \
-	  cp $(DOCNAME).dirs.all $(DOCNAME)-$${xx}.dirs ; \
-	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base-all  >$(DOCNAME)-$${xx}.doc-base ; \
-	done
-
-install: build copyfiles
-	dh_testdir
-	dh_testroot
-	dh_prep
-	dh_installdirs
-
-	# Add here commands to install the package into debian/$(DOCNAME)-??.
-	#  (No more examples)
-
-	install -d $(CURDIR)/debian/$(DOCNAME)-common/usr/share/applications
-	install -m 644 debian/$(DOCNAME)-common.desktop $(CURDIR)/debian/$(DOCNAME)-common/usr/share/applications/
-
-	install -d $(CURDIR)/debian/$(DOCNAME)-common/usr/share/pixmaps
-	install -m 644 debian/$(DOCNAME).png $(CURDIR)/debian/$(DOCNAME)-common/usr/share/pixmaps/
-
-	install -m 755 --preserve-timestamps bin/$(DOCNAME) \
-	    $(CURDIR)/debian/$(DOCNAME)-common/usr/bin/$(DOCNAME)
-
-	install -m 755 --preserve-timestamps bin/mkindexhtml \
-	    $(CURDIR)/debian/$(DOCNAME)-common/usr/share/$(DOCNAME)/mkindexhtml
-
-	for xx in $(LANGALL); do \
-	  mkdir -p $(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-$${xx} ;\
-	  ln -fs ../$(DOCNAME)-common/README.gz \
-	      $(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-$${xx}/README.gz ;\
-	done
-	# HTML genaration
-	PUBLISHDIR=$(CURDIR)/debian/$(DOCNAME)-common/usr/share/doc/$(DOCNAME)-common/html ; \
-	$(MAKE) "DOCNAME=$(DOCNAME)" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)" \
-	      "PUBLISHDIR=$$PUBLISHDIR" css
-	for xx in en $(LANGPO) ; do \
-	  PUBLISHDIR=$(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-common/html ; \
-	  echo "LANG=$$xx, PUBLISHDIR=$$PUBLISHDIR" ; \
-	  $(MAKE) "DOCNAME=$(DOCNAME)" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)" \
-	      "PUBLISHDIR=$$PUBLISHDIR" $$PUBLISHDIR/$(DOCNAME).$${xx}.txt \
-	      $$PUBLISHDIR/$(DOCNAME).$${xx}.html  $$PUBLISHDIR/index.$${xx}.html ; \
-	done
-	for xx in $(LANGSGML); do \
-	  PUBLISHDIR=$(CURDIR)/debian/$(DOCNAME)-$${xx}/usr/share/doc/$(DOCNAME)-common/html ; \
-	  echo "LANG=$$xx, PUBLISHDIR=$$PUBLISHDIR" ; \
-	  $(MAKE) -C sgml "DOCNAME=$(DOCNAME)" "LANG_ALL=$(LANSGML)" \
-	      "PUBLISHDIR=$$PUBLISHDIR" $$PUBLISHDIR/$(DOCNAME).$${xx}.txt \
-	      $$PUBLISHDIR/$(DOCNAME).$${xx}.html  $$PUBLISHDIR/index.$${xx}.html ; \
-	done
-
-# Build architecture-independent files here.
-binary-indep: build install
-	dh_testdir
-	dh_testroot
-	dh_installdocs
-	dh_installexamples
-	dh_installmenu
-	dh_installcron
-	dh_installman -p $(DOCNAME)-common man/$(DOCNAME).1 man/$(DOCNAME).*.1 
-	dh_installinfo
-	dh_installchangelogs 
-	dh_link
-	dh_strip
-#	dh_desktop
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
-
-# Build architecture-dependent files here.
-binary-arch: build install
-
-binary: binary-indep binary-arch
-
-# if rule bomb out, delete the target
-.DELETE_ON_ERROR:

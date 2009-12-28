@@ -7,14 +7,15 @@
 #######################################################################
 # Build from xml only as default (package) -- for squeeze (package)
 # to avoid regression caused by asciidoc 8.4.1
+ifdef DEBIAN_PACKAGE_BUILD_MODE
+# For squeeze
 BUILD_MODE	:= xml
-#
-# If this has been addressed, enable this.
-#BUILD_MODE	:= asciidoc
+else
+# Now local machine is lenny
+BUILD_MODE	:= asciidoc
+endif
 
-# Build from asciidoc as default (package) -- for lenny (local, DDP)
-# Use "all" "xml" "publish" target to use this.
-#BUILD_MODE	:= asciidoc
+# Force "publish" targets to use BUILD_MODE=asciidoc for DDP
 
 # Please note package build and ddp script overides $(PUBLISHDIR)
 # if $(PUBLISHDIR) is not set, set it here for testing
@@ -58,18 +59,24 @@ LANGPO	:=	   ja fr
 LANGNEW	:=
 LANGSGML =	$(filter-out en $(LANGPO), $(LANGALL))
 
-# AsciiDoc source files in $(ADOC) directories
-ASCSRC	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
+# remotely fetched data cached locally but removed for package
+DATASRCS:=      all-popcon-results.txt packages.txt packages.bkup.txt
+# AsciiDoc source file names in $(ADOC) directories
+ASC_NM	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
 		03_sysinit.txt 04_auth.txt 05_network.txt 06_netapp.txt \
 		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
 		11_dataconv.txt 12_program.txt 99_appendix.txt \
 		copyright.txt header1.txt header2.txt $(DOCNAME).txt
-# source files (local update requires these)
-ASCSRCS :=	$(addprefix $(ADOC)/, $(ASCSRC))
-RAWSRCS :=	$(DOCNAME).raw.xml all-popcon-results.txt packages.txt packages.bkup.txt
-# source files (build prcess requires these)
-ENTSRCS	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
-XMLSRCS	 =	$(ENTSRCS) $(DOCNAME).raw.xml $(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO))) $(addsuffix .xml, $(addprefix  $(DOCNAME)., en $(LANGPO)))
+# source asciidoc files (local updates of XML source files requires these under lenny)
+SRC_ASC :=	$(addprefix $(ADOC)/, $(ASC_NM))
+
+
+# source XML inclusion files (build prcess requires these)
+SRC_ENT	:=	urls.ent datadatepop.ent datadatesize.ent popcon.ent pkgsize.ent common.ent
+# source PO files (build prcess requires these)
+SRC_PO	:=	$(addsuffix .po, $(addprefix  $(PODOC)/$(DOCNAME)., $(LANGPO)))
+# source XML file (package build requires these)
+SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
 
 #########################################################################
 # Local raw XML files and base data created from asciidoc in lenny  LOCAL
@@ -78,14 +85,20 @@ XMLSRCS	 =	$(ENTSRCS) $(DOCNAME).raw.xml $(addsuffix .po, $(addprefix  $(PODOC)/
 ifeq ($(BUILD_MODE),asciidoc)
 #=======================================================================#
 
-.SECONDARY: $(XMLSRCS)
+.SECONDARY: $(SRC_XML)
+#    You can prevent automatic deletion of an intermediate file by
+#    marking it as a "secondary" file.  To do this, list it as a
+#    prerequisite of the special target `.SECONDARY'.  When a file is
+#    secondary, `make' will not create the file merely because it does not
+#    already exist, but `make' does not automatically delete the file.
+#    Marking a file as secondary also marks it as intermediate.
 
 # -----------------------------------------------------------------------
-# This is cleaned after "make clean"
+# This is cleaned after "make distclean"
 # create a raw XML source from asciidoc source
 # Regression caused by asciidoc 8.4.1 should be addressed by 
-# "-a no-inline-literal" but .... does not work.  Use lenny:
-$(DOCNAME).raw.xml: $(ASCSRCS)
+# "-a no-inline-literal" but .... this does not work.  Use lenny only.
+$(DOCNAME).raw.xml: $(SRC_ASC)
 	asciidoc -a no-inline-literal -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
@@ -93,7 +106,7 @@ $(DOCNAME).raw.xml: $(ASCSRCS)
 
 # -----------------------------------------------------------------------
 # Remotely fetched files prior to the build after "make distclean"
-# These are cleaned after "make clean"
+# These are cleaned after "make clean" for Debian package build
 # These will not be a part of source except datadate{pop|size}.ent
 # datadate{pop|size}.ent are generated as secondary side effects
 
@@ -125,7 +138,7 @@ packages.bkup.txt:
 	grep-dctrl -e -sPackage,Installed-Size -P "." packages.bkup.tmp > $@
 	rm packages.bkup.tmp
 
-# trick to allow building source w/o all-popcon-results.txt
+# trick to allow building source w/o all-popcon-results.txt for minor update.
 datadatepop.ent:
 	$(MAKE) all-popcon-results.txt
 
@@ -134,9 +147,9 @@ datadatesize.ent:
 	$(MAKE) packages.txt
 
 # trick to allow building source w/o all-popcon-results.txt and pkg.lst
-popcon.ent:
+popcon.ent: $(DOCNAME).raw.xml
 	if ! [ -f all-popcon-results.txt ]; then $(MAKE) all-popcon-results.txt ; fi
-	if ! [ -f pkg.lst ]; then $(MAKE) pkg.lst ; fi
+	if ! [ -f pkg.lst ] || [ $(DOCNAME).raw.xml -nt pkg.lst ]; then $(MAKE) pkg.lst ; fi
 	echo "<!ENTITY pop-submissions \"$(shell sed -n -e 's/^Submissions: *\([^ ]*\) *$$/\1/p' < all-popcon-results.txt)\">"	>  $@
 	echo "<!ENTITY pop-architectures \"$(shell grep -e '^Architecture:' all-popcon-results.txt | wc -l)\">"			>> $@
 	echo "<!ENTITY pop-packages \"$(shell grep -e '^Package:' all-popcon-results.txt | wc -l)\">"				>> $@
@@ -144,20 +157,11 @@ popcon.ent:
 	grep -e '^Package:' all-popcon-results.txt | grep -f pkg.lst | $(PBIN)/popconent $$TOTAL				>> $@
 
 # trick to allow building source w/o packages.txt and packages.bkup.txt and pkg.lst
-pkgsize.ent:
+pkgsize.ent: $(DOCNAME).raw.xml
 	if ! [ -f packages.txt ]; then $(MAKE) packages.txt ; fi
 	if ! [ -f packages.bkup.txt ]; then $(MAKE) packages.bkup.txt ; fi
-	if ! [ -f pkg.lst ]; then $(MAKE) pkg.lst ; fi
+	if ! [ -f pkg.lst ] || [ $(DOCNAME).raw.xml -nt pkg.lst ]; then $(MAKE) pkg.lst ; fi
 	$(PBIN)/sizeent packages.txt packages.bkup.txt < pkg.lst	> $@
-
-# change if there have been some change in source
-common.ent: $(filter-out common.ent, $(XMLSRCS))
-	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
-	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
-	echo "<!ENTITY codename-stable   \"lenny\">"			>> $@
-	echo "<!ENTITY codename-testing  \"squeeze\">"			>> $@
-	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
-	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
 #=======================================================================#
 endif
@@ -186,9 +190,16 @@ $(DOCNAME).en.xmlt: $(DOCNAME).raw.xml header.txt
 	sed -e '/<!DOCTYPE /d' -e "1r header.txt" |\
 	sed -e 's/@-@amp@-@/\&/g' -e 's/@-@\([^@]\+\)@-@/\&\1;/g' > $@
 
-# trick to allow building source w/o regenerating urls.ent unneededly
-urls.ent:  $(ASCSRCS)
-	if ! [ -f $(DOCNAME).raw.xml ]; then $(MAKE) $(DOCNAME).raw.xml ; fi
+common.ent: $(filter-out common.ent, $(SRC_XML))
+	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
+	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
+	echo "<!ENTITY codename-stable   \"lenny\">"			>> $@
+	echo "<!ENTITY codename-testing  \"squeeze\">"			>> $@
+	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
+	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
+
+# Update from $(DOCNAME).raw.xml
+urls.ent: $(DOCNAME).raw.xml
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/urls.xsl $(DOCNAME).raw.xml | sort | uniq |\
 	sed -e "s/&/\&amp;/g" > $@
 
@@ -228,6 +239,177 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	@echo ">>> $@: $$(msgattrib --fuzzy        $@ |grep '^msgid'|wc -l) fuzzy translation"
 	@echo ">>> $@: $$(msgattrib --untranslated $@ |grep '^msgid'|wc -l) untranslated"
 
+#########################################################################
+# Translate XML files                                                 ALL
+#########################################################################
+$(DOCNAME).ja.xml: $(PODOC)/$(DOCNAME).ja.po $(PODOC)/addendum1.ja $(DOCNAME).en.xml
+	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.ja -p $< -l $@
+
+$(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
+	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
+	
+#########################################################################
+# Create HTML files                                                   ALL
+#########################################################################
+.PHONY: css
+css:
+	-rm -rf $(PUBLISHDIR)/images
+	mkdir -p $(PUBLISHDIR)/images
+	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
+	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
+
+.PHONY: html
+html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
+
+$(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
+	$(XP)   --stringparam root.filename $(DOCNAME) \
+		--stringparam base.dir $(PUBLISHDIR)/ \
+                --stringparam html.ext .$*.html \
+                --stringparam admon.graphics 0 \
+                --stringparam callout.graphics 0 \
+                --stringparam navig.graphics 0 \
+                --stringparam html.stylesheet $(DOCNAME).css \
+                xslt/style-onehtml.xsl $<
+
+$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
+	$(XP)   --stringparam root.filename index \
+		--stringparam base.dir $(PUBLISHDIR)/ \
+                --stringparam html.ext .$*.html \
+                --stringparam html.stylesheet $(DOCNAME).css \
+                xslt/style-html.xsl $<
+
+.PHONY: txt
+txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
+#  Build rule for TXT (non-English)
+#  #  (UTF-8 compatibility of debiandoc2text is limitted)
+$(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
+	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
+
+#######################################################################
+# Build html for web (DDP on alioth)                                DDP
+#######################################################################
+.PHONY: publish
+
+# $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals for master-www
+publish:
+	-mkdir -p $(PUBLISHDIR)/debian-reference
+	-rm -f $(PUBLISHDIR)/reference
+	# For www.debian.org, relative symlink only
+	-ln -sf debian-reference $(PUBLISHDIR)/reference
+	# When DDP moves to squeeze, change to BUILD_MODE=xml
+	$(MAKE) html txt css BUILD_MODE=asciidoc PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANG_ALL=$(LANGSGML)"
+
+#######################################################################
+# Build package for Debian                                          DEB
+#######################################################################
+.PHONY: build
+build: html txt css
+ifdef DEBIAN_PACKAGE_BUILD_MODE
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+	# Generate files for debhelper in debian/
+	cd $(CURDIR)/debian/ ; \
+	cp postinst.in     $(DOCNAME)-common.postinst ; \
+	for xx in $(LANGALL) ; do \
+	  cp postinst.in     $(DOCNAME)-$${xx}.postinst ; \
+	  cp postrm.in       $(DOCNAME)-$${xx}.postrm ; \
+	  case $$xx in \
+	    en) LANGX="English" ;;  \
+	    de) LANGX="German" ;;   \
+	    fr) LANGX="French" ;;   \
+	    fi) LANGX="Finnish" ;;  \
+	    es) LANGX="Spanish" ;;  \
+	    it) LANGX="Italian" ;;  \
+	    ja) LANGX="Japanese" ;; \
+	    pl) LANGX="Polish" ;; \
+	    pt-br) LANGX="Portuguese (Brazil)" ;; \
+	    zh-tw) LANGX="Chinese (Traditional)" ;; \
+	    zh-cn) LANGX="Chinese (Simplified)" ;; \
+	  esac ; \
+	  cp $(DOCNAME).dirs.in $(DOCNAME)-$${xx}.dirs ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base.in  >$(DOCNAME)-$${xx}.doc-base ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).install.in  >$(DOCNAME)-$${xx}.install ; \
+	done
+endif
+#######################################################################
+# Build xml/html for testing source (local)                         ALL
+#######################################################################
+.PHONY: xml
+xml: $(DOCNAME).raw.xml $(SRC_ENT)
+
+.PHONY: po
+po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
+
+# rebuild all html txt including ones from old sgml
+.PHONY: all
+all:   html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
+
+# rebuild local html for check result of source updates
+.PHONY: htmls
+htmls: html css
+
+# force rebuild when touched po file after asciidoc
+.PHONY: new
+new:
+	touch $(ADOC)/00_preface.txt
+
+#######################################################################
+# Clean targets                                                     ALL
+#######################################################################
+.PHONY: clean distclean
+
+clean:
+	-rm -f *.swp *~ *.tmp
+	-rm -rf html
+	-rm -f $(PODOC)/*~
+	-rm -f urls.ent pkg.lst header.txt
+	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
+	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
+	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
+	# Clean files for debhelper in debian/
+	-rm debian/$(DOCNAME)-*.postinst 
+	-rm debian/$(DOCNAME)-*.postrm
+	-rm debian/$(DOCNAME)-*.dirs 
+	-rm debian/$(DOCNAME)-*.doc-base
+	-rm debian/$(DOCNAME)-*.install
+ifdef DEBIAN_PACKAGE_BUILD_MODE
+	# We should clean these for debian package
+	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
+endif
+
+# Run distclean only for regenerating all XML and remote data
+distclean: clean
+	-rm -f $(DOCNAME).raw.xml $(SRC_ENT)
+	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
+
+#########################################################################
+# Utility targets                                                     ALL
+#########################################################################
+.PHONY: url 
+
+# check url for everything
+url: url-sanity url-ja url-check-en url-check-ja
+
+# check url sanity
+url-sanity: $(DOCNAME).en.xml
+	@echo "----- Duplicate URL references (start) -----"
+	-sed -ne "/^<\!ENTITY/s/<\!ENTITY \([^ ]*\) .*$$/\" \1 \"/p"  < $< | uniq -d | xargs -n 1 grep $< -e  | grep -e "^<\!ENTITY"
+	@echo "----- Duplicate URL references (end) -----"
+
+#	<!ENTITY abi "http://en.
+url-ja: $(DOCNAME).ja.xml
+	@echo "-----  Wikipedia URL references (start) -----"
+	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/en\." < $< | wc -l
+	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/$*\." < $< | wc -l
+	@echo "----- Wikipedia URL references (end) -----"
+
+# sanity check for url
+url-check-%: $(DOCNAME).%.xml
+	@echo "----- URL check $* (start) -----"
+	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $< | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
+	@echo "----- URL check $* (end) -----"
+
 # Make list of all "http://en.wikipedia.org/wiki/..."
 $(PODOC)/wikipedia.list: $(PODOC)/$(DOCNAME).pot
 	sed -ne "s/^msgid \"\(http:\/\/en\.wikipedia\.org\/wiki\/.*\)\"/\1/p" < $< > $@
@@ -255,164 +437,4 @@ typo:
 	for $$xx in $(LANGPO) ; do \
 	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).$$xx.po ;\
 	done
-
-#########################################################################
-# Translate XML files                                                 ALL
-#########################################################################
-$(DOCNAME).ja.xml: $(PODOC)/$(DOCNAME).ja.po $(PODOC)/addendum1.ja $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.ja -p $< -l $@
-
-$(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
-	
-#########################################################################
-# Create HTML files                                                   ALL
-#########################################################################
-.PHONY: css
-css:
-	-rm -rf $(PUBLISHDIR)/images
-	mkdir -p $(PUBLISHDIR)/images
-	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
-	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
-
-.PHONY: html
-html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)  $(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
-
-$(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(ENTSRCS)
-	$(XP)   --stringparam root.filename $(DOCNAME) \
-		--stringparam base.dir $(PUBLISHDIR)/ \
-                --stringparam html.ext .$*.html \
-                --stringparam admon.graphics 0 \
-                --stringparam callout.graphics 0 \
-                --stringparam navig.graphics 0 \
-                --stringparam html.stylesheet $(DOCNAME).css \
-                xslt/style-onehtml.xsl $<
-
-$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(ENTSRCS)
-	$(XP)   --stringparam root.filename index \
-		--stringparam base.dir $(PUBLISHDIR)/ \
-                --stringparam html.ext .$*.html \
-                --stringparam html.stylesheet $(DOCNAME).css \
-                xslt/style-html.xsl $<
-
-.PHONY: txt
-txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
-#  Build rule for TXT (non-English)
-#  #  (UTF-8 compatibility of debiandoc2text is limitted)
-$(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
-	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
-
-
-#########################################################################
-# Utility targets                                                     ALL
-#########################################################################
-# Replicate
-REMOTE  := people.debian.org:public_html/pub/po4a/
-
-.PHONY: rsync
-rsync:
-	rsync --exclude=all-popcon-results.txt --exclude=packages.txt --exclude=packages.bkup.txt --exclude=pkg.lst --exclude="debian-reference.*.xml" \
-		-rpt --delete-after . $(REMOTE)
-	# somehow rsync does 700, fixit
-	ssh people.debian.org "chmod ugo+rX public_html/pub/po4a"
-
-.PHONY: url 
-
-# check url for everything
-url: url-sanity url-ja url-check-en url-check-ja
-
-# check url sanity
-url-sanity: $(DOCNAME).en.xml
-	@echo "----- Duplicate URL references (start) -----"
-	-sed -ne "/^<\!ENTITY/s/<\!ENTITY \([^ ]*\) .*$$/\" \1 \"/p"  < $< | uniq -d | xargs -n 1 grep $< -e  | grep -e "^<\!ENTITY"
-	@echo "----- Duplicate URL references (end) -----"
-
-#	<!ENTITY abi "http://en.
-url-ja: $(DOCNAME).ja.xml
-	@echo "-----  Wikipedia URL references (start) -----"
-	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/en\." < $< | wc -l
-	-grep "^<\!ENTITY [^ ][^ ]*  *\"http:\/\/$*\." < $< | wc -l
-	@echo "----- Wikipedia URL references (end) -----"
-
-# sanity check for url
-url-check-%: $(DOCNAME).%.xml
-	@echo "----- URL check $* (start) -----"
-	@sed -ne "/^<\!ENTITY/s/<\!ENTITY [^ ]* \"\(.*\)\">$$/\"\1\"/p"  < $< | uniq | xargs -n 1 wget -O /dev/null -nv || echo "**************************************************************"
-	@echo "----- URL check $* (end) -----"
-
-#######################################################################
-# Update source using remotely fetched data                         ALL
-#######################################################################
-.PHONY: update
-update:
-	$(MAKE) distclean
-	$(MAKE) BUILD_MODE=asciidoc xml
-	$(MAKE) clean
-
-#######################################################################
-# Build html for web (DDP or alioth)                                ALL
-#######################################################################
-.PHONY: publish
-
-# $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals for master-www
-publish:
-	-mkdir -p $(PUBLISHDIR)/debian-reference
-	-rm -f $(PUBLISHDIR)/reference
-	# For www.debian.org, relative symlink only
-	-ln -sf debian-reference $(PUBLISHDIR)/reference
-	$(MAKE) html txt css BUILD_MODE=asciidoc PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANG_ALL=$(LANGSGML)"
-#	ls -lR $(PUBLISHDIR)
-
-#######################################################################
-# Build xml/html for testing source (local)                         ALL
-#######################################################################
-.PHONY: new
-new:
-	# making sure to rebuild all from asciidoc and po
-	touch asciidoc/00_preface.txt
-
-.PHONY: po
-po:	
-	# update po files from updated raw.xml
-	$(MAKE) BUILD_MODE=xml $(XMLSRCS) "LANGPO=$(LANGPO)"
-
-.PHONY: po-test
-po-test:	
-	# build translated html/text pages from from raw.xml and po
-	# This is to test result of translation quickly
-	$(MAKE) BUILD_MODE=xml html txt css "LANGPO=$(LANGPO)"
-
-.PHONY: xml
-xml: new
-	$(MAKE) BUILD_MODE=asciidoc $(XMLSRCS) "LANGPO=$(LANGPO)"
-
-.PHONY: all
-all:
-	$(MAKE) BUILD_MODE=asciidoc html txt css "LANGPO=$(LANGPO)"
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
-#	# skip if DDP
-#	export HTMLROOT=$(PUBLISHDIR) ; bin/mkindexhtml
-#	if [ $$USER = "osamu" ]; then $(MAKE) rsync ; fi
-
-#######################################################################
-# Clean targets                                                     ALL
-#######################################################################
-.PHONY: clean clean-data distclean
-
-clean:
-	-rm -f *.swp *~ *.tmp
-	-rm -rf html
-	-rm -f $(PODOC)/*~
-	-rm -f urls.ent pkg.lst header.txt
-	-rm -f $(addsuffix .xml, $(addprefix  $(DOCNAME)., $(LANGPO)))
-	-rm -f $(DOCNAME).en.xml $(DOCNAME).en.xmlt
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
-
-clean-data: clean
-	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
-
-distclean: clean-data
-	-rm -f $(ENTSRCS)
-
 
