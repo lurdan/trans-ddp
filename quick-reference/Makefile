@@ -214,9 +214,14 @@ pkg.lst: $(DOCNAME).raw.xml
 ifneq ($(BUILD_MODE),asciidoc)
 #=======================================================================#
 # To avoid dependency issues:
-$(DOCNAME).raw.xml $(SRC_ENT):
+$(DOCNAME).raw.xml:
 	echo "You need to run \"make xml\" in lenny environment"
 	exit 1
+
+# To avoid dependency issues:
+#$(SRC_ENT):
+#	echo "You need to run \"make $(SRC_ENT)\" in lenny environment"
+#	exit 1
 #=======================================================================#
 endif
 #=======================================================================#
@@ -373,15 +378,17 @@ clean:
 	-rm -f $(addsuffix .doc-base, $(addprefix  $(DOCNAME)., $(LANGALL)))
 	-rm -f $(addsuffix .install,  $(addprefix  $(DOCNAME)., $(LANGALL)))
 	-rm -f $(addsuffix .postinst, $(addprefix  $(DOCNAME)., $(LANGALL)))
-ifdef DEBIAN_PACKAGE_BUILD_MODE
-	# We should clean these for debian package
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
-endif
 
 # Run distclean only for regenerating all XML and remote data
 distclean: clean
-	-rm -f $(DOCNAME).raw.xml $(SRC_ENT)
+	# We should clean these for debian package
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
+ifndef DEBIAN_PACKAGE_BUILD_MODE
+	-rm -f $(DOCNAME).raw.xml $(SRC_ENT)
+endif
+
+
 
 #########################################################################
 # Utility targets                                                     ALL
