@@ -12,7 +12,7 @@ ifdef DEBIAN_PACKAGE_BUILD_MODE
 BUILD_MODE	:= deb
 else
 # If run directlt from make on lenny-derivative, this is "5.0"
-BUILD_MODE	:= $(sed 's#\(^...\).*#\1#' /etc/debian_version)
+BUILD_MODE	:= $(shell sed -r -e 's/^(...).*/\1/' < /etc/debian_version )
 endif
 # BUILD_MODE value to for building from asciidoc
 BUILD_MODE_ASCIIDOC := 5.0
@@ -105,11 +105,13 @@ ifdef DEBIAN_PACKAGE_BUILD_MODE
 	    zh-tw) LANGX="Chinese (Traditional)" ;; \
 	    zh-cn) LANGX="Chinese (Simplified)" ;; \
 	  esac ; \
-	  cp $(DOCNAME).dirs.in $(DOCNAME)-$${xx}.dirs ; \
-	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base.in  >$(DOCNAME)-$${xx}.doc-base ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).dirs.in  >$(DOCNAME)-$${xx}.dirs ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).links.in  >$(DOCNAME)-$${xx}.links ; \
 	  sed  -e "s/@@/$$xx/" < $(DOCNAME).install.in  >$(DOCNAME)-$${xx}.install ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base.in  >$(DOCNAME)-$${xx}.doc-base ; \
 	done
 endif
+
 #######################################################################
 # Build all sources to html and text pages for web (DDP on alioth)  DDP
 #######################################################################
@@ -131,29 +133,33 @@ publish:
 .PHONY: clean distclean
 
 clean:
+	echo $(BUILD_MODE)
 	-rm -f *.swp *~ *.tmp
 	-rm -f $(PODOC)/*~ $(ADOC)/*~
 	-rm -rf html
-	-mkdir -p html
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
-	-rm -f $(DOCNAME).en.xmlt
+	-rm -f $(DOCNAME).en.xmlt common.ent header.txt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
 	# Clean files for debhelper in debian/
-	-rm -f $(addsuffix .postinst, $(addprefix  $(DOCNAME)., $(LANGALL)))
-	-rm -f $(addsuffix .postrm,   $(addprefix  $(DOCNAME)., $(LANGALL)))
-	-rm -f $(addsuffix .dirs,     $(addprefix  $(DOCNAME)., $(LANGALL)))
-	-rm -f $(addsuffix .doc-base, $(addprefix  $(DOCNAME)., $(LANGALL)))
-	-rm -f $(addsuffix .install,  $(addprefix  $(DOCNAME)., $(LANGALL)))
-	-rm -f $(addsuffix .postinst, $(addprefix  $(DOCNAME)., $(LANGALL)))
+	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .postrm,   $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .dirs,     $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .links,    $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .doc-base, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .install,  $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
 
 # Run distclean only for regenerating all locally cached data from remote
 #                          (and all raw XML from asciidoc for lenny@local)
 distclean: clean
-	# We should clean these local cached data for debian package
+	# We should clean these local cached data for debian package.
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
-	-rm -f pkg.lst header.txt common.ent
-ifneq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
-	-rm -f $(DOCNAME).raw.xml $(SRC_ENT)
+ifndef DEBIAN_PACKAGE_BUILD_MODE
+ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
+	# If not from debian/rules but in asciidoc mode, 
+	# remove remotely generated files.
+	-rm -f $(SRC_ENT)
+endif
 endif
 
 #########################################################################
@@ -181,12 +187,12 @@ $(DOCNAME).raw.xml: $(SRC_ASC)
 	xmllint --format -  |\
 	sed -f bin/replace > $@
 #=======================================================================#
-eles
+else
 #=======================================================================#
 # After squeeze, $(DOCNAME).raw.xml is pristine source and should not be rebuild.
 # To avoid dependency issues due to "$(DOCNAME).%.xml:", we need this target:
 $(DOCNAME).raw.xml:
-	echo "You need to run \"make xml\" in lenny environment or get it as pristine source."
+	echo "You need to run \"make\" in lenny environment or create it as pristine source."
 	exit 1
 #=======================================================================#
 endif
@@ -286,7 +292,7 @@ header.txt: $(ADOC)/header1.txt $(DOCNAME).raw.xml $(ADOC)/header2.txt
 
 # Replace table contents with @-@popcon*@@@ and @@@psize*@-@ and 
 # fix URL referencees and table ID.
-$(DOCNAME).en.xml: $(DOCNAME).raw.xml header.txt
+$(DOCNAME).en.xml: $(DOCNAME).raw.xml header.txt common.ent
 	# use asciidoc generated xml file as main contents 
 	xsltproc --novalid $(VERBOSE) $(PXSLT)/table.xsl $(DOCNAME).raw.xml |\
 	$(PBIN)/colspec.py  |\
@@ -349,6 +355,7 @@ html:	html1 htmli
 htmls:	html css
 
 $(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
+	-mkdir -p $(PUBLISHDIR)
 	$(XP)   --stringparam root.filename $(DOCNAME) \
 		--stringparam base.dir $(PUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
@@ -359,6 +366,7 @@ $(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
                 xslt/style-onehtml.xsl $<
 
 $(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
+	-mkdir -p $(PUBLISHDIR)
 	$(XP)   --stringparam root.filename index \
 		--stringparam base.dir $(PUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
@@ -370,6 +378,7 @@ txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
 #  Build rule for TXT (non-English)
 #  #  (UTF-8 compatibility of debiandoc2text is limitted)
 $(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
+	-mkdir -p $(PUBLISHDIR)
 	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
 
 #######################################################################
@@ -379,7 +388,7 @@ $(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
 .PHONY: new
 new:
 	touch $(ADOC)/00_preface.txt
-	$(MAKE) htmli
+	$(MAKE) xml
 
 #########################################################################
 # Utility targets                                                     ALL
