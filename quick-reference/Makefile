@@ -327,7 +327,9 @@ po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
 	@echo ">>> $@: $$(msgattrib --fuzzy        $@ |grep '^msgid'|wc -l) fuzzy translation"
+	@if [ "$*" = "ja" ]; then msgattrib --fuzzy $@ ; fi
 	@echo ">>> $@: $$(msgattrib --untranslated $@ |grep '^msgid'|wc -l) untranslated"
+	@if [ "$*" = "ja" ]; then msgattrib --untranslated $@ ; fi
 
 #########################################################################
 # Translate XML files                                                 ALL
