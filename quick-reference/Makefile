@@ -86,12 +86,16 @@ all: html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 # When building for Debian packages, build debhelper entries for install
 ifdef DEBIAN_PACKAGE_BUILD_MODE
+	$(MAKE) dh_clean_in
+endif
+
+dh_in:
 	# Generate files for debhelper in debian/
 	cd $(CURDIR)/debian/ ; \
-	cp postinst.in     $(DOCNAME)-common.postinst ; \
+	cp postinst-in     $(DOCNAME)-common.postinst ; \
 	for xx in $(LANGALL) ; do \
-	  cp postinst.in     $(DOCNAME)-$${xx}.postinst ; \
-	  cp postrm.in       $(DOCNAME)-$${xx}.postrm ; \
+	  cp postinst-in     $(DOCNAME)-$${xx}.postinst ; \
+	  cp postrm-in       $(DOCNAME)-$${xx}.postrm ; \
 	  case $$xx in \
 	    en) LANGX="English" ;;  \
 	    de) LANGX="German" ;;   \
@@ -104,13 +108,13 @@ ifdef DEBIAN_PACKAGE_BUILD_MODE
 	    pt-br) LANGX="Portuguese (Brazil)" ;; \
 	    zh-tw) LANGX="Chinese (Traditional)" ;; \
 	    zh-cn) LANGX="Chinese (Simplified)" ;; \
+	    *) LANGX="$$x" ;; \
 	  esac ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).dirs.in  >$(DOCNAME)-$${xx}.dirs ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).links.in  >$(DOCNAME)-$${xx}.links ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).install.in  >$(DOCNAME)-$${xx}.install ; \
-	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base.in  >$(DOCNAME)-$${xx}.doc-base ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).dirs-in  >$(DOCNAME)-$${xx}.dirs ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).links-in  >$(DOCNAME)-$${xx}.links ; \
+	  sed  -e "s/@@/$$xx/" < $(DOCNAME).install-in  >$(DOCNAME)-$${xx}.install ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base-in  >$(DOCNAME)-$${xx}.doc-base ; \
 	done
-endif
 
 #######################################################################
 # Build all sources to html and text pages for web (DDP on alioth)  DDP
@@ -140,6 +144,9 @@ clean:
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
 	-rm -f $(DOCNAME).en.xmlt common.ent header.txt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
+	$(MAKE) dh_clean_in
+
+dh_clean_in:
 	# Clean files for debhelper in debian/
 	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
 	-rm -f $(addsuffix .postrm,   $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
