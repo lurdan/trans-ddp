@@ -10536,6 +10536,9 @@ For <emphasis role="strong">static IP</emphasis> system such as servers, you sho
         <simpara>The naming for the domain name is a tricky one for the normal PC workstation users.  The PC workstation may be mobile one hopping around the network or located behind the NAT firewall inaccessible from the Internet. For such case, you may not want the domain name to be a valid domain name to avoid name collision.</simpara>
         <simpara>According to <ulink url="http://tools.ietf.org/html/rfc2606">rfc2606</ulink>, "<literal>invalid</literal>" seems to be a choice for the <ulink url="http://en.wikipedia.org/wiki/Top-level_domain">top level domain (TLD)</ulink> to construct domain names that are sure to be invalid from the Internet.</simpara>
         <simpara>The <ulink url="http://en.wikipedia.org/wiki/MDNS">mDNS</ulink> network discovery protocol (<ulink url="http://en.wikipedia.org/wiki/Bonjour_(software)">Apple Bonjour / Apple Rendezvous</ulink>, Avahi on Debian) uses <ulink url="http://en.wikipedia.org/wiki/.local">"local"</ulink> as the <ulink url="http://en.wikipedia.org/wiki/Pseudo-top-level_domain">pseudo-top-level domain</ulink>.  <ulink url="http://support.microsoft.com/kb/296250">Microsoft also seems to promote "local" for the TLD of local area network</ulink>.</simpara>
+        <warning>
+          <simpara>If the DNS service on your LAN uses "<literal>local</literal>" as TLD for your LAN, it may interfare with mDNS.</simpara>
+        </warning>
         <simpara>Other popular choices for the invalid TLD seem to be "<literal>localdomain</literal>", "<literal>lan</literal>", "<literal>localnet</literal>", or "<literal>home</literal>" according to my incoming mail analysis.</simpara>
       </section>
       <section id="_the_hostname_resolution">
@@ -10571,7 +10574,7 @@ ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts</screen>
         <simpara>Here the &lt;host_name&gt; in this matches the own hostname defined in the "<literal>/etc/hostname</literal>".  The &lt;domain_name&gt; in this is the <ulink url="http://en.wikipedia.org/wiki/FQDN">fully qualified domain name (FQDN)</ulink> of this host.</simpara>
         <tip>
-          <simpara>For the mobile PC without real FQDN, you may pick a TLD such as bogus "<literal>invalid</literal>" or mDNS "<literal>local</literal>" as the TLD part of &lt;domain_name&gt; in this configuration.</simpara>
+          <simpara>For &lt;domain_name&gt; of the mobile PC without the real FQDN, you may pick a bogus and safe TLD such as "<literal>lan</literal>", "<literal>home</literal>", "<literal>invalid</literal>", "<literal>localdomain</literal>", "<literal>none</literal>", and "<literal>private</literal>".</simpara>
         </tip>
         <simpara>The "<literal>/etc/resolv.conf</literal>" is a static file if the <literal>resolvconf</literal> package is not installed.  If installed, it is a symbolic link.  Either way, it contains information that initialize the resolver routines. If the DNS is found at IP="<literal>192.168.11.1</literal>", it contains the following.</simpara>
         <screen>nameserver 192.168.11.1</screen>
@@ -24383,6 +24386,29 @@ Hash and cryptographic encryption tools
             </tbody>
           </tgroup>
         </table>
+        <simpara>Copying files with <literal>rsync</literal>(8) offers richer features than others.</simpara>
+        <itemizedlist>
+          <listitem>
+            <simpara>
+delta-transfer algorithm that sends only the differences between the source files and the existing files in the destination
+</simpara>
+          </listitem>
+          <listitem>
+            <simpara>
+quick check algorithm (by default) that looks for files that have changed in size or in last-modified time
+</simpara>
+          </listitem>
+          <listitem>
+            <simpara>
+"<literal>--exclude</literal>" and "<literal>--exclude-from</literal>" options similar to <literal>tar</literal>(1)
+</simpara>
+          </listitem>
+          <listitem>
+            <simpara>
+"a trailing slash on the source directory" syntax that avoids creating an additional directory level at the destination.
+</simpara>
+          </listitem>
+        </itemizedlist>
         <tip>
           <simpara>Execution of the <literal>bkup</literal> script mentioned in <xref linkend="_a_copy_script_for_the_data_backup"/> with the "<literal>-gl</literal>" option under <literal>cron</literal>(8) should provide very similar functionality as <literal>pdumpfs</literal> for the static data archive.</simpara>
         </tip>
@@ -24405,7 +24431,7 @@ $ afio -ivZ archive.afio</screen>
       </section>
       <section id="_idioms_for_the_copy">
         <title>Idioms for the copy</title>
-        <simpara>Here are several ways to make the entire content of local or remote copies using different tools.</simpara>
+        <simpara>Here are several ways to copy the entire content of the directory "<literal>/source</literal>" using different tools.</simpara>
         <itemizedlist>
           <listitem>
             <simpara>
@@ -24418,9 +24444,12 @@ Remote copy: "<literal>/source</literal>" directory at local host → "<literal>
 </simpara>
           </listitem>
         </itemizedlist>
+        <simpara><literal>rsync</literal>(8):</simpara>
+        <screen># rsync -av /source/ /dest
+# rsync -av /source/ user@host.dom:/dest</screen>
         <simpara>GNU <literal>cp</literal>(1) and openSSH <literal>scp</literal>(1):</simpara>
-        <screen># cp -a /source /dest
-# scp -pr /source user@host.dom:/dest</screen>
+        <screen># cd /source; cp -a . /dest
+# cd /source; scp -pr . user@host.dom:/dest</screen>
         <simpara>GNU <literal>tar</literal>(1):</simpara>
         <screen># (cd /source &amp;&amp; tar cf - . ) | (cd /dest &amp;&amp; tar xvfp - )
 # (cd /source &amp;&amp; tar cf - . ) | ssh user@host.dom '(cd /dest &amp;&amp; tar xvfp - )'</screen>
@@ -24428,10 +24457,12 @@ Remote copy: "<literal>/source</literal>" directory at local host → "<literal>
         <screen># cd /source; find . -print0 | cpio -pvdm --null --sparse /dest</screen>
         <simpara><literal>afio</literal>(1):</simpara>
         <screen># cd /source; find . -print0 | afio -pv0a /dest</screen>
+        <note>
+          <simpara>For copying from "<literal>/source/foo</literal>" directory to "<literal>/dest/foo</literal>" directory, you can drop "<literal>cd /source;</literal>" and use "<literal>/source/foo</literal>" in place of "<literal>.</literal>" in the above examples.</simpara>
+        </note>
         <tip>
-          <simpara><literal>scp</literal>(1) can even copy files between remote hosts by the following.</simpara>
+          <simpara><literal>rsync</literal>(8) and GNU <literal>cp</literal>(1) have option "<literal>-u</literal>" to skip files that are newer on the receiver.</simpara>
         </tip>
-        <screen># scp -pr user1@host1.dom:/source user2@host2.dom:/dest</screen>
       </section>
       <section id="_idioms_for_the_selection_of_files">
         <title>Idioms for the selection of files</title>

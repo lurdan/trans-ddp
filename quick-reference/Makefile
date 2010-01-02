@@ -81,7 +81,7 @@ SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
 #######################################################################
 # Build all sources to html and text pages (Default target)     ALL/DEB
 #######################################################################
-.PHONY: all
+.PHONY: all dh_in
 all: html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 # When building for Debian packages, build debhelper entries for install
@@ -134,7 +134,7 @@ publish:
 #######################################################################
 # Clean targets                                                     ALL
 #######################################################################
-.PHONY: clean distclean
+.PHONY: clean dh_clean_in distclean
 
 clean:
 	echo $(BUILD_MODE)
