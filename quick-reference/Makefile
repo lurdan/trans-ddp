@@ -86,16 +86,16 @@ all: html txt css
 	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 # When building for Debian packages, build debhelper entries for install
 ifdef DEBIAN_PACKAGE_BUILD_MODE
-	$(MAKE) dh_clean_in
+	$(MAKE) dh_in
 endif
 
 dh_in:
 	# Generate files for debhelper in debian/
 	cd $(CURDIR)/debian/ ; \
-	cp postinst-in     $(DOCNAME)-common.postinst ; \
+	cp all.postinst-in     $(DOCNAME)-common.postinst ; \
 	for xx in $(LANGALL) ; do \
-	  cp postinst-in     $(DOCNAME)-$${xx}.postinst ; \
-	  cp postrm-in       $(DOCNAME)-$${xx}.postrm ; \
+	  cp all.postinst-in     $(DOCNAME)-$${xx}.postinst ; \
+	  cp all.postrm-in       $(DOCNAME)-$${xx}.postrm ; \
 	  case $$xx in \
 	    en) LANGX="English" ;;  \
 	    de) LANGX="German" ;;   \
@@ -110,10 +110,10 @@ dh_in:
 	    zh-cn) LANGX="Chinese (Simplified)" ;; \
 	    *) LANGX="$$x" ;; \
 	  esac ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).dirs-in  >$(DOCNAME)-$${xx}.dirs ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).links-in  >$(DOCNAME)-$${xx}.links ; \
-	  sed  -e "s/@@/$$xx/" < $(DOCNAME).install-in  >$(DOCNAME)-$${xx}.install ; \
-	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < $(DOCNAME).doc-base-in  >$(DOCNAME)-$${xx}.doc-base ; \
+	  sed  -e "s/@@/$$xx/" < all.dirs-in  >$(DOCNAME)-$${xx}.dirs ; \
+	  sed  -e "s/@@/$$xx/" < all.links-in  >$(DOCNAME)-$${xx}.links ; \
+	  sed  -e "s/@@/$$xx/" < all.install-in  >$(DOCNAME)-$${xx}.install ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < all.doc-base-in  >$(DOCNAME)-$${xx}.doc-base ; \
 	done
 
 #######################################################################
@@ -333,10 +333,10 @@ po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
-	@echo ">>> $@: $$(msgattrib --fuzzy        $@ |grep '^msgid'|wc -l) fuzzy translation"
-	@if [ "$*" = "ja" ]; then msgattrib --fuzzy $@ ; fi
-	@echo ">>> $@: $$(msgattrib --untranslated $@ |grep '^msgid'|wc -l) untranslated"
-	@if [ "$*" = "ja" ]; then msgattrib --untranslated $@ ; fi
+	@echo ">>> $@: $$(        msgattrib --force-po --no-wrap --fuzzy $@ |grep '^msgid'|wc -l) fuzzy translation"
+	@if [ "$*" = "ja" ]; then msgattrib --force-po --no-wrap --fuzzy $@ ; fi
+	@echo ">>> $@: $$(        msgattrib --force-po --no-wrap --untranslated $@ |grep '^msgid'|wc -l) untranslated"
+	@if [ "$*" = "ja" ]; then msgattrib --force-po --no-wrap --untranslated $@ ; fi
 
 #########################################################################
 # Translate XML files                                                 ALL
