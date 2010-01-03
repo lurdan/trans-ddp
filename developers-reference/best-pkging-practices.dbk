@@ -96,18 +96,24 @@ diffs (e.g., from <filename>.diff.gz</filename>) and work out which patch sets
 to back out as a unit as bugs are fixed upstream.
 </para>
 <para>
-Unfortunately, the packaging system as such currently doesn't provide for
-separating the patches into several files.  Nevertheless, there are ways to
-separate patches: the patch files are shipped within the Debian patch file
-(<filename>.diff.gz</filename>), usually within the
-<filename>debian/</filename> directory.  The only difference is that they
-aren't applied immediately by dpkg-source,
-but by the <literal>build</literal>
-rule of <filename>debian/rules</filename>,
-through a dependency on the <literal>patch</literal> rule.
-Conversely, they are reverted in
-the <literal>clean</literal> rule,
-through a dependency on the <literal>unpatch</literal> rule.
+Fortunately, with the source format “3.0 (quilt)” it is now possible to
+keep patches separate without having to modify <filename>debian/rules</filename>
+to setup a patch system. Patches are stored in <filename>debian/patches/</filename>
+and when the source package is unpacked patches listed in
+<filename>debian/patches/series</filename> are automatically applied.
+As the name implies, patches can be managed with <command>quilt</command>.
+</para>
+<para>
+When using the older source “1.0”, it's also possible to separate patches
+but a dedicated patch system must be used: the patch files are shipped
+within the Debian patch file (<filename>.diff.gz</filename>), usually
+within the <filename>debian/</filename> directory. The only difference is
+that they aren't applied immediately by <command>dpkg-source</command>,
+but by the <literal>build</literal> rule of
+<filename>debian/rules</filename>, through a dependency on the
+<literal>patch</literal> rule.  Conversely, they are reverted in the
+<literal>clean</literal> rule, through a dependency on the
+<literal>unpatch</literal> rule.
 </para>
 <para>
 <command>quilt</command> is the recommended tool for this.
@@ -1661,7 +1667,7 @@ upstream source.
 <title>Pristine source</title>
 <para>
 The defining characteristic of a pristine source tarball is that the
-<literal>.orig.tar.gz</literal> file is byte-for-byte identical to a tarball officially
+<literal>.orig.tar.{gz,bz2}</literal> file is byte-for-byte identical to a tarball officially
 distributed by the upstream author.  <footnote><para> We cannot prevent
 upstream authors from changing the tarball they distribute without also
 incrementing the version number, so there can be no guarantee that a pristine
@@ -1671,7 +1677,7 @@ identical to something that upstream once <emphasis>did</emphasis> distribute.
 If a difference arises later (say, if upstream notices that he wasn't using
 maximal compression in his original distribution and then
 re-<command>gzip</command>s it), that's just too bad.  Since there is no good
-way to upload a new <literal>.orig.tar.gz</literal> for the same version, there is not even any
+way to upload a new <literal>.orig.tar.{gz,bz2}</literal> for the same version, there is not even any
 point in treating this situation as a bug.  </para> </footnote> This makes it
 possible to use checksums to easily verify that all changes between Debian's
 version and upstream's are contained in the Debian diff.  Also, if the original
@@ -1725,11 +1731,11 @@ gzipped tar at all, or if upstream's tarball contains non-DFSG-free material
 that you must remove before uploading.
 </para>
 <para>
-In these cases the developer must construct a suitable <literal>.orig.tar.gz
+In these cases the developer must construct a suitable <literal>.orig.tar.{gz,bz2}
 </literal> file himself.  We refer to such a tarball as a repackaged upstream 
 source.  Note that a repackaged upstream source is different from a 
 Debian-native package.  A repackaged source still comes with Debian-specific
-changes in a separate <literal>.diff.gz</literal> and still has a version
+changes in a separate <literal>.diff.gz</literal> or <literal>.debian.tar.{gz,bz2}</literal> and still has a version
 number composed of <literal>&lt;upstream-version&gt;</literal> and
 <literal>&lt;debian-revision&gt;</literal>.
 </para>
@@ -1743,7 +1749,7 @@ archive.  Use your own discretion here, but be prepared to defend your decision
 if you repackage source that could have been pristine.
 </para>
 <para>
-A repackaged <literal>.orig.tar.gz</literal>
+A repackaged <literal>.orig.tar.{gz,bz2}</literal>
 </para>
 <orderedlist numeration="arabic">
 <listitem>
@@ -1798,47 +1804,24 @@ distinguish pristine tarballs from repackaged ones.
 </listitem>
 <listitem>
 <para>
-<emphasis role="strong">should</emphasis> be gzipped with maximal compression.
+<emphasis role="strong">should</emphasis> be gzipped or bzipped with maximal compression.
 </para>
 </listitem>
 </orderedlist>
-<para>
-The canonical way to meet the latter two points is to let <literal>dpkg-source
--b</literal> construct the repackaged tarball from an unpacked directory.
-</para>
 </section>
 
 <section id="changed-binfiles">
-<title>Changing binary files in <literal>diff.gz</literal></title>
+<title>Changing binary files</title>
 <para>
 Sometimes it is necessary to change binary files contained in the original
-tarball, or to add binary files that are not in it.  If this is done by simply
-copying the files into the debianized source tree,
-<command>dpkg-source</command> will not be able to handle this.  On the other
-hand, according to the guidelines given above, you cannot include such a
-changed binary file in a repackaged <filename>orig.tar.gz</filename>.  Instead,
-include the file in the <filename>debian</filename> directory in
-<command>uuencode</command>d (or similar) form <footnote><para> The file should
-have a name that makes it clear which binary file it encodes.  Usually, some
-postfix indicating the encoding should be appended to the original filename.
-Note that you don't need to depend on <systemitem
-role="package">sharutils</systemitem> to get the <command>uudecode</command>
-program if you use <command>perl</command>'s <literal>pack</literal> function.
-The code could look like
-</para>
-&example-uu;
-</footnote>.  The file would then be
-decoded and copied to its place during the build process.  Thus the change will
-be visible quite easy.
-</para>
-<para>
-Some packages use <command>dbs</command> to manage patches to their upstream
-source, and always create a new <literal>orig.tar.gz</literal> file that
-contains the real <literal>orig.tar.gz</literal> in its toplevel directory.
-This is questionable with respect to the preference for pristine source.  On
-the other hand, it is easy to modify or add binary files in this case: Just put
-them into the newly created <literal>orig.tar.gz</literal> file, besides the
-real one, and copy them to the right place during the build process.
+tarball, or to add binary files that are not in it. This is fully supported
+when using source packages in “3.0 (quilt)” format, see the
+<citerefentry><refentrytitle>dpkg-source</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+manual page for details. When using the older format “1.0”, binary files
+can't be stored in the <filename>.diff.gz</filename> so you must store
+an <command>uuencode</command>d (or similar) version of the file(s)
+and decode it at build time in <filename>debian/rules</filename> (and move
+it in its official location).
 </para>
 </section>
 
