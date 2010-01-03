@@ -21,7 +21,8 @@ ORIG_LANG=en
 #
 LANGS = fr it
 
-EXTS=txt info pdf
+#EXTS=txt info pdf
+EXTS=txt pdf
 ##### END OF CONF PART CHANGE THE END AT YOU OWN RISK
 
 # what will be built
