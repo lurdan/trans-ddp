@@ -24,7 +24,7 @@ ifeq "$(OFFICIALWEBBUILD)" "true"
   install_file	:= install -m 2664 -p
   makedir	:= mkdir -p -m 2775
 else
-  install_file	:= cp -r 
+  install_file	:= cp -pr 
   makedir	:= mkdir -p -m 0755
 endif
 
