@@ -6,46 +6,60 @@
 
 I will touch on following topics.
 
- * Quick guide
+ * Quick update guide
+ * Quick merge guide for PO files
  * Document style
  * Basics of build process
  * What is @@@ in asciidoc
  * What is @-@ in asciidoc and raw XML
  * Making copy of SVN contents
- * Updating contents in English XML source
  * Fixing typo in English XML source
  * Updating remote data contents
  * Creating Translation PO for a new language
- * Updating Translation PO
  * Updating for new release (squeeze --> squeeze+1)
  * URL used for translation and its initialization
  * Utilities for spell check
  * Utilities of PO (split and merge and uniq PO)
  * VCS locations and history
 
-== Quick guide ==
+== Quick update guide ==
 
-Please note that for http://www.debian.org/ web site publishing, XML/PO
-files are used to build pages.  Before committing, please do this.
+Please note web pages linked from
+http://www.debian.org/doc/user-manuals#quick-reference are build from
+shared subversion data for the source of this package.  Please make sure
+to keep this data as consistent as possible by doing the following
+before commiting them.
+
+** This is for document update and translation.**
+** This requires pure lenny system **
 
  * Update from SVN to get the latest source: "svn co" or "svn up"
- * Fix fuzzy in PO using via poedit GUI etc.
- * Set to regenerate remotely fetched data: "make distclean" (optional)
- * Update raw english XML files only: "make xml"
- * Update XML/PO files.
-   * If updated English ascoodoc only: "make po"
-   * If updated translation PO too: "make new po"
- * Fix fuzzy in PO using via poedit GUI etc.
- * Generate HTML to check result.
-   * If updated English ascoodoc only: "make htmls"
-   * If updated translation PO too: "make new htmls"
- * Clean source: "make clean" (optional)
- * Build package: "debuild" (optional)
- * Clean after building package: "debuild clean" (optional)
+   $ svn co svn://svn.debian.org/svn/ddp/manuals/trunk/quick-reference qref
+   $ svn up
+  * If conflicts happen with po4a/*.po files, save local one in safe place
+    and overwrite merged file with the manually merged one (See "Quick
+    merge guide for PO files")
+  * If conflicts happen with po4a/*.pot files, overwrite merged file
+    with yours.
+  * If conflicts happen with other files, edit merged file into a sane text.
+ * Clean data (including emotely fetched data): "make distclean" (optional)
+ * Fix or update asciidoc/* using editor.
+ * Update XML/PO files: "make new po"
+ * Fix translation and translate fuzzy and missing data using poedit GUI
+   tool on po4a/*.po files.
+ * Create html files for checking result: "make htmls"
+ * If not satisfied, go back to edit asciidoc/* or po4a/*.po.
+ * Make and clean source for commit: "make all ; make clean" (optional)
+ * Commit source with: "svn ci" 
 
-Please note old translated documents are in SGML and its content is very
-loosely related to current English content.  In order to recycle as much
-old content, I usually use followings:
+[NOTE]
+If your language (fr) is not official one yet but wish to update french,
+you should use:
+ $ make po "LANGPO=fr"
+
+Please note old SGML based translated documents are very loosely related
+to current English content.  In order to recycle as much old contents, I
+usually use followings to create new translation in PO files:
    
  * "poedit" to edit debian-reference.??.po file to be updated.
  * browser to display debian-reference.??.html from sage/lenny package
@@ -55,6 +69,31 @@ old content, I usually use followings:
 There are few utilities scripts I use to maintain this package.  Please 
 copy them to from utils/ directory to directory included in $PATH such as
 /usr/local/bin/.
+
+== Quick merge guide for PO files ==
+
+PO files do not merge well if you simply do "svn up".  If conflicts
+happen, it will produce 3 files:
+ filename.po          (What subversion merged but useless)
+ filename.po.mine     (What you had locally but you modified it)
+ filename.po.rOLDREV  (What you had locally before your modification)
+ filename.po.rNEWREV  (What is the latest from subversion repo.)
+
+(OLDREV and NEWREV are numbers)
+
+In such case, you need to merge remote one and your local one using
+gettext tools.
+
+You can check if 2 PO files are different using:
+
+$ msgcat --less-than=2 filename.po.mine filename.po.rNEWREV
+
+If you have no order of preference:
+
+$ msgmerge --no-wrap filename.po.mine filename.po.rNEWREV >filename.po
+
+Look for "#-#-#-#-#" where manual resolution is needed and resolve it
+via editor.
 
 == Document style ==
 
@@ -109,9 +148,9 @@ very similar to debian-reference.en.xml which is also XML file.
 Untranslatable contents in debian-reference.en.xml is replaced by
 "DUMMY" to reduce clutter in PO files.
 
-Please note actual build process starts from debian-reference.raw.xml and
-debian-reference.ja.po files.  These are "REAL" source files as far as
-package build process.  www.debian.org web page building process by
+Please note actual build process starts from debian-reference.raw.xml
+and debian-reference.ja.po files.  These are "REAL" source files as far
+as package build process.  www.debian.org web page building process by
 DDP may use asccidoc if it stays with lenny.
 
 Asciidoc format is used as a helper to make debian-reference.raw.xml
@@ -119,12 +158,13 @@ source with minimum typing.   This may be dropped once squeeze is out.
 After squeeze release, debian-reference.raw.xml will be the source.
 
 Due to asciidoc conversion logic differences, we must use lenny version
-of asciidoc for this source.  Otherwise you may get different output to the
-raw.xml and break all the po files.
+of asciidoc for this source.  Otherwise you may get different output to
+the raw.xml and break all the po files.
 
 Please note Makefile has few key parameters which affects build process.
 
   BUILD_MODE := deb       (debian package:  build-from-raw.xml mode)
+  BUILD_MODE := 4.0       (non-lenny:       build-from-raw.xml mode)
   BUILD_MODE := 5.0       (lenny:           build-from-asciidoc mode)
   BUILD_MODE := 5.1       (non-lenny:       build-from-raw.xml mode)
   BUILD_MODE := 6.?       (non-lenny:       build-from-raw.xml mode)
@@ -150,6 +190,7 @@ make po
 make publish
 	Used by DDP for www.debian.org
 	Do not require remote connection
+        On lenny host, it builds from asciidoc.
 
 make html
 	Create all html files
@@ -176,7 +217,7 @@ make new
 == What is @@@ in asciidoc ==
 
 You see quite a bit of @@@ in asciidoc source.  That is placed there
-when idiosyncrasy of asciidoc hit me.  Asciidoc to raw.xml conversion
+when idiosyncrasies of asciidoc hit me.  Asciidoc to raw.xml conversion
 result is filtered with sed script bin/replace to get right characters
 into a resulting XML file (debian-reference.en.raw) without worrying
 about asciidoc converting to something funny.
@@ -193,18 +234,19 @@ You see quite a bit of @-@ in asciidoc and generated XML source.  That
 is placed there when auto-generated data replaces them as entity in the
 final form (*.xml, *.po, *.html, ...).
 
-For example: @-@foo@-@     is converted to &foo;
-             @-@popcon1@-@ is converted to popcon value and URL link of
-                                           package in column 1.
-             @-@psize1@-@  is converted to size value and URL link of
-                                           package in column 1.
-             @-@popcon2@-@ is converted to popcon value and URL link of
-                                           package in column 2.
-             @-@psize2@-@  is converted to size value and URL link of
-                                           package in column 2.
+For example:
+ @-@foo@-@     is converted to &foo;
+ @-@popcon1@-@ is converted to popcon value and URL link of package in
+               column 1.
+ @-@psize1@-@  is converted to size value and URL link of package in
+               column 1.
+ @-@popcon2@-@ is converted to popcon value and URL link of package in
+               column 2.
+ @-@psize2@-@  is converted to size value and URL link of package in
+               column 2.
 
-These survive asciidoc conversion but are transformed from raw.xml to
-en.xml.
+These survive asciidoc conversion but are transformed when conversion
+from raw.xml to en.xml happens.
 
 == Making copy of SVN contents  ==
 
@@ -234,27 +276,6 @@ You should set up SSH (passwordless login).  Then:
  $ mkdir -p path/to/use/
  $ cd path/to/use/
  $ svn co svn+ssh://svn.debian.org/svn/ddp/manuals/trunk/qick-reference qref
-
-== Updating contents in English XML source ==
-
-Typical work flow of creating latest XML source from asciidoc/po4a is:
-
- * Get latest source with "svn up" to sync with latest upstream.
- * Edit "asciidoc/*.txt" files to update English contents if needed.
- * Run "make new po".
-   -->  It runs msgmerge for you.
- * Edit "po4a/debian-reference.??.po" to update translation if needed.
-   --> remove "fuzzy" while fixing translation.
- * Run "make new htmls" for test build html,
-   --> If error, back to Edit "asciidoc/*.txt" files.
- * Save updated XML source with "svn ci".
-
- * Clean source as needed with "make clean".
-
- * Test build package using "debuild" or "pdebuild".
-
-For editing "po4a/debian-reference.??.po", use specialized po file 
-editor such as poedit for ease.
 
 == Fixing typo in English XML source ==
 
@@ -294,23 +315,6 @@ To test run for a language ??, "make xml LANGPO=??".
 
 Once translation becomes in good shape, update LANGPO value in Makefile to 
 include ?? .
-
-== Updating Translation PO ==
-
- * Get latest source with "svn up".
- * If conflicts happen for PO file, seek to merge remote and local one 
-   with msguniq and msgcat as described below.  (Line numbers are not 
-   important to gettext. So do not worry. It is only for translators 
-   convienience.)
- * Run "make po" to be sure.
- * Edit "po4a/debian-reference.??.po" to update translation if needed.
- * Run "make htmls" for test build html,
-   --> If error, back to Edit "po4a/debian-reference.??.po" files.
- * Save updated XML source with "svn ci".
-
-If your language (fr) is not official one yet, you should use:
- $ make po "LANGPO=fr"
-to update french for example.
 
 == Updating for new release (squeeze --> squeeze+1) ==
 
@@ -354,28 +358,8 @@ For French:
   msgid "http://en.wikipedia.org/wiki/Desktop_environment"
   msgstr "http://fr.wikipedia.org/wiki/Environnement_de_bureau"
 
-The initialization of these URL is non-trivial if you do this manually.  
-
-We initialize URL using English document.  Let's take French as example.
-Easiest way to update debian-reference.fr.po is as follows.
-
-$ msgen --no-wrap -o debian-reference.en.po debian-reference.pot
-$ mv debian-reference.fr.po debian-reference.fr.po.old
-$ sed -e '/msgid "en"/$,d' <debian-reference.en.po |\
-  sed -e 's/^msgstr "http:\/\/en\./msgstr "http:\/\/fr./g' |\
-  sponge debian-reference.en.po
-$ msgcat --no-wrap  -o debian-reference.fr.po debian-reference.en.po debian-reference.fr.po.old
-
-Look for #-#-#-#-# where manual resolution is needed.  
-
-(You may use "--use-first" option if you always wish to override second one.)
-
-Then you check all Wikipedia URLs manually for their validity while reading
-debian-reference.fr.po with vim in gnome-terminal.  Right click should give you
-easy access to "Open Link".  This should speed up your translation.
-
-Some PO editor has copy English shortcut key.  For example, poedit has Alt-C
-and ALT-U.  Use them to sort out issues.
+The initialization of these URL is non-trivial if you do this manually. 
+(There are some make file targets to help these tedious tasks.)
 
 Please note that when translating "<ulink url=\"&debian;\">Debian</ulink>", do
 not change &debian; to translated URL.  But look for the following PO file
@@ -383,8 +367,10 @@ line for URL such as "http://www.debian.org/" and translate it in msgstr "".
 For this case, automatic locale choice is active on this URL thus it is best
 not to change as previously stated.
 
-If you find no corresponding URL for your language, do not forget to point it
-to one of "http://en.wikipedia.org/wiki/...".
+If you find no corresponding URL for your language, do not forget to
+point it to one of "http://en.wikipedia.org/wiki/...".  Wikipedia pages
+has link to translated contents.  That should help anyone to locate
+transation.
 
 == Utilities for spell check ==
 
@@ -422,14 +408,6 @@ $ gedit word.txt
  to merge remote one and your local one using gettext tools.
 
  If you have no order of preference.
-
-$ msgcat --no-wrap some1.po some2.po >some.po
-
- Look for #-#-#-#-# where manual resolution is needed.
-
- If you line some1.po better than some2.po.
-
-$ msgcat --no-wrap --use-first some1.po some2.po >some.po
 
 * "po4a-split" to split PO file into several chunks
 
