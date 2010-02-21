@@ -50,7 +50,7 @@ ifdef USE_DBLATEX
     ifeq ($(USE_DBLATEX),2)
 	XMLROFF_LANGS=
     else
-	XMLROFF_LANGS=ar el he hi ja ml zh_CN zh_TW
+	XMLROFF_LANGS=ar cs el he hi ja ml sk zh_CN zh_TW
     endif
 else
     XMLROFF_LANGS=$(A4_LANGS)

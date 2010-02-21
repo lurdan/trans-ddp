@@ -6,7 +6,7 @@
   <!-- (C) 2008 W. Martin Borgert debacle@debian.org
        See COPYING for the license status of this software. -->
 
-  <xsl:output method="text" encoding="ascii"/>
+  <xsl:output method="text" encoding="utf-8"/>
 
   <xsl:template match="article/title">
     <xsl:text>InfoKey: Title
