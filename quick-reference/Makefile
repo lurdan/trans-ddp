@@ -11,11 +11,11 @@ ifdef DEBIAN_PACKAGE_BUILD_MODE
 # When executed from pbuilder, debuild, debian/rules, ...
 BUILD_MODE	:= deb
 else
-# If run directlt from make on lenny-derivative, this is "5.0"
-BUILD_MODE	:= $(shell sed -r -e 's/^(...).*/\1/' < /etc/debian_version )
+# BUILD_MODE value set to asciidoc version number
+BUILD_MODE	:= $(shell asciidoc --version | sed -r -e 's/^[^ ]* (.*)$/\1/')
 endif
-# BUILD_MODE value to for building from asciidoc
-BUILD_MODE_ASCIIDOC := 5.0
+# BUILD_MODE value of correct asciidoc version number to use
+BUILD_MODE_ASCIIDOC := 8.2.7
 
 # Please note package build and ddp script overides $(PUBLISHDIR)
 # if $(PUBLISHDIR) is not set, set it here for testing
