@@ -12,10 +12,10 @@ ifdef DEBIAN_PACKAGE_BUILD_MODE
 BUILD_MODE	:= deb
 else
 # BUILD_MODE value set to asciidoc version number
-BUILD_MODE	:= $(shell asciidoc --version | sed -r -e 's/^[^ ]* (.*)$/\1/')
+BUILD_MODE	:= $(shell asciidoc --version)
 endif
 # BUILD_MODE value of correct asciidoc version number to use
-BUILD_MODE_ASCIIDOC := 8.2.7
+BUILD_MODE_ASCIIDOC := asciidoc 8.2.7
 
 # Please note package build and ddp script overides $(PUBLISHDIR)
 # if $(PUBLISHDIR) is not set, set it here for testing
@@ -137,7 +137,7 @@ publish:
 .PHONY: clean dh_clean_in distclean
 
 clean:
-	echo $(BUILD_MODE)
+	echo "BUILD_MODE = \"$(BUILD_MODE)\""
 	-rm -f *.swp *~ *.tmp
 	-rm -f $(PODOC)/*~ $(ADOC)/*~
 	-rm -rf html
@@ -189,6 +189,7 @@ ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
 # Regression caused by asciidoc 8.4.1 should be addressed by 
 # "-a no-inline-literal" but .... this does not work.  Use lenny only.
 $(DOCNAME).raw.xml: $(SRC_ASC)
+	echo "BUILD_MODE = \"$(BUILD_MODE)\""
 	asciidoc -a no-inline-literal -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
@@ -199,6 +200,7 @@ else
 # After squeeze, $(DOCNAME).raw.xml is pristine source and should not be rebuild.
 # To avoid dependency issues due to "$(DOCNAME).%.xml:", we need this target:
 $(DOCNAME).raw.xml:
+	echo "BUILD_MODE = \"$(BUILD_MODE)\""
 	echo "You need to run \"make\" in lenny environment or create it as pristine source."
 	exit 1
 #=======================================================================#
