@@ -64,7 +64,7 @@ DATASRCS:=      all-popcon-results.txt packages.txt packages.bkup.txt
 # AsciiDoc source file names in $(ADOC) directories for local update
 ASC_NM	:=	00_preface.txt 01_tutorial.txt 02_package.txt \
 		03_sysinit.txt 04_auth.txt 05_network.txt 06_netapp.txt \
-		07_xwindow.txt 08_i18nl10ntxt 09_systips.txt 10_datamngt.txt \
+		07_xwindow.txt 08_i18nl10n.txt 09_systips.txt 10_datamngt.txt \
 		11_dataconv.txt 12_program.txt 99_appendix.txt \
 		copyright.txt header1.txt header2.txt $(DOCNAME).txt
 # source asciidoc files (local updates of XML source files requires these under lenny)
