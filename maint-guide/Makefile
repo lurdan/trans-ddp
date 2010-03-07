@@ -19,7 +19,7 @@ else
 INSTALL_DIR := $(CURDIR)/debian/tmp
 endif
 
-all: html txt ps pdf
+all: publish
 
 sources := $(wildcard *.??*.sgml)
 #sources_noncjk := $(sources)
@@ -64,7 +64,7 @@ $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $* $<
 
 # publishing to the DDP web pages or debian/tmp
-publish: all
+publish: html txt ps pdf
 	test -d $(INSTALL_DIR) || install -d -m 755 $(INSTALL_DIR)
 	rm -f $(INSTALL_DIR)/*.html
 	install -p -m 644 $(MANUAL)*.html/*.html $(INSTALL_DIR)/
