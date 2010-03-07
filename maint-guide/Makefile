@@ -7,26 +7,17 @@
 # Build type: Possible values are BUILD_TYPE = web|package|...
 BUILD_TYPE  := web
 
-# For DDP web build, we need to use woody machine.
-ifeq ("$(BUILD_TYPE)", "web")
-# temporary workaround until www-master updates debiandoc-sgml
-#export PATH=../quick-reference/bin/:${PATH}
-export PATH:=../quick-reference/bin/:${PATH}
-
-# Woodys default LaTeX settings need more memory for Korean PDF
-export TEXMFCNF=../quick-reference/texmf:
-
-# Osamu thinks Makefile dependence to the outside of package source 
-# tree is inherently risky.  Thus these are intentionally excluded 
-# for the package build.  But this is nessasary for woking around
-# the current DDP CVS publish infrastructure.
-endif
-
 # Basename for SGML
 MANUAL := $(shell echo $(notdir $(CURDIR)) | perl -pe 's/-\d[\d.]+.*$$//')
 
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+
+ifeq ("$(BUILD_TYPE)", "web")
+INSTALL_DIR := $(PUBLISHDIR)/$(MANUAL)
+else
+INSTALL_DIR := $(CURDIR)/debian/tmp
+endif
 
 all: html txt ps pdf
 
@@ -40,11 +31,6 @@ sources_noncjk := $(filter-out maint-guide.ko.sgml,$(sources))
 #	debiandoc2html -c -l $* $<
 html:
 	rm -rf *html
-	@if /usr/bin/test \( ! -e $(MANUAL).en.html/index.en.html \) -o \( $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html \); then \
-          echo debiandoc2html -c -l en $(MANUAL).sgml; \
-          debiandoc2html -c -l en $(MANUAL).sgml; \
-          mv $(MANUAL).html $(MANUAL).en.html; \
-        fi
 	@for i in *.??*.sgml; do \
           j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
 	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $$i -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
@@ -54,50 +40,31 @@ html:
         done
 
 # generating plain text
-txt text: $(MANUAL).en.txt $(patsubst %.sgml,%.txt,$(sources))
-
-$(MANUAL).en.txt: $(MANUAL).sgml
-	debiandoc2text -l en $<
-	mv $(MANUAL).txt $(MANUAL).en.txt
+txt text: $(patsubst %.sgml,%.txt,$(sources))
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
 
 # generating PostScript
-ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
+ps: $(patsubst %.sgml,%.ps,$(sources_noncjk))
 	echo "Tex problem prevents PS build" >$(MANUAL).ko.ps
-
-$(MANUAL).en.ps: $(MANUAL).sgml
-	debiandoc2latexps -l en $<
-	mv $(MANUAL).ps $(MANUAL).en.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
 
 # generating Portable Document Format
-pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
+pdf: $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 	echo "Tex problem prevents PDF build" >$(MANUAL).ko.pdf
-
-$(MANUAL).en.pdf: $(MANUAL).sgml
-	debiandoc2latexpdf -l en $<
-	mv $(MANUAL).pdf $(MANUAL).en.pdf
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $* $<
 
-# publishing to the DDP web pages
+# publishing to the DDP web pages or debian/tmp
 publish: all
-	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
-# possible non-POSIX syntax below. fuck POSIX.
-	cd $(PUBLISHDIR)/$(MANUAL) && for file in *.en.html; do \
-          ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
-        done
-	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
-	ln -sf $(MANUAL).en.txt $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).txt
-	ln -sf $(MANUAL).en.ps $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
-	ln -sf $(MANUAL).en.pdf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).pdf
+	test -d $(INSTALL_DIR) || install -d -m 755 $(INSTALL_DIR)
+	rm -f $(INSTALL_DIR)/*.html
+	install -p -m 644 $(MANUAL)*.html/*.html $(INSTALL_DIR)/
+	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(INSTALL_DIR)
 
 # validating SGML
 validate:
@@ -108,9 +75,8 @@ clean distclean:
 	-rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
 	-rm -rf $(MANUAL)*.html 
 	-rm -rf *.tmp
-ifeq ("$(BUILD_TYPE)", "web")
-#       remove artfacts from web 
-	-rm -f $(MANUAL)
+ifneq ("$(BUILD_TYPE)", "web")
+	-rm -rf $(INSTALL_DIR)
 endif
 
 .PHONY: all publish clean distclean validate
