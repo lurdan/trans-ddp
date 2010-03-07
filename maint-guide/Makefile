@@ -23,7 +23,7 @@ all: html txt ps pdf
 
 sources := $(wildcard *.??*.sgml)
 #sources_noncjk := $(sources)
-sources_noncjk := $(filter-out maint-guide.ko.sgml,$(sources))
+sources_noncjk := $(filter-out maint-guide.ko.sgml maint-guide.zh-cn.sgml maint-guide.zh-tw.sgml,$(sources))
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
@@ -48,6 +48,8 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 # generating PostScript
 ps: $(patsubst %.sgml,%.ps,$(sources_noncjk))
 	echo "Tex problem prevents PS build" >$(MANUAL).ko.ps
+	echo "Tex problem prevents PS build" >$(MANUAL).zh-cn.ps
+	echo "Tex problem prevents PS build" >$(MANUAL).zh-tw.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $* $<
@@ -55,6 +57,8 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 # generating Portable Document Format
 pdf: $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 	echo "Tex problem prevents PDF build" >$(MANUAL).ko.pdf
+	echo "Tex problem prevents PDF build" >$(MANUAL).zh-cn.pdf
+	echo "Tex problem prevents PDF build" >$(MANUAL).zh-tw.pdf
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $* $<
