@@ -22,16 +22,16 @@ LANG_NOCJK	:= $(filter-out $(LANG_CJK),$(LANG_ALL))
 LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
 
 # For package building (all)
-INSTALL_DIR := $(CURDIR)/debian/tmp/usr/share/doc
+INSTALL_DIR := $(CURDIR)/debian
 all: html txt ps pdf
-	$(MAKE) dh_in
-	test -d $(INSTALL_DIR)/$(MANUAL) || install -d -m 755 $(INSTALL_DIR)/$(MANUAL)
-	install -p -m 644 $(MANUAL).en.html/*.html $(INSTALL_DIR)/$(MANUAL)
-	install -p -m 644 $(MANUAL).en.txt $(MANUAL).en.ps $(MANUAL).en.pdf $(INSTALL_DIR)/$(MANUAL)
+	#$(MAKE) dh_in
+	test -d $(INSTALL_DIR)/usr/share/doc/$(MANUAL) || install -d -m 755 $(INSTALL_DIR)/usr/share/doc/$(MANUAL)
+	install -p -m 644 $(MANUAL).en.html/*.html $(INSTALL_DIR)/usr/share/doc/$(MANUAL)
+	install -p -m 644 $(MANUAL).en.txt $(MANUAL).en.ps $(MANUAL).en.pdf $(INSTALL_DIR)/usr/share/doc/$(MANUAL)
 	for lang in $(LANG_NOE); do \
-	test -d $(INSTALL_DIR)/$(MANUAL)-$$lang || install -d -m 755 $(INSTALL_DIR)/$(MANUAL)-$$lang ;\
-	install -p -m 644 $(MANUAL).$$lang.html/*.html $(INSTALL_DIR)/$(MANUAL)-$$lang ;\
-	install -p -m 644 $(MANUAL).$$lang.txt $(MANUAL).$$lang.ps $(MANUAL).$$lang.pdf $(INSTALL_DIR)/$(MANUAL)-$$lang ;\
+	test -d $(INSTALL_DIR)/usr/share/doc/$(MANUAL)-$$lang || install -d -m 755 $(INSTALL_DIR)/usr/share/doc/$(MANUAL)-$$lang ;\
+	install -p -m 644 $(MANUAL).$$lang.html/*.html $(INSTALL_DIR)/usr/share/doc/$(MANUAL)-$$lang ;\
+	install -p -m 644 $(MANUAL).$$lang.txt $(MANUAL).$$lang.ps $(MANUAL).$$lang.pdf $(INSTALL_DIR)/usr/share/doc/$(MANUAL)-$$lang ;\
 	done
 	ls -lR $(INSTALL_DIR)
 
@@ -93,30 +93,28 @@ clean:
 	-rm -rf *.tmp
 ifneq ("$(BUILD_TYPE)", "web")
 	-rm -rf $(PUBLISHDIR)/$(MANUAL)
-else
-	-rm -rf $(INSTALL_DIR)
 endif
 
-distclean: clean dh_clean_in
+distclean: clean
 
 #######################################################################
-# Debhelper script auto generation
-
-dh_in:
-	# Generate files for debhelper in debian/
-	cd $(CURDIR)/debian/ ; \
-	for xx in $(LANG_NOE) ; do \
-	  sed  -e "s/@@/$$xx/" < all.install-in  >$(MANUAL)-$${xx}.install ; \
-	done
-
-dh_clean_in:
-	# Clean files for debhelper in debian/
-	cd $(CURDIR)/debian/ ; \
-	for xx in $(LANG_NOE) ; do \
-	  rm -f $(MANUAL)-$${xx}.install ; \
-	done
-
-#######################################################################
+## Debhelper script auto generation
+#
+#dh_in:
+#	# Generate files for debhelper in debian/
+#	cd $(CURDIR)/debian/ ; \
+#	for xx in $(LANG_NOE) ; do \
+#	  sed  -e "s/@@/$$xx/" < all.install-in  >$(MANUAL)-$${xx}.install ; \
+#	done
+#
+#dh_clean_in:
+#	# Clean files for debhelper in debian/
+#	cd $(CURDIR)/debian/ ; \
+#	for xx in $(LANG_NOE) ; do \
+#	  rm -f $(MANUAL)-$${xx}.install ; \
+#	done
+#
+########################################################################
 .PHONY: all publish clean distclean validate dh_in dh_clean_in
 .SUFFIXES:
 
