@@ -24,16 +24,7 @@ LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
 # For package building (all)
 INSTALL_DIR := $(CURDIR)/debian
 all: html txt ps pdf
-	test -d $(INSTALL_DIR)/$(MANUAL)/usr/share/doc/$(MANUAL) || install -d -m 755 $(INSTALL_DIR)/$(MANUAL)/usr/share/doc/$(MANUAL)
-	install -p -m 644 $(MANUAL).en.html/*.html $(INSTALL_DIR)/$(MANUAL)/usr/share/doc/$(MANUAL)
-	install -p -m 644 $(MANUAL).en.txt $(MANUAL).en.ps $(MANUAL).en.pdf $(INSTALL_DIR)/$(MANUAL)/usr/share/doc/$(MANUAL)
-	for lang in $(LANG_NOE); do \
-	test -d $(INSTALL_DIR)/$(MANUAL)-$$lang/usr/share/doc/$(MANUAL)-$$lang || install -d -m 755 $(INSTALL_DIR)/$(MANUAL)-$$lang/usr/share/doc/$(MANUAL)-$$lang ;\
-	install -p -m 644 $(MANUAL).$$lang.html/*.html $(INSTALL_DIR)/$(MANUAL)-$$lang/usr/share/doc/$(MANUAL)-$$lang ;\
-	install -p -m 644 $(MANUAL).$$lang.txt $(MANUAL).$$lang.ps $(MANUAL).$$lang.pdf $(INSTALL_DIR)/$(MANUAL)-$$lang/usr/share/doc/$(MANUAL)-$$lang ;\
-	done
-	ls -lR $(INSTALL_DIR)
-
+	for lang in $(LANG_NOE); do sed -e "s/@@/$$lang/g" < $(CURDIR)/debian/all.install-in >$(CURDIR)/debian/$(MANUAL)-$$lang.install; done
 # For web page building (publish)
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
@@ -92,6 +83,8 @@ clean:
 	-rm -rf *.tmp
 ifneq ("$(BUILD_TYPE)", "web")
 	-rm -rf $(PUBLISHDIR)/$(MANUAL)
+else
+	for lang in $(LANG_NOE); do rm -f $(CURDIR)/debian/$(MANUAL)-$$lang.install; done
 endif
 
 distclean: clean
