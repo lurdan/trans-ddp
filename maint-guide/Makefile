@@ -31,6 +31,10 @@ PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 publish: html txt ps pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
+	# remove old files
+	-rm -rf $(MANUAL).pt_BR.*
+	-rm -rf $(MANUAL).zh_CN.*
+	-rm -rf $(MANUAL).zh_TW.*
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 
