@@ -23,12 +23,19 @@ LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
 
 # For package building (all)
 INSTALL_DIR := $(CURDIR)/debian
-all: html txt ps pdf
+all:
+	echo "<!entity docisodate \"$(shell LC_ALL=C date +'%Y%m%d')\">" > version.ent
+	echo "<!entity docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent
+	$(MAKE) html txt ps pdf
 	for lang in $(LANG_NOE); do sed -e "s/@@/$$lang/g" < $(CURDIR)/debian/all.install-in >$(CURDIR)/debian/$(MANUAL)-$$lang.install; done
+
 # For web page building (publish)
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
-publish: html txt ps pdf
+publish: 
+	echo "<!entity docisodate \"$(shell LC_ALL=C date +'%Y%m%d')\">" > version.ent
+	echo "<!entity docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent
+	$(MAKE) html txt ps pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
 	# remove old files
@@ -55,8 +62,6 @@ txt text: $(patsubst %.sgml,%.txt,$(SOURCES_ALL))
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $* $<
-
-ttt:
 
 # generating PostScript
 ps: $(patsubst %,$(MANUAL).%.ps,$(LANG_NOCJK))
@@ -85,6 +90,7 @@ clean:
 	-rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
 	-rm -rf $(MANUAL)*.html 
 	-rm -rf *.tmp
+	-rm version.ent
 ifneq ("$(BUILD_TYPE)", "web")
 	-rm -rf $(PUBLISHDIR)/$(MANUAL)
 else
