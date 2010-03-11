@@ -14,7 +14,7 @@ MANUAL		:= maint-guide
 LANG_CJK	:= ko zh-cn zh-tw
 #LANG_CJK	:= 
 
-SOURCES_ALL	:= $(filter-out $(MANUAL).pt_BR.sgml $(MANUAL).zh_CN.sgml $(MANUAL)zh_TW.sgml, $(wildcard *.??*.sgml))
+SOURCES_ALL	:= $(wildcard *.??*.sgml)
 # Language group
 LANG_ALL	:= $(patsubst $(MANUAL).%.sgml, %, $(SOURCES_ALL))
 LANG_NOE	:= $(filter-out en,$(LANG_ALL))
@@ -33,9 +33,6 @@ all:
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 publish: 
-	-rm -rf $(MANUAL).pt_BR.*
-	-rm -rf $(MANUAL).zh_CN.*
-	-rm -rf $(MANUAL).zh_TW.*
 	echo "<!entity docisodate \"$(shell LC_ALL=C date +'%Y%m%d')\">" > version.ent
 	echo "<!entity docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent
 	$(MAKE) html txt ps pdf
