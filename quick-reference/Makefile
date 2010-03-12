@@ -142,7 +142,7 @@ clean:
 	-rm -f $(PODOC)/*~ $(ADOC)/*~
 	-rm -rf html
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
-	-rm -f $(DOCNAME).en.xmlt common.ent header.txt
+	-rm -f $(DOCNAME).en.xmlt header.txt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
 	$(MAKE) dh_clean_in
 
