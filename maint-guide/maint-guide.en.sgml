@@ -167,7 +167,7 @@
 
   <item><package/pbuilder/ - this package contains programs which are used 
   for creating and maintaining <prgn>chroot</prgn> environment.  Building Debian 
-  package in this chroot environment verifies the proper build dependency
+  package in this <prgn>chroot</prgn> environment verifies the proper build dependency
   and avoid FTBFS bugs.  (see <manref name="pbuilder" section="8"> and 
   <manref name="pdebuild" section="1">)
 
@@ -415,7 +415,15 @@ dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
   want to create. Gentoo is a single binary package - it creates only one
   binary, and thus one <file>.deb</file> file - so we will select the first option, with
   the "<tt>s</tt>" key, check the information on the screen and confirm by pressing
-  &lt;enter&gt;.
+  &lt;enter&gt; 
+  <footnote>There are few choices here: "<tt>s</tt>" for "Single
+  binary", "<tt>i</tt>" for "Arch-Independent", "<tt>m</tt>" for "Multiple
+  binary", "<tt>l</tt>" for "Library", "<tt>k</tt>" for "Kernel module",
+  "<tt>b</tt>" for "CDBS", "<tt>--kpatch</tt>" for "Kernel patch".  This
+  document focuses on the use of the <package>debhelper</package> package with
+  the <prgn>dh</prgn> command.  The <package>cdbs</package> package offers
+  alternative infrastructure to the <package>debhelper</package> package and
+  outside of the scope of this document.</footnote>.
 
   <p>After this execution of <prgn>dh_make</prgn>, a copy of the
   upstream tarball is created as <file>gentoo_0.9.12.orig.tar.gz</file>
@@ -444,6 +452,9 @@ dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
   already <em>debianized</em>, directory.  That also means that you will use a
   different method to release a new revision or a new version of your
   package in the future. Read more about that later in <ref id="update">
+
+  <p>You can find template files of the <prgn>dh_make</prgn> command under the
+  <file>/usr/share/debhelper/dh_make/</file> directories.
 
   <chapt id="modify">Modifying the source
 
@@ -1094,13 +1105,19 @@ dpkg -S libfoo.so.6
   specifying how to handle the source.  
   <url name="Debian Policy, 4.9 Main building script: debian/rules"
   id="http://www.debian.org/doc/debian-policy/ch-source.html#s-debianrules">
-  explains its details.  The required targets are <tt>clean</tt>,
-  <tt>binary</tt>, <tt>binary-arch</tt>, <tt>binary-indep</tt>, and
-  <tt>build</tt>.  Each performs respective function.
+  explains its details.  The required targets are the following.
+
+<list>
+<item><tt>clean</tt> to clean the build-tree,
+<item><tt>build</tt> to build the source into the build-tree,
+<item><tt>binary</tt> to depend commonly on <tt>binary-arch</tt> and <tt>binary-indep</tt>,
+<item><tt>binary-arch</tt> to create arch-dependent (<tt>Architcture: any</tt>) binary package, and
+<item><tt>binary-indep</tt> to create arch-independent (<tt>Architcture: all</tt>) binary package.
+</list>
 
   <p>Rules that you want to execute are invoked as command
   line arguments (for example, "<tt>./debian/rules build</tt>" or "<tt>make -f debian/rules
-  install</tt>"). After the target name, you can name the dependency, program
+  binary</tt>"). After the target name, you can name the dependency, program
   or file that the rule depends on. After that, there can be any number
   of commands, indented with <tt>&lt;tab&gt;</tt>. A new rule begins with the target
   declaration in the first column. Empty lines and lines beginning
@@ -1145,31 +1162,31 @@ dpkg -S libfoo.so.6
 
   <p>Line 10 can be uncommented which will mean <tt>DH_VERBOSE</tt> variable is set
   to 1. This will mean the <package>debhelper</package> tools will output more information
-  which can be helpful in understanding and debugging what is going wrong.
+  which can be helpful in understanding and debugging what is going on and going wrong.
 
   <p>Lines 12 and 13 are where all the work is done. The percent sign means
-  any targets which then call a single program, <prgn>dh</prgn> with the target name. For
-  example, when <prgn>dpkg-buildpackage</prgn> wants to do the pre-build cleaning, it runs
-  "<tt>debian/rules clean</tt>" which in turn calls "<tt>dh clean</tt>".
-
-  <p><prgn>dh</prgn> is a wrapper script which runs appropriate sequences of
-  <prgn>dh_*</prgn> programs and simplifies the content of the <file>rules</file> file:
+  any targets which then call a single program, <prgn>dh</prgn> with the target name.  
+  <prgn>dh</prgn> is a wrapper script which runs appropriate sequences of
+  <prgn>dh_*</prgn> programs.
 
   <list>
-  <item>"<tt>dh clean</tt>" is a wrapper script for the following.
+  <item>"<tt>debian/rules clean</tt>" runs "<tt>dh clean</tt>" which in turn
+  runs the following.
 <example>
 dh_testdir
 dh_auto_clean
 dh_clean
 </example>
-  <item>"<tt>dh build</tt>" is a wrapper script for the following.
+  <item>"<tt>debian/rules build</tt>" runs "<tt>dh build</tt>" which in turn
+  runs the following.
 <example>
 dh_testdir
 dh_auto_configure
 dh_auto_build
 dh_auto_test
 </example>
-  <item>Each of "<tt>dh binary</tt>" or "<tt>dh binary-arch</tt>" is a wrapper script for the following.
+  <item>"<tt>debian/rules binary-arch</tt>" runs "<tt>dh binary-arch</tt>"
+  which in turn runs the following.
 <example>
 dh_testroot
 dh_prep
@@ -1215,22 +1232,25 @@ dh_gencontrol
 dh_md5sums
 dh_builddeb
 </example>
-  <item>"<tt>dh binary-indep</tt>" is the same wrapper script as "<tt>dh binary-arch</tt>"
-except each <prgn>dh_*</prgn> command is run with <tt>-i</tt> option appended.
+  <item>"<tt>debian/rules binary</tt>" runs "<tt>dh binary</tt>" which in turn
+  runs the same as "<tt>dh binary-arch</tt>".
+  <item>"<tt>debian/rules binary-indep</tt>" runs "<tt>dh binary-indep</tt>"
+  which in turn runs the the same as "<tt>dh binary-arch</tt>" except each
+  <prgn>dh_*</prgn> command is run with <tt>-i</tt> option appended.
   </list>
 
-  <p>The function of <prgn>dh_*</prgn> commands are evident from their names.  There are
-  few notable ones worth making simplified explanation assuming typical environment:
-  <list>
-  <item><p><prgn>dh_auto_clean</prgn> executes "<tt>make distclean</tt>" if <file>Makefile</file> exists.
-  <item><p><prgn>dh_auto_configure</prgn> executes "<tt>./configure</tt>" if <file>configure</file> exists.
-  <item><p><prgn>dh_auto_build</prgn> executes "<tt>make</tt>" if <file>Makefile</file> exists.
-  <item><p><prgn>dh_auto_install</prgn> executes "<tt>make install</tt>" if <file>Makefile</file> exists.
-  </list>
-
-  <p>For complete information on what do all these <prgn>dh_*</prgn> scripts
+  <p>The function of <prgn>dh_*</prgn> commands are selfevident from their names.  
+  <footnote>For complete information on what do all these <prgn>dh_*</prgn> scripts
   exactly do, and what their other options are, please read their respective
-  manual pages and the <package>debhelper</package> documentation.  
+  manual pages and the <package>debhelper</package> documentation.</footnote>
+  There are few notable ones worth making simplified explanation here assuming
+  typical environment:
+  <list>
+  <item><p><prgn>dh_auto_clean</prgn> usually executes "<tt>make distclean</tt>" if <file>Makefile</file> exists.
+  <item><p><prgn>dh_auto_configure</prgn> usually executes "<tt>./configure</tt>" if <file>configure</file> exists.
+  <item><p><prgn>dh_auto_build</prgn> usually executes "<tt>make</tt>" if <file>Makefile</file> exists.
+  <item><p><prgn>dh_auto_install</prgn> usually executes "<tt>make install</tt>" if <file>Makefile</file> exists.
+  </list>
 
   <p>Previously, if you wanted to change the behavior of a <prgn>dh_*</prgn> script
   you found the relevant line in the <file>rules</file> file and adjusted it. Now you use
@@ -1240,7 +1260,7 @@ except each <prgn>dh_*</prgn> command is run with <tt>-i</tt> option appended.
   have a target for <tt>override_dh_foo</tt> then instead of <prgn>dh_foo</prgn> being run, your
   commands for that target are run instead.
 
-  <p>Gentoo has an unusual upstream changelog file called FIXES. Now,
+  <p><package>gentoo</package> has an unusual upstream changelog file called <file>FIXES</file>. Now,
   <prgn>dh_installchangelogs</prgn> will not install that file by default, so we 
   need to change what is run at this point and the 
   following lines need to be appended to the <file>rules</file> file:
@@ -1499,7 +1519,7 @@ Section |     Description     |     Notes
 <example>
 override_dh_auto_build:
         docbook-to-man debian/gentoo.sgml > debian/gentoo.1
-        $(MAKE)
+        dh_auto_build
 </example>
   </list>
 
@@ -1524,7 +1544,7 @@ override_dh_auto_build:
          -o debian/ \
          /usr/share/xml/docbook/stylesheet/nwalsh/manpages/docbook.xsl \
          debian/gentoo.1.xml
-        $(MAKE)
+        dh_auto_build
 </example>
     </item>
   </list>
@@ -1894,7 +1914,7 @@ If you want to add an additional apt source to be used by the
 $ sudo pbuilder update --distribution squeeze --override-config
 </example>
 The use of <tt>--override-config</tt> is needed to update apt source
-within chroot environment.
+within <prgn>chroot</prgn> environment.
 <p>
 See <url id="&pbuilder-home;">,
 <manref section="1" name="pdebuild">,
