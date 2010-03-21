@@ -174,6 +174,12 @@
   and avoid FTBFS (Fails To Build From Source) bugs.  (see <manref
   name="pbuilder" section="8"> and <manref name="pdebuild" section="1">)
 
+  <item><package/quilt/ - this package helps you to manage a series
+  of patches by keeping track of the changes each of them makes. They are
+  logically organized as a stack, and you can apply(=push), un-apply(=pop),
+  refresh them easily by traveling into the stack. (see <manref name="quilt"
+  section="1">, <file>/usr/share/doc/quilt/README.Debian</file>)
+
   <item><package/git-core/ - this package provides popular version control 
   system designed to handle very large projects with speed and efficiency; 
   it is used for many high profile open source projects, most notably the
@@ -218,8 +224,8 @@
   <item><strong>source package</strong>: A source package is a set of files
   which contain code and data which you can compile and process into execution
   programs and formatted documents.  It usually comes as a combination of
-  <file><var>package</var>.tar.gz</file>,
-  <file><var>package</var>.diff.gz</file>, and
+  <file><var>package</var>.orig.tar.gz</file>,
+  <file><var>package</var>.debian.tar.gz</file>, and
   <file><var>package</var>.dsc</file>.  Some other archive and compression
   methods may be used, too.
 
@@ -372,19 +378,25 @@
   <sect id="getit">Get the program, and try it out
 
   <p>So the first thing to do is to find and download the original source code.
-  I presume that you already have the source file that you picked up at
-  the author's homepage. Sources for free Unix programs usually come in
-  <prgn>tar</prgn>/<prgn>gzip</prgn> format with extension <file>.tar.gz</file>, or 
-  <prgn>tar</prgn>/<prgn>bzip2</prgn> format with extension <file>.tar.bz2</file>.  These usually contain the
-  subdirectory called program-version and all the sources in it.  If the latest
-  version of such sources may be available through VCS such as Git, Subversion,
-  or CVS repository, you need to get it with "<tt>git clone</tt>", "<tt>cvs co</tt>", 
-  or "<tt>svn co</tt>" and repack it into <prgn>tar</prgn>/<prgn>gzip</prgn>
-  format by yourself.  If your program's source comes as some other sort of
+  I presume that you already have the source file that you picked up at the
+  author's homepage. Sources for free Unix programs usually come in
+  <prgn>tar</prgn>/<prgn>gzip</prgn> format with extension
+  <file>.tar.gz</file>, or <prgn>tar</prgn>/<prgn>bzip2</prgn> format with
+  extension <file>.tar.bz2</file>.  These usually contain the subdirectory
+  called <file><var>programname</var>-<var>version</var></file> in them and all the
+  sources under it.
+
+  <p>If the latest version of such sources may be available through VCS such as
+  Git, Subversion, or CVS repository, you need to get it with "<tt>git
+  clone</tt>", "<tt>cvs co</tt>", or "<tt>svn co</tt>" and repack it into
+  <prgn>tar</prgn>/<prgn>gzip</prgn> format by yourself using the
+  "<tt>--exclude-vcs</tt>" option.
+
+  <p>If your program's source comes as some other sort of
   archive (for instance, the filename ends in <file>.Z</file> or
   <file>.zip</file><footnote>You can identify archive format using the
   <prgn>file</prgn> command.</footnote>), unpack it with appropriate tools and
-  repack it into <prgn>tar</prgn>/<prgn>gzip</prgn> format by yourself, too.
+  repack it, too.
 
   <p>As an example, I'll use a program called <prgn>gentoo</prgn>, an X GTK+ file
   manager. Note that the program is already packaged, and has changed
@@ -394,17 +406,27 @@
   or anything you find appropriate (e.g. just <file>~/gentoo/</file> would do fine in
   this case). Place the downloaded archive in it, and uncompress it (with
   "<tt>tar xzf gentoo-0.9.12.tar.gz</tt>"). Make sure there are no errors, even some
-  "irrelevant" ones, because there will most probably be problems unpacking
+  <em>irrelevant</em> ones, because there will most probably be problems unpacking
   on other people's systems, whose unpacking tools may or may not ignore
-  those anomalies.
+  those anomalies.  On your console screen, you should see the following.
 
-  <p>Now you have another subdirectory, called <file>gentoo-0.9.12</file>. Change to
-  that directory and <em>thoroughly</em> read the provided
-  documentation. Usually there are files named <file>README*</file>, <file>INSTALL*</file>, <file>*.lsm</file>
-  or <file>*.html</file>. You must find instructions on how to correctly compile and
-  install the program (most probably they'll assume you want to install to
-  <file>/usr/local/bin</file> directory; you won't be doing that, but more on that later
-  in <ref id="destdir">).
+<example>
+$ mkdir ~/gentoo ; cd ~/gentoo
+$ wget http://<var>www.example.org</var>/gentoo-0.9.12.tar.gz
+$ tar xvzf gentoo-0.9.12.tar.gz
+$ ls
+drwxrwxr-x 3 foo   foo   4096 Mar 21 20:43 gentoo-0.9.12
+-rw-rw-r-- 1 foo   foo    196 Mar 21 20:43 gentoo-0.9.12.tar.gz
+</example>
+
+  <p>Now you have another subdirectory, called <file>gentoo-0.9.12</file>.
+  Change to that directory and <em>thoroughly</em> read the provided
+  documentation. Usually there are files named <file>README*</file>,
+  <file>INSTALL*</file>, <file>*.lsm</file> or <file>*.html</file>. You must
+  find instructions on how to correctly compile and install the program (most
+  probably they'll assume you want to install to <file>/usr/local/bin</file>
+  directory; you won't be doing that, but more on that later in <ref
+  id="destdir">).
 
   <p>The process varies from program to program, but a lot of modern
   programs come with a <prgn>configure</prgn> script that configures the source under
@@ -450,16 +472,27 @@
 
   <sect id="dh_make">Initial <em>debianization</em>
 
-  <p>Make sure you're in the program source directory, and issue this:
+  <p>Let's set up the Bash shell environment variable <tt>$DEBEMAIL</tt> and
+  <tt>$DEBFULLNAME</tt> so many Debian maintenance tools recognize your name and
+  email address to use for packages as follows.
 
-  <p><example>
-dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
+<example>
+$ cat &gt;&gt;~/.bashrc &lt;&lt;EOF
+DEBEMAIL=your.maintainer@address
+DEBFULLNAME="Full Name"
+EOF
 </example>
 
-  <p>Of course, replace the string "your.maintainer@address" with your
-  e-mail address for inclusion in the changelog entry and other files,
-  and the filename with the name of your original source archive. See
-  <manref name="dh_make" section="1"> for details.
+  <p>Let's make initial <em>debianization</em> by issuing the <prgn>dh_make</prgn> program as follows.
+
+  <p><example>
+$ . ~/.bashrc
+$ cd ~/gentoo/gentoo-0.9.12
+$ dh_make --quilt -f ../gentoo-0.9.12.tar.gz
+</example>
+
+  <p>Of course, replace the filename with the name of your original source
+  archive. See <manref name="dh_make" section="1"> for details.
  
   <p>Some information will come up. It will ask you what sort of package you
   want to create. Gentoo is a single binary package - it creates only one
@@ -478,7 +511,7 @@ dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
   <p>After this execution of <prgn>dh_make</prgn>, a copy of the
   upstream tarball is created as <file>gentoo_0.9.12.orig.tar.gz</file>
   in the parent directory to accommodate the creation of the non-native
-  Debian source package with the <file>diff.gz</file>.  
+  Debian source package with the <file>debian.tar.gz</file>.  
   Please note 2 key features in this file name:
   <list>
   <item>Package name and version are separated by the "<tt>_</tt>" .
@@ -508,13 +541,70 @@ dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
 
   <chapt id="modify">Modifying the source
 
+  <p>Please note that there isn't space here to go into <em>all</em> the
+  details of fixing upstream sources, but here are some basic steps and
+  problems people often run across.
+
+  <sect id="quiltrc">Set up <prgn>quilt</prgn>
+
+  <p>The <prgn>quilt</prgn> program offers the basic method to record
+  modification to the source for the Debian packaging.  Let's set up
+  <file>~/.quilrc</file> for it as follows.
+
+<example>
+$ cat &gt;&gt;~/.quiltrc &lt;&lt;EOF
+QUILT_PATCHES="debian/patches"
+QUILT_PATCH_OPTS="--unified-reject-files"
+QUILT_DIFF_ARGS="-p ab --no-timestamps --no-index --color=auto"
+QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index"
+QUILT_COLORS="diff_hdr=1;32:diff_add=1;34:diff_rem=1;31:diff_hunk=1;33:diff_ctx=35:diff_cctx=33"
+EOF
+</example>
+
+  <sect id="fixupstream">Fixing upstream bug
+ 
+  <p>Let's assume you find an error in the upstream <file>Makefile</file> file as follows where
+  "<tt>install: gentoo</tt>" should have been 
+  "<tt>install: gentoo-target</tt>".
+
+  <p><example>
+install: gentoo
+        install ./gentoo $(BIN)
+        install icons/* $(ICONS)
+        install gentoorc-example $(HOME)/.gentoorc
+</example>
+
+  <p>Let's fix it and record it with the <prgn>quilt</prgn> command as <file>debian/fix-gentoo-target.patch</file>.
+
+<example>
+$ quilt new fix-gentoo-target.patch
+$ quilt edit Makefile
+</example>
+
+While in the editor, you change the <file>Makefile</file> file as follows.
+
+  <p><example>
+install: gentoo-target
+        install ./gentoo $(BIN)
+        install icons/* $(ICONS)
+        install gentoorc-example $(HOME)/.gentoorc
+</example>
+
+<p>Exit editor and refresh quilt system to get <file>debian/fix-gentoo-target.patch</file>.
+
+<example>
+$ quilt refresh
+</example>
+
+  <sect id="destdir">Installation in a subdirectory
+
   <p>Normally, programs install themselves in the <file>/usr/local</file> subdirectories. 
   But, Debian packages must not use that directory, since it is reserved for
   system administrator's (or user's) private use. This means that you have
   to take a look at your program's build system, usually starting with the
-  <file>Makefile</file>. This is the script <manref name="make" section="1"> will use to
-  automate building this program. For more details on modification of <file>Makefile</file> files, look in
-  <ref id="rules">.
+  <file>Makefile</file>. This is the script <manref name="make" section="1">
+  will use to automate building this program. For more details on modification
+  of <file>Makefile</file> files, look in <ref id="rules">.
 
   <p>Note that if your program uses GNU <manref name="automake" section="1">
   and/or <manref name="autoconf" section="1">, meaning the source includes
@@ -529,12 +619,6 @@ dh_make -e your.maintainer@address -f ../gentoo-0.9.12.tar.gz
   example <tt>@CFLAGS@</tt> or <tt>@LN_S@</tt>, which are replaced with actual stuff on each
   "<tt>./configure</tt>" invocation.  Please make sure to read 
   <file>&autotools-dev;</file> before proceeding.
-
-  <p>Also note that there isn't space here to go into <em>all</em> the
-  details of fixing upstream sources, but here are a few problems people
-  often run across.
-
-  <sect id="destdir">Installation in a subdirectory
 
   <p>Most of the programs have some way of installing themselves in the
   existing directory structure of your system, so that their binaries get
@@ -630,10 +714,17 @@ grep -nr -e 'usr/local/lib' --include='*.[c|h]' .
   Previously, <package>gentoo</package>'s install target said:
 
   <p><example>
-install: gentoo
+install: gentoo-target
         install ./gentoo $(BIN)
         install icons/* $(ICONS)
         install gentoorc-example $(HOME)/.gentoorc
+</example>
+
+  <p>Let's modify this and record it with the <prgn>quilt</prgn> command as <file>debian/install.patch</file>.
+
+<example>
+$ quilt new install.patch
+$ quilt edit Makefile
 </example>
 
   <p>After our change it says:
@@ -661,11 +752,21 @@ install: gentoo-target
         cp -a docs/* $(DESTDIR)/usr/share/doc/gentoo/html
 </example>
 
-  <p>A careful reader will notice that I changed <tt>gentoo</tt> to <tt>gentoo-target</tt>
-  in the <tt>install:</tt> line. That is called an unrelated bug fix :-)
+  <p>After careful check, if everything is fine, exit the editor and refresh <file>debian/install.patch</file>.
+
+<example>
+$ quilt refresh
+</example>
+
+  <p>Now you have a series of patches.
+  <enumlist>
+    <item>Generic bug fix: <file>debian/fix-gentoo-target.patch</file> 
+    <item>Debian specific packaging modification: <file>debian/install.patch</file>
+  </enumlist>
 
   <p>Whenever you make changes that are not specifically related to Debian
-  package, be sure to send them to the upstream maintainer so they can be
+  package such as <file>debian/fix-gentoo-target.patch</file>, 
+  be sure to send them to the upstream maintainer so they can be
   included in the next program revision and be useful to everyone else.
   Also remember to make your fixes not specific to Debian or Linux (or even
   Unix!) prior to sending them -- make them portable. This will make your
@@ -1107,9 +1208,9 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 <p><example>
 1  gentoo (0.9.12-1) unstable; urgency=low
 2
-3   * Initial Release.
+3   * Initial release (Closes: #<var>nnnn</var>)  &lt;<var>nnnn</var> is the bug number of your ITP&gt;
 4
-5  -- Josip Rodin &lt;joy-mg@debian.org&gt;  Wed, 11 Nov 1998 21:02:14 +0100
+5  -- Josip Rodin &lt;joy-mg@debian.org&gt;  Mon, 22 Mar 2010 00:37:31 +0100
 6
 </example>
   (I've added the line numbers.)
@@ -1120,13 +1221,12 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
   be changed to anything higher than <tt>low</tt>. :-)
   
   <p>Lines 3-5 are a log entry, where you document changes made in this
-  package revision (not the upstream changes - there is special file for
-  that purpose, created by the upstream authors, which you will later install as
-  <file>/usr/share/doc/gentoo/changelog.gz</file>). "<tt>Closes: #12345</tt>"
-  closes ITP (Intent To Package) bug report filed to the <package>wnpp</package>
-  pseudo-package.  New lines must be inserted just
-  before the uppermost line that begins with "<tt>*</tt>" (asterisk). You can do
-  it with <manref name="dch" section="1">, or manually with a text editor.
+  package revision (not the upstream changes - there is special file for that
+  purpose, created by the upstream authors, which you will later install as
+  <file>/usr/share/doc/gentoo/changelog.gz</file>). Let's assume your ITP bug
+  report number was "<tt>12345</tt>".  New lines must be inserted just before
+  the uppermost line that begins with "<tt>*</tt>" (asterisk). You can do it
+  with <manref name="dch" section="1">, or manually with a text editor.
 
   <p>You will end up with something like this:
 
@@ -1137,7 +1237,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 4   * This is my first Debian package.
 5   * Adjusted the Makefile to fix $DESTDIR problems.
 6
-7  -- Josip Rodin &lt;joy-mg@debian.org&gt; Wed, 11 Nov 1998 21:02:14 +0100
+7  -- Josip Rodin &lt;joy-mg@debian.org&gt; Mon, 22 Mar 2010 00:37:31 +0100
 8
 </example>
   (I've added the line numbers.)
@@ -1188,7 +1288,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 
   <sect1 id="defaultrules">Default <file>rules</file> file
 
-  <p>Newer <prgn>dh_make</prgn> generates a very simple default
+  <p>Newer <prgn>dh_make</prgn> with <tt>--quilt</tt> option generates a very simple default
   <file>rules</file> file using the <prgn>dh</prgn> command:
 
   <p><example>
@@ -1204,7 +1304,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 10 #export DH_VERBOSE=1
 11
 12 %:
-13        dh $@
+13        dh --with quilt $@
 </example>
   (I've added the line numbers.  In the actual <file>rules</file> file,
   the leading white spaces are TAB codes.  <footnote>Under <tt>lenny</tt>, <prgn>dh_make</prgn> created much
@@ -1226,7 +1326,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
   <prgn>dh_*</prgn> programs.
 
   <list>
-  <item>"<tt>fakeroot debian/rules clean</tt>" runs "<tt>fakeroot dh clean</tt>" which in turn
+  <item>"<tt>debian/rules clean</tt>" runs "<tt>dh clean</tt>" which in turn
   runs the following.
 <example>
 dh_testdir
@@ -1318,6 +1418,10 @@ dh_builddeb
   fit your needs. Only thing that you must not change are the names of the
   rules, because all the tools use these names, as mandated by the Debian
   Policy.
+
+  <p>Although "<tt>install</tt>" is not required target, it is supported.  
+  "<tt>fakeroot dh install</tt>" behaves like 
+  "<tt>fakeroot dh binary</tt>" but stops after <prgn>dh_fixperms</prgn>. 
 
   <sect1 id="customrules">Customize <file>rules</file> file
 
@@ -1786,8 +1890,8 @@ http://ftp.obsession.se/gentoo/ gentoo-(.*)\.tar\.gz
   concerning the switch to the new <tt>3.0 (quilt)</tt> and
   <tt>3.0 (native)</tt> source formats.</footnote>
   This enables (but not requires) a packager to create a Debian source
-  package not just with a single large <file>diff.gz</file> file but with
-  multiple patch files.  
+  package not any more with a single large <file>diff.gz</file> file but with
+  a <file>debian.tar.gz</file> file in which multiple patch files are included.
   <footnote>Actually, this also support multiple source <file>tar.gz</file>
   files, multiple archive formats, and compression formats.  These are beyond
   the scope of this document.</footnote>
@@ -1801,45 +1905,41 @@ http://ftp.obsession.se/gentoo/ gentoo-(.*)\.tar\.gz
 
   <sect id="patches"><file>patches/*</file> files
 
-  <p>The simple use of <prgn>dh_make</prgn> and <prgn>dpkg-buildpackage</prgn>
-  commands will create a single large <file>diff.gz</file> file which contains
-  package maintenance files in <file>debian/</file> and patch files to the
-  source.  Such a package is a bit cumbersome to inspect and understand for
-  each source tree modification later.  This is not so nice.
+  <p>The old <prgn>dpkg</prgn> <tt>1.0</tt> source format created a single large
+  <file>diff.gz</file> file which contains package maintenance files in
+  <file>debian/</file> and patch files to the source.  Such a package is a bit
+  cumbersome to inspect and understand for each source tree modification later.
+  This is not so nice.
 
   <p>Several methods for the patch set maintenance have been proposed and are
   in use with Debian packages.  The <prgn>quilt</prgn> system is the preferred
   maintenance system in use.  Other ones are <prgn>dpatch</prgn>,
   <prgn>dbs</prgn>, <prgn>cdbs</prgn>, etc.  Many of these keep such patches as
-  <file>debian/patches/*</file> files.
+  <file>debian/patches/*</file> files.  The newer <prgn>dpkg</prgn> <tt>3.0
+  (quilt)</tt> source format integrates the <prgn>quilt</prgn> command.
 
-  <p>A package which is packaged in the newer <prgn>dpkg</prgn> <tt>3.0
-  (quilt)</tt> source format properly with the <prgn>quilt</prgn> system has
-  modifications to the source clearly documented as a set of <tt>-p1</tt> patch
-  files with header in <file>debian/patches/</file> and the source tree is
-  untouched outside of <file>debian/</file> directory.  When
-  <prgn>dpkg-source</prgn> extracts sources in , it applies all patches in
-  <file>debian/patches/*</file> files to them.  
+  <p>The <prgn>quilt</prgn> command is explained in <manref section="1"
+  name="quilt">. It records modifications to the source as a set of
+  <tt>-p1</tt> patch files in <file>debian/patches/</file> and the source tree
+  is untouched outside of <file>debian/</file> directory.  You can apply
+  (=push), un-apply(=pop), and refresh patches easily as if they are a stack.  
   <footnote>If you are asking a sponsor to upload your package, this kind of
   clear separation and documentation of your changes are very important to
   expedite the package review by your sponsor.</footnote>
 
-  <p>The <prgn>quilt</prgn> command is explained in <manref section="1"
-  name="quilt">.  You can apply (=push), un-apply(=pop), and refresh patches
-  easily using <prgn>quilt</prgn> as if they are a stack.  Since Debian patches
-  are located in <file>debian/patches/</file>, please make sure to export
-  <tt>QUILT_PATCHES=debian/patches</tt> in your shell resource file and reload
-  it. 
+  <p>Since Debian patches are located in <file>debian/patches/</file>, please
+  make sure to set up properly as <ref id="quiltrc">.
 
-  <p> When someone (including yourself) provides you with a patch to the source
-  later, then the package modification is quite simple:
+  <p>When someone (including yourself) provides you with a patch <file><var>foo</var>.patch</file> to the source
+  later, then the package modification of the newer <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source is quite simple:
 
-<list>
-<item>Edit patch to make it a <tt>-p1</tt> patch to the source tree.
-<item>Add header to patch file with editor.
-<item>Drop it into <file>debian/patches</file>
-<item>Add the patch filenames to <file>debian/patches/series</file>.
-</list>
+<example>
+$ dpkg-source -x gentoo_0.9.12.dsc
+$ cd gentoo-0.9.12
+$ quilt import ../<var>foo</var>.patch
+$ quilt push
+$ quilt refresh
+</example>
 
   <chapt id="build">Building the package
 
@@ -1884,13 +1984,11 @@ dpkg-buildpackage -rfakeroot
   unpacking the source with <manref name="dpkg-source" section="1">. This
   file is GPG signed, so that people can be sure that it's really yours.
 
-  <item><file>gentoo_0.9.12-1.diff.gz</file>
+  <item><file>gentoo_0.9.12-1.debian.tar.gz</file>
 
-  <p>This compressed file contains each and every addition you made to the
-  original source code, in the form known as <em>unified diff</em>. It is made and
-  used by <manref name="dpkg-source" section="1">. Warning: if you don't name
-  the original tarball <file><var>packagename</var>_<var>version</var>.orig.tar.gz</file>, <prgn/dpkg-source/
-  will fail to generate the <file>.diff.gz</file> file properly!
+  <p>This compressed tarball contains your <file>debian/</file> directory
+  contents. Each and every addition you made to the original source code are
+  stored as quilt patches in <file>debian/patches</file>.
 
   <p>If someone else wants to re-create your package from scratch, they can
   easily do so using the above three files. The extraction procedure is
@@ -1898,7 +1996,8 @@ dpkg-buildpackage -rfakeroot
   "<tt>dpkg-source -x gentoo_0.9.12-1.dsc</tt>"
   <footnote>You can avoid applying <prgn>quilt</prgn> patches in the
   <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source format at the end of the
-  extraction with the <tt>--skip-patches</tt> option.  </footnote>.
+  extraction with the <tt>--skip-patches</tt> option.  Alternatively, you can
+  run "<tt>quilt pop -a</tt>" after normal operation.</footnote>.
 
   <item><file>gentoo_0.9.12-1_i386.deb</file>
 
@@ -1992,7 +2091,7 @@ sudo pbuilder create
 </example>
 
 <p>To build a package, issue the following commands in the directory where
-<file>.orig.tar.gz</file>, <file>.diff.gz</file>, and <file>.dsc</file>
+<file>.orig.tar.gz</file>, <file>.debian.tar.gz</file>, and <file>.dsc</file>
 exist after updating the local <prgn>chroot</prgn> system..
 <example>
 sudo pbuilder update
@@ -2097,15 +2196,13 @@ lintian -i gentoo_0.9.12-1_i386.changes
   This can be made into an intuitive process by
   using a file manager like <manref name="mc" section="1"> which will
   let you browse not only the contents of <file>*.deb</file> package
-  files but also <file>*.diff.gz</file> and <file>*.tar.gz</file> files.
+  files but also <file>*.debian.tar.gz</file> and <file>*.orig.tar.gz</file> files.
   <p> 
   Be on the lookout for extra unneeded files or zero length files, both
   in the binary and source package. Often cruft doesn't get cleaned up
   properly; adjust your <file>rules</file> file to compensate for that. 
   <p>
-  Tips: "<tt>zgrep ^+++ ../gentoo_0.9.12-1.diff.gz</tt>" will give you a
-  list of your changes/additions to the source files, and "<tt>dpkg-deb
-  -c gentoo_0.9.12-1_i386.deb</tt>" or "<tt>debc
+  Tips: "<tt>dpkg-deb -c gentoo_0.9.12-1_i386.deb</tt>" or "<tt>debc
   gentoo_0.9.12-1_i386.changes</tt>" will list the files in the binary
   package.  
 
@@ -2118,13 +2215,13 @@ lintian -i gentoo_0.9.12-1_i386.changes
   You can check group of <file>*.deb</file> files simply by "<tt>debdiff
   old-package.change new-package.change</tt>".
 
-  <sect id="interdiff"><prgn>interdiff</prgn> command
+  <sect id="interdiff"><prgn>tar</prgn> command
 
-  <p>You can compare two <file>diff.gz</file> files with <manref
-  name="interdiff" section="1"> command.  This is useful for verifying
+  <p>You can compare two <file>debian.tar.gz</file> files with <manref
+  name="tar" section="1"> command with the <tt>-d</tt> option.  This is useful for verifying
   that no inadvertent changes were made to the source by the maintainer
-  when updating packages.  Run "<tt>interdiff -z old-package.diff.gz
-  new-package.diff.gz</tt>".
+  when updating packages.  Run "<tt>tar -z -d  old-package.debian.tar.gz
+  new-package.debian.tar.gz</tt>".
 
   <sect id="debi"><prgn>debi</prgn> command
 
@@ -2275,7 +2372,7 @@ uupdate -u gentoo-0.9.13.tar.gz
 
   <p>Of course, replace this file name with the name of your program's new source
   archive. <manref name="uupdate" section="1"> will properly rename that
-  tarball, try to apply all the changes from your previous <file>.diff.gz</file> file,
+  tarball, try to apply all the changes from your previous <file>.debian.tar.gz</file> file,
   and update the new <file>debian/changelog</file> file.
 
   <item>Change directory to <file>../gentoo-0.9.13</file>, the new package source tree,
@@ -2326,7 +2423,8 @@ an eye out for anything suspicious.
 <item>Apply the same kind of modification to the new source tree as the
 old source tree.  Possible methods are:
 <list>
-<item>"<tt>zcat /<var>path</var>/<var>to</var>/<var>packagename</var>_<var>old-version</var>.diff.gz | patch -p1</tt>" command,
+<item>"<tt>tar xvzf /<var>path</var>/<var>to</var>/<var>packagename</var>_<var>old-version</var>.debia.tar.gz</tt>" command for <tt>3.0 (quilt)</tt> source,
+<item>"<tt>zcat /<var>path</var>/<var>to</var>/<var>packagename</var>_<var>old-version</var>.diff.gz|patch -p1</tt>" command for old <tt>1.0</tt> source,
 <item><prgn>uupdate</prgn> command,
 <item>"<tt>svn merge</tt>" command if you manage the source with
 Subversion repository, or
@@ -2434,29 +2532,6 @@ it correctly.
 
 <item>If you are uploading yourself, perform <ref id="upload">.
 </enumlist>
-
-  <sect id="orig-tar"><file>orig.tar.gz</file> file
-<p>
-If you try to build packages only from the new source tree with
-<file>debian/</file> directory without the <file>orig.tar.gz</file> file
-in its parent directory, you will end up unintentionally creating a
-native source package, which comes without the <file>diff.gz</file>
-file.  This type of packaging is only appropriate for the
-debian-specific packages, which will never be useful in another
-distribution.
-<footnote>
-Some people argue that, even for Debian specific packages, it is still
-better practice to package the contents of the <file>debian/</file>
-directory residing in the <file>diff.gz</file> file, rather than in the
-<file>orig.tar.gz</file> file.
-</footnote>
-<p>
-In order to obtain a non-native source package which consists of both
-the <file>orig.tar.gz</file> file and the <file>diff.gz</file> file, you
-must manually copy the upstream tarball to the parent directory with its
-file name changed into
-<file><var>packagename</var>_<var>upstream_version</var>.orig.tar.gz</file> as
-it was done by <prgn>dh_make</prgn> command in <ref id="dh_make">.
 
   <sect id="upgrading">Verifying package upgrades
 
