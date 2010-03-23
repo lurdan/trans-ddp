@@ -213,8 +213,8 @@
   documentation from the GNU project: 
   <url name="GNU Coding Standards" id="http://www.gnu.org/prep/standards/html_node/index.html">, and 
   <url name="Information for Maintainers of GNU Software" id="http://www.gnu.org/prep/maintain/html_node/index.html">.
-  These are useful to refer to if you are writing or maintaining software for
-  GNU, but could also be helpful as guidelines for other projects
+  Although Debian does not require these to be followed, these are still
+  helpful as guidelines and common sense.
   (see <file>/usr/share/doc/gnu-standards/standards.html</file> and
   <file>/usr/share/doc/gnu-standards/maintain.html</file>).
 
@@ -625,64 +625,81 @@ install: gentoo-target
 $ quilt refresh
 </example>
 
-  <sect id="destdir">Installation to the <tt>$(DESTDIR)</tt> subdirectory
+  <sect id="destdir">Installation of files to the destination
 
-  <p>Normally, programs install themselves in the <file>/usr/local</file> subdirectories. 
-  But, Debian packages must not use that directory, since it is reserved for
-  system administrator's (or user's) private use. This means that you have
-  to take a look at your program's build system, usually starting with the
-  <file>Makefile</file>. This is the script <manref name="make" section="1">
-  will use to automate building this program. 
+  <p>Normally, programs install themselves in the <file>/usr/local</file>
+  subdirectory.  Since it is reserved for system administrator's (or user's)
+  private use, Debian packages must not use that directory but should use
+  system directories such as the <file>/usr/bin</file> subdirectory following
+  the Filesystem Hierarchy Standard 
+  (FHS:<file>/usr/share/doc/debian-policy/fhs/fhs-2.3.html</file>). 
+
+  <p>Normally, <manref name="make" section="1"> is used to automate building
+  the program and the execution of "<tt>make install</tt>" installs programs
+  directly to the desired destination.  It is configured by the
+  <tt>install</tt> target of the <file>Makefile</file> file.  Since Debian
+  provides binary packages, its build system should install programs to
+  somewhere in the file tree image under the temporary directory, instead.
+
+  <p>If the source follows FSH, these 2 differences between the normal case and
+  the Debian packaging can be transparently addressed by the
+  <package>debhelper</package> package through the
+  <prgn>dh_auto_configure</prgn> and <prgn>dh_auto_install</prgn> commands if
+  the <file>Makefile</file> file follows the GNU conventions to support
+  <tt>$(DESTDIR)</tt> and <tt>$(PREFIX)</tt> variables
+  (<file>/usr/share/doc/gnu-standards/standards.html#Makefile-Conventions</file>).
+  Programs that use GNU <prgn>autoconf</prgn> <em>automatically</em> follows
+  the GNU conventions and its packaging is almost <em>automatic</em>.  The
+  <package>debhelper</package> package estimates that it work for about 90% of
+  packages without making changes to their build system.  So the packaging is
+  not as complicated as it may seem.
+  
+  <p>If you need to make changes in the <file>Makefile</file> file, you should
+  make sure to support these <tt>$(DESTDIR)</tt> and <tt>$(PREFIX)</tt>
+  variables.  The <tt>$(DESTDIR)</tt> is unset in it and is prepended to each
+  installed target file path.  The default value of <tt>$(PREFIX)</tt> should
+  be <file>/usr/local</file> in it.  The packaging script will set
+  <tt>$(DESTDIR)</tt> to the temporary directory and <tt>$(PREFIX)</tt> to
+  <file>/usr</file>.
+
+  <p>The temporary directory used by the <prgn>dh_auto_install</prgn> command
+  is chosen as <file>debian/<var>package</var></file> for single binary package
+  <footnote>For multiple binary packages, the <prgn>dh_auto_install</prgn>
+  command uses <file>debian/tmp</file> as the temporary directory while the
+  <prgn>dh_install</prgn> command with the help of
+  <file>debian/<var>package-2</var>.install</file> and
+  <file>debian/<var>package-2</var>.install</file> files will split contents of
+  <file>debian/tmp</file> into <file>debian/<var>package-2</var></file> and
+  <file>debian/<var>package-2</var></file> temporary directories.</footnote>.
+  Everything that is contained in the temporary directory will be installed on
+  a user's system when they install your package, the only difference is that
+  <prgn>dpkg</prgn> will be installing the files in the root directory.
+
+  <p>Bear in mind that even though you need to make the program install in
+  <file>debian/<var>package</var></file>, it still needs to behave
+  correctly when placed in the root directory, i.e. when installed from the
+  <file>.deb</file> package. So you mustn't allow the build system to hardcode
+  strings like
+  <tt>/home/me/deb/<var>package</var>-<var>version</var>/usr/share/<var>package</var></tt>
+  into the package files.
 
   <p>Note that if your program uses GNU <manref name="automake" section="1">
   and/or <manref name="autoconf" section="1">, meaning the source includes
-  <file>Makefile.am</file> and/or <file>Makefile.in</file> files, respectively, you will need to
-  modify those files. This is because each <prgn>automake</prgn> invocation will rewrite
-  <file>Makefile.in</file> files with information generated from <file>Makefile.am</file> files, and each
-  "<tt>./configure</tt>" invocation will do the same with <file>Makefile</file> files, with data from
-  <file>Makefile.in</file> files. Editing <file>Makefile.am</file> files requires some knowledge of
-  <prgn>automake</prgn>, which you can read about in "<tt>info automake</tt>", whereas editing
-  <file>Makefile.in</file> files is pretty much the same as editing <file>Makefile</file> files, just
-  pay attention to the variables, i.e. any strings surrounded with "<tt>@</tt>"s, for
-  example <tt>@CFLAGS@</tt> or <tt>@LN_S@</tt>, which are replaced with actual stuff on each
-  "<tt>./configure</tt>" invocation.  Please make sure to read 
-  <file>&autotools-dev;</file> and 
-  <file>/usr/share/doc/gnu-standards/standards.html#Makefile-Conventions</file> before proceeding.
-
-  <p>Most of the programs have some way of installing themselves in the
-  existing directory structure of your system, so that their binaries get
-  included in your <tt>$PATH</tt>, and that you find their documentation and manual
-  pages in common places. However, if you do that, the program will be
-  installed among everything else already on your system. This would make
-  it hard for the packaging tools to figure out which files belong to your
-  package and which don't.
-
-  <p>Therefore you need to do something else: install the program into a
-  temporary subdirectory from which the maintainer tools will build a working
-  <file>.deb</file> package. Everything that is contained in this directory will be
-  installed on a user's system when they install your package, the only
-  difference is that <prgn>dpkg</prgn> will be installing the files in the root
-  directory.
-
-  <p>This temporary directory is usually created under your <file>debian/</file>
-  directory in the unpacked source tree. It is usually called
-  <file>debian/<var>packagename</var>/</file>.
-
-  <p>Bear in mind that even though you need to make the program install in
-  <file>debian/<var>packagename</var>/</file>, it still needs to behave correctly when placed in the
-  root directory, i.e. when installed from the <file>.deb</file> package. So you mustn't
-  allow the build system to hardcode strings like
-  <tt>/home/me/deb/gentoo-0.9.12/usr/share/gentoo</tt> into the package
-  files.
-
-  <p>With programs that use GNU <prgn>autoconf</prgn>, this will be quite easy. Most such
-  programs have <file>Makefile</file> files that are by default set up to allow installation
-  into a random subdirectory while keeping in mind that <file>/usr</file> (for example)
-  is the canonical prefix. When it detects your program uses <prgn>autoconf</prgn>,
-  <prgn>dh_make</prgn> will set up commands for doing all this
-  <em>automatically</em>, so you might as well skip reading this section. But with
-  other programs, you will most probably have to examine and edit the
-  <file>Makefile</file> files.
+  <file>Makefile.am</file> and/or <file>Makefile.in</file> files, respectively,
+  you will need to modify those files if you need to change the
+  <file>Makefile</file> file. This is because each <prgn>automake</prgn>
+  invocation will rewrite <file>Makefile.in</file> files with information
+  generated from <file>Makefile.am</file> files, and each
+  "<tt>./configure</tt>" invocation will do the same with <file>Makefile</file>
+  files, with data from <file>Makefile.in</file> files. Editing
+  <file>Makefile.am</file> files requires some knowledge of
+  <prgn>automake</prgn>, which you can read about in "<tt>info automake</tt>",
+  whereas editing <file>Makefile.in</file> files is pretty much the same as
+  editing <file>Makefile</file> files, just pay attention to the variables,
+  i.e. any strings surrounded with "<tt>@</tt>"s, for example <tt>@CFLAGS@</tt>
+  or <tt>@LN_S@</tt>, which are replaced with actual stuff on each
+  "<tt>./configure</tt>" invocation.  Please make sure to read
+  <file>&autotools-dev;</file> before proceeding.
 
   <p>Here's the relevant part of <package>gentoo</package>'s <file>Makefile</file>:
 
