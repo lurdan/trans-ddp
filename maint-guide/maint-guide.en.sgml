@@ -511,7 +511,7 @@ EOF
 <example>
 $ . ~/.bashrc
 $ cd ~/gentoo/gentoo-0.9.12
-$ dh_make --quilt -f ../gentoo-0.9.12.tar.gz
+$ dh_make -f ../gentoo-0.9.12.tar.gz
 </example>
 
   <p>Of course, replace the filename with the name of your original source
@@ -553,7 +553,7 @@ drwxrwxr-x 3 foo   foo   4096 Mar 21 20:43 gentoo-0.9.12
   <p>Please note 2 key features in this <file>gentoo_0.9.12.orig.tar.gz</file> file name:
   <list>
   <item>Package name and version are separated by the "<tt>_</tt>" .
-  <item>There is the <file>orig.</file> before the <file>tar.gz</file> .
+  <item>There is the <file>.orig</file> before the <file>.tar.gz</file> .
   </list>
 
   <p>You should also notice that many template files are created in the source
@@ -595,7 +595,13 @@ drwxrwxr-x 3 foo   foo   4096 Mar 21 20:43 gentoo-0.9.12
 
 <example>
 $ cat &gt;&gt;~/.quiltrc &lt;&lt;EOF
-QUILT_PATCHES="debian/patches"
+for where in ./ ../ ../../ ../../../ ../../../../ ../../../../../; do
+        if [ -e ${where}debian/rules -a -d ${where}debian/patches ]; then
+                export QUILT_PATCHES=debian/patches
+                break
+        fi
+done
+
 QUILT_PATCH_OPTS="--unified-reject-files"
 QUILT_DIFF_ARGS="-p ab --no-timestamps --no-index --color=auto"
 QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index"
@@ -623,6 +629,7 @@ install: gentoo
   <p>Let's fix this and record this with the <prgn>quilt</prgn> command as <file>fix-gentoo-target.patch</file>.
 
 <example>
+$ mkdir debian/patches
 $ quilt new fix-gentoo-target.patch
 $ quilt add Makefile
 </example>
@@ -636,7 +643,7 @@ install: gentoo-target
         install gentoorc-example $(HOME)/.gentoorc
 </example>
 
-<p>Refresh quilt system to get <file>debian/fix-gentoo-target.patch</file>.
+<p>Ask quilt to refresh the patch to create <file>debian/patches/fix-gentoo-target.patch</file>.
 
 <example>
 $ quilt refresh
@@ -705,7 +712,7 @@ $ quilt refresh
   <p>Bear in mind that even though your program installs in
   <file>debian/<var>package</var></file>, it still needs to behave
   correctly when placed in the root directory, i.e. when installed from the
-  <file>.deb</file> package. So you mustn't allow the build system to hardcode
+  <file>.deb</file> package. So you must not allow the build system to hardcode
   strings like
   <tt>/home/me/deb/<var>package</var>-<var>version</var>/usr/share/<var>package</var></tt>
   into the package file.
@@ -799,7 +806,7 @@ install: gentoo-target
         install gentoorc-example $(HOME)/.gentoorc
 </example>
 
-  <p>Let's fix this and record this with the <prgn>quilt</prgn> command as <file>debian/install.patch</file>.
+  <p>Let's fix this and record this with the <prgn>quilt</prgn> command as <file>debian/patches/install.patch</file>.
 
 <example>
 $ quilt new install.patch
@@ -831,7 +838,7 @@ install: gentoo-target
         cp -a docs/* $(DESTDIR)/usr/share/doc/gentoo/html
 </example>
 
-  <p>After careful check, if everything is fine, refresh quilt system to get <file>debian/install.patch</file>.
+  <p>After careful check, if everything is fine, ask quilt to refresh the patch to create <file>debian/patches/install.patch</file>.
 
 <example>
 $ quilt refresh
@@ -839,12 +846,12 @@ $ quilt refresh
 
   <p>Now you have a series of patches.
   <enumlist>
-    <item>Upstream bug fix: <file>debian/fix-gentoo-target.patch</file> 
-    <item>Debian specific packaging modification: <file>debian/install.patch</file>
+    <item>Upstream bug fix: <file>debian/patches/fix-gentoo-target.patch</file> 
+    <item>Debian specific packaging modification: <file>debian/patches/install.patch</file>
   </enumlist>
 
   <p>Whenever you make changes that are not specifically related to Debian
-  package such as <file>debian/fix-gentoo-target.patch</file>, 
+  package such as <file>debian/patches/fix-gentoo-target.patch</file>, 
   be sure to send them to the upstream maintainer so they can be
   included in the next program revision and be useful to everyone else.
   Also remember to make your fixes not specific to Debian or Linux (or even
@@ -871,14 +878,12 @@ $ quilt refresh
 LIBS = -lcurses -lsomething -lsomethingelse
 </example>
 
-  <p>Let's fix this as <file>debian/ncurse.patch</file> by changing <tt>curses</tt> into <tt>ncurses</tt>.
+  <p>Let's fix this as <file>debian/patches/ncurse.patch</file> by changing <tt>curses</tt> into <tt>ncurses</tt>.
 
 <example>
 $ quilt new ncurse.patch
 $ quilt add Makefile
-$ mv Makefile Makefile.orig
-$ sed -e "s/-lcurses/-lncurses/g &lt;Makefile.orig &gt;Makefile
-$ rm Makefile.orig
+$ sed -i -e "s/-lcurses/-lncurses/g" Makefile
 $ quilt refresh
 </example>
 
@@ -985,7 +990,7 @@ $ objdump -p <var>/usr/bin/foo</var> | grep NEEDED
 $ dpkg -S libfoo.so.6 
 </example>
   Then you just take <tt>-dev</tt> version of every package as
-  <tt>Build-deps</tt> entry.  If you use <prgn>ldd</prgn> for this
+  <tt>Build-Depends</tt> entry.  If you use <prgn>ldd</prgn> for this
   purpose, it will report indirect lib dependencies as well, resulting
   in the problem of excessive build dependencies.
 
@@ -1036,9 +1041,9 @@ $ dpkg -S libfoo.so.6
   <p>Use this for packages that are not strictly necessary but are typically
   used with your program.  When a user installs your program, all frontends
   will likely prompt them to install the recommended packages.
-  <prgn>aptitude</prgn> can be configured to install recommended packages along
-  with your package and this is its default.
-  <prgn>dpkg</prgn> and <prgn>apt-get</prgn> will ignore this field.
+  <prgn>aptitude</prgn> and <prgn>apt-get</prgn> install recommended packages
+  along with your package (but the user can disable this default
+  behaviour). <prgn>dpkg</prgn> will ignore this field.
   </item>
 
   <item><tt>Suggests:</tt>
@@ -1087,8 +1092,8 @@ $ dpkg -S libfoo.so.6
   individual package name, and they should contain a relation from the list
   below followed by the version number. The relations allowed are:
   <tt>&lt;&lt;</tt>, <tt>&lt;=</tt>, <tt>=</tt>, <tt>&gt;=</tt> and
-  <tt>&gt;&gt;</tt> for strictly earlier, earlier or equal, exactly equal,
-  later or equal and strictly later, respectively. For example,
+  <tt>&gt;&gt;</tt> for strictly lower, lower or equal, exactly equal,
+  greater or equal and strictly greater, respectively. For example,
 
 <example>
 Depends: foo (&gt;= 1.2), libbar1 (= 1.3.4)
@@ -1275,7 +1280,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 </example>
   (I've added the line numbers.)
 
-  <p>Please follow the HOWTO from the debian-devel-announce: 
+  <p>Please follow the HOWTO provided by ftpmasters and sent to debian-devel-announce: 
   <url id="&copyright-howto;"> .
 
 
@@ -1378,7 +1383,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 
   <sect1 id="defaultrules">Default <file>rules</file> file
 
-  <p>Newer <prgn>dh_make</prgn> with <tt>--quilt</tt> option generates a very
+  <p>Newer <prgn>dh_make</prgn> generates a very
   simple but powerful default <file>rules</file> file using the <prgn>dh</prgn>
   command:
 
@@ -1395,7 +1400,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 10 #export DH_VERBOSE=1
 11
 12 %:
-13        dh --with quilt $@
+13        dh $@
 </example>
   (I've added the line numbers.  In the actual <file>rules</file> file, the
   leading white spaces are TAB codes.  <footnote>Under <tt>lenny</tt>,
@@ -1414,32 +1419,31 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 
   <p>Lines 12 and 13 are where all the work is done. The percent sign means
   any targets which then call a single program, <prgn>dh</prgn> with the target name. 
-  The use of "<tt>--with quilt</tt>" ensures the <package>debhelper</package>
-  tools to be aware of the <prgn>quilt</prgn> command. 
-  <footnote>If you do not have quilt patches for upstream sources, 
-  you do not need this "<tt>--with quilt</tt>" in the <file>debian/rules</file> file.</footnote>
 
   <p><prgn>dh</prgn> is a wrapper script which runs appropriate sequences of
   <prgn>dh_*</prgn> programs depending on its argument.
 
   <list>
   <item>"<tt>debian/rules clean</tt>" runs "<tt>dh clean</tt>" which in turn
-  runs the following.
+  runs the following:
 <example>
 dh_testdir
 dh_auto_clean
 dh_clean
 </example>
   <item>"<tt>debian/rules build</tt>" runs "<tt>dh build</tt>" which in turn
-  runs the following.
+  runs the following:
 <example>
 dh_testdir
 dh_auto_configure
 dh_auto_build
 dh_auto_test
 </example>
-  <item>"<tt>fakeroot debian/rules binary-arch</tt>" runs "<tt>fakeroot dh binary-arch</tt>"
-  which in turn runs the following.
+  <item>"<tt>fakeroot debian/rules binary</tt>" runs "<tt>fakeroot dh binary</tt>"
+  which in turn runs "<tt>fakeroot dh binary-arch</tt>" and "<tt>fakeroot dh
+  binary-indep</tt>". The commands listed below are run twice, once with
+  the "-a" option (in binary-arch) and once with the "-i" option (in
+  binary-indep):
 <example>
 dh_testroot
 dh_prep
@@ -1485,11 +1489,6 @@ dh_gencontrol
 dh_md5sums
 dh_builddeb
 </example>
-  <item>"<tt>fakeroot debian/rules binary</tt>" runs "<tt>fakeroot dh binary</tt>" which in turn
-  runs the same as "<tt>fakeroot dh binary-arch</tt>".
-  <item>"<tt>fakeroot debian/rules binary-indep</tt>" runs "<tt>fakeroot dh binary-indep</tt>"
-  which in turn runs the the same as "<tt>fakeroot dh binary-arch</tt>" except each
-  <prgn>dh_*</prgn> command is run with <tt>-i</tt> option appended.
   </list>
 
   <p>The function of <prgn>dh_*</prgn> commands are almost self-evident from
@@ -1508,7 +1507,7 @@ dh_builddeb
   <item><p><prgn>dh_auto_clean</prgn> usually executes the following if
   <file>Makefile</file> exists with the <tt>distclean</tt> target.
 <example>
-make -j1 distclean
+make distclean
 </example>
   <item><p><prgn>dh_auto_configure</prgn> usually executes the following, e.g.,
   on the <tt><var>x86_64-linux-gnu</var></tt> system, if <file>configure</file>
@@ -1522,17 +1521,17 @@ make -j1 distclean
 </example>
   <item><p><prgn>dh_auto_build</prgn> usually executes the following to execute the first target of <file>Makefile</file> if it exists.
 <example>
-make -j1
+make
 </example>
   <item><p><prgn>dh_auto_test</prgn> usually executes the following if
   <file>Makefile</file> exists with the <tt>test</tt> target.
 <example>
-make -j1 test
+make test
 </example>
   <item><p><prgn>dh_auto_install</prgn> usually executes the following if
   <file>Makefile</file> exists with the <tt>install</tt> target (line folded for readability).
 <example>
-make -j1 install \
+make install \
   DESTDIR=<var>/path/to</var>/<var>package</var>_<var>version</var>-<var>revision</var>/debian/<var>package</var>
 </example>
   </list>
@@ -2066,31 +2065,32 @@ http://ftp.obsession.se/gentoo/ gentoo-(.*)\.tar\.gz
   <sect id="sourcef"><file>source/format</file> file
 
   <p>In the <file>debian/source/format</file> file, there should be a single
-  line describing the type of <prgn>dpkg</prgn> format your source file will be
-  as defined in <manref name="dpkg-source" section="1">.  After
+  line indicating the desired format for the source package
+  (check <manref name="dpkg-source" section="1"> for an exhaustive list).  After
   <tt>squeeze</tt>, it should say either:
   <list>
   <item><tt>3.0 (native)</tt> for Debian native packages or 
   <item><tt>3.0 (quilt)</tt> for everything else.  
   </list>
 
-  <p>The newer <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source format integrates
-  the <prgn>quilt</prgn> patch system into the Debian package system and record
-  them under the <file>debian</file> directory.
+  <p>The newer <tt>3.0 (quilt)</tt> source format automatically records
+  modifications in a <prgn>quilt</prgn> patch series within
+  <file>debian/patches/</file>. Those changes are then automatically
+  applied during extraction of the source package. 
   <footnote>See <url name="DebSrc3.0"
   id="http://wiki.debian.org/Projects/DebSrc3.0"> for the summary information
   concerning the switch to the new <tt>3.0 (quilt)</tt> and <tt>3.0
-  (native)</tt> source formats.</footnote> The Debian modification is simply
-  packages as a <file>debian.tar.gz</file> file in which all files under the
-  <file>debian</file> directory are included.  This new format supports
+  (native)</tt> source formats.</footnote> The Debian modifications are simply
+  stored in a <file>debian.tar.gz</file> archive containing all files under the
+  <file>debian</file> directory.  This new format supports
   inclusion of binary files such as PNG icons by the package maintainer without
-  tricks.  <footnote>Actually, this new format also support multiple source
-  <file>tar.gz</file> files, multiple archive formats, and compression formats.
+  requiring tricks.  <footnote>Actually, this new format also supports
+  multiple upstream tarballs and more compression methods.
   These are beyond the scope of this document.</footnote>
 
-  <p>When <prgn>dpkg-source</prgn> extracts sources in the <prgn>dpkg</prgn> 
-  <tt>3.0 (quilt)</tt> source format, it normally applies all
-  patches in <file>debian/patches/*</file> files to them.  You can avoid
+  <p>When <prgn>dpkg-source</prgn> extracts a source package in 
+  <tt>3.0 (quilt)</tt> source format, it automatically applies all
+  patches listed in <file>debian/patches/series</file>.  You can avoid
   applying patches at the end of the extraction with the <tt>--skip-patches</tt>
   option.
 
@@ -2108,18 +2108,18 @@ http://ftp.obsession.se/gentoo/ gentoo-(.*)\.tar\.gz
   <prgn>dbs</prgn>, <prgn>cdbs</prgn>, etc.  Many of these keep such patches as
   <file>debian/patches/*</file> files.  
 
-  <p>The newer <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source format integrates
-  the <prgn>quilt</prgn> command.  It also keep such patches as
+  <p>The newer <tt>3.0 (quilt)</tt> source format is storing patches in a
+  <prgn>quilt</prgn> series.  It also keeps such patches as
   <file>debian/patches/*</file> files which are packaged in the
   <file>debian.tar.gz</file> file.
 
   <p>The <prgn>quilt</prgn> command is explained in <manref section="1"
-  name="quilt">. It records modifications to the source as a set of
+  name="quilt">. It records modifications to the source as a stack of
   <tt>-p1</tt> patch files in the <file>debian/patches/</file> directory and
   the source tree is untouched outside of the <file>debian</file> directory.
   The order of these patches are recorded in the
   <file>debian/patches/series</file> file.  You can apply (=push),
-  un-apply(=pop), and refresh patches easily as if they are a stack.
+  un-apply(=pop), and refresh patches easily.
   <footnote>If you are asking a sponsor to upload your package, this kind of
   clear separation and documentation of your changes are very important to
   expedite the package review by your sponsor.</footnote>
@@ -2127,10 +2127,11 @@ http://ftp.obsession.se/gentoo/ gentoo-(.*)\.tar\.gz
   <p>For <ref id="first">, we created 3 patches in <file>debian/patches/</file>.
 
   <p>Since Debian patches are located in <file>debian/patches/</file>, please
-  make sure to set the <prgn>quilt</prgn> command up properly as <ref id="quiltrc">.
+  make sure to setup the <prgn>quilt</prgn> command properly as described
+  in <ref id="quiltrc">.
 
   <p>When someone (including yourself) provides you with a patch <file><var>foo</var>.patch</file> to the source
-  later, then the package modification of the newer <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source is quite simple:
+  later, then the modification of a <tt>3.0 (quilt)</tt> source package is quite simple:
 
 <example>
 $ dpkg-source -x gentoo_0.9.12.dsc
@@ -2149,7 +2150,7 @@ $ quilt refresh
   <p>Enter the program's main directory and then issue this command:
 
 <example>
-$ dpkg-buildpackage -rfakeroot
+$ dpkg-buildpackage
 </example>
 
   <p>This will do everything for you. It will:
@@ -2158,9 +2159,9 @@ $ dpkg-buildpackage -rfakeroot
     <item>build the source package ("<tt>dpkg-source -b</tt>")
     <item>build the program ("<tt>debian/rules build</tt>")
     <item>build the binary package ("<tt>fakeroot debian/rules binary</tt>")
-    <item>sign the source <file/.dsc/ file, using <prgn/gnupg/
+    <item>sign the source <file/.dsc/ file, using <prgn/gpg/
     <item>create and sign the upload <file/.changes/ file, using
-          <prgn/dpkg-genchanges/ and <prgn/gnupg/
+          <prgn/dpkg-genchanges/ and <prgn/gpg/
   </list>
 
   <p>The only input that will be required of you is your GPG secret pass
@@ -2174,7 +2175,7 @@ $ dpkg-buildpackage -rfakeroot
 
   <p>This is the original source code tarball, merely renamed to the above
   so that it adheres to the Debian standard. Note that this was created
-  initially by the "<tt>dh_make -f gentoo-0.9.12.tar.gz</tt>".
+  initially by the "<tt>dh_make -f ../gentoo-0.9.12.tar.gz</tt>".
 
   <item><file>gentoo_0.9.12-1.dsc</file>
 
@@ -2194,7 +2195,7 @@ $ dpkg-buildpackage -rfakeroot
   trivial: just copy the three files somewhere else and run
   "<tt>dpkg-source -x gentoo_0.9.12-1.dsc</tt>".
   <footnote>You can avoid applying <prgn>quilt</prgn> patches in the
-  <prgn>dpkg</prgn> <tt>3.0 (quilt)</tt> source format at the end of the
+  <tt>3.0 (quilt)</tt> source format at the end of the
   extraction with the <tt>--skip-patches</tt> option.  Alternatively, you can
   run "<tt>quilt pop -a</tt>" after normal operation.</footnote>
 
@@ -2392,11 +2393,11 @@ $ sudo debi gentoo_0.9.12-1_i386.changes
   <sect id="lintians"><package>lintian</package> package
 
   <p>Run <manref name="lintian" section="1"> on your <file>.changes</file>
-  file.  The <prgn>lintian</prgn> command runs many test scriptsto check for
+  file.  The <prgn>lintian</prgn> command runs many test scripts to check for
   many common packaging errors. 
   
 <example>
-$ lintian -i gentoo_0.9.12-1_i386.changes
+$ lintian -I -i gentoo_0.9.12-1_i386.changes
 </example>
   
   <p>Of course, replace the filename with the name of the <file>.changes</file> file
@@ -2405,7 +2406,8 @@ $ lintian -i gentoo_0.9.12-1_i386.changes
   mistakes, and rebuild as described in <ref id="completebuild">. If there are
   lines that begin with <tt>W:</tt>, those are warnings, so tune the package or
   verify that the warnings are spurious (and make Lintian overrides; see
-  the documentation for details).
+  the documentation for details). Lines beginning with <tt>I:</tt> are
+  minor issues or even suggestions of improvements (better packaging practices).
 
   <p>Note that you can build the package with <prgn/dpkg-buildpackage/ and run
   <prgn/lintian/ on it in one command with <manref name="debuild" section="1"> or 
@@ -2488,7 +2490,7 @@ package config;
 $default_host = "anonymous-ftp-master";
 
 $cfg{'anonymous-ftp-master'} = {
-      fqdn => "ftp-master.debian.org",
+      fqdn => "ftp.upload.debian.org",
       method => "ftp",
       incoming => "/pub/UploadQueue/",
       # files pass on to dinstall on ftp-master which sends emails itself
@@ -2569,7 +2571,6 @@ Z4jxNrgh7Bc=
   revision of the package, you need to:
 
   <list>
-  <item>"<tt>quilt pop -a</tt>" to un-apply all patches to get the upstream source.
   <item>"<tt>quilt new <var>bugname.patch</var></tt>" to set patch name.
   <item>"<tt>quilt add <var>buggy-file</var></tt>" to declare file to be modified.
   <item>Correct the problem in the package source for the upstream bug.
@@ -2711,7 +2712,7 @@ the <package>quilt</package> command using
 <item>If the new upstream source tree is populated with the old <file>debian</file> directory, update patch series in the <file>debian/patches</file> directory.
 
 <list>
-<item>"<tt>quilt pop -a</tt>" and "<tt>quilt push -a</tt>" to check patches to apply cleanly to the source.
+<item>"<tt>quilt pop -a</tt>" and "<tt>quilt push -a</tt>" to verify that patches apply cleanly to the source.
 <item>If the patch/merge did not apply cleanly, inspect the situation to
 determine what failed (clues are left in <file>.rej</file> files).  Most often
 the problem is that a patch you applied to the source was integrated upstream,
@@ -2819,11 +2820,11 @@ resort. But don't bother with the <prgn>debconf</prgn> note to annoy the user.
   just RTFM. 
   That includes documentation in <file>/usr/share/doc/dpkg</file>,
   <file>/usr/share/doc/debian</file>, <file>&autotools-dev;</file>, 
-  <file>/usr/share/doc/i<var>package</var>/*</file>
+  <file>/usr/share/doc/<var>package</var>/*</file>
   files and the <prgn>man</prgn>/<prgn>info</prgn> pages for all the programs mentioned in this document.
   See all the information at <url id="&nm-home;">.
 
-  <p>Making a small test pacakge is good way to learn details of packaging.
+  <p>Making a small test package is good way to learn details of packaging.
   Inspecting existing well maintained packages is the best way to learn how other
   people make packages.
 
@@ -2869,7 +2870,7 @@ $ mkdir -p <var>/path/to</var> # new empty directory
 $ cd <var>/path/to</var>
 $ tar -xvzf <var>/path/from/gentoo-1.0.2</var>.tar.gz # get source
 $ cd <var>gentoo-1.0.2</var>
-$ dh_make --quilt -f <var>/path/from/gentoo-1.0.2</var>.tar.gz
+$ dh_make -f <var>/path/from/gentoo-1.0.2</var>.tar.gz
 ... Answer prompts.
 ... Fix source tree
 ... If it is a script package, set debian/control to "Architecture: all"
