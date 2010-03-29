@@ -105,7 +105,7 @@ ifdef LINGUA
 .PHONY: updatepo
 updatepo:			$(patsubst %.dbk,po4a/$(LINGUA)/%.po,$(SOURCES))
 po4a/$(LINGUA)/%.po:		%.dbk
-	po4a-updatepo --format docbook --master $< --po $@
+	po4a-updatepo --previous --format docbook --master $< --po $@
 endif
 
 tidypo:
