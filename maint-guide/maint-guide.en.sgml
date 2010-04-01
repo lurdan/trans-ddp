@@ -30,6 +30,13 @@
    <copyrightsummary>Copyright &copy; 1998-2002 Josip Rodin.</copyrightsummary>
    <copyrightsummary>Copyright &copy; 2005-2010 Osamu Aoki.</copyrightsummary>
    <copyrightsummary>Copyright &copy; 2010 Craig Small.</copyrightsummary>
+   <copyrightsummary>Copyright &copy; 2010 Raphael Hertzog.</copyrightsummary>
+
+<!-- For now we stick with ASCII for best compatibility.  No UTF-8 please.  
+     青木　修
+     Raphaël Hertzog
+     If we have to, this should be in latin-1
+-->
 
    <p>This document may be used under the terms the GNU General Public License
    version 2 or higher.
@@ -2053,7 +2060,8 @@ override_dh_auto_build:
 
   <sect id="maintscripts"><file>{post|pre}{inst|rm}.ex</file> files
 
-  <p>These <file>postinst.ex</file>, <file>preinst.ex</file>, <file>postrm.ex</file>, and <file>prerm.ex</file> files
+  <p>These <file>postinst.ex</file>, <file>preinst.ex</file>,
+  <file>postrm.ex</file>, and <file>prerm.ex</file> files
   <footnote>Although I used Bash short hand expression to indicate these files
   as "<file>{post|pre}{inst|rm}.ex</file>" here, I recommend you to use pure
   POSIX (non-Bash) shell for these <em>maintainer scripts</em> as much as possible for
@@ -2072,10 +2080,26 @@ override_dh_auto_build:
   labeled <em>conffiles</em> such as ones managed by the <em>maintainer
   scripts</em>.
 
-  <p>If you create custom <em>maintainer scripts</em> for a package, you should
-  make sure to test them not only for <strong>install</strong> and
-  <strong>upgrade</strong> but also for <strong>remove</strong> and
-  <strong>purge</strong>.
+  <p>If you did not listen to me and made your custom <em>maintainer
+  scripts</em> for a package, you should make sure to test them not only for
+  <strong>install</strong> and <strong>upgrade</strong> but also for
+  <strong>remove</strong> and <strong>purge</strong>.
+
+  <p>Upgrades to the new version should be silent and non-intrusive (existing
+  users should not notice the upgrade except by discovering that old bugs have
+  been fixed and there perhaps are new features).  
+
+  <p>When the upgrade is necessarily intrusive (eg., config files scattered
+  through various home directories with totally different structure), you may
+  consider to set package to the safe default (e.g., disabled service) and
+  provide proper documentations required by the policy
+  (<file>README.Debian</file> and <file>NEWS.Debian</file>) as the last resort.
+  Don't bother user with the <prgn>debconf</prgn> note invoked from these
+  <em>maintainer scripts</em> for upgrades.
+
+  <p>These <em>maintainer scripts</em> are the Debian enhancements that explain
+  <strong>why people choose Debian</strong>.  You must be very careful not to
+  annoy them with these.  
 
   <sect id="watch"><file>watch.ex</file> file
 
@@ -2622,14 +2646,20 @@ Z4jxNrgh7Bc=
   revision of the package, you need to:
 
   <list>
+  <item>If this is to be recorded as a new patch, do the following.
+  <list>
   <item>"<tt>quilt new <var>bugname.patch</var></tt>" to set patch name.
   <item>"<tt>quilt add <var>buggy-file</var></tt>" to declare file to be modified.
   <item>Correct the problem in the package source for the upstream bug.
   <item>"<tt>quilt refresh</tt>" to record to <file><var>bugname.patch</var></file>.
+  </list>
+  <item>If this is to update an existing patch, do the following.
+  <list>
   <item>"<tt>quilt pop <var>foo.patch</var></tt>" to recall existing <file><var>foo.patch</var></file>.
   <item>Correct the problem in the old <file><var>foo.patch</var></file>.
   <item>"<tt>quilt refresh</tt>" to update <file><var>foo.patch</var></file>.
   <item>"<tt>while quilt push; do quilt refresh; done</tt>" to apply all patches while removing <em>fuzz</em>.
+  </list>
   <item>Add a new revision at the top of the Debian <file>changelog</file> file, for
   example with "<tt>dch -i</tt>", or explicitly with
   "<tt>dch -v <var>version</var>-<var>revision</var></tt>"
@@ -2642,107 +2672,118 @@ Z4jxNrgh7Bc=
   <em>automagically</em> closed by the archive maintenance software the moment your
   package gets accepted in the Debian archive.
 
+  <item>Repeat what you did in the above to fix more bugs while updating the
+  Debian <file>changelog</file> file with "<tt>dch</tt>" as needed.
+
   <item>Repeat what you did in <ref id="completebuild">, <ref id="checkit">,
   and <ref id="upload">. The difference is that this time, the original source
   archive won't be included, as it hasn't been changed and it already
   exists in the Debian archive.
   </list>
 
-  <sect id="newupstream">New upstream release (basic)
+  <sect id="inspectnewupstream">Inspection of the new upstream release
 
-  <p>Now let's consider a different, slightly more complicated situation
-  - a new upstream version <tt>0.9.13</tt> was released, and of course you want it packaged.
-  You need to do the following:
+  <p>When preparing packages of the new upstream release for the Debian
+  archive, you must check the new upstream release, first.
 
+  <p>You start this by reading the upstream <file>changelog</file>,
+  <file>NEWS</file>, and whatever other documentations they may have released
+  with the new version.
+
+  <p>You then inspect changes between the old and new upstream sources as
+  follow to watch out for anything suspicious.
 <example>
-$ cd /path/to
-$ apt-get source gentoo
-...
-dpkg-source: info: extracting gentoo in gentoo-0.9.12
-dpkg-source: info: unpacking gentoo_0.9.12.orig.tar.gz
-dpkg-source: info: applying gentoo_0.9.12-1.diff.gz
-$ wget http://sf.net/gentoo/gentoo-0.9.13.tar.gz
-$ cd gentoo-0.9.12
-$ uupdate ../gentoo-0.9.13.tar.gz
-$ cd ../gentoo-0.9.13
+$ diff -urN <var>foo</var>-<var>oldversion</var> <var>foo</var>-<var>newversion</var>
 </example>
 
-  <p>Repeat what you did in <ref id="newrevision">, <ref id="completebuild">,
-  <ref id="checkit">, and <ref id="upload">.
+  <p>Changes to some auto-generated files by autotools such as
+  <file>missing</file>, <file>aclocal.m4</file>, <file>config.guess</file>,
+  <file>config.h.in</file>, <file>config.sub</file>, <file>configure</file>,
+  <file>depcomp</file>, <file>install-sh</file>, <file>ltmain.sh</file>, and
+  <file>Makefile.in</file> may be ignored.  You may erase them before running
+  <prgn>diff</prgn> to the source for inspection.
 
-  <p>Of course, replace this file name with the name of your program's new
-  source archive. <manref name="uupdate" section="1"> will properly rename that
-  tarball, try to apply all the changes from your previous
-  <file>.debian.tar.gz</file> file or <file>.diff.gz</file> file, and update the
-  new <file>debian/changelog</file> file.
+  <sect id="newupstream">New upstream release
 
-  <p>Note that if you set up a <file>debian/watch</file> file as described in
-  <ref id="watch">, you can run <manref name="uscan" section="1"> to
-  <em>automagically</em> look for revised sources, download them, and run
-  <prgn/uupdate/.
+  <p>If a package <package><var>foo</var></package> is properly packaged in the newer
+  <prgn>dpkg</prgn> <tt>3.0 (native)</tt> or <tt>3.0 (quilt)</tt> formats,
+  packaging a new upstream version is essentially moving the old
+  <file>debian</file> directory to the new source.  This can be done by running
+  "<tt>tar xvzf /<var>path</var>/<var>to</var>/<var>foo</var>_<var>oldversion</var>.debian.tar.gz</tt>" 
+  in the new untared source.
+  <footnote>
+  <p>If a package <package><var>foo</var></package> is packaged in the old
+  <prgn>dpkg</prgn> <tt>1.0</tt> format, this can be done by running
+  "<tt>zcat /<var>path</var>/<var>to</var>/<var>foo</var>_<var>oldversion</var>.diff.gz|patch -p1</tt>" 
+  in the new untared source, instead.
+  </footnote>
+  Of course, you need to do few obvious chores.
+  <list>
+  <item>Create a copy of upstream source as the <file>foo_<var>newversion</var>.tar.gz</file> file.
+  <item>Update the Debian <file>changelog</file> file with 
+  "<tt>dch -v <var>newversion</var>-<var>1</var></tt>".
+  <list>
+  <item>Add an entry with "New upstream release".
+  <item>Describe concisely the changes <em>in the new upstream release</em>
+  that fix reported bugs and close those bugs.
+  <item>Describe concisely the changes <em>to the new upstream release</em> by
+  the maintainer that fix reported bugs and close those bugs.
+  </list>
+  <item>"<tt>while quilt push; do quilt refresh; done</tt>" to apply all patches while removing <em>fuzz</em>.
+  </list>
 
-  <sect id="newupstream-real">New upstream release (realistic)
 
-<p>
-When preparing packages for the Debian archive, you must check
-the resulting packages in detail.  Here is a more realistic example of this
-procedure.
+  <p>If the patch/merge did not apply cleanly, inspect the situation (clues are left in <file>.rej</file> files).
+  <list>
+  <item>If a patch you applied to the source was integrated to the upstream source,
+  <list>
+  <item>"<tt>quilt delete</tt>" to remove it.
+  </list>
+  <item>If a patch you applied to the source conflcted with new changes in the upstream source,
+  <list>
+  <item>"<tt>quilt push -f</tt>" to apply old patches while forcing rejects as
+  <file><var>baz</var>.rej</file>.
+  <item>Edit the <file><var>baz</var></file> file manually to realize intended
+  effect of <file><var>baz</var>.rej</file>.
+  <item>"<tt>quilt refresh</tt>" to update the patch.
+  </list>
+  </list>
 
-<enumlist>
+  <p> This process can be automated using the <manref name="uupdate" section="1"> command as follows:
+<example>
+$ apt-get source <var>foo</var>
+...
+dpkg-source: info: extracting <var>foo</var> in <var>foo</var>-<var>oldversion</var>
+dpkg-source: info: unpacking <var>foo</var>_<var>oldversion</var>.orig.tar.gz
+dpkg-source: info: applying <var>foo</var>_<var>oldversion</var>-1.debian.tar.gz
+$ ls -l
+drwxrwxr-x 10 bar   bar      4096 May  1  2008 <var>foo</var>-<var>oldversion</var>
+-rw-rw-r--  1 bar   bar      5937 Mar 17  2008 <var>foo</var>_<var>oldversion</var>-1.debian.tar.gz
+-rw-rw-r--  1 bar   bar       595 Mar 17  2008 <var>foo</var>_<var>oldversion</var>-1.dsc
+-rw-rw-r--  1 bar   bar   1375769 Mar 17  2008 <var>foo</var>_<var>oldversion</var>.orig.tar.gz
+$ wget http://sf.net/<var>foo</var>/<var>foo</var>-<var>newversion</var>.tar.gz
+$ cd <var>foo</var>-<var>oldversion</var>
+$ uupdate ../<var>foo</var>-<var>newversion</var>.tar.gz
+$ cd ../<var>foo</var>-<var>newversion</var>
+$ while quilt push; do quilt refresh; done
+</example>
 
-<item>Verify changes in upstream source
+  <p>If you set up a <file>debian/watch</file> file as described in <ref
+  id="watch">, you can skip the <prgn>wget</prgn> command.  You simply run
+  <manref name="uscan" section="1"> in the
+  <file><var>foo</var>-<var>oldversion</var></file> directory instead of the
+  <prgn>uupdate</prgn> command.  This will <em>automagically</em> look for
+  revised sources, download them, and run <prgn>uupdate</prgn>.
 
-<list>
+  <p>You can release this updated source by repeating what you did in <ref
+  id="completebuild">, <ref id="checkit">, and <ref id="upload">.
 
-<item>Read the upstream <file>changelog</file>, <file>NEWS</file>, and
-whatever other documentations they may have released with the new
-version.
+  <p>Here are few reminders when packaging new upstream releases.
 
-<item>Do a "<tt>diff -urN</tt>" between the old and new upstream sources
-to try to get a feel for the scope of the changes, where work is
-actively being done (and thus where new bugs may appear), and also watch out
-for anything suspicious.
-
-</list>
-
-<item>Port the old Debian packaging to the new version.  
-
-<list>
-
-<item>Unpack the source tarball and rename the root of the source tree as
-<file><var>package</var>-<var>upstream_version</var>/</file> and 
-<tt>cd</tt> into this directory.
-
-<item>Copy the source tarball in the parent directory and rename it as
-<file><var>package</var>_<var>upstream_version</var>.orig.tar.gz</file> .
-
-<item>Apply the same kind of modification to the new source tree as the
-old source tree.  Possible methods are:
-<list>
-<item>"<tt>tar xvzf /<var>path</var>/<var>to</var>/<var>package</var>_<var>old-version</var>.debian.tar.gz</tt>" command for <tt>3.0 (quilt)</tt> source,
-<item>"<tt>zcat /<var>path</var>/<var>to</var>/<var>package</var>_<var>old-version</var>.diff.gz|patch -p1</tt>" command for old <tt>1.0</tt> source,
-<item><prgn>uupdate</prgn> command, or
-<item>simply copying <file>debian</file> directory from the old source
-tree if it was packaged with the <package>dpatch</package> or <package>quilt</package> commands.
-</list>
+  <list>
 
 <item>Preserve old changelog entries (sounds obvious, but there have
 been incidents...)
-
-<item>The new binary package version, e.g., "<tt>0.9.13-1</tt>" is the upstream
-release version "<tt>0.9.13</tt>" appended with the Debian revision number
-<tt>-1</tt>.
-
-<item>Add changelog record entry with "New upstream release" for this
-new version at the top of <file>debian/changelog</file>.  For example
-"<tt>dch -v 0.9.13-1</tt>".
-
-<item>Describe concisely the changes <em>in the new upstream release</em>
-that fix reported bugs and close those bugs in the <file>debian/changelog</file>.
-
-<item>Describe concisely the changes <em>to the new upstream release</em>
-by the maintainer that fix reported bugs and close those bugs in
-the <file>debian/changelog</file>.
 
 <item>If the package has not updated to use the <package>debhelper</package> V7
 <prgn>dh</prgn> syntax for <file>debian/rules</file> file, update it to use
@@ -2757,23 +2798,6 @@ the <package>quilt</package> command using
 <file>debian/source/format</file> with "<tt>3.0 (native)</tt>" or "<tt>3.0
 (quilt)</tt>" in it.
 
-<item>If the new upstream source tree is populated with the old <file>debian</file> directory, update patch series in the <file>debian/patches</file> directory.
-
-<list>
-<item>"<tt>quilt pop -a</tt>" and "<tt>quilt push -a</tt>" to verify that patches apply cleanly to the source.
-<item>If the patch/merge did not apply cleanly, inspect the situation to
-determine what failed (clues are left in <file>.rej</file> files).  Most often
-the problem is that a patch you applied to the source was integrated upstream,
-and thus the patch is no longer relevant.  Then remove it with "<tt>quilt delete</tt>".
-<item>"<tt>quilt push -f</tt>" to apply old patches while forcing rejects.
-<item>Correct the <file><var>baz</var></file> file with <file><var>baz</var>.rej</file>.
-<item>"<tt>quilt refresh</tt>" to update the patch.
-</list>
-
-<item>Upgrades to the new version should be silent and non-intrusive
-(existing users should not notice the upgrade except by discovering that
-old bugs have been fixed and there perhaps are new features).
-
 <item>If you need to add erased template files for any reason, you
 may run <prgn>dh_make</prgn> again in the same, already <em>debianized</em>,
 directory with <tt>--addmissing</tt> option.  Then edit it properly.
@@ -2787,20 +2811,6 @@ a compelling reason not to.
 from step 1) then update the <file>debian/rules</file> and
 <file>debian/control</file> build dependencies if necessary.
 
-</list>
-
-<item>Build the new package with <prgn>debuild</prgn> (<ref id="debuild">) or
-<prgn>pdebuild</prgn> (<ref id="pbuilder">). Use of <prgn>pdebuild</prgn>
-is desirable.
-
-<item>Verify new packages are built correctly.
-
-<list>
-
-<item>Perform <ref id="checkit">.
-
-<item>Perform <ref id="pupgrade">.   
-
 <item>Check again to see if any bugs have been fixed that are currently
 open in the <url name="Debian Bug Tracking System (BTS)"
 id="http://www.debian.org/Bugs/"> .
@@ -2811,31 +2821,6 @@ listed in the <tt>Closes:</tt> field, the <tt>Maintainer:</tt> and <tt>Changed-B
 match, the file is GPG-signed, etc.
 
 </list>
-
-<item>If any changes were made to correct anything in the packaging along
-the way, go back to the step 2 until satisfied.  
-
-<item>If your upload needs to be sponsored, be sure to note any special
-options required when building the package (like "<tt>dpkg-buildpackage
--sa -v ...</tt>") and be sure to inform your sponsor so he or she builds
-it correctly.
-
-<item>If you are uploading yourself, perform <ref id="upload">.
-</enumlist>
-
-<p>If you did not listen to me and made your custom <em>maintainer
-scripts</em>, please make your package properly updates the config file upon
-upgrades and removes using well designed <prgn>postinst</prgn>,
-<prgn>postrm</prgn>, etc., so that it <strong>doesn't do things</strong> not
-wanted by the user!  These are the Debian enhancements that explain
-<strong>why</strong> people choose Debian.
-<p>
-When the upgrade is necessarily intrusive (eg., config files scattered
-through various home directories with totally different structure), you
-may consider to set package to the safe default (e.g., disabled service)
-and provide proper documentations required by the policy
-(<file>README.Debian</file> and <file>NEWS.Debian</file> ) as the last
-resort. But don't bother with the <prgn>debconf</prgn> note to annoy the user.
 
   <chapt id="helpme">Where to ask for help
 
