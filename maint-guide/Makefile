@@ -50,6 +50,7 @@ publish:
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
 html:
+	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_ALL); do \
 	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
             echo debiandoc2html -c -l $$lang $(MANUAL).$$lang.sgml; \
