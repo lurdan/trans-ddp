@@ -180,6 +180,10 @@
   and avoid FTBFS (Fails To Build From Source) bugs.  (see <manref
   name="pbuilder" section="8"> and <manref name="pdebuild" section="1">)
 
+  <item><package/patchutils/ - this package contains some utilities to work
+  with patches such as the <prgn>lsdiff</prgn> , <prgn>interdiff</prgn> and
+  <prgn>filterdiff</prgn> commands.
+
   <item><package/quilt/ - this package helps you to manage a series
   of patches by keeping track of the changes each of them makes. They are
   logically organized as a stack, and you can apply(=push), un-apply(=pop),
@@ -2300,6 +2304,7 @@ $ dpkg-buildpackage
   the file is corrupt or has been tampered with.
 
   <sect id="option-sa">Including <file>orig.tar.gz</file> for upload
+
   <p>
 When you first upload the package to the archive, you need to include
 the original <file>orig.tar.gz</file> source.  If the last changelog entry is
@@ -2321,18 +2326,26 @@ original <file>orig.tar.gz</file> source.
 
 <example>
 DEBSIGN_KEYID="Your_GPG_keyID"
+DEBUILD_LINTIAN=yes
+DEBUILD_LINTIAN_OPTS="-i -I"
 </example>
-  With these, you can build package always with your GPG pass phrase and avoid 
-  including undesired components.  (This is good for sponsoring too.)
-  For example, cleaning source and rebuilding package from a user account 
-  is as simple as:
+  With these, packages are signed by your specified GPG key ID (good for
+  sponsoring packages) and checked by the <prgn>lintian</prgn> command in
+  details.
 
+  <p>Cleaning source and rebuilding package from a user account 
+  is as simple as:
 <example>
 $ debuild
 </example>
 
-  <p>You can clean source tree as simple as:
+  <p>Please note that the <prgn>dpkg-buildpackage</prgn> option "<tt>-sa</tt>"
+  to include the original <file>orig.tar.gz</file> source can be specified as:
+<example>
+$ debuild -sa
+</example>
 
+  <p>You can clean source tree as simple as:
 <example>
 $ debuild clean
 </example>
@@ -2374,6 +2387,13 @@ system and to build binary packages in it.
 $ sudo pbuilder --update
 $ sudo pbuilder --build <var>foo</var>.dsc
 </example>
+
+  <p>Please note that the <prgn>dpkg-buildpackage</prgn> option "<tt>-sa</tt>"
+  to include the original <file>orig.tar.gz</file> source can be specified as:
+<example>
+$ sudo pbuilder --build --debbuildopts "-sa" <var>foo</var>.dsc
+</example>
+
 <p>
 The newly built packages will be located in
 <file>/var/cache/pbuilder/result/</file> with non-root ownership.
@@ -2384,6 +2404,12 @@ source packages, issue the following commands in the source directory where the
 <example>
 $ sudo pbuilder --update
 $ pdebuild
+</example>
+
+  <p>Please note that the <prgn>dpkg-buildpackage</prgn> option "<tt>-sa</tt>"
+  to include the original <file>orig.tar.gz</file> source can be specified as:
+<example>
+$ pdebuild --debbuildopts "-sa"
 </example>
 
 <p>
@@ -2508,7 +2534,11 @@ $ sudo dpkg -P gentoo
 
   <p>Run <manref name="lintian" section="1"> on your <file>.changes</file>
   file.  The <prgn>lintian</prgn> command runs many test scripts to check for
-  many common packaging errors. 
+  many common packaging errors.
+  <footnote>You do not need to provide the <prgn>lintian</prgn> option 
+  "<tt>-I -i</tt>" if you customized <file>/etc/devscripts.conf</file> or
+  <file>~/.devscripts</file> as described in <ref id="debuild">.
+  </footnote> 
   
 <example>
 $ lintian -I -i gentoo_0.9.12-1_i386.changes
@@ -2518,15 +2548,15 @@ $ lintian -I -i gentoo_0.9.12-1_i386.changes
   file generated for your package.  The output of the <prgn>lintian</prgn>
   command are marked as follows.
   <list>
-  <item><tt>E:</tt> for error: a sure policy violation or a packaging error.
-  <item><tt>W:</tt> for warning: a possible policy violation or a packaging error.
-  <item><tt>I:</tt> for info: a information on certain packaging aspects.
-  <item><tt>N:</tt> for note: a detailed message to help debugging.
+  <item><tt>E:</tt> for error; a sure policy violation or a packaging error.
+  <item><tt>W:</tt> for warning; a possible policy violation or a packaging error.
+  <item><tt>I:</tt> for info; a information on certain packaging aspects.
+  <item><tt>N:</tt> for note; a detailed message to help your debugging.
   </list>
 
   <p>For warnings, tune the package to avoid them or verify that the warnings
-  are spurious.  If spurious, set  lintian overrides files as described in <ref
-  id="lintian">.
+  are spurious.  If spurious, set the <file>lintian-overrides</file> files as
+  described in <ref id="lintian">.
 
   <p>Note that you can build the package with <prgn/dpkg-buildpackage/ and run
   <prgn/lintian/ on it in one command with <manref name="debuild" section="1"> or 
@@ -2765,7 +2795,7 @@ $ diff -urN <var>foo</var>-<var>oldversion</var> <var>foo</var>-<var>newversion<
   <list>
   <item>"<tt>quilt delete</tt>" to remove it.
   </list>
-  <item>If a patch you applied to the source conflcted with new changes in the upstream source,
+  <item>If a patch you applied to the source conflicted with new changes in the upstream source,
   <list>
   <item>"<tt>quilt push -f</tt>" to apply old patches while forcing rejects as
   <file><var>baz</var>.rej</file>.
@@ -2824,8 +2854,8 @@ $ dch
   directory with <tt>--addmissing</tt> option.  Then edit it properly.
 
   <item>If the package has not updated to use the <package>debhelper</package>
-  V7 <prgn>dh</prgn> syntax for <file>debian/rules</file> file, update it to
-  use <prgn>dh</prgn>.  Update <file>debian/control</file> file accordingly.
+  V7 <prgn>dh</prgn> syntax for the <file>debian/rules</file> file, update it to
+  use <prgn>dh</prgn>.  Update the <file>debian/control</file> file accordingly.
 
   <item>If you want to update the <file>rules</file> file created with the
   makefile inclusion mechanism of the Common Debian Build System
@@ -2837,10 +2867,20 @@ $ dch
   It applies only for <tt>lenny</tt> which created explicit targets with long
   list of <prgn>dh_*</prgn> commands.</footnote>
 
-  <item>If the package has not updated to the newer <tt>3.0
-  (native)</tt> or <tt>3.0 (quilt)</tt> source format, create
-  <file>debian/source/format</file> with "<tt>3.0 (native)</tt>" or "<tt>3.0
-  (quilt)</tt>" in it.
+  <item>If you have a <tt>1.0</tt> source package without the
+  <file><var>foo</var>.diff.gz</file> file, you can update it to the newer
+  <tt>3.0 (native)</tt> source format by creating
+  <file>debian/source/format</file> with "<tt>3.0 (native)</tt>".  The rest of
+  <file>debian/*</file> files can be just copied.
+
+  <item>If you have a <tt>1.0</tt> source package with the
+  <file><var>foo</var>.diff.gz</file> file, you can update it to the newer
+  <tt>3.0 (native)</tt> source format by creating
+  <file>debian/source/format</file> with "<tt>3.0 (quilt)</tt>".  The rest of
+  <file>debian/*</file> files can be just copied.  Import the
+  <file>big.diff</file> file generated by the 
+  "<tt>filterdiff -z -x '*/debian/*' <var>foo</var>.diff.gz &gt; big.diff</tt>" 
+  command to your <prgn>quilt</prgn> system, if needed.
 
   <item>If it was packaged with the <package>dpatch</package> command, convert
   it to the <package>quilt</package> command using
@@ -2848,6 +2888,7 @@ $ dch
 
 </list>
 
+  <p>You need to do other tasks described in <ref id="newupstream">, too.
 
   <sect id="reminders">Reminders for updating packages
 
