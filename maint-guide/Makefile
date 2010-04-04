@@ -29,14 +29,14 @@ all:
 	for lang in $(LANG_NOE); do sed -e "s/@@/$$lang/g" < $(CURDIR)/debian/all.install-in >$(CURDIR)/debian/$(MANUAL)-$$lang.install; done
 
 version.ent:
-	echo '<!entity' "docisodate \"$(shell LC_ALL=C date +'%Y%m%d')\">" > version.ent
+	echo '<!entity' "docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
 	echo '<!entity' "docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent
 
 # For web page building (publish)
 # this can and will be overriden by a higher level makefile
 PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 publish: 
-	echo '<!entity docisodate "$(shell LC_ALL=C date +'%Y%m%d')">' > version.ent
+	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
 	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
 	$(MAKE) html txt ps pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
