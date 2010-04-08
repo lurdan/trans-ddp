@@ -1015,7 +1015,7 @@ $ quilt header -e
   commas; read on for the explanation of binary dependencies to find out more
   about the syntax of this field. You can also have
   <tt>Build-Depends-Indep</tt>, <tt>Build-Conflicts</tt> and other fields here.
-  See the <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps">.
+  See the <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps">, <ref id="completebuild">, and <ref id="porterbuild">.
 
   <p>To find out what packages your package needs to be built run the command:
 <example>
@@ -1420,11 +1420,11 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 <list>
 <item><tt>clean</tt> target: to clean all compiled, generated, and useless files in the build-tree. (required)
 <item><tt>build</tt> target: to build the source into compiled programs and formatted documents in the build-tree. (required)
+<item><tt>install</tt> target: to install files into a file tree for each binary package under the <file>debian</file> directory.  If defined, <tt>binary*</tt> targets effectively depend on this target. (optional)
 <item><tt>binary</tt> target: to create all binary packages (effectively combination of <tt>binary-arch</tt> and <tt>binary-indep</tt> targets). (required)<footnote>This target is used by "<tt>dpkg-buildpackage</tt>" as in <ref id="completebuild">.</footnote>
 <item><tt>binary-arch</tt> target: to create arch-dependent (<tt>Architecture: any</tt>) binary packages in the parent directory. (required)<footnote>This target is used by "<tt>dpkg-buildpackage -B</tt>".  The <prgn>buildd</prgn> daemen uses this at <url name="Autobuilder network" id="http://www.debian.org/devel/buildd/">.</footnote>
 <item><tt>binary-indep</tt> target: to create arch-independent (<tt>Architecture: all</tt>) binary packages in the parent directory. (required)<footnote>This target is used by "<tt>dpkg-buildpackage -A</tt>".</footnote>
 <item><tt>get-orig-source</tt> target: to obtain the most recent version of the original source package from upstream archive site. (optional)
-<item><tt>install</tt> target: to install files into a file tree for each binary package under the <file>debian</file> directory.  If defined, <tt>binary*</tt> targets effectively depend on this target. (optional)
 </list>
 
   <p>Rules that you want to execute are invoked as command
@@ -2291,7 +2291,7 @@ $ quilt header -e
 $ dpkg-buildpackage
 </example>
 
-  <p>This will do everything for you. It will:
+  <p>This will do everything to make full binary and source packages for you. It will:
   <list>
     <item>clean the source tree ("<tt>debian/rules clean</tt>")
     <item>build the source package ("<tt>dpkg-source -b</tt>")
@@ -2364,6 +2364,47 @@ $ dpkg-buildpackage
   name="md5sum" section="1">, <manref name="sha1sum" section="1">, or <manref
   name="sha256sum" section="1"> and if the numbers don't match, they'll know
   the file is corrupt or has been tampered with.
+
+  <p>Please note that combination of packages listed in <tt>Build-Depends:</tt>
+  and <tt>Build-Depends-indep:</tt> of the <file>debian/control</file> file are used and required by the above
+  procedure.
+
+  <sect id="porterbuild">Porter rebuild
+
+  <p>You should know how your packages are processed by others after you upload
+  Debian packages to the Debian archive.  The porter runs the
+  <prgn>buildd</prgn> daemon on the the 
+  <url name="Autobuilder network" id="http://www.debian.org/devel/buildd/"> to
+  build packages for other architectures by rebuilding your packages with the
+  following.
+  <footnote>The porter actually uses a bit more complicated scheme for signing
+  etc.  But these kind of details are beyond the scope of this document.</footnote>
+
+<example>
+$ dpkg-buildpackage -B
+</example>
+
+  <p>This will do everything to make architecture dependent binary packages on
+  another architecture run by the porter. It will:
+  <list>
+    <item>clean the source tree ("<tt>debian/rules clean</tt>")
+    <item>build the program ("<tt>debian/rules build</tt>")
+    <item>build the binary package ("<tt>fakeroot debian/rules binary-arch</tt>")
+    <item>sign the source <file/.dsc/ file, using <prgn/gpg/
+    <item>create and sign the upload <file/.changes/ file, using
+          <prgn/dpkg-genchanges/ and <prgn/gpg/
+  </list>
+
+  <p>This is why you see your package for other architectures.  
+
+  <p>Please note that packages listed in only <tt>Build-Depends:</tt> of the <file>debian/control</file> file are used
+  and required by the above procedure. Packages required by the normal build
+  procedure (<ref id="completebuild">) but not by this porter rebuild
+  procedure can be listed in <tt>Build-Depends-indep:</tt> of the <file>debian/control</file> file.
+
+  <p>Since this porter rebuild procedure runs "<tt>debian/rules build</tt>" in it,
+  practically all the required packages need to be specified in the
+  <tt>Build-Depends:</tt> in reality.
 
   <sect id="option-sa">Including <file>orig.tar.gz</file> for upload
 
