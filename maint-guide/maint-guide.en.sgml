@@ -1015,7 +1015,7 @@ $ quilt header -e
   commas; read on for the explanation of binary dependencies to find out more
   about the syntax of this field. You can also have
   <tt>Build-Depends-Indep</tt>, <tt>Build-Conflicts</tt> and other fields here.
-  See the <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps"> for the guidance and <ref id="completebuild">, and <ref id="porterbuild"> for actual implications.
+  See the <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps"> for the guidance and <ref id="completebuild">, and <ref id="autobuilder"> for actual implications.
 
   <p>To find out what packages your package needs to be built run the command:
 <example>
@@ -1422,7 +1422,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
 <item><tt>build</tt> target: to build the source into compiled programs and formatted documents in the build-tree. (required)
 <item><tt>install</tt> target: to install files into a file tree for each binary package under the <file>debian</file> directory.  If defined, <tt>binary*</tt> targets effectively depend on this target. (optional)
 <item><tt>binary</tt> target: to create all binary packages (effectively combination of <tt>binary-arch</tt> and <tt>binary-indep</tt> targets). (required)<footnote>This target is used by "<tt>dpkg-buildpackage</tt>" as in <ref id="completebuild">.</footnote>
-<item><tt>binary-arch</tt> target: to create arch-dependent (<tt>Architecture: any</tt>) binary packages in the parent directory. (required)<footnote>This target is used by "<tt>dpkg-buildpackage -B</tt>" as in <ref id="porterbuild">.</footnote>
+<item><tt>binary-arch</tt> target: to create arch-dependent (<tt>Architecture: any</tt>) binary packages in the parent directory. (required)<footnote>This target is used by "<tt>dpkg-buildpackage -B</tt>" as in <ref id="autobuilder">.</footnote>
 <item><tt>binary-indep</tt> target: to create arch-independent (<tt>Architecture: all</tt>) binary packages in the parent directory. (required)<footnote>This target is used by "<tt>dpkg-buildpackage -A</tt>".</footnote>
 <item><tt>get-orig-source</tt> target: to obtain the most recent version of the original source package from upstream archive site. (optional)
 </list>
@@ -2285,7 +2285,15 @@ $ quilt header -e
 
   <sect id="completebuild">Complete (re)build
 
-  <p>Enter the program's main directory and then issue this command:
+  <p>In order to properly make complete (re)build of a package, you have to
+  ensure to install
+  <list>
+  <item>the <package>build-essential</package> package,
+  <item>packages listed in the <tt>Build-Depends:</tt> field (see <ref id="control">), and
+  <item>packages listed in the <tt>Build-Depends-indep:</tt> field (see <ref id="control">).
+  </list>
+
+  <p>Then you issue the following command in the source directory:
 
 <example>
 $ dpkg-buildpackage
@@ -2296,7 +2304,7 @@ $ dpkg-buildpackage
     <item>clean the source tree ("<tt>debian/rules clean</tt>")
     <item>build the source package ("<tt>dpkg-source -b</tt>")
     <item>build the program ("<tt>debian/rules build</tt>")
-    <item>build the binary package ("<tt>fakeroot debian/rules binary</tt>")
+    <item>build binary packages ("<tt>fakeroot debian/rules binary</tt>")
     <item>sign the source <file/.dsc/ file, using <prgn/gpg/
     <item>create and sign the upload <file/.changes/ file, using
           <prgn/dpkg-genchanges/ and <prgn/gpg/
@@ -2365,32 +2373,34 @@ $ dpkg-buildpackage
   name="sha256sum" section="1"> and if the numbers don't match, they'll know
   the file is corrupt or has been tampered with.
 
-  <p>Please note that combination of packages listed in the
-  <tt>Build-Depends:</tt> and <tt>Build-Depends-indep:</tt> fields of the
-  <file>debian/control</file> file are used and required by the above
-  procedure.
+  <sect id="autobuilder">Autobuilder
 
-  <sect id="porterbuild">Porter rebuild
+  <p>Debian supports many <url name="ports" id="http://www.debian.org/ports/">
+  with the <url name="autobuilder network" id="http://www.debian.org/devel/buildd/">
+  running <prgn>buildd</prgn> daemons on many different architecture computers.
+  Let's look into roughly how your packages are processed by them. 
+  <footnote>The actual autobuilder system involves much more complicated
+  schemes than the one documented here.  Such details are beyond the scope of
+  this document.</footnote>
 
-  <p>You should know how your packages are processed by others after you upload
-  Debian packages to the Debian archive.  The porter runs the
-  <prgn>buildd</prgn> daemon on the the 
-  <url name="Autobuilder network" id="http://www.debian.org/devel/buildd/"> to
-  build packages for other architectures by rebuilding your packages with the
-  following.
-  <footnote>The porter actually uses a bit more complicated scheme for signing
-  etc.  But these kind of details are beyond the scope of this document.</footnote>
+  <p>This autobuilder system ensures to install
+  <list>
+  <item>the <package>build-essential</package> package, and
+  <item>packages listed in the <tt>Build-Depends:</tt> field (see <ref id="control">).
+  </list>
+
+  <p>Then it issues the following command in the source directory:
 
 <example>
 $ dpkg-buildpackage -B
 </example>
 
   <p>This will do everything to make architecture dependent binary packages on
-  another architecture run by the porter. It will:
+  another architecture. It will:
   <list>
     <item>clean the source tree ("<tt>debian/rules clean</tt>")
     <item>build the program ("<tt>debian/rules build</tt>")
-    <item>build the binary package ("<tt>fakeroot debian/rules binary-arch</tt>")
+    <item>build architecture dependent binary packages ("<tt>fakeroot debian/rules binary-arch</tt>")
     <item>sign the source <file/.dsc/ file, using <prgn/gpg/
     <item>create and sign the upload <file/.changes/ file, using
           <prgn/dpkg-genchanges/ and <prgn/gpg/
@@ -2398,16 +2408,28 @@ $ dpkg-buildpackage -B
 
   <p>This is why you see your package for other architectures.  
 
-  <p>Please note that packages listed only in the <tt>Build-Depends:</tt> field
-  of the <file>debian/control</file> file are used and required by the above
-  procedure. Packages required by the normal build procedure 
-  (<ref id="completebuild">) but not by this porter rebuild procedure can be
-  listed in the <tt>Build-Depends-indep:</tt> field of the
-  <file>debian/control</file> file.
-
-  <p>Since this porter rebuild procedure runs "<tt>debian/rules build</tt>" in
-  it, practically all the required packages need to be specified in the
-  <tt>Build-Depends:</tt> field in reality.
+  <p>Although packages listed in the <tt>Build-Depends-indep:</tt> field are
+  required to be installed for the normal packaging by us (see 
+  <ref id="completebuild">), they are not required to be installed for the
+  autobuilder system since it build only architecture dependent binary
+  packages.
+  <footnote>Unlike under the <package>pbuilder</package> package, the
+  <prgn>chroot</prgn> environment under the <package>sbuild</package> package
+  used by the autobuilder system does not force the minimal system and may leave
+  many packages installed.</footnote>
+  This difference between normal and autobuilder packaging dictates how you
+  record such required packages in the <tt>Build-Depends:</tt> or
+  <tt>Build-Depends-indep:</tt> fields.  But the situation has some twist here.
+  Since this autobuilder procedure runs "<tt>debian/rules clean</tt>" and "<tt>debian/rules build</tt>" in it,
+  the <tt>Build-Depends:</tt> field needs to list practically all the required
+  packages and the <tt>Build-Depends-indep:</tt> is rarely used for most
+  packages processed by the autobuilder system.
+  <footnote>This situation is a feature will documented in the 
+  <url name="Debian Policy Manual, Footnotes 43" id="http://www.debian.org/doc/debian-policy/footnotes.html#f43">.
+  This issue is not due to the use of the <prgn>dh</prgn> command in the
+  <file>debian/rules</file> file.  The same situation applies to the 
+  <url name="auto build system for Ubuntu" id="https://bugs.launchpad.net/launchpad-buildd/+bug/238141">.
+  </footnote>
 
   <sect id="option-sa">Including <file>orig.tar.gz</file> for upload
 
