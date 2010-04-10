@@ -7,13 +7,11 @@
 #######################################################################
 # Build from xml only as default (package) -- for squeeze (package)
 # to avoid regression caused by asciidoc 8.4.1
-ifdef DEBIAN_PACKAGE_BUILD_MODE
-# When executed from pbuilder, debuild, debian/rules, ...
-BUILD_MODE	:= deb
-else
 # BUILD_MODE value set to asciidoc version number
+ifndef BUILD_MODE
 BUILD_MODE	:= $(shell asciidoc --version)
 endif
+
 # BUILD_MODE value of correct asciidoc version number to use
 BUILD_MODE_ASCIIDOC := asciidoc 8.2.7
 
@@ -81,40 +79,13 @@ SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
 #######################################################################
 # Build all sources to html and text pages (Default target)     ALL/DEB
 #######################################################################
-.PHONY: all dh_in
-all: html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
-# When building for Debian packages, build debhelper entries for install
-ifdef DEBIAN_PACKAGE_BUILD_MODE
-	$(MAKE) dh_in
-endif
+.PHONY: all package
+# Simpler target for easy debug.
+all: html css
 
-dh_in:
-	# Generate files for debhelper in debian/
-	cd $(CURDIR)/debian/ ; \
-	cp all.postinst-in     $(DOCNAME)-common.postinst ; \
-	for xx in $(LANGALL) ; do \
-	  cp all.postinst-in     $(DOCNAME)-$${xx}.postinst ; \
-	  cp all.postrm-in       $(DOCNAME)-$${xx}.postrm ; \
-	  case $$xx in \
-	    en) LANGX="English" ;;  \
-	    de) LANGX="German" ;;   \
-	    fr) LANGX="French" ;;   \
-	    fi) LANGX="Finnish" ;;  \
-	    es) LANGX="Spanish" ;;  \
-	    it) LANGX="Italian" ;;  \
-	    ja) LANGX="Japanese" ;; \
-	    pl) LANGX="Polish" ;; \
-	    pt-br) LANGX="Portuguese (Brazil)" ;; \
-	    zh-tw) LANGX="Chinese (Traditional)" ;; \
-	    zh-cn) LANGX="Chinese (Simplified)" ;; \
-	    *) LANGX="$$x" ;; \
-	  esac ; \
-	  sed  -e "s/@@/$$xx/" < all.dirs-in  >$(DOCNAME)-$${xx}.dirs ; \
-	  sed  -e "s/@@/$$xx/" < all.links-in  >$(DOCNAME)-$${xx}.links ; \
-	  sed  -e "s/@@/$$xx/" < all.install-in  >$(DOCNAME)-$${xx}.install ; \
-	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < all.doc-base-in  >$(DOCNAME)-$${xx}.doc-base ; \
-	done
+# Target for package building
+package: html txt css
+	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
 #######################################################################
 # Build all sources to html and text pages for web (DDP on alioth)  DDP
@@ -128,45 +99,36 @@ publish:
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
 	# When DDP moves to squeeze, change to BUILD_MODE=xml
-	$(MAKE) html txt css BUILD_MODE=asciidoc PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANGPO=$(LANGPO)"
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR)/debian-reference "LANG_ALL=$(LANGSGML)"
+	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference"
+	$(MAKE) -C sgml all  "PUBLISHDIR=$(PUBLISHDIR)/debian-reference" "LANG_ALL=$(LANGSGML)"
 
 #######################################################################
 # Clean targets                                                     ALL
 #######################################################################
-.PHONY: clean dh_clean_in distclean
+.PHONY: clean packageclean distclean
 
 clean:
 	echo "BUILD_MODE = \"$(BUILD_MODE)\""
 	-rm -f *.swp *~ *.tmp
 	-rm -f $(PODOC)/*~ $(ADOC)/*~
 	-rm -rf html
-	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., en $(LANGPO)))
+	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., $(LANGPO)))
+	-rm -f $(DOCNAME).en.xml
 	-rm -f $(DOCNAME).en.xmlt header.txt
 	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
-	$(MAKE) dh_clean_in
-
-dh_clean_in:
-	# Clean files for debhelper in debian/
-	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .postrm,   $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .dirs,     $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .links,    $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .doc-base, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .install,  $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
-	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
 
 # Run distclean only for regenerating all locally cached data from remote
 #                          (and all raw XML from asciidoc for lenny@local)
-distclean: clean
+packageclean: clean
 	# We should clean these local cached data for debian package.
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
-ifndef DEBIAN_PACKAGE_BUILD_MODE
+
+distclean: packageclean
 ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
 	# If not from debian/rules but in asciidoc mode, 
-	# remove remotely generated files.
+	# remove remotely generated files to refresh.
+	-rm -f $(DOCNAME).raw.xml
 	-rm -f $(SRC_ENT)
-endif
 endif
 
 #########################################################################
@@ -345,6 +307,9 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 #########################################################################
 $(DOCNAME).ja.xml: $(PODOC)/$(DOCNAME).ja.po $(PODOC)/addendum1.ja $(DOCNAME).en.xml
 	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.ja -p $< -l $@
+
+$(DOCNAME).es.xml: $(PODOC)/$(DOCNAME).es.po $(PODOC)/addendum1.es $(DOCNAME).en.xml
+	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.es -p $< -l $@
 
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
 	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@

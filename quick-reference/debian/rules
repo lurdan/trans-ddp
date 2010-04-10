@@ -3,19 +3,57 @@
 ## debian/rules : package script for debian-reference
 ## ----------------------------------------------------------------------
 
-# Variable to change Makefile behavior (make clean)
-DEBIAN_PACKAGE_BUILD_MODE = YES
-export DEBIAN_PACKAGE_BUILD_MODE
 
 ## ----------------------------------------------------------------------
 ## uncomment this to turn on verbose mode
 #export DH_VERBOSE=1
 
 ## ----------------------------------------------------------------------
-## Targets
+# Package building language choice
+#
+DOCNAME	:=	debian-reference
+LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
+LANGPO	:=	   ja fr
 
-binary: binary-indep
+## ----------------------------------------------------------------------
+## Targets
 
 %:
 	dh $@
+
+override_dh_auto_build:
+	# Generate files for debhelper in debian/
+	cd $(CURDIR)/debian/ ; \
+	cp all.postinst-in     $(DOCNAME)-common.postinst ; \
+	for xx in $(LANGALL) ; do \
+	  cp all.postinst-in     $(DOCNAME)-$${xx}.postinst ; \
+	  cp all.postrm-in       $(DOCNAME)-$${xx}.postrm ; \
+	  case $$xx in \
+	    en) LANGX="English" ;;  \
+	    de) LANGX="German" ;;   \
+	    fr) LANGX="French" ;;   \
+	    fi) LANGX="Finnish" ;;  \
+	    es) LANGX="Spanish" ;;  \
+	    it) LANGX="Italian" ;;  \
+	    ja) LANGX="Japanese" ;; \
+	    pl) LANGX="Polish" ;; \
+	    pt-br) LANGX="Portuguese (Brazil)" ;; \
+	    zh-tw) LANGX="Chinese (Traditional)" ;; \
+	    zh-cn) LANGX="Chinese (Simplified)" ;; \
+	    *) LANGX="$$x" ;; \
+	  esac ; \
+	  sed  -e "s/@@/$$xx/" < all.links-in  >$(DOCNAME)-$${xx}.links ; \
+	  sed  -e "s/@@/$$xx/" < all.install-in  >$(DOCNAME)-$${xx}.install ; \
+	  sed  -e "s/@@/$$xx/" -e "s/@LANG@/$$LANGX/" < all.doc-base-in  >$(DOCNAME)-$${xx}.doc-base ; \
+	done
+	dh_auto_build -- package "BUILD_MODE=none" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)"
+
+override_dh_auto_clean:
+	# Clean files for debhelper in debian/
+	-rm -f $(addsuffix .postinst, $(addprefix  debian/$(DOCNAME)-, $(LANGALL) common))
+	-rm -f $(addsuffix .postrm,   $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .links,    $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .doc-base, $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	-rm -f $(addsuffix .install,  $(addprefix  debian/$(DOCNAME)-, $(LANGALL)))
+	$(MAKE) packageclean "BUILD_MODE=none" "LANGALL=$(LANGALL)" "LANGPO=$(LANGPO)"
 
