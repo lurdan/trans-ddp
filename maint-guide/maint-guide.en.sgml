@@ -1010,15 +1010,42 @@ $ quilt header -e
   upload it, the bug tracking system will use it to deliver bug emails to
   you. Avoid using commas, ampersands and parenthesis.
 
-  <p>The 5th line includes the list of packages required to build your
-  package. Some packages like <package>gcc</package> and <package>make</package> are implied, see the
-  <package/build-essential/ package for details. If some non-standard
-  compiler or other tool is needed to build your package, you should add
-  it to the <tt>Build-Depends</tt> line. Multiple entries are separated with
-  commas; read on for the explanation of binary dependencies to find out more
-  about the syntax of this field. You can also have
-  <tt>Build-Depends-Indep</tt>, <tt>Build-Conflicts</tt> and other fields here.
-  See the <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps"> for the guidance and <ref id="completebuild">, and <ref id="autobuilder"> for actual implications.
+  <p>The 5th line includes the list of packages required to build your package
+  such as the <tt>Build-Depends:</tt> and <tt>Build-Depends-Indep:</tt> fields
+  (see the
+  <url name="Debian Policy Manual, 7.7 'Relationships between source and binary packages - Build-Depends, Build-Depends-Indep, Build-Conflicts, Build-Conflicts-Indep'" id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps">).
+  Some packages like <package>gcc</package> and <package>make</package> are
+  implied, see the <package/build-essential/ package for details. If some
+  non-standard compiler or other tool is needed to build your package, you
+  should add it to these fields.  Multiple entries are separated with commas;
+  read on for the explanation of binary dependencies to find out more about the
+  syntax of these lines. 
+
+  <p>For all packages packaged with the <prgn>dh</prgn> command in the
+  <file>debian/rules</file> file, you must have 
+  "<tt>debhelper (>=7.0.50~)</tt>" in the <tt>Build-Depends:</tt> field to
+  satisfy the <tt>clean</tt> target.
+
+  <p>For "<tt>Architecture: any</tt>" packages, they are rebuild by the
+  autobuilder.  Since this autobuilder procedure runs 
+  "<tt>debian/rules build</tt>" in it while installing only packages listed in
+  the <tt>Build-Depends</tt> field (see <ref id="autobuilder">), the
+  <tt>Build-Depends</tt> field needs to list practically all the required
+  packages and the <tt>Build-Depends-indep</tt> is rarely used.
+  <footnote>This somewhat strange situation is a feature well documented in the 
+  <url name="Debian Policy Manual, Footnotes 43" id="http://www.debian.org/doc/debian-policy/footnotes.html#f43">.
+  This is not due to the use of the <prgn>dh</prgn> command in the
+  <file>debian/rules</file> file but due to how the
+  <prgn>dpkg-buildpackage</prgn> works.  The same situation applies to the 
+  <url name="auto build system for Ubuntu" id="https://bugs.launchpad.net/launchpad-buildd/+bug/238141">.
+  </footnote>
+  If you are not sure which one should be used, please use the
+  <tt>Build-Depends</tt> field to be on the safe side.
+
+  <p>For "<tt>Architecture: all</tt>" packages, the
+  <tt>Build-Depends-Indep</tt> field needs to list all the required packages
+  unless they are already listed in the <tt>Build-Depends</tt> field to satisfy
+  the <tt>clean</tt> target.
 
   <p>To find out what packages your package needs to be built run the command:
 <example>
@@ -1169,7 +1196,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
   need to depend on some other packages.  This list of required packages is
   used for <tt>${misc:Depends}</tt>.
 
-  <p>Having said all that, we can leave the <tt>Depends:</tt> line exactly as
+  <p>Having said all that, we can leave the <tt>Depends:</tt> field exactly as
   it is now, and insert another line after it saying "<tt>Suggests: file</tt>",
   because <package>gentoo</package> can use some features provided by that
   <package>file</package> package.
@@ -1189,7 +1216,7 @@ Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
   that the <package>gentoo</package> package is located in Debian Alioth Git
   Service at <tt>git://git.debian.org/git/collab-maint/gentoo.git</tt>.
 
-  <p>Finally, here is the updated control file:
+  <p>Finally, here is the updated <file>control</file> file:
 
 <example>
  1 Source: gentoo
@@ -2399,12 +2426,13 @@ $ dpkg-buildpackage
   <p>Debian supports many <url name="ports" id="http://www.debian.org/ports/">
   with the <url name="autobuilder network" id="http://www.debian.org/devel/buildd/">
   running <prgn>buildd</prgn> daemons on many different architecture computers.
-  Let's look into roughly how your packages are processed by them. 
+  Let's look into roughly how your packages are rebuild for many different architectures by them. 
   <footnote>The actual autobuilder system involves much more complicated
   schemes than the one documented here.  Such details are beyond the scope of
   this document.</footnote>
 
-  <p>This autobuilder system ensures to install
+  <p>For "<tt>Architecture: any</tt>" packages, the autobuilder system rebuild
+  them.  It ensures to install
   <list>
   <item>the <package>build-essential</package> package, and
   <item>packages listed in the <tt>Build-Depends:</tt> field (see <ref id="control">).
@@ -2440,19 +2468,7 @@ $ dpkg-buildpackage -B
   many packages installed.</footnote>
   This difference between normal and autobuilder packaging dictates how you
   record such required packages in the <tt>Build-Depends:</tt> or
-  <tt>Build-Depends-indep:</tt> fields.  But the situation has some twist here.
-  Since this autobuilder procedure runs "<tt>debian/rules clean</tt>" and
-  "<tt>debian/rules build</tt>" in it, the <tt>Build-Depends:</tt> field needs
-  to list practically all the required packages and the
-  <tt>Build-Depends-indep:</tt> is rarely used for most 
-  "<tt>Architecture: any</tt>" packages processed by the autobuilder system.
-  <footnote>This somewhat strange situation is a feature well documented in the 
-  <url name="Debian Policy Manual, Footnotes 43" id="http://www.debian.org/doc/debian-policy/footnotes.html#f43">.
-  This is not due to the use of the <prgn>dh</prgn> command in the
-  <file>debian/rules</file> file but due to how the
-  <prgn>dpkg-buildpackage</prgn> works.  The same situation applies to the 
-  <url name="auto build system for Ubuntu" id="https://bugs.launchpad.net/launchpad-buildd/+bug/238141">.
-  </footnote>
+  <tt>Build-Depends-indep:</tt> fields of the <file>debian/control</file> file.
 
   <sect id="option-sa">Including <file>orig.tar.gz</file> for upload
 
