@@ -56,7 +56,7 @@ publish:	all
 	install -d -m 755 $(PUBLISHDIR)/developers-reference
 	rm -f $(PUBLISHDIR)/developers-reference/*.html
 	rm -f en && ln -sf . en
-	$(foreach format,$(FORMATS),$(foreach lang,en $(LANGS),for file in $(lang)/*.$(format); do if [ -e "$$file" ]; then cp $$file $(PUBLISHDIR)/developers-reference/$$(basename $$file .$(format)).$(lang).$(format); fi; done;))
+	$(foreach format,$(FORMATS),$(foreach lang,en $(LANGS),for file in $(lang)/*.$(format); do if [ -e "$$file" ]; then cp --preserve=timestamps $$file $(PUBLISHDIR)/developers-reference/$$(basename $$file .$(format)).$(lang).$(format); fi; done;))
 	ln -sf index.en.html $(PUBLISHDIR)/developers-reference/index.html
 	ln -sf developers-reference.en.pdf $(PUBLISHDIR)/developers-reference/developers-reference.pdf
 	ln -sf developers-reference.en.txt $(PUBLISHDIR)/developers-reference/developers-reference.txt
