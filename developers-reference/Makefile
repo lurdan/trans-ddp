@@ -89,7 +89,7 @@ endif
 developers-reference.txt:	$(CURDIR)/developers-reference.txt
 %/developers-reference.txt:	$(addprefix %/,$(SOURCES))
 	$(XP) $(DBK2HTML1) $(@D)/index.dbk \
-	    | w3m -cols 70 -dump -no-graph -T text/html > $@
+	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 developers-reference.pdf:       $(CURDIR)/developers-reference.pdf
 %/developers-reference.pdf:     $(addprefix %/,$(SOURCES))
