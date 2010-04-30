@@ -1,4 +1,4 @@
-# (C) 2004, 2005, 2008 W. Martin Borgert debacle@debian.org
+# (C) 2004, 2005, 2008, 2010 W. Martin Borgert <debacle@debian.org>
 # See COPYING for the license status of this software.
 
 # You need to apt-get install
@@ -13,6 +13,9 @@ XMLROFF=xmlroff --backend cairo
 GPLIST=ar eu he hi ja sv
 XMLROFF_GP=xmlroff --backend gp
 DIA=dia
+
+PDFJOIN=pdfjoin --vanilla
+PDFNUP=pdfnup --vanilla
 
 # Not yet implemted in the new version (neither FO nor dblatex)
 #ifneq ($(AD),)
@@ -93,15 +96,13 @@ refcard-%.s.pdf: refcard-%.fo dblatex.xsl refcard.sty
 	fi
 
 refcard-%-a4.t.pdf: refcard-%-a4.s.pdf empty.pdf
-	pdfjoin --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
-	pdfnup --nup 3x1 --outfile $@ --pages 5-6,1-4 \
-	    --paper a4paper $<.x.pdf
+	$(PDFJOIN) --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
+	$(PDFNUP) --nup 3x1 --outfile $@ --paper a4paper $<.x.pdf 5-6,1-4
 	rm $<.x.pdf
 
 refcard-%-lt.t.pdf: refcard-%-lt.s.pdf empty.pdf
-	pdfjoin --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
-	pdfnup --nup 3x1 --outfile $@ --pages 5-6,1-4 \
-	    --paper letterpaper $<.x.pdf
+	$(PDFJOIN) --fitpaper true --outfile $<.x.pdf $< empty.pdf empty.pdf
+	$(PDFNUP) --nup 3x1 --outfile $@ --paper letterpaper $<.x.pdf 5-6,1-4
 	rm $<.x.pdf
 
 refcard-%.pdf: refcard-%.t.pdf metadata.xsl
