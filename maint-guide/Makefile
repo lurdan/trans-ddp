@@ -14,9 +14,13 @@ MANUAL		:= maint-guide
 LANG_CJK	:= ko zh-cn zh-tw
 #LANG_CJK	:= 
 
+# Language which generates SGML files from PO file (Customizable)
+LANG_PO		:= it
+
 SOURCES_ALL	:= $(wildcard *.??*.sgml)
+PO_ALL		:= $(wildcard *.??*.po)
 # Language group
-LANG_ALL	:= $(patsubst $(MANUAL).%.sgml, %, $(SOURCES_ALL))
+LANG_ALL	:= $(patsubst $(MANUAL).%.sgml, %, $(SOURCES_ALL)) $(patsubst $(MANUAL).%.po, %, $(PO_ALL))
 LANG_NOE	:= $(filter-out en,$(LANG_ALL))
 LANG_NOCJK	:= $(filter-out $(LANG_CJK),$(LANG_ALL))
 LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
@@ -25,6 +29,7 @@ LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
 INSTALL_DIR := $(CURDIR)/debian
 all:
 	$(MAKE) version.ent
+	$(MAKE) po
 	$(MAKE) html txt ps pdf
 	for lang in $(LANG_NOE); do sed -e "s/@@/$$lang/g" < $(CURDIR)/debian/all.install-in >$(CURDIR)/debian/$(MANUAL)-$$lang.install; done
 
@@ -38,6 +43,7 @@ PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 publish: 
 	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
 	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
+	$(MAKE) po
 	$(MAKE) html txt ps pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
@@ -45,12 +51,29 @@ publish:
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 
+# generating SGML files from PO files
+PO_UPDATE	:= po4a-updatepo --previous -M latin1 -f sgml
+#PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M latin1 -f sgml
+PO_TRANSLATE	:= po4a-translate  -M latin1 -f sgml 
+PO_GETTEXT	:= po4a-gettextize -M latin1 -f sgml
+
+$(MANUAL).%.sgml::
+	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$*.po
+	$(PO_TRANSLATE) -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$*.sgml -p $(MANUAL).$*.po
+
+po:
+	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
+	for lang in $(LANG_PO); do \
+	$(MAKE) $(MANUAL).$$lang.sgml ;\
+        done
+	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
+
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
 html:
-	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
+	if ! [ -f version.ent ]; then $(MAKE) version.ent ; $(MAKE) po; fi
 	for lang in $(LANG_ALL); do \
 	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
             echo debiandoc2html -c -l $$lang $(MANUAL).$$lang.sgml; \
@@ -92,6 +115,9 @@ clean:
 	-rm -rf $(MANUAL)*.html 
 	-rm -rf *.tmp
 	-rm version.ent
+	for lang in $(LANG_PO); do \
+	rm -f $(MANUAL).$$lang.sgml ;\
+        done
 ifneq ("$(BUILD_TYPE)", "web")
 	-rm -rf $(PUBLISHDIR)/$(MANUAL)
 else
