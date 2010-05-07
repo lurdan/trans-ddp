@@ -54,17 +54,15 @@ publish:
 # generating SGML files from PO files
 PO_UPDATE	:= po4a-updatepo --previous -M latin1 -f sgml
 #PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M latin1 -f sgml
-PO_TRANSLATE	:= po4a-translate  -M latin1 -f sgml 
+PO_TRANSLATE	:= po4a-translate  -M latin1 -f sgml --keep 0
 PO_GETTEXT	:= po4a-gettextize -M latin1 -f sgml
 
-$(MANUAL).%.sgml::
-	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$*.po
-	$(PO_TRANSLATE) -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$*.sgml -p $(MANUAL).$*.po
 
 po:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
-	$(MAKE) $(MANUAL).$$lang.sgml ;\
+	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
+	$(PO_TRANSLATE) -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po ;\
         done
 	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
 
