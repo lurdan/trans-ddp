@@ -62,7 +62,7 @@ po:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
-	$(PO_TRANSLATE) -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po ;\
+	$(PO_TRANSLATE) -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po -a $$lang.1.add ;\
         done
 	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
 
