@@ -338,17 +338,18 @@ package     popcon        size         type
 Customize "`\~/.muttrc`" as the following to use `mutt` as the mail user agent (MUA) in combination with `vim`.
 
 --------------------
-# use visual mode and "gq" to reformat quotes
+#
+# User configuration file to override /etc/Muttrc
+#
+# spoof source mail address
+set use_from
+set hostname=debian.org
+set from="Osamu Aoki <osamu@debian.org>"
+set signature="~/.signature"
+
+# vim: "gq" to reformat quotes
 set editor="vim -c 'set tw=72 et ft=mail'"
-#
-# header weeding taken from the manual (Sven's Draconian header weeding)
-#
-ignore *
-unignore from: date subject to cc
-unignore user-agent x-mailer
-hdr_order from subject to cc date user-agent x-mailer
-set hostname=spoof.example.org
-set from="First Last <username@example.org>"
+
 ....
 --------------------
 
@@ -358,6 +359,8 @@ Add the following to "`/etc/mailcap`" or "`\~/.mailcap`" to display HTML mail an
 text/html; lynx -force_html %s; needsterminal;
 application/msword; /usr/bin/antiword '%s'; copiousoutput; description="Microsoft Word Text"; nametemplate=%s.doc
 --------------------
+
+TIP: You may wish to configure MUA/MDA to use <url name="Maildir" id="http://en.wikipedia.org/wiki/Maildir"> for storing e-mail messages.
 
 === The remote mail retrieval and forward utility
 
@@ -381,13 +384,29 @@ package      popcon        size         description
 Create "`/usr/local/bin/getmails`" as the following.
 
 --------------------
-#!/bin/sh 
+#!/bin/sh
 set -e
+if [ -f $HOME/.getmail/running ]; then
+  echo "getmail is already running ... (if not, remove $HOME/.getmail/running)" >&2
+  pgrep -l "getmai[l]"
+  exit 1
+else
+  echo "getmail has not been running ... " >&2
+fi
+if [ -f $HOME/.getmail/stop ]; then
+  echo "do not run getmail ... (if not, remove $HOME/.getmail/stop)" >&2
+  exit
+fi
+if [ "x$1" = "x-l" ]; then
+  exit
+fi
 rcfiles="/usr/bin/getmail"
 for file in $HOME/.getmail/config/* ; do
   rcfiles="$rcfiles --rcfile $file"
 done
-exec $rcfiles $@
+date -u > $HOME/.getmail/running
+eval "$rcfiles $@"
+rm $HOME/.getmail/running
 --------------------
 
 Configure it as the following.
@@ -460,45 +479,64 @@ package     popcon        size         description
 `maildrop`(1) configuration is described in http://www.courier-mta.org/maildrop/maildropfilter.html[maildropfilter documentation].  Here is a configuration example for "`$HOME/.mailfilter`".
 
 --------------------
+# 
 logfile $HOME/.maildroplog
+
+#:
+# General fall back are the first
+# Then more specific overrides follows
+#
+
+# default incoming box
+MAILBOX="Inbox"
+MAILROOT="$HOME/Mail"
+
+# Some mails which may be important
+if ( /(^From: .*@debian.org|^Subject: .* ([Dd]ebian))/)
+{
+    MAILBOX="Inbox-priority"
+}
+# Subject: Re: Bug#...
+if ( /^(Subject): .*Bug#.*/)
+{
+    MAILBOX="bugs.debian.org"
+}
+
 # clearly bad looking mails: drop them into X-trash and exit
 if (    /^X-Advertisement/ ||\
-	/^Subject:.*BUSINESS PROPOSAL/ ||\
-	/^Subject:.*URGENT.*ASISSTANCE/ ||\
-	/^Subject: *I NEED YOUR ASSISTANCE/ )
-    to "$HOME/Maildir/X-trash/"
+        /^Subject: *I NEED YOUR ASSISTANCE/ )
+    MAILBOX="X-trash"
 
-# Delivering mailinglist messages using automatically generated mailbox
+# delivering mailinglist messages using automatically generated mailbox
 if (    /^Precedence:.*list/ || /^Precedence:.*bulk/ )
 {
-    if ( /^List-Id:[ <]*([^<>]*)[ >]*/)
+    # default mailbox
+    MAILBOX="unknown-list"
+    # default for all debian service mail
+    if ( /(Sender|Resent-From|Resent-Sender): .*debian.org/)
+    {
+        MAILBOX="service.debian.org"
+    }
+    # Mails from @bugs.debian.org service
+    if ( /^(Sender|Resent-From|Resent-sender): .*@bugs.debian.org/)
+    {
+        MAILBOX="bugs.debian.org"
+    }
+    # any List-Id: foo
+    if ( /List-Id: *([^<>]*)/)
     {
         MAILBOX="$MATCH1"
     }
-    else
+    # any List-Id: ...<foo@bar>
+    if ( /List-Id: [^<]*<([^<>]*)>/)
     {
-        if ( /^X-Loop: *(.*)@(.*)/)
-        {
-            MAILBOX="$MATCH1.$MATCH2"
-        }
-        else
-        {
-            if (    /Return-Path:.*\.debian\.org/ )
-            {
-                MAILBOX="automatic.debian.org"
-            }
-            else
-            {
-                MAILBOX="unknown-list"
-            }
-        }
+        MAILBOX="$MATCH1"
     }
-    `test -d $MAILROOT/$MAILBOX`
-    if ( $RETURNCODE == 1 )
-        `maildirmake $MAILROOT/$MAILBOX`
-    to "$MAILROOT/$MAILBOX/"
 }
-to "$HOME/Maildir/Inbox/"
+`test -d $MAILROOT/$MAILBOX`
+if ( $RETURNCODE == 1 )
+    `maildirmake $MAILROOT/$MAILBOX`
+to "$MAILROOT/$MAILBOX/"
 exit
 --------------------
 
