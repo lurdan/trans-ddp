@@ -80,7 +80,7 @@ ifndef LINGUA
 FORCE:
 else
 $(LINGUA)/%.dbk:	%.dbk $(patsubst %.dbk,po4a/$(LINGUA)/%.po,%.dbk)
-	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a po4a/$(@:.dbk=.add)
+	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a ?po4a/$(@:.dbk=.add)
 
 $(LINGUA)/common.ent:	common.ent
 	cd $(@D) && ln -sf ../$(@F) .
