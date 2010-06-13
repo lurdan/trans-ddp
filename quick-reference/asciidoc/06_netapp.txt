@@ -82,9 +82,11 @@ CAUTION: Spoofed user-agent string may cause https://bugzilla.mozilla.org/show_b
 
 CAUTION: If you are to set up the mail server to exchange mail directly with the Internet, you should be better than reading this elementary document.
 
+NOTE: The following configuration examples are only valid for the typical mobile workstation on consumer grade Internet connections.
+
 ==== Modern mail service basics
 
-In order to contain spam (unwanted and unsolicited e-mail) problems, many ISPs which provide consumer grade Internet connection are implementing counter measures.
+In order to contain spam (unwanted and unsolicited e-mail) problems, many ISPs which provide consumer grade Internet connections are implementing counter measures.
 
 - The smarthost service for their customers to send message uses the message submission port (587) specified in http://tools.ietf.org/html/rfc4409[rfc4409] with the password (http://en.wikipedia.org/wiki/SMTP-AUTH[SMTP AUTH] service) specified in http://tools.ietf.org/html/rfc4954[rfc4954].
 - The http://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol[SMTP] port (25) connection from their internal network hosts (except ISP@@@sq@@@s own outgoing mail server) to the Internet are blocked.
@@ -103,7 +105,7 @@ CAUTION: It is not realistic to run SMTP server on consumer grade network to sen
 
 The most simple mail configuration is that the mail is sent to the ISP@@@sq@@@s smarthost and received from ISP@@@sq@@@s POP3 server by the MUA (see <<_mail_user_agent_mua>>) itself. This type of configuration is popular with full featured GUI based MUA such as `icedove`(1), `evolution`(1), etc. If you need to filter mail by their types, you use MUA@@@sq@@@s filtering function. For this case, the local MTA (see <<_mail_transport_agent_mta>>) need to do local delivery only.
 
-The alternative mail configuration is that the mail is sent via local MTA to the ISP@@@sq@@@s smarthost and received from ISP@@@sq@@@s POP3 by the mail retriever (see <<_the_remote_mail_retrieval_and_forward_utility>>) to the local mailbox.  If you need to filter mail by their types, you use MDA with filter (see <<_mail_delivery_agent_mda_with_filter>>) to filter mail into separate mailboxes.  This type of configuration is popular with simple console based MUA such as `mutt`(1), `gnus`(1), etc., although this is possible with any MUAs (see <<_mail_user_agent_mua>>). For this case, the local MTA (see <<_mail_transport_agent_mta>>) need to do both smarthost delivery and local delivery.
+The alternative mail configuration is that the mail is sent via local MTA to the ISP@@@sq@@@s smarthost and received from ISP@@@sq@@@s POP3 by the mail retriever (see <<_the_remote_mail_retrieval_and_forward_utility>>) to the local mailbox.  If you need to filter mail by their types, you use MDA with filter (see <<_mail_delivery_agent_mda_with_filter>>) to filter mail into separate mailboxes.  This type of configuration is popular with simple console based MUA such as `mutt`(1), `gnus`(1), etc., although this is possible with any MUAs (see <<_mail_user_agent_mua>>). For this case, the local MTA (see <<_mail_transport_agent_mta>>) need to do both smarthost delivery and local delivery.  Since mobile workstation does not have valid FQDN, you must configure the local MTA to hide and spoof the real local mail name in outgoing mail to avoid mail delivery errors (see <<_the_mail_address_configuration>>).
 
 === Mail transport agent (MTA)
 
@@ -158,19 +160,33 @@ For the Internet mail via smarthost, you (re)configure `exim4-\*` packages as th
 
 --------------------
 $ sudo /etc/init.d/exim4 stop
-$ sudo dpkg-reconfigure exim4-conf
+$ sudo dpkg-reconfigure exim4-config
 --------------------
 
-Chose "mail sent by smarthost; received via SMTP or fetchmail".
+Select "mail sent by smarthost; received via SMTP or fetchmail" for "General type of mail configuration".
+
+Set "System mail name:" to its default as the FQDN (see <<_the_hostname_resolution>>).
+
+Set "IP-addresses to listen on for incoming SMTP connections:" to its default as "127.0.0.1 ; ::1".
+
+Unset contents of "Other destinations for which mail is accepted:".
+
+Unset contents of "Machines to relay mail for:".
 
 Set "IP address or host name of the outgoing smarthost:" to "smtp.hostname.dom:587".
+
+Select "<No>" for "Hide local mail name in outgoing mail?". (Use "`/etc/email-addresses`" as in <<_the_mail_address_configuration>>, instead.)
 
 Reply to "Keep number of DNS-queries minimal (Dial-on-Demand)?" as one of the following.
 
 - "No" if the system is connected to the Internet while booting.
 - "Yes" if the system is **not** connected to the Internet while booting.
 
-Create password entries for the smarthost by editing "` /etc/exim4/passwd.client`"
+Set "Delivery method for local mail:" to "mbox format in /var/mail/".
+
+Select "<Yes>" for "Split configuration into small files?:".
+
+Create password entries for the smarthost by editing "`/etc/exim4/passwd.client`"
 
 --------------------
 $ sudo vim /etc/exim4/passwd.client
@@ -343,14 +359,37 @@ Customize "`\~/.muttrc`" as the following to use `mutt` as the mail user agent (
 #
 # spoof source mail address
 set use_from
-set hostname=debian.org
-set from="Osamu Aoki <osamu@debian.org>"
+set hostname=example.dom
+set from="Name Surname <username@example.dom>"
 set signature="~/.signature"
 
 # vim: "gq" to reformat quotes
 set editor="vim -c 'set tw=72 et ft=mail'"
 
-....
+# "mutt" goes to Inbox, while "mutt -y" lists mailboxes
+set mbox_type=Maildir           # use qmail Maildir format for creating mbox
+set mbox=~/Mail                 # keep all mail boxes in $HOME/Mail/
+set spoolfile=+Inbox            # mail delivered to $HOME/Mail/Inbox
+set record=+Outbox              # save fcc mail to $HOME/Mail/Outbox
+set postponed=+Postponed        # keep postponed in $HOME/Mail/postponed
+set move=no                     # do not move Inbox items to mbox
+set quit=ask-yes                # do not quit by "q" only
+set delete=yes                  # always delete w/o asking while exiting
+set fcc_clear                   # store fcc as non encrypted
+
+# Mailboxes in Maildir (automatic update)
+mailboxes `cd ~/Mail; /bin/ls -1|sed -e 's/^/+/' | tr "\n" " "`
+unmailboxes Maillog *.ev-summary
+
+## Default
+#set index_format="%4C %Z %{%b %d} %-15.15L (%4l) %s"
+## Thread index with senders (collapse)
+set index_format="%4C %Z %{%b %d} %-15.15n %?M?(#%03M)&(%4l)? %s"
+
+## Default
+#set folder_format="%2C %t %N %F %2l %-8.8u %-8.8g %8s %d %f"
+## just folder names 
+set folder_format="%2C %t %N %f"
 --------------------
 
 Add the following to "`/etc/mailcap`" or "`\~/.mailcap`" to display HTML mail and MS Word attachments inline.
@@ -481,63 +520,88 @@ package     popcon        size         description
 `maildrop`(1) configuration is described in http://www.courier-mta.org/maildrop/maildropfilter.html[maildropfilter documentation].  Here is a configuration example for "`$HOME/.mailfilter`".
 
 --------------------
-# 
+# Local configuration 
+MAILROOT="$HOME/Mail"
+# set this to /etc/mailname contents
+MAILHOST="example.dom"
 logfile $HOME/.maildroplog
 
-#:
-# General fall back are the first
-# Then more specific overrides follows
-#
+# rules are made to override the earlier value by the later one.
 
-# default incoming box
-MAILBOX="Inbox"
-MAILROOT="$HOME/Mail"
-
-# Some mails which may be important
-if ( /(^From: .*@debian.org|^Subject: .* ([Dd]ebian))/)
+# mailing list mails ?
+if (     /^Precedence:.*list/:h || /^Precedence:.*bulk/:h )
 {
-    MAILBOX="Inbox-priority"
-}
-# Subject: Re: Bug#...
-if ( /^(Subject): .*Bug#.*/)
-{
-    MAILBOX="bugs.debian.org"
-}
-
-# clearly bad looking mails: drop them into X-trash and exit
-if (    /^X-Advertisement/ ||\
-        /^Subject: *I NEED YOUR ASSISTANCE/ )
-    MAILBOX="X-trash"
-
-# delivering mailinglist messages using automatically generated mailbox
-if (    /^Precedence:.*list/ || /^Precedence:.*bulk/ )
-{
-    # default mailbox
-    MAILBOX="unknown-list"
-    # default for all debian service mail
-    if ( /(Sender|Resent-From|Resent-Sender): .*debian.org/)
+    # rules for mailing list mails
+    # default mailbox for mails from mailing list
+    MAILBOX="Inbox-list"
+    # default mailbox for mails from debian.org
+    if ( /^(Sender|Resent-From|Resent-Sender): .*debian.org/:h )
     {
         MAILBOX="service.debian.org"
     }
-    # Mails from @bugs.debian.org service
-    if ( /^(Sender|Resent-From|Resent-sender): .*@bugs.debian.org/)
+    # default mailbox for mails from bugs.debian.org (BTS)
+    if ( /^(Sender|Resent-From|Resent-sender): .*@bugs.debian.org/:h )
     {
         MAILBOX="bugs.debian.org"
     }
-    # any List-Id: foo
-    if ( /List-Id: *([^<>]*)/)
+    # mailbox for each properly maintained mailing list with "List-Id: foo" or "List-Id: ...<foo.bar>"
+    if ( /^List-Id: ([^<]*<)?([^<>]*)>?/:h )
     {
-        MAILBOX="$MATCH1"
-    }
-    # any List-Id: ...<foo@bar>
-    if ( /List-Id: [^<]*<([^<>]*)>/)
-    {
-        MAILBOX="$MATCH1"
+        MAILBOX="$MATCH2"
     }
 }
+else
+{
+    # rules for non-mailing list mails
+    # default incoming box
+    MAILBOX="Inbox-unusual"
+    # local mails
+    if ( /Envelope-to: .*@$MAILHOST/:h )
+    {
+        MAILBOX="Inbox-local"
+    }
+    # html mails (99% spams)
+    if ( /DOCTYPE html/:b ||\
+         /^Content-Type: text\/html/ )
+    {
+        MAILBOX="Inbox-html"
+    }
+    # blacklist rule for spams
+    if ( /^X-Advertisement/:h ||\
+         /^Subject:.*BUSINESS PROPOSAL/:h ||\
+         /^Subject:.*URGENT.*ASISSTANCE/:h ||\
+         /^Subject: *I NEED YOUR ASSISTANCE/:h )
+    {
+        MAILBOX="Inbox-trash"
+    }
+    # whitelist rule for normal mails
+    if ( /^From: .*@debian.org/:h ||\
+         /^(Sender|Resent-From|Resent-Sender): .*debian.org/:h ||\
+         /^Subject: .*(debian|bug|PATCH)/:h )
+    {
+        MAILBOX="Inbox"
+    }
+    # whiltelist rule for BTS related mails
+    if ( /^Subject: .*Bug#.*/:h ||\
+         /^(To|Cc): .*@bugs.debian.org/:h )
+    {
+        MAILBOX="bugs.debian.org"
+    }
+    # whitelist rule for getmails cron mails
+    if ( /^Subject: Cron .*getmails/:h )
+    {
+        MAILBOX="Inbox-getmails"
+    }
+}
+
+# check existance of $MAILBOX
 `test -d $MAILROOT/$MAILBOX`
 if ( $RETURNCODE == 1 )
+{
+    # create maildir mailbox for $MAILBOX
     `maildirmake $MAILROOT/$MAILBOX`
+}
+# deliver to maildir $MAILBOX
 to "$MAILROOT/$MAILBOX/"
 exit
 --------------------
@@ -546,7 +610,7 @@ WARNING: Unlike `procmail`, `maildrop` does not create missing maildir directori
 
 ==== procmail configuration
 
-Here is an equivalent configuration with "`$HOME/.procmailrc`" for `procmail`(1).
+Here is a similar configuration with "`$HOME/.procmailrc`" for `procmail`(1).
 
 --------------------
 MAILDIR=$HOME/Maildir
