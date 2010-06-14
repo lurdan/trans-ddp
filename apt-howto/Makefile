@@ -43,7 +43,7 @@ $(MANUAL).%.txt: $(MANUAL).%.sgml
 texfriendly := $(wildcard *.??*.sgml)
 ps: $(patsubst %.sgml,%.ps,$(texfriendly))
 
-$(MANUAL).uk.ps $(MANUAL).ru.ps $(MANUAL).fr.ps $(MANUAL).el.ps $(MANUAL).ta.ps: $(MANUAL).%.ps: $(MANUAL).%.sgml
+$(MANUAL).el.ps $(MANUAL).ta.ps: $(MANUAL).%.ps: $(MANUAL).%.sgml
 	@echo Locale '$*' not yet supported
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
@@ -52,7 +52,7 @@ $(MANUAL).%.ps: $(MANUAL).%.sgml
 # generating Portable Document Format
 pdf: $(patsubst %.sgml,%.pdf,$(texfriendly))
 
-$(MANUAL).uk.pdf $(MANUAL).ru.pdf $(MANUAL).fr.pdf $(MANUAL).el.pdf $(MANUAL).ta.pdf: $(MANUAL).%.pdf: $(MANUAL).%.sgml
+$(MANUAL).el.pdf $(MANUAL).ta.pdf: $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	@echo Locale '$*' not yet supported
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
