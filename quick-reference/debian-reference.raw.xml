@@ -9228,8 +9228,11 @@ The Debian system goes into one of the specified <emphasis role="strong">multi-u
       </section>
       <section id="_the_configuration_of_the_runlevel">
         <title>The configuration of the runlevel</title>
+        <note>
+          <simpara>In Debian <literal>squeeze</literal>, dependency based boot order provided by the <literal>insserv</literal> package is used instead of classical alphabetical one.  The "<literal>CONCURRENCY</literal>" value in "<literal>/etc/default/rcS</literal>" controls its concurrency: "<literal>none</literal>" for no concurrency, "<literal>startpar</literal>" for concurrency within the same sequence number, or "<literal>makefile</literal>" for full concurrency.  See "<literal>/usr/share/doc/insserv/README.Debian</literal>".</simpara>
+        </note>
         <simpara>The name of the symlink in each runlevel directory has the form "<literal>S&lt;2-digit-number&gt;&lt;original-name&gt;</literal>" or "<literal>K&lt;2-digit-number&gt;&lt;original-name&gt;</literal>". The 2-digit-number is used to determine the order in which to run the scripts. "<literal>S</literal>" is for "Start" and "<literal>K</literal>" is for "Kill".</simpara>
-        <simpara>When <literal>init</literal>(8) or <literal>telinit</literal>(8) commands goes into the runlevel to "&lt;n&gt;", it execute following scripts.</simpara>
+        <simpara>For "<literal>CONCURRENCY=none</literal>", when <literal>init</literal>(8) or <literal>telinit</literal>(8) commands goes into the runlevel to "&lt;n&gt;", it execute following scripts.</simpara>
         <orderedlist>
           <listitem>
             <simpara>
@@ -9243,12 +9246,10 @@ The script names starting with an "<literal>S</literal>" in "<literal>/etc/rc&lt
           </listitem>
         </orderedlist>
         <simpara>For example, if you had the links "<literal>S10sysklogd</literal>" and "<literal>S20exim4</literal>" in a runlevel directory, "<literal>S10sysklogd</literal>" which is symlinked to "<literal>../init.d/sysklogd</literal>" would run before "<literal>S20exim4</literal>" which is symlinked to "<literal>../init.d/exim4</literal>".</simpara>
+        <simpara>For "<literal>CONCURRENCY=makefile</literal>" (new default), package dependency defined in the header of init scripts are used to order them.</simpara>
         <warning>
           <simpara>It is not advisable to make any changes to symlinks in "<literal>/etc/rcS.d/</literal>" unless you know better than the maintainer.</simpara>
         </warning>
-        <note>
-          <simpara>In Debian <literal>squeeze</literal>, dependency based boot order provided by the <literal>insserv</literal> package is used instead of classical alphabetical one.  The "<literal>CONCURRENCY</literal>" value in "<literal>/etc/default/rcS</literal>" controls its concurrency: "<literal>none</literal>" for no concurrency, "<literal>startpar</literal>" for concurrency within the same sequence number, or "<literal>makefile</literal>" for full concurrency.  See "<literal>/usr/share/doc/insserv/README.Debian</literal>".</simpara>
-        </note>
       </section>
       <section id="_the_runlevel_management_example">
         <title>The runlevel management example</title>
@@ -10725,24 +10726,885 @@ Reboot system.
     <tip>
       <simpara>For general guide to the GNU/Linux networking, read the <ulink url="http://www.tldp.org/LDP/nag2/">Linux Network Administrators Guide</ulink>.</simpara>
     </tip>
-    <simpara>The traditional <ulink url="http://en.wikipedia.org/wiki/Internet_Protocol_Suite">TCP/IP network</ulink> setup on Debian system uses <literal>ifupdown</literal> package as a high level tool.  There are 2 typical cases.</simpara>
-    <itemizedlist>
-      <listitem>
-        <simpara>
-For <emphasis role="strong">dynamic IP</emphasis> system such as mobile PCs, you should setup TCP/IP network <emphasis role="strong">with</emphasis> the <literal>resolvconf</literal> package and enable you to switch your network configuration easily (see <xref linkend="_the_network_interface_served_by_the_dhcp"/>).
-</simpara>
-      </listitem>
-      <listitem>
-        <simpara>
-For <emphasis role="strong">static IP</emphasis> system such as servers, you should setup TCP/IP network <emphasis role="strong">without</emphasis> the <literal>resolvconf</literal> package and keep your system simple (see <xref linkend="_the_network_interface_with_the_static_ip"/>).
-</simpara>
-      </listitem>
-    </itemizedlist>
-    <simpara>We describe these traditional cases in detail here.</simpara>
-    <simpara>We also touch on some alternative high level tools such as <literal>network-manager</literal> and <literal>wicd</literal> which ease configuration of wireless networks (see <xref linkend="_automatic_network_configuration"/>).</simpara>
     <section id="_the_basic_network_infrastructure">
       <title>The basic network infrastructure</title>
       <simpara>Let's review the basic network infrastructure on the modern Debian system.</simpara>
+      <table pgwide="0" frame="topbot" rowsep="1" colsep="1">
+        <title>List of network configuration tools</title>
+        <tgroup cols="5">
+          <colspec colwidth="130pt" align="left"/>
+          <colspec colwidth="76pt" align="left"/>
+          <colspec colwidth="70pt" align="left"/>
+          <colspec colwidth="97pt" align="left"/>
+          <colspec colwidth="374pt" align="left"/>
+          <thead>
+            <row>
+              <entry>
+    packages
+    </entry>
+              <entry>
+    popcon
+    </entry>
+              <entry>
+    size
+    </entry>
+              <entry>
+    type
+    </entry>
+              <entry>
+    description
+    </entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry>
+                <literal>ifupdown</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::ifupdown
+    </entry>
+              <entry>
+    standardized tool to bring up and down the network (Debian specific)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifplugd</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    manage the wired network automatically
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifupdown-extra</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network testing script to enhance "<literal>ifupdown</literal>" package
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifmetric</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    set routing metrics for a network interface
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>guessnet</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    mapping script to enhance "<literal>ifupdown</literal>" package via "<literal>/etc/network/interfaces</literal>" file
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifscheme</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    mapping scripts to enhance "<literal>ifupdown</literal>" package
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifupdown-scripts-zg2</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    Zugschlus' interface scripts for ifupdown's manual method
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>network-manager</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::NM
+    </entry>
+              <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (daemon): manage the network automatically
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>network-manager-gnome</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (GNOME frontend)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>network-manager-kde</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (KDE frontend)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>cnetworkmanager</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (command-line client)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wicd</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::wicd
+    </entry>
+              <entry>
+    wired and wireless network manager (metapackage)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wicd-cli</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    wired and wireless network manager (command-line client)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wicd-curses</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    wired and wireless network manager (Curses client)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wicd-daemon</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    wired and wireless network manager (daemon)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wicd-gtk</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    wired and wireless network manager (GTK+ client)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>iptables</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::Netfilter
+    </entry>
+              <entry>
+    administration tools for packet filtering and NAT (<ulink url="http://en.wikipedia.org/wiki/Netfilter">Netfilter</ulink>)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>iproute</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::iproute2
+    </entry>
+              <entry><ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">iproute2</ulink>, IPv6 and other advanced network configuration: <literal>ip</literal>(8), <literal>tc</literal>(8), etc
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ifrename</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    rename network interfaces based on various static criteria: <literal>ifrename</literal>(8)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ethtool</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    display or change Ethernet device settings
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>iputils-ping</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    test::iproute2
+    </entry>
+              <entry>
+    test network reachability of a remote host by <ulink url="http://en.wikipedia.org/wiki/Hostname">hostname</ulink> or <ulink url="http://en.wikipedia.org/wiki/IP_address">IP address</ulink> (<ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">iproute2</ulink>)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>iputils-arping</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    test network reachability of a remote host specified by the <ulink url="http://en.wikipedia.org/wiki/Address_Resolution_Protocol">ARP</ulink> address
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>iputils-tracepath</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    trace the network path to a remote host
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>net-tools</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::net-tools
+    </entry>
+              <entry>
+    NET-3 networking toolkit (<ulink url="http://www.linuxfoundation.org/en/Net:Net-tools">net-tools</ulink>, IPv4 network configuration):  <literal>ifconfig</literal>(8) etc.
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>inetutils-ping</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    test::net-tools
+    </entry>
+              <entry>
+    test network reachability of a remote host by <ulink url="http://en.wikipedia.org/wiki/Hostname">hostname</ulink> or <ulink url="http://en.wikipedia.org/wiki/IP_address">IP address</ulink> (legacy, GNU)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>arping</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    test network reachability of a remote host specified by the <ulink url="http://en.wikipedia.org/wiki/Address_Resolution_Protocol">ARP</ulink> address (legacy)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>traceroute</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    trace the network path to a remote host (legacy, console)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>dhcp3-client</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::low-level
+    </entry>
+              <entry>
+    DHCP client
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wpasupplicant</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    client support for WPA and WPA2 (IEEE 802.11i)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wireless-tools</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    tools for manipulating Linux Wireless Extensions
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ppp</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    PPP/PPPoE connection with <literal>chat</literal>
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>pppoeconf</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    config::helper
+    </entry>
+              <entry>
+    configuration helper for PPPoE connection
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>pppconfig</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    configuration helper for PPP connection with <literal>chat</literal>
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wvdial</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    configuration helper for PPP connection with <literal>wvdial</literal> and <literal>ppp</literal>
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>mtr-tiny</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    test::low-level
+    </entry>
+              <entry>
+    trace the network path to a remote host (curses)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>mtr</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    trace the network path to a remote host (curses and GTK+)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>gnome-nettool</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    tools for common network information operations (GNOME)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>nmap</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network mapper / port scanner (<ulink url="http://en.wikipedia.org/wiki/Nmap">Nmap</ulink>, console)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>zenmap</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network mapper / port scanner (GTK+)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>knmap</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network mapper / port scanner (KDE)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>tcpdump</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network traffic analyzer (<ulink url="http://en.wikipedia.org/wiki/Tcpdump">Tcpdump</ulink>, console)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>wireshark</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network traffic analyzer (<ulink url="http://en.wikipedia.org/wiki/Wireshark">Wireshark</ulink>, GTK+)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>tshark</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network traffic analyzer (console)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>nagios3</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    monitoring and management system for hosts, services and networks (<ulink url="http://en.wikipedia.org/wiki/Nagios">Nagios</ulink>)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>tcptrace</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    produce a summarization of the connections from <literal>tcpdump</literal> output
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>snort</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    flexible network intrusion detection system (<ulink url="http://en.wikipedia.org/wiki/Snort_(software)">Snort</ulink>)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>ntop</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    display network usage in web browser
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>dnsutils</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    network clients provided with <ulink url="http://en.wikipedia.org/wiki/BIND">BIND</ulink>: <literal>nslookup</literal>(8), <literal>nsupdate</literal>(8), <literal>dig</literal>(8)
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>dlint</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    check <ulink url="http://en.wikipedia.org/wiki/Domain_Name_System">DNS</ulink> zone information using nameserver lookups
+    </entry>
+            </row>
+            <row>
+              <entry>
+                <literal>dnstracer</literal>
+              </entry>
+              <entry>
+    @-@popcon1@-@
+    </entry>
+              <entry>
+    @-@psize1@-@
+    </entry>
+              <entry>
+    , ,
+    </entry>
+              <entry>
+    trace a chain of <ulink url="http://en.wikipedia.org/wiki/Domain_Name_System">DNS</ulink> servers to the source
+    </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
       <section id="_the_domain_name">
         <title>The domain name</title>
         <simpara>The naming for the domain name is a tricky one for the normal PC workstation users.  The PC workstation may be mobile one hopping around the network or located behind the NAT firewall inaccessible from the Internet. For such case, you may not want the domain name to be a valid domain name to avoid name collision.</simpara>
@@ -10890,833 +11752,114 @@ ff02::3 ip6-allhosts</screen>
           <simpara>If one of these addresses is assigned to a host, then that host must not access the Internet directly but must access it through a gateway that acts as a proxy for individual services or else does <ulink url="http://en.wikipedia.org/wiki/Network_address_translation">Network Address Translation(NAT)</ulink>.  The broadband router usually performs NAT for the consumer LAN environment.</simpara>
         </note>
       </section>
-      <section id="_the_network_configuration_infrastructure">
-        <title>The network configuration infrastructure</title>
-        <simpara>There are 2 types of low level networking programs for Linux networking system (see <xref linkend="_iproute2_commands"/>).</simpara>
-        <itemizedlist>
-          <listitem>
-            <simpara>
-Old <ulink url="http://www.linuxfoundation.org/en/Net:Net-tools">net-tools</ulink> programs (<literal>ifconfig</literal>(8), …) are from the Linux NET-3 networking system. Most of these are obsolete now.
-</simpara>
-          </listitem>
-          <listitem>
-            <simpara>
-New <ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">Linux iproute2</ulink> programs (<literal>ip</literal>(8), …) are the current Linux networking system.
-</simpara>
-          </listitem>
-        </itemizedlist>
-        <simpara>Although these low level networking programs are powerful, they are cumbersome to use.  So high level network configuration systems have been created.</simpara>
-        <simpara>The <literal>ifupdown</literal> package is the de facto standard for such high level network configuration system on Debian.  It enables you to bring up network simply by doing , e.g., "<literal>ifup eth0</literal>".  Its configuration file is the "<literal>/etc/network/interfaces</literal>" file and its typical contents are the following.</simpara>
-        <screen>auto lo
-iface lo inet loopback
-
-auto eth0
-iface eth0 inet dhcp</screen>
-        <simpara>The <literal>resolvconf</literal> package was created to supplement <literal>ifupdown</literal> system to support smooth reconfiguration of network address resolution by automating rewrite of resolver configuration file "<literal>/etc/resolv.conf</literal>".  Now, most Debian network configuration packages are modified to use <literal>resolvconf</literal> package (see "<literal>/usr/share/doc/resolvconf/README.Debian</literal>").</simpara>
-        <simpara>Helper scripts to the <literal>ifupdown</literal> package such as <literal>ifplugd</literal>, <literal>guessnet</literal>, <literal>ifscheme</literal>, etc. are created to automate dynamic configuration of network environment such as one for mobile PC on wired LAN.  These are relatively difficult to use but play well with existing <literal>ifupdown</literal> system.</simpara>
-        <simpara>Alternative high level network configuration systems, independent of <literal>ifupdown</literal> system, such as <literal>network-manager</literal>, <literal>wicd</literal>, etc. are created to ease configuration of network environment even for mobile PC on wireless network.  Since these are relatively new system and their integration to Debian system is in progress, you may still need to disable the corresponding network interface configuration manually in "<literal>/etc/network/interfaces</literal>" to avoid conflicts between these and <literal>ifupdown</literal> (see <xref linkend="_automatic_network_configuration"/>).</simpara>
-        <table pgwide="0" frame="topbot" rowsep="1" colsep="1">
-          <title>List of network configuration tools</title>
-          <tgroup cols="5">
-            <colspec colwidth="130pt" align="left"/>
-            <colspec colwidth="76pt" align="left"/>
-            <colspec colwidth="70pt" align="left"/>
-            <colspec colwidth="97pt" align="left"/>
-            <colspec colwidth="374pt" align="left"/>
-            <thead>
-              <row>
-                <entry>
-    packages
-    </entry>
-                <entry>
-    popcon
-    </entry>
-                <entry>
-    size
-    </entry>
-                <entry>
-    type
-    </entry>
-                <entry>
-    description
-    </entry>
-              </row>
-            </thead>
-            <tbody>
-              <row>
-                <entry>
-                  <literal>ifupdown</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::ifupdown
-    </entry>
-                <entry>
-    standardized tool to bring up and down the network (Debian specific)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifplugd</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    manage the wired network automatically
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifupdown-extra</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network testing script to enhance "<literal>ifupdown</literal>" package
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifmetric</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    set routing metrics for a network interface
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>guessnet</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    mapping script to enhance "<literal>ifupdown</literal>" package via "<literal>/etc/network/interfaces</literal>" file
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifscheme</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    mapping scripts to enhance "<literal>ifupdown</literal>" package
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifupdown-scripts-zg2</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    Zugschlus' interface scripts for ifupdown's manual method
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>network-manager</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::NM
-    </entry>
-                <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (daemon): manage the network automatically
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>network-manager-gnome</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (GNOME frontend)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>network-manager-kde</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry><ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> (KDE frontend)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>wicd</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::wicd
-    </entry>
-                <entry>
-    wired and wireless network manager
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>iptables</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::Netfilter
-    </entry>
-                <entry>
-    administration tools for packet filtering and NAT (<ulink url="http://en.wikipedia.org/wiki/Netfilter">Netfilter</ulink>)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>iproute</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::iproute2
-    </entry>
-                <entry><ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">iproute2</ulink>, IPv6 and other advanced network configuration: <literal>ip</literal>(8), <literal>tc</literal>(8), etc
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ifrename</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    rename network interfaces based on various static criteria: <literal>ifrename</literal>(8)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ethtool</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    display or change Ethernet device settings
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>iputils-ping</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    test::iproute2
-    </entry>
-                <entry>
-    test network reachability of a remote host by <ulink url="http://en.wikipedia.org/wiki/Hostname">hostname</ulink> or <ulink url="http://en.wikipedia.org/wiki/IP_address">IP address</ulink> (<ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">iproute2</ulink>)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>iputils-arping</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    test network reachability of a remote host specified by the <ulink url="http://en.wikipedia.org/wiki/Address_Resolution_Protocol">ARP</ulink> address
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>iputils-tracepath</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    trace the network path to a remote host
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>net-tools</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::net-tools
-    </entry>
-                <entry>
-    NET-3 networking toolkit (<ulink url="http://www.linuxfoundation.org/en/Net:Net-tools">net-tools</ulink>, IPv4 network configuration):  <literal>ifconfig</literal>(8) etc.
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>inetutils-ping</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    test::net-tools
-    </entry>
-                <entry>
-    test network reachability of a remote host by <ulink url="http://en.wikipedia.org/wiki/Hostname">hostname</ulink> or <ulink url="http://en.wikipedia.org/wiki/IP_address">IP address</ulink> (legacy, GNU)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>arping</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    test network reachability of a remote host specified by the <ulink url="http://en.wikipedia.org/wiki/Address_Resolution_Protocol">ARP</ulink> address (legacy)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>traceroute</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    trace the network path to a remote host (legacy, console)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>dhcp3-client</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::low-level
-    </entry>
-                <entry>
-    DHCP client
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>wpasupplicant</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    client support for WPA and WPA2 (IEEE 802.11i)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>wireless-tools</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    tools for manipulating Linux Wireless Extensions
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ppp</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    PPP/PPPoE connection with <literal>chat</literal>
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>pppoeconf</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    config::helper
-    </entry>
-                <entry>
-    configuration helper for PPPoE connection
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>pppconfig</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    configuration helper for PPP connection with <literal>chat</literal>
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>wvdial</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    configuration helper for PPP connection with <literal>wvdial</literal> and <literal>ppp</literal>
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>mtr-tiny</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    test::low-level
-    </entry>
-                <entry>
-    trace the network path to a remote host (curses)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>mtr</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    trace the network path to a remote host (curses and GTK+)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>gnome-nettool</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    tools for common network information operations (GNOME)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>nmap</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network mapper / port scanner (<ulink url="http://en.wikipedia.org/wiki/Nmap">Nmap</ulink>, console)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>zenmap</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network mapper / port scanner (GTK+)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>knmap</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network mapper / port scanner (KDE)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>tcpdump</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network traffic analyzer (<ulink url="http://en.wikipedia.org/wiki/Tcpdump">Tcpdump</ulink>, console)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>wireshark</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network traffic analyzer (<ulink url="http://en.wikipedia.org/wiki/Wireshark">Wireshark</ulink>, GTK+)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>tshark</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network traffic analyzer (console)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>nagios3</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    monitoring and management system for hosts, services and networks (<ulink url="http://en.wikipedia.org/wiki/Nagios">Nagios</ulink>)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>tcptrace</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    produce a summarization of the connections from <literal>tcpdump</literal> output
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>snort</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    flexible network intrusion detection system (<ulink url="http://en.wikipedia.org/wiki/Snort_(software)">Snort</ulink>)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>ntop</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    display network usage in web browser
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>dnsutils</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    network clients provided with <ulink url="http://en.wikipedia.org/wiki/BIND">BIND</ulink>: <literal>nslookup</literal>(8), <literal>nsupdate</literal>(8), <literal>dig</literal>(8)
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>dlint</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    check <ulink url="http://en.wikipedia.org/wiki/Domain_Name_System">DNS</ulink> zone information using nameserver lookups
-    </entry>
-              </row>
-              <row>
-                <entry>
-                  <literal>dnstracer</literal>
-                </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-                <entry>
-    trace a chain of <ulink url="http://en.wikipedia.org/wiki/Domain_Name_System">DNS</ulink> servers to the source
-    </entry>
-              </row>
-            </tbody>
-          </tgroup>
-        </table>
-      </section>
       <section id="_the_network_device_support">
         <title>The network device support</title>
         <simpara>Although most hardware devices are supported by the Debian system, there are some network devices which require <ulink url="http://www.debian.org/social_contract#guidelines">DSFG</ulink> non-free external hardware drivers to support them.  Please see <xref linkend="_non_free_hardware_drivers"/>.</simpara>
       </section>
     </section>
-    <section id="_the_network_connection_method">
-      <title>The network connection method</title>
+    <section id="_the_modern_network_configuration_for_desktop">
+      <title>The modern network configuration for desktop</title>
+      <simpara>On Debian <literal>squeeze</literal> system, modern network configuration tools, such as <ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager (NM)</ulink> (<literal>network-manager</literal> and associated packages) and <ulink url="http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)">Wicd</ulink> (<literal>wicd</literal> and associated packages) can manage network connection via <ulink url="http://en.wikipedia.org/wiki/Daemon_(computer_software)">daemon</ulink>.</simpara>
+      <itemizedlist>
+        <listitem>
+          <simpara>
+They allow easy connection of your system to the Internet.
+</simpara>
+        </listitem>
+        <listitem>
+          <simpara>
+They allow easy management of wired and wireless network configuration.
+</simpara>
+        </listitem>
+        <listitem>
+          <simpara>
+They come with their own nice GUI and command-line user interfaces.
+</simpara>
+        </listitem>
+        <listitem>
+          <simpara>
+They allow us to configure network independent of the legacy <literal>ifupdown</literal> package.
+</simpara>
+        </listitem>
+      </itemizedlist>
+      <warning>
+        <simpara>Do not use these automatic network configuration tools for servers.  These are aimed primarily for mobile desktop users on laptops.</simpara>
+      </warning>
+      <simpara>These modern network configuration tools need to be configured properly to avoid conflicting with the legacy <literal>ifupdown</literal> package and its configuration file "<literal>/etc/network/interfaces</literal>".</simpara>
+      <section id="_gui_network_configuration_tools">
+        <title>GUI network configuration tools</title>
+        <simpara>Official documentations for NM and Wicd on Debian are provided in "<literal>/usr/share/doc/network-manager/README.Debian</literal>" and "<literal>/usr/share/doc/wicd/README.Debian</literal>", respectively.</simpara>
+        <simpara>Essentially, the network configuration for desktop is done as follows.</simpara>
+        <orderedlist>
+          <listitem>
+            <simpara>
+Make desktop user, e.g. <literal>foo</literal>, belong to group "<literal>netdev</literal>" by the following (Alternatively, do it automatically via <ulink url="http://en.wikipedia.org/wiki/D-Bus">D-bus</ulink> under modern desktop environments such as GNOME and KDE).
+</simpara>
+            <screen>$ sudo adduser foo netdev</screen>
+          </listitem>
+          <listitem>
+            <simpara>
+Keep configuration of "<literal>/etc/network/interfaces</literal>" as simple as the the following.
+</simpara>
+            <screen>auto lo
+iface lo inet loopback</screen>
+          </listitem>
+          <listitem>
+            <simpara>
+Restart NM or Wicd by the following.
+</simpara>
+            <screen>$ sudo /etc/init.d/network-manager restart</screen>
+            <screen>$ sudo /etc/init.d/wicd restart</screen>
+          </listitem>
+          <listitem>
+            <simpara>
+Configure your network via GUI.
+</simpara>
+          </listitem>
+        </orderedlist>
+        <note>
+          <simpara>Only interfaces which are <emphasis role="strong">not</emphasis> listed in "<literal>/etc/network/interfaces</literal>" or which have been configured with "<literal>auto …</literal>" or "<literal>allow-hotplug …</literal>" and "<literal>iface … inet dhcp</literal>" (with no other options) are managed by NM to avoid conflict with <literal>ifupdown</literal>.</simpara>
+        </note>
+        <tip>
+          <simpara>If you wish to extend network configuration capabilities of NM, please seek appropriate plug-in modules and supplemental packages such as <literal>network-manager-openconnect</literal>, <literal>network-manager-openvpn-gnome</literal>, <literal>network-manager-pptp-gnome</literal>, <literal>mobile-broadband-provider-info</literal>, <literal>gnome-bluetooth</literal>, etc.   The same goes for those of Wicd.</simpara>
+        </tip>
+        <caution>
+          <simpara>These automatic network configuration tools may not be compatible with esoteric configurations of legacy <literal>ifupdown</literal> in "<literal>/etc/network/interfaces</literal>" such as ones in <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/> and <xref linkend="_the_advanced_network_configuration_with_ifupdown_legacy"/>.  Check <ulink url="http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=network-manager">BTS of network-manager</ulink> and <ulink url="http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=wicd">BTS of wicd</ulink> for current issues and limitations.</simpara>
+        </caution>
+      </section>
+    </section>
+    <section id="_the_legacy_network_connection_and_configuration">
+      <title>The legacy network connection and configuration</title>
+      <simpara>When the method described in <xref linkend="_the_modern_network_configuration_for_desktop"/> does not suffice your needs, you should use the legacy network connection and configuration method which combines many simpler tools.</simpara>
+      <simpara>The legacy network connection is specific for each method (see <xref linkend="_the_network_connection_method_legacy"/>).</simpara>
+      <simpara>There are 2 types of programs for the low level network configuration on Linux (see <xref linkend="_iproute2_commands"/>).</simpara>
+      <itemizedlist>
+        <listitem>
+          <simpara>
+Old <ulink url="http://www.linuxfoundation.org/en/Net:Net-tools">net-tools</ulink> programs (<literal>ifconfig</literal>(8), …) are from the Linux NET-3 networking system. Most of these are obsolete now.
+</simpara>
+        </listitem>
+        <listitem>
+          <simpara>
+New <ulink url="http://www.linuxfoundation.org/en/Net:Iproute2">Linux iproute2</ulink> programs (<literal>ip</literal>(8), …) are the current Linux networking system.
+</simpara>
+        </listitem>
+      </itemizedlist>
+      <simpara>Although these low level networking programs are powerful, they are cumbersome to use.  So high level network configuration systems have been created.</simpara>
+      <simpara>The <literal>ifupdown</literal> package is the de facto standard for such high level network configuration system on Debian.  It enables you to bring up network simply by doing , e.g., "<literal>ifup eth0</literal>".  Its configuration file is the "<literal>/etc/network/interfaces</literal>" file and its typical contents are the following.</simpara>
+      <screen>auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp</screen>
+      <simpara>The <literal>resolvconf</literal> package was created to supplement <literal>ifupdown</literal> system to support smooth reconfiguration of network address resolution by automating rewrite of resolver configuration file "<literal>/etc/resolv.conf</literal>".  Now, most Debian network configuration packages are modified to use <literal>resolvconf</literal> package (see "<literal>/usr/share/doc/resolvconf/README.Debian</literal>").</simpara>
+      <simpara>Helper scripts to the <literal>ifupdown</literal> package such as <literal>ifplugd</literal>, <literal>guessnet</literal>, <literal>ifscheme</literal>, etc. are created to automate dynamic configuration of network environment such as one for mobile PC on wired LAN.  These are relatively difficult to use but play well with existing <literal>ifupdown</literal> system.</simpara>
+      <simpara>These are explained in detail with examples (see <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/> and <xref linkend="_the_advanced_network_configuration_with_ifupdown_legacy"/>).</simpara>
+    </section>
+    <section id="_the_network_connection_method_legacy">
+      <title>The network connection method (legacy)</title>
       <caution>
-        <simpara>The connection test method described in this section are meant for testing purposes.  It is not meant to be used directly for the daily network connection.  You are advised to use them via the <literal>ifupdown</literal> package (see <xref linkend="_the_basic_network_configuration_with_ifupdown"/>).</simpara>
+        <simpara>The connection test method described in this section are meant for testing purposes.  It is not meant to be used directly for the daily network connection.  You are advised to use them via NM, Wicd, or the <literal>ifupdown</literal> package (see <xref linkend="_the_modern_network_configuration_for_desktop"/> and <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/>).</simpara>
       </caution>
       <simpara>The typical network connection method and connection path for a PC can be summarized as the following.</simpara>
       <table pgwide="0" frame="topbot" rowsep="1" colsep="1">
@@ -12225,8 +12368,22 @@ $ sudo /sbin/ifconfig eth0 down</screen>
         <simpara>See "<literal>/usr/share/doc/pppoeconf/README.Debian</literal>".</simpara>
       </section>
     </section>
-    <section id="_the_basic_network_configuration_with_ifupdown">
-      <title>The basic network configuration with ifupdown</title>
+    <section id="_the_basic_network_configuration_with_ifupdown_legacy">
+      <title>The basic network configuration with ifupdown (legacy)</title>
+      <simpara>The traditional <ulink url="http://en.wikipedia.org/wiki/Internet_Protocol_Suite">TCP/IP network</ulink> setup on Debian system uses <literal>ifupdown</literal> package as a high level tool.  There are 2 typical cases.</simpara>
+      <itemizedlist>
+        <listitem>
+          <simpara>
+For <emphasis role="strong">dynamic IP</emphasis> system such as mobile PCs, you should setup TCP/IP network <emphasis role="strong">with</emphasis> the <literal>resolvconf</literal> package and enable you to switch your network configuration easily (see <xref linkend="_the_network_interface_served_by_the_dhcp"/>).
+</simpara>
+        </listitem>
+        <listitem>
+          <simpara>
+For <emphasis role="strong">static IP</emphasis> system such as servers, you should setup TCP/IP network <emphasis role="strong">without</emphasis> the <literal>resolvconf</literal> package and keep your system simple (see <xref linkend="_the_network_interface_with_the_static_ip"/>).
+</simpara>
+        </listitem>
+      </itemizedlist>
+      <simpara>These traditional setup methods are quite useful if you wish to set up advanced configuration (see <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/>).</simpara>
       <simpara>The <literal>ifupdown</literal> package provides the standardized framework for the high level network configuration in the Debian system. In this section, we learn the basic network configuration with <literal>ifupdown</literal> with simplified introduction and many typical examples.</simpara>
       <section id="_the_command_syntax_simplified">
         <title>The command syntax simplified</title>
@@ -12636,16 +12793,16 @@ Record results in the "<literal>/var/log/syslog</literal>" file
         </tip>
       </section>
     </section>
-    <section id="_the_advanced_network_configuration_with_ifupdown">
-      <title>The advanced network configuration with ifupdown</title>
-      <simpara>The functionality of the <literal>ifupdown</literal> package can be improved beyond what was described in <xref linkend="_the_basic_network_configuration_with_ifupdown"/> with the advanced knowledge.</simpara>
+    <section id="_the_advanced_network_configuration_with_ifupdown_legacy">
+      <title>The advanced network configuration with ifupdown (legacy)</title>
+      <simpara>The functionality of the <literal>ifupdown</literal> package can be improved beyond what was described in <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/> with the advanced knowledge.</simpara>
       <simpara>The functionalities described here are completely optional.  I, being lazy and minimalist, rarely bother to use these.</simpara>
       <caution>
-        <simpara>If you could not set up network connection by information in <xref linkend="_the_basic_network_configuration_with_ifupdown"/>, you make situation worse by using information below.</simpara>
+        <simpara>If you could not set up network connection by information in <xref linkend="_the_basic_network_configuration_with_ifupdown_legacy"/>, you make situation worse by using information below.</simpara>
       </caution>
       <section id="_the_ifplugd_package">
         <title>The ifplugd package</title>
-        <simpara>The <literal>ifplugd</literal> package is older automatic network configuration tool which can manage only Ethernet connections. This solves unplugged/replugged Ethernet cable issues for mobile PC etc.   If you have <ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> or <ulink url="http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)">Wicd</ulink> (see <xref linkend="_automatic_network_configuration"/>) installed, you do not need this package.</simpara>
+        <simpara>The <literal>ifplugd</literal> package is older automatic network configuration tool which can manage only Ethernet connections. This solves unplugged/replugged Ethernet cable issues for mobile PC etc.   If you have <ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager</ulink> or <ulink url="http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)">Wicd</ulink> (see <xref linkend="_the_modern_network_configuration_for_desktop"/>) installed, you do not need this package.</simpara>
         <simpara>This package runs <ulink url="http://en.wikipedia.org/wiki/Daemon_(computer_software)">daemon</ulink> and replaces <emphasis role="strong">auto</emphasis> or <emphasis role="strong">allow-hotplug</emphasis> functionalities (see <xref linkend="list-of-stanzas-in-eni"/>) and starts interfaces upon their connection to the network.</simpara>
         <simpara>Here is how to use the <literal>ifplugd</literal> package for the internal Ethernet port, e.g. <literal>eth0</literal>.</simpara>
         <orderedlist>
@@ -13092,73 +13249,6 @@ Mapping choses the <emphasis role="strong"><literal>iface</literal></emphasis> w
         <note>
           <simpara>When multiple <emphasis role="strong"><literal>guessnet</literal></emphasis> option lines are required in "<literal>/etc/network/interfaces</literal>", use option lines started with <emphasis role="strong"><literal>guessnet1</literal></emphasis>, <emphasis role="strong"><literal>guessnet2</literal></emphasis>, and so on, since the <literal>ifupdown</literal> package does not allow starting strings of option lines to be repeated.</simpara>
         </note>
-      </section>
-    </section>
-    <section id="_the_network_configuration_for_desktop">
-      <title>The network configuration for desktop</title>
-      <section id="_gui_network_configuration_tools">
-        <title>GUI network configuration tools</title>
-        <simpara>The capability of default GUI network configuration tools for each desktop environments such as GNOME tends to be limited to basic configurations such as static IP or DHCP.  They actually overwrite contents of "<literal>/etc/network/interfaces</literal>" file behind you. Please check how they change "<literal>/etc/network/interfaces</literal>" file by yourself.</simpara>
-        <caution>
-          <simpara>They may not understand complicated advanced configuration done manually in "<literal>/etc/network/interfaces</literal>" file.</simpara>
-        </caution>
-      </section>
-      <section id="_automatic_network_configuration">
-        <title>Automatic network configuration</title>
-        <simpara>There are independent automatic network configuration tools, such as <ulink url="http://en.wikipedia.org/wiki/NetworkManager">NetworkManager (NM)</ulink> (<literal>network-manager</literal> and associated packages) and <ulink url="http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)">Wicd</ulink> (<literal>wicd</literal> package) which manage network connection via <ulink url="http://en.wikipedia.org/wiki/Daemon_(computer_software)">daemon</ulink> independent of the <literal>ifupdown</literal> package. They allow easy management of wireless connections.  These come with its own nice GUI user interfaces.</simpara>
-        <warning>
-          <simpara>Do not use these automatic network configuration tools for servers.  These are aimed primarily for mobile desktop users on laptops.</simpara>
-        </warning>
-        <warning>
-          <simpara>These automatic network configuration tools are moving targets and documentation here is likely to be incorrect for <literal>squeeze</literal>.  So be warned.</simpara>
-        </warning>
-        <caution>
-          <simpara>These automatic network configuration tools may not be compatible with esoteric configurations of <literal>ifupdown</literal> in "<literal>/etc/network/interfaces</literal>" such as ones in <xref linkend="_the_basic_network_configuration_with_ifupdown"/> and <xref linkend="_the_advanced_network_configuration_with_ifupdown"/>.  Having even "<literal>hostname</literal>" stanza for DHCP controlled interface as described in <xref linkend="_the_network_interface_served_by_the_dhcp"/> caused NM to ignore such interface in <literal>lenny</literal>. Check <ulink url="http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=network-manager">BTS of network-manager</ulink> and <ulink url="http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=wicd">BTS of wicd</ulink> for current issues and limitations.</simpara>
-        </caution>
-        <simpara>The configuration of NM is described in "<literal>/usr/share/doc/network-manager/README.Debian</literal>".  Essentially this is as follows.</simpara>
-        <orderedlist>
-          <listitem>
-            <simpara>
-Make desktop user, e.g. <literal>foo</literal>, belong to group "<literal>netdev</literal>" by the following.
-</simpara>
-            <screen>$ sudo adduser foo netdev</screen>
-          </listitem>
-          <listitem>
-            <simpara>
-Keep configuration of "<literal>/etc/network/interfaces</literal>" as simple as the the following.
-</simpara>
-            <screen>auto lo
-iface lo inet loopback
-
-auto eth0
-iface eth0 inet dhcp</screen>
-          </listitem>
-          <listitem>
-            <simpara>
-Restart NM by the following.
-</simpara>
-            <screen>$ sudo /etc/init.d/network-manager restart</screen>
-          </listitem>
-        </orderedlist>
-        <note>
-          <simpara>Only interfaces which are <emphasis role="strong">not</emphasis> listed in "<literal>/etc/network/interfaces</literal>" or which have been configured with "<literal>auto …</literal>" or "<literal>allow-hotplug …</literal>" and "<literal>iface … inet dhcp</literal>" (with no other options) are managed by NM to avoid conflict with <literal>ifupdown</literal>.</simpara>
-        </note>
-        <simpara>The configuration of <ulink url="http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)">Wicd</ulink> is described in "<literal>/usr/share/doc/wicd/README.Debian</literal>".  Essentially, this is as follows.</simpara>
-        <orderedlist>
-          <listitem>
-            <simpara>
-Make configuration in "<literal>/etc/network/interfaces</literal>" only as the following.
-</simpara>
-            <screen>auto lo
-iface lo inet loopback</screen>
-          </listitem>
-          <listitem>
-            <simpara>
-Restart Wicd as the following.
-</simpara>
-            <screen>$ sudo /etc/init.d/wicd restart</screen>
-          </listitem>
-        </orderedlist>
       </section>
     </section>
     <section id="_the_low_level_network_configuration">
@@ -14312,6 +14402,9 @@ The incoming mail is accessible at the TLS/POP3 port (995) with <ulink url="http
         <title>The mail configuration strategy for workstation</title>
         <simpara>The most simple mail configuration is that the mail is sent to the ISP's smarthost and received from ISP's POP3 server by the MUA (see <xref linkend="_mail_user_agent_mua"/>) itself. This type of configuration is popular with full featured GUI based MUA such as <literal>icedove</literal>(1), <literal>evolution</literal>(1), etc. If you need to filter mail by their types, you use MUA's filtering function. For this case, the local MTA (see <xref linkend="_mail_transport_agent_mta"/>) need to do local delivery only.</simpara>
         <simpara>The alternative mail configuration is that the mail is sent via local MTA to the ISP's smarthost and received from ISP's POP3 by the mail retriever (see <xref linkend="_the_remote_mail_retrieval_and_forward_utility"/>) to the local mailbox.  If you need to filter mail by their types, you use MDA with filter (see <xref linkend="_mail_delivery_agent_mda_with_filter"/>) to filter mail into separate mailboxes.  This type of configuration is popular with simple console based MUA such as <literal>mutt</literal>(1), <literal>gnus</literal>(1), etc., although this is possible with any MUAs (see <xref linkend="_mail_user_agent_mua"/>). For this case, the local MTA (see <xref linkend="_mail_transport_agent_mta"/>) need to do both smarthost delivery and local delivery.  Since mobile workstation does not have valid FQDN, you must configure the local MTA to hide and spoof the real local mail name in outgoing mail to avoid mail delivery errors (see <xref linkend="_the_mail_address_configuration"/>).</simpara>
+        <tip>
+          <simpara>You may wish to configure MUA/MDA to use <ulink url="http://en.wikipedia.org/wiki/Maildir">Maildir</ulink> for storing email messages somewhere under your home directory.</simpara>
+        </tip>
       </section>
     </section>
     <section id="_mail_transport_agent_mta">
@@ -14720,7 +14813,7 @@ smtp99.hostname.dom has address 123.234.123.89</screen>
           <simpara>Local customization file "<literal>/etc/exim4/exim4.conf.localmacros</literal>" may be created to set MACROs.  For example, <ulink url="http://www.yahoo.com/">Yahoo</ulink>'s mail service is said to require "<literal>MAIN_TLS_ENABLE = true</literal>" and "<literal>AUTH_CLIENT_ALLOW_NOTLS_PASSWORDS = yes</literal>" in it.</simpara>
         </tip>
         <tip>
-          <simpara>If you are looking for a light weight MTA that respects "<literal>/etc/aliases</literal>" for your laptop PC, you should consider to configure <literal>exim4</literal>(8) with "<literal>QUEUERUNNER='nodaemon'</literal>" etc. in "<literal>/etc/default/exim4</literal>".</simpara>
+          <simpara>If you are looking for a light weight MTA that respects "<literal>/etc/aliases</literal>" for your laptop PC, you should consider to configure <literal>exim4</literal>(8) with "<literal>QUEUERUNNER='queueonly'</literal>", "<literal>QUEUERUNNER='nodaemon'</literal>", etc. in "<literal>/etc/default/exim4</literal>".</simpara>
         </tip>
       </section>
       <section id="_the_configuration_of_postfix_with_sasl">
@@ -15174,9 +15267,6 @@ set folder_format="%2C %t %N %f"</screen>
         <simpara>Add the following to "<literal>/etc/mailcap</literal>" or "<literal>~/.mailcap</literal>" to display HTML mail and MS Word attachments inline.</simpara>
         <screen>text/html; lynx -force_html %s; needsterminal;
 application/msword; /usr/bin/antiword '%s'; copiousoutput; description="Microsoft Word Text"; nametemplate=%s.doc</screen>
-        <tip>
-          <simpara>You may wish to configure MUA/MDA to use <ulink url="http://en.wikipedia.org/wiki/Maildir">Maildir</ulink> for storing email messages.</simpara>
-        </tip>
         <tip>
           <simpara>Mutt can be used as the <ulink url="http://en.wikipedia.org/wiki/Internet_Message_Access_Protocol">IMAP</ulink> client and the mailbox format converter.  You can tag messages with "<literal>t</literal>", "<literal>T</literal>", etc.  These tagged messages can be copied with "<literal>;C</literal>" between different mailboxes and deleted with "<literal>;d</literal>" in one action.</simpara>
         </tip>
@@ -17727,51 +17817,7 @@ Type=Application</screen>
     </section>
     <section id="_fonts_in_the_x_window">
       <title>Fonts in the X Window</title>
-      <simpara>The font configuration on Debian system can be summarized with historical perspective as follows.</simpara>
-      <itemizedlist>
-        <listitem>
-          <simpara>
-Each application used to require specific manual operation to configure installed fonts before <literal>woody</literal>.
-</simpara>
-        </listitem>
-        <listitem>
-          <simpara><ulink url="http://packages.debian.org/sid/defoma">Debian Font Manager (defoma)</ulink> was created to automate this font configuration by providing a Debian specific glue layer in 2000.
-</simpara>
-          <itemizedlist>
-            <listitem>
-              <simpara>
-Each font package publishes application independent font data to defoma.
-</simpara>
-            </listitem>
-            <listitem>
-              <simpara>
-Each application package uses these data to configure each installed font via its package script.
-</simpara>
-            </listitem>
-            <listitem>
-              <simpara>
-For X server, the actual program to configure TrueType fonts and CID fonts (as well as CMaps) was packaged as <ulink url="http://packages.debian.org/sid/x-ttcidfont-conf">x-ttcidfont-conf</ulink>.
-</simpara>
-            </listitem>
-          </itemizedlist>
-        </listitem>
-        <listitem>
-          <simpara><ulink url="http://en.wikipedia.org/wiki/Fontconfig">Fontconfig 2.0</ulink> was created to provide a distribution independent library for configuring and customizing font access in 2002.
-</simpara>
-          <itemizedlist>
-            <listitem>
-              <simpara>
-As of <literal>lenny</literal> release, almost all programs which access font data seem to use this system.
-</simpara>
-            </listitem>
-            <listitem>
-              <simpara>
-After <literal>squeeze</literal>, Debian solely uses <ulink url="http://en.wikipedia.org/wiki/Fontconfig">Fontconfig 2.0</ulink> and drops <ulink url="http://packages.debian.org/sid/defoma">Debian Font Manager (defoma)</ulink>.
-</simpara>
-            </listitem>
-          </itemizedlist>
-        </listitem>
-      </itemizedlist>
+      <simpara><ulink url="http://en.wikipedia.org/wiki/Fontconfig">Fontconfig 2.0</ulink> was created to provide a distribution independent library for configuring and customizing font access in 2002.  Debian after <literal>squeeze</literal> uses <ulink url="http://en.wikipedia.org/wiki/Fontconfig">Fontconfig 2.0</ulink> for its font configuration.</simpara>
       <simpara>Font supports on X Window System can be summarized as follows.</simpara>
       <itemizedlist>
         <listitem>
@@ -17917,34 +17963,6 @@ The <ulink url="http://en.wikipedia.org/wiki/XRender">X Rendering Extension</uli
               <entry><ulink url="http://en.wikipedia.org/wiki/Fontconfig">Fontconfig</ulink>, a generic font configuration library — configuration data
     </entry>
             </row>
-            <row>
-              <entry>
-                <literal>defoma</literal>
-              </entry>
-              <entry>
-    @-@popcon1@-@
-    </entry>
-              <entry>
-    @-@psize1@-@
-    </entry>
-              <entry>
-    Debian Font Manager — automatic font configuration framework (lenny)
-    </entry>
-            </row>
-            <row>
-              <entry>
-                <literal>x-ttcidfont-conf</literal>
-              </entry>
-              <entry>
-    @-@popcon1@-@
-    </entry>
-              <entry>
-    @-@psize1@-@
-    </entry>
-              <entry>
-    TrueType and CID fonts configuration for X (with <ulink url="http://en.wikipedia.org/wiki/CJK_characters">CJK</ulink> support)
-    </entry>
-            </row>
           </tbody>
         </tgroup>
       </table>
@@ -17968,9 +17986,6 @@ The <ulink url="http://en.wikipedia.org/wiki/XRender">X Rendering Extension</uli
       </itemizedlist>
       <tip>
         <simpara>"<ulink url="http://unifont.org/iuc27/html/ICUPresentation.html">The Penguin and Unicode</ulink>" is a good overview of modern X Window System. Other documentations at <ulink url="http://unifont.org/">http://unifont.org/</ulink> should provide good information on Unicode fonts, Unicode-enabled software, internationalization, and Unicode usability issues on <ulink url="http://en.wikipedia.org/wiki/Free_and_open_source_software">free/libre/open source (FLOSS)</ulink> operating systems.</simpara>
-      </tip>
-      <tip>
-        <simpara>You should rely on <ulink url="http://en.wikipedia.org/wiki/Fontconfig">fontconfig</ulink> infrastructure to configure fonts on the Debian system.  Debian Font Manager (<literal>defoma</literal>(1)) is only useful for font installation and <ulink url="http://en.wikipedia.org/wiki/X_logical_font_description">X logical font description (XLFD)</ulink> data registration for lenny.</simpara>
       </tip>
       <section id="_basic_fonts">
         <title>Basic fonts</title>
@@ -19259,12 +19274,12 @@ Localization (L10N): To make a software handle an specific locale.
           </tbody>
         </tgroup>
       </table>
-      <simpara>This supports keyboard input for accented characters of many European languages with its dead-key function. For Asian languages, you need more complicated <ulink url="http://en.wikipedia.org/wiki/Input_method">input method</ulink> support such as SCIM discussed next.</simpara>
-      <section id="_the_input_method_support_with_scim">
-        <title>The input method support with SCIM</title>
-        <simpara>Setup of multilingual input for the Debian system is simplified by using the <ulink url="http://en.wikipedia.org/wiki/Smart_Common_Input_Method">Smart Common Input Method (SCIM)</ulink> family of packages with the <literal>im-switch</literal> package. The list of SCIM packages are the following.</simpara>
+      <simpara>This supports keyboard input for accented characters of many European languages with its dead-key function. For Asian languages, you need more complicated <ulink url="http://en.wikipedia.org/wiki/Input_method">input method</ulink> support such as <ulink url="http://en.wikipedia.org/wiki/Intelligent_Input_Bus">IBus</ulink> discussed next.</simpara>
+      <section id="_the_input_method_support_with_ibus">
+        <title>The input method support with IBus</title>
+        <simpara>Setup of multilingual input for the Debian system is simplified by using the <ulink url="http://en.wikipedia.org/wiki/Intelligent_Input_Bus">IBus</ulink> family of packages with the <literal>im-switch</literal> package. The list of IBus packages are the following.</simpara>
         <table pgwide="0" frame="topbot" rowsep="1" colsep="1">
-          <title>List of input method supports with SCIM</title>
+          <title>List of input method supports with IBus</title>
           <tgroup cols="4">
             <colspec colwidth="124pt" align="left"/>
             <colspec colwidth="76pt" align="left"/>
@@ -19289,7 +19304,21 @@ Localization (L10N): To make a software handle an specific locale.
             <tbody>
               <row>
                 <entry>
-    scim-anthy
+    ibus
+    </entry>
+                <entry>
+    @-@popcon1@-@
+    </entry>
+                <entry>
+    @-@psize1@-@
+    </entry>
+                <entry>
+    input method framework using dbus
+    </entry>
+              </row>
+              <row>
+                <entry>
+    ibus-anthy
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19303,7 +19332,7 @@ Localization (L10N): To make a software handle an specific locale.
               </row>
               <row>
                 <entry>
-    scim-canna
+    ibus-skk
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19317,7 +19346,7 @@ Localization (L10N): To make a software handle an specific locale.
               </row>
               <row>
                 <entry>
-    scim-skk
+    ibus-pinyin
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19326,12 +19355,12 @@ Localization (L10N): To make a software handle an specific locale.
     @-@psize1@-@
     </entry>
                 <entry>
-    , ,
+    Chinese (for zh_CN)
     </entry>
               </row>
               <row>
                 <entry>
-    scim-prime
+    ibus-chewing
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19340,68 +19369,12 @@ Localization (L10N): To make a software handle an specific locale.
     @-@psize1@-@
     </entry>
                 <entry>
-    , ,
+    , ,     (for zh_TW)
     </entry>
               </row>
               <row>
                 <entry>
-    scim-tables-ja
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , , (not very useful)
-    </entry>
-              </row>
-              <row>
-                <entry>
-    scim-tables-zh
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    Chinese (for zh_*)
-    </entry>
-              </row>
-              <row>
-                <entry>
-    scim-pinyin
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , , (for zh_CN)
-    </entry>
-              </row>
-              <row>
-                <entry>
-    scim-chewing
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , , (for zh_TW)
-    </entry>
-              </row>
-              <row>
-                <entry>
-    scim-hangul
+    ibus-hangul
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19415,7 +19388,7 @@ Localization (L10N): To make a software handle an specific locale.
               </row>
               <row>
                 <entry>
-    scim-tables-ko
+    ibus-table
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19424,12 +19397,12 @@ Localization (L10N): To make a software handle an specific locale.
     @-@psize1@-@
     </entry>
                 <entry>
-    , ,
+    table engine for IBus
     </entry>
               </row>
               <row>
                 <entry>
-    scim-thai
+    ibus-table-thai
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19443,7 +19416,21 @@ Localization (L10N): To make a software handle an specific locale.
               </row>
               <row>
                 <entry>
-    scim-m17n
+    ibus-unikey
+    </entry>
+                <entry>
+    @-@popcon1@-@
+    </entry>
+                <entry>
+    @-@psize1@-@
+    </entry>
+                <entry>
+    Vietnamese
+    </entry>
+              </row>
+              <row>
+                <entry>
+    ibus-m17n
     </entry>
                 <entry>
     @-@popcon1@-@
@@ -19455,51 +19442,28 @@ Localization (L10N): To make a software handle an specific locale.
     Multilingual: Indic, Arabic and others
     </entry>
               </row>
-              <row>
-                <entry>
-    scim-tables-additional
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-              </row>
-              <row>
-                <entry>
-    scim-uim
-    </entry>
-                <entry>
-    @-@popcon1@-@
-    </entry>
-                <entry>
-    @-@psize1@-@
-    </entry>
-                <entry>
-    , ,
-    </entry>
-              </row>
             </tbody>
           </tgroup>
         </table>
-        <simpara>The kinput2 method and other locale dependent Asian classic <ulink url="http://en.wikipedia.org/wiki/Input_method">input methods</ulink> still exist but are not recommended for the modern UTF-8 X environment.  The <ulink url="http://en.wikipedia.org/wiki/Uim">uim</ulink> tool chain is an alternative approach for the international input method for the modern UTF-8 X environment which is also capable for non-X environment.</simpara>
+        <simpara>The kinput2 method and other locale dependent Asian classic <ulink url="http://en.wikipedia.org/wiki/Input_method">input methods</ulink> still exist but are not recommended for the modern UTF-8 X environment.  The <ulink url="http://en.wikipedia.org/wiki/Smart_Common_Input_Method">SCIM</ulink> and <ulink url="http://en.wikipedia.org/wiki/Uim">uim</ulink> tool chains are an slightly older approach for the international input method for the modern UTF-8 X environment.</simpara>
       </section>
       <section id="_an_example_for_japanese">
         <title>An example for Japanese</title>
-        <simpara>I find the Japanese input method started under English environment ("<literal>en_US.UTF-8</literal>") very useful.  Here is how I did this with SCIM.</simpara>
+        <simpara>I find the Japanese input method started under English environment ("<literal>en_US.UTF-8</literal>") very useful.  Here is how I did this with IBus.</simpara>
         <orderedlist>
           <listitem>
             <simpara>
-Install the Japanese input tool package <literal>scim-anthy</literal> with its recommended packages such as <literal>im-switch</literal>.
+Install the Japanese input tool package <literal>ibus-anthy</literal> with its recommended packages such as <literal>im-switch</literal>.
 </simpara>
           </listitem>
           <listitem>
             <simpara>
-Execute "<literal>im-switch -c</literal>" from user's shell and select "<literal>scim</literal>".
+Execute "<literal>im-switch -c</literal>" from user's shell and select "<literal>ibus</literal>".
+</simpara>
+          </listitem>
+          <listitem>
+            <simpara>
+Select "System" → "Preferences" → "IBus Preferences" → "Input Method" → "Select an input method" → "Japanese" → "Anthy" and click "Add".
 </simpara>
           </listitem>
           <listitem>
@@ -19519,14 +19483,10 @@ Setup input method and mode by right clicking GUI toolbar. (You can reduce menu 
           </listitem>
           <listitem>
             <simpara>
-Start SCIM input method by CTRL-SPACE.
+Start IBus input method by CTRL-SPACE.
 </simpara>
           </listitem>
         </orderedlist>
-        <note>
-          <simpara>In order to start SCIM under the non-CJK and non-en_US locale, you need to add list of those locales in UTF-8 to the "<literal>~/.scim/global</literal>" or "<literal>/etc/scim/global</literal>" file as the following.</simpara>
-        </note>
-        <screen>/SupportedUnicodeLocales = en_US.UTF-8,en_GB.UTF_8,fr_FR.UTF-8</screen>
         <simpara>Please note the following.</simpara>
         <itemizedlist>
           <listitem>
@@ -19538,13 +19498,7 @@ Start SCIM input method by CTRL-SPACE.
 Input method started by <literal>im-switch</literal> depends on the locale.
 </simpara>
           </listitem>
-          <listitem>
-            <simpara>
-Use of new immodule mechanism (by setting "<literal>$GTK_IM_MODULE</literal>" or "<literal>$QT_IM_MODULE</literal>") may cause instability during the library transition in <literal>unstable</literal>.
-</simpara>
-          </listitem>
         </itemizedlist>
-        <simpara>For the detail of setup, see "<literal>/usr/share/doc/im-switch/README.Debian.gz</literal>", "<literal>/usr/share/doc/scim/README.Debian.gz</literal>" or "<literal>/usr/share/doc/uim/README.Debian.gz</literal>".  Here key points are described.</simpara>
       </section>
       <section id="_disabling_the_input_method">
         <title>Disabling the input method</title>
@@ -24813,7 +24767,7 @@ Remote copy: "<literal>./source</literal>" directory at local host → "<literal
         <simpara><literal>afio</literal>(1):</simpara>
         <screen># cd ./source; find . -print0 | afio -pv0a /dest</screen>
         <simpara>You can substitude "<literal>.</literal>" with "<literal>foo</literal>" for all examples containing "<literal>.</literal>" to copy files from "<literal>./source/foo</literal>" directory to "<literal>/dest/foo</literal>" directory.</simpara>
-        <simpara>You can substitude "<literal>.</literal>" with the absolute path "<literal>/path/to/source/foo</literal>" for all examples containing "<literal>.</literal>" to drop "<literal>cd ./source;</literal>".  These will copy files to different locations depending on tools used as follows.</simpara>
+        <simpara>You can substitude "<literal>.</literal>" with the absolute path "<literal>/path/to/source/foo</literal>" for all examples containing "<literal>.</literal>" to drop "<literal>cd ./source;</literal>".  These copy files to different locations depending on tools used as follows.</simpara>
         <itemizedlist>
           <listitem>
             <simpara>
@@ -29159,16 +29113,22 @@ This also describes  how to set up server like CVS and extract old data from CVS
         <tip>
           <simpara>With <literal>git</literal>(1), you work on a local branch with many commits and use something like "<literal>git rebase -i master</literal>" to reorganize change history later. This enables you to make clean change history.  See <literal>git-rebase</literal>(1) and <literal>git-cherry-pick</literal>(1).</simpara>
         </tip>
+        <tip>
+          <simpara>When you want to go back to a clean working directory without loosing the current state of the working directory, you can use "<literal>git stash</literal>".  See <literal>git-stash</literal>(1).</simpara>
+        </tip>
       </section>
       <section id="_git_for_the_subversion_repository">
         <title>Git for the Subversion repository</title>
-        <simpara>You can check out a whole Subversion repository to a local Git repository and commit back to the Subvesrion repository.  E.g.:</simpara>
-        <screen>$ git svn clone svn://svn.example.org/source dest
+        <simpara>You can check out a Subversion repository at "<literal>svn+ssh://svn.example.org/project/module/trunk</literal>" to a local Git repository at "<literal>./dest</literal>" and commit back to the Subvesrion repository.  E.g.:</simpara>
+        <screen>$ git svn clone -s -rHEAD svn+ssh://svn.example.org/project dest
 $ cd dest
 ... make changes
 $ git commit -a
 ... keep working locally with git
 $ git svn dcommit</screen>
+        <tip>
+          <simpara>The use of "<literal>-rHEAD</literal>" enables us to avoid cloning entire historical contents from the Subvesrion repository.</simpara>
+        </tip>
       </section>
       <section id="_git_for_recording_configuration_history">
         <title>Git for recording configuration history</title>

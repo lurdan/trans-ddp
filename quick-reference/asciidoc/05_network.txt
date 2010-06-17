@@ -4,18 +4,77 @@
 
 TIP: For general guide to the GNU/Linux networking, read the http://www.tldp.org/LDP/nag2/[Linux Network Administrators Guide].
 
-The traditional http://en.wikipedia.org/wiki/Internet_Protocol_Suite[TCP/IP network] setup on Debian system uses `ifupdown` package as a high level tool.  There are 2 typical cases.
-
-- For **dynamic IP** system such as mobile PCs, you should setup TCP/IP network **with** the `resolvconf` package and enable you to switch your network configuration easily (see <<_the_network_interface_served_by_the_dhcp>>).
-- For **static IP** system such as servers, you should setup TCP/IP network **without** the `resolvconf` package and keep your system simple (see <<_the_network_interface_with_the_static_ip>>).
-
-We describe these traditional cases in detail here.
-
-We also touch on some alternative high level tools such as `network-manager` and `wicd` which ease configuration of wireless networks (see <<_automatic_network_configuration>>).
-
 === The basic network infrastructure
 
 Let's review the basic network infrastructure on the modern Debian system.
+
+.List of network configuration tools
+[grid="all"]
+`-----------------------`-------------`------------`-----------------`--------------------------------------------------------------------
+packages                popcon        size         type              description
+------------------------------------------------------------------------------------------------------------------------------------------
+`ifupdown`              @-@popcon1@-@ @-@psize1@-@ config::ifupdown  standardized tool to bring up and down the network (Debian specific)
+`ifplugd`               @-@popcon1@-@ @-@psize1@-@ , ,               manage the wired network automatically
+`ifupdown-extra`        @-@popcon1@-@ @-@psize1@-@ , ,               network testing script to enhance "`ifupdown`" package
+`ifmetric`              @-@popcon1@-@ @-@psize1@-@ , ,               set routing metrics for a network interface
+`guessnet`              @-@popcon1@-@ @-@psize1@-@ , ,               mapping script to enhance "`ifupdown`" package via "`/etc/network/interfaces`" file
+`ifscheme`              @-@popcon1@-@ @-@psize1@-@ , ,               mapping scripts to enhance "`ifupdown`" package
+`ifupdown-scripts-zg2`  @-@popcon1@-@ @-@psize1@-@ , ,               Zugschlus\' interface scripts for ifupdown@@@sq@@@s manual method
+`network-manager`       @-@popcon1@-@ @-@psize1@-@ config::NM        http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (daemon): manage the network automatically
+`network-manager-gnome` @-@popcon1@-@ @-@psize1@-@ , ,               http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (GNOME frontend)
+`network-manager-kde`   @-@popcon1@-@ @-@psize1@-@ , ,               http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (KDE frontend)
+`cnetworkmanager`       @-@popcon1@-@ @-@psize1@-@ , ,               http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (command-line client)
+`wicd`                  @-@popcon1@-@ @-@psize1@-@ config::wicd      wired and wireless network manager (metapackage)
+`wicd-cli`              @-@popcon1@-@ @-@psize1@-@ , ,               wired and wireless network manager (command-line client)
+`wicd-curses`           @-@popcon1@-@ @-@psize1@-@ , ,               wired and wireless network manager (Curses client)
+`wicd-daemon`           @-@popcon1@-@ @-@psize1@-@ , ,               wired and wireless network manager (daemon)
+`wicd-gtk`              @-@popcon1@-@ @-@psize1@-@ , ,               wired and wireless network manager (GTK+ client)
+`iptables`              @-@popcon1@-@ @-@psize1@-@ config::Netfilter administration tools for packet filtering and NAT (http://en.wikipedia.org/wiki/Netfilter[Netfilter])
+`iproute`               @-@popcon1@-@ @-@psize1@-@ config::iproute2  http://www.linuxfoundation.org/en/Net:Iproute2[iproute2], IPv6 and other advanced network configuration: `ip`(8), `tc`(8), etc
+`ifrename`              @-@popcon1@-@ @-@psize1@-@ , ,               rename network interfaces based on various static criteria: `ifrename`(8)
+`ethtool`               @-@popcon1@-@ @-@psize1@-@ , ,               display or change Ethernet device settings
+`iputils-ping`          @-@popcon1@-@ @-@psize1@-@ test::iproute2    test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address] (http://www.linuxfoundation.org/en/Net:Iproute2[iproute2])
+`iputils-arping`        @-@popcon1@-@ @-@psize1@-@ , ,               test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address
+`iputils-tracepath`     @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host
+`net-tools`             @-@popcon1@-@ @-@psize1@-@ config::net-tools NET-3 networking toolkit (http://www.linuxfoundation.org/en/Net:Net-tools[net-tools], IPv4 network configuration):  `ifconfig`(8) etc.
+`inetutils-ping`        @-@popcon1@-@ @-@psize1@-@ test::net-tools   test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address] (legacy, GNU)
+`arping`                @-@popcon1@-@ @-@psize1@-@ , ,               test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address (legacy)
+`traceroute`            @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host (legacy, console)
+`dhcp3-client`          @-@popcon1@-@ @-@psize1@-@ config::low-level DHCP client
+`wpasupplicant`         @-@popcon1@-@ @-@psize1@-@ , ,               client support for WPA and WPA2 (IEEE 802.11i)
+`wireless-tools`        @-@popcon1@-@ @-@psize1@-@ , ,               tools for manipulating Linux Wireless Extensions
+`ppp`                   @-@popcon1@-@ @-@psize1@-@ , ,               PPP/PPPoE connection with `chat`
+`pppoeconf`             @-@popcon1@-@ @-@psize1@-@ config::helper    configuration helper for PPPoE connection
+`pppconfig`             @-@popcon1@-@ @-@psize1@-@ , ,               configuration helper for PPP connection with `chat`
+`wvdial`                @-@popcon1@-@ @-@psize1@-@ , ,               configuration helper for PPP connection with `wvdial` and `ppp`
+`mtr-tiny`              @-@popcon1@-@ @-@psize1@-@ test::low-level   trace the network path to a remote host (curses)
+`mtr`                   @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host (curses and GTK+)
+`gnome-nettool`         @-@popcon1@-@ @-@psize1@-@ , ,               tools for common network information operations (GNOME)
+`nmap`                  @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (http://en.wikipedia.org/wiki/Nmap[Nmap], console)
+`zenmap`                @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (GTK+)
+`knmap`                 @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (KDE)
+`tcpdump`               @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (http://en.wikipedia.org/wiki/Tcpdump[Tcpdump], console)
+`wireshark`             @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (http://en.wikipedia.org/wiki/Wireshark[Wireshark], GTK+)
+`tshark`                @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (console)
+`nagios3`               @-@popcon1@-@ @-@psize1@-@ , ,               monitoring and management system for hosts, services and networks (http://en.wikipedia.org/wiki/Nagios[Nagios])
+`tcptrace`              @-@popcon1@-@ @-@psize1@-@ , ,               produce a summarization of the connections from `tcpdump` output
+`snort`                 @-@popcon1@-@ @-@psize1@-@ , ,               flexible network intrusion detection system (http://en.wikipedia.org/wiki/Snort_(software)[Snort])
+`ntop`                  @-@popcon1@-@ @-@psize1@-@ , ,               display network usage in web browser
+`dnsutils`              @-@popcon1@-@ @-@psize1@-@ , ,               network clients provided with http://en.wikipedia.org/wiki/BIND[BIND]: `nslookup`(8), `nsupdate`(8), `dig`(8)
+`dlint`                 @-@popcon1@-@ @-@psize1@-@ , ,               check http://en.wikipedia.org/wiki/Domain_Name_System[DNS] zone information using nameserver lookups
+`dnstracer`             @-@popcon1@-@ @-@psize1@-@ , ,               trace a chain of http://en.wikipedia.org/wiki/Domain_Name_System[DNS] servers to the source
+------------------------------------------------------------------------------------------------------------------------------------------
+
+// removed clutter
+//|| {{{network-manager-openvpn}}} || - || - || , , || NetworkManager (OpenVPN plugin core) ||
+//|| {{{network-manager-openvpn-gnome}}} || - || - || , , || NetworkManager (OpenVPN plugin GNOME GUI) ||
+//|| {{{network-manager-pptp}}} || - || - || , , || NetworkManager (PPTP plugin core) ||
+//|| {{{network-manager-pptp-gnome}}} || - || - || , , || NetworkManager (PPTP plugin GNOME GUI) ||
+//|| {{{network-manager-vpnc}}} || - || - || , , || NetworkManager (VPNC plugin core) ||
+//|| {{{network-manager-vpnc-gnome}}} || - || - || , , || NetworkManager (VPNC plugin GNOME GUI) ||
+
+// removed
+// || {{{waproamd}}} || 141 || - || , , || Manage the wireless network automatically ||
 
 ==== The domain name
 
@@ -98,9 +157,64 @@ C     192.168.0.x -- 192.168.255.x 255.255.255.0 /24            256
 
 NOTE: If one of these addresses is assigned to a host, then that host must not access the Internet directly but must access it through a gateway that acts as a proxy for individual services or else does http://en.wikipedia.org/wiki/Network_address_translation[Network Address Translation(NAT)].  The broadband router usually performs NAT for the consumer LAN environment.
 
-==== The network configuration infrastructure
+==== The network device support
 
-There are 2 types of low level networking programs for Linux networking system (see <<_iproute2_commands>>).
+Although most hardware devices are supported by the Debian system, there are some network devices which require http://www.debian.org/social_contract#guidelines[DSFG] non-free external hardware drivers to support them.  Please see <<_non_free_hardware_drivers>>.
+
+=== The modern network configuration for desktop
+
+On Debian `squeeze` system, modern network configuration tools, such as http://en.wikipedia.org/wiki/NetworkManager[NetworkManager (NM)] (`network-manager` and associated packages) and http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (`wicd` and associated packages) can manage network connection via http://en.wikipedia.org/wiki/Daemon_(computer_software)[daemon].  
+
+- They allow easy connection of your system to the Internet.
+- They allow easy management of wired and wireless network configuration.
+- They come with their own nice GUI and command-line user interfaces.
+- They allow us to configure network independent of the legacy `ifupdown` package.
+
+WARNING: Do not use these automatic network configuration tools for servers.  These are aimed primarily for mobile desktop users on laptops.
+
+These modern network configuration tools need to be configured properly to avoid conflicting with the legacy `ifupdown` package and its configuration file "`/etc/network/interfaces`".
+
+==== GUI network configuration tools
+
+Official documentations for NM and Wicd on Debian are provided in "`/usr/share/doc/network-manager/README.Debian`" and "`/usr/share/doc/wicd/README.Debian`", respectively.
+
+Essentially, the network configuration for desktop is done as follows.
+
+1. Make desktop user, e.g. `foo`, belong to group "`netdev`" by the following (Alternatively, do it automatically via http://en.wikipedia.org/wiki/D-Bus[D-bus] under modern desktop environments such as GNOME and KDE).
++
+--------------------
+$ sudo adduser foo netdev
+--------------------
+2. Keep configuration of "`/etc/network/interfaces`" as simple as the the following.
++
+--------------------
+auto lo
+iface lo inet loopback
+--------------------
+3. Restart NM or Wicd by the following.
++
+--------------------
+$ sudo /etc/init.d/network-manager restart
+--------------------
++
+--------------------
+$ sudo /etc/init.d/wicd restart
+--------------------
+4. Configure your network via GUI.
+
+NOTE: Only interfaces which are **not** listed in "`/etc/network/interfaces`" or which have been configured with "`auto ...`" or "`allow-hotplug ...`" and "`iface ... inet dhcp`" (with no other options) are managed by NM to avoid conflict with `ifupdown`.
+
+TIP: If you wish to extend network configuration capabilities of NM, please seek appropriate plug-in modules and supplemental packages such as `network-manager-openconnect`, `network-manager-openvpn-gnome`, `network-manager-pptp-gnome`, `mobile-broadband-provider-info`, `gnome-bluetooth`, etc.   The same goes for those of Wicd.
+
+CAUTION: These automatic network configuration tools may not be compatible with esoteric configurations of legacy `ifupdown` in "`/etc/network/interfaces`" such as ones in <<_the_basic_network_configuration_with_ifupdown_legacy>> and <<_the_advanced_network_configuration_with_ifupdown_legacy>>.  Check http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=network-manager[BTS of network-manager] and http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=wicd[BTS of wicd] for current issues and limitations.
+
+=== The legacy network connection and configuration
+
+When the method described in <<_the_modern_network_configuration_for_desktop>> does not suffice your needs, you should use the legacy network connection and configuration method which combines many simpler tools.
+
+The legacy network connection is specific for each method (see <<_the_network_connection_method_legacy>>).
+
+There are 2 types of programs for the low level network configuration on Linux (see <<_iproute2_commands>>).
 
 - Old http://www.linuxfoundation.org/en/Net:Net-tools[net-tools] programs (`ifconfig`(8), ...) are from the Linux NET-3 networking system. Most of these are obsolete now.
 - New http://www.linuxfoundation.org/en/Net:Iproute2[Linux iproute2] programs (`ip`(8), ...) are the current Linux networking system.
@@ -121,78 +235,11 @@ The `resolvconf` package was created to supplement `ifupdown` system to support 
 
 Helper scripts to the `ifupdown` package such as `ifplugd`, `guessnet`, `ifscheme`, etc. are created to automate dynamic configuration of network environment such as one for mobile PC on wired LAN.  These are relatively difficult to use but play well with existing `ifupdown` system.
 
-Alternative high level network configuration systems, independent of `ifupdown` system, such as `network-manager`, `wicd`, etc. are created to ease configuration of network environment even for mobile PC on wireless network.  Since these are relatively new system and their integration to Debian system is in progress, you may still need to disable the corresponding network interface configuration manually in "`/etc/network/interfaces`" to avoid conflicts between these and `ifupdown` (see <<_automatic_network_configuration>>).  
+These are explained in detail with examples (see <<_the_basic_network_configuration_with_ifupdown_legacy>> and <<_the_advanced_network_configuration_with_ifupdown_legacy>>).
 
-.List of network configuration tools
-[grid="all"]
-`-----------------------`-------------`------------`-----------------`--------------------------------------------------------------------
-packages                popcon        size         type              description
-------------------------------------------------------------------------------------------------------------------------------------------
-`ifupdown`              @-@popcon1@-@ @-@psize1@-@ config::ifupdown  standardized tool to bring up and down the network (Debian specific)
-`ifplugd`               @-@popcon1@-@ @-@psize1@-@ , ,               manage the wired network automatically
-`ifupdown-extra`        @-@popcon1@-@ @-@psize1@-@ , ,               network testing script to enhance "`ifupdown`" package
-`ifmetric`              @-@popcon1@-@ @-@psize1@-@ , ,               set routing metrics for a network interface
-`guessnet`              @-@popcon1@-@ @-@psize1@-@ , ,               mapping script to enhance "`ifupdown`" package via "`/etc/network/interfaces`" file
-`ifscheme`              @-@popcon1@-@ @-@psize1@-@ , ,               mapping scripts to enhance "`ifupdown`" package
-`ifupdown-scripts-zg2`  @-@popcon1@-@ @-@psize1@-@ , ,               Zugschlus\' interface scripts for ifupdown@@@sq@@@s manual method
-`network-manager`       @-@popcon1@-@ @-@psize1@-@ config::NM        http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (daemon): manage the network automatically
-`network-manager-gnome` @-@popcon1@-@ @-@psize1@-@ , ,               http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (GNOME frontend)
-`network-manager-kde`   @-@popcon1@-@ @-@psize1@-@ , ,               http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] (KDE frontend)
-`wicd`                  @-@popcon1@-@ @-@psize1@-@ config::wicd      wired and wireless network manager
-`iptables`              @-@popcon1@-@ @-@psize1@-@ config::Netfilter administration tools for packet filtering and NAT (http://en.wikipedia.org/wiki/Netfilter[Netfilter])
-`iproute`               @-@popcon1@-@ @-@psize1@-@ config::iproute2  http://www.linuxfoundation.org/en/Net:Iproute2[iproute2], IPv6 and other advanced network configuration: `ip`(8), `tc`(8), etc
-`ifrename`              @-@popcon1@-@ @-@psize1@-@ , ,               rename network interfaces based on various static criteria: `ifrename`(8)
-`ethtool`               @-@popcon1@-@ @-@psize1@-@ , ,               display or change Ethernet device settings
-`iputils-ping`          @-@popcon1@-@ @-@psize1@-@ test::iproute2    test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address] (http://www.linuxfoundation.org/en/Net:Iproute2[iproute2])
-`iputils-arping`        @-@popcon1@-@ @-@psize1@-@ , ,               test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address
-`iputils-tracepath`     @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host
-`net-tools`             @-@popcon1@-@ @-@psize1@-@ config::net-tools NET-3 networking toolkit (http://www.linuxfoundation.org/en/Net:Net-tools[net-tools], IPv4 network configuration):  `ifconfig`(8) etc.
-`inetutils-ping`        @-@popcon1@-@ @-@psize1@-@ test::net-tools   test network reachability of a remote host by http://en.wikipedia.org/wiki/Hostname[hostname] or http://en.wikipedia.org/wiki/IP_address[IP address] (legacy, GNU)
-`arping`                @-@popcon1@-@ @-@psize1@-@ , ,               test network reachability of a remote host specified by the http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] address (legacy)
-`traceroute`            @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host (legacy, console)
-`dhcp3-client`          @-@popcon1@-@ @-@psize1@-@ config::low-level DHCP client
-`wpasupplicant`         @-@popcon1@-@ @-@psize1@-@ , ,               client support for WPA and WPA2 (IEEE 802.11i)
-`wireless-tools`        @-@popcon1@-@ @-@psize1@-@ , ,               tools for manipulating Linux Wireless Extensions
-`ppp`                   @-@popcon1@-@ @-@psize1@-@ , ,               PPP/PPPoE connection with `chat`
-`pppoeconf`             @-@popcon1@-@ @-@psize1@-@ config::helper    configuration helper for PPPoE connection
-`pppconfig`             @-@popcon1@-@ @-@psize1@-@ , ,               configuration helper for PPP connection with `chat`
-`wvdial`                @-@popcon1@-@ @-@psize1@-@ , ,               configuration helper for PPP connection with `wvdial` and `ppp`
-`mtr-tiny`              @-@popcon1@-@ @-@psize1@-@ test::low-level   trace the network path to a remote host (curses)
-`mtr`                   @-@popcon1@-@ @-@psize1@-@ , ,               trace the network path to a remote host (curses and GTK+)
-`gnome-nettool`         @-@popcon1@-@ @-@psize1@-@ , ,               tools for common network information operations (GNOME)
-`nmap`                  @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (http://en.wikipedia.org/wiki/Nmap[Nmap], console)
-`zenmap`                @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (GTK+)
-`knmap`                 @-@popcon1@-@ @-@psize1@-@ , ,               network mapper / port scanner (KDE)
-`tcpdump`               @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (http://en.wikipedia.org/wiki/Tcpdump[Tcpdump], console)
-`wireshark`             @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (http://en.wikipedia.org/wiki/Wireshark[Wireshark], GTK+)
-`tshark`                @-@popcon1@-@ @-@psize1@-@ , ,               network traffic analyzer (console)
-`nagios3`               @-@popcon1@-@ @-@psize1@-@ , ,               monitoring and management system for hosts, services and networks (http://en.wikipedia.org/wiki/Nagios[Nagios])
-`tcptrace`              @-@popcon1@-@ @-@psize1@-@ , ,               produce a summarization of the connections from `tcpdump` output
-`snort`                 @-@popcon1@-@ @-@psize1@-@ , ,               flexible network intrusion detection system (http://en.wikipedia.org/wiki/Snort_(software)[Snort])
-`ntop`                  @-@popcon1@-@ @-@psize1@-@ , ,               display network usage in web browser
-`dnsutils`              @-@popcon1@-@ @-@psize1@-@ , ,               network clients provided with http://en.wikipedia.org/wiki/BIND[BIND]: `nslookup`(8), `nsupdate`(8), `dig`(8)
-`dlint`                 @-@popcon1@-@ @-@psize1@-@ , ,               check http://en.wikipedia.org/wiki/Domain_Name_System[DNS] zone information using nameserver lookups
-`dnstracer`             @-@popcon1@-@ @-@psize1@-@ , ,               trace a chain of http://en.wikipedia.org/wiki/Domain_Name_System[DNS] servers to the source
-------------------------------------------------------------------------------------------------------------------------------------------
+=== The network connection method (legacy)
 
-// removed clutter
-//|| {{{network-manager-openvpn}}} || - || - || , , || NetworkManager (OpenVPN plugin core) ||
-//|| {{{network-manager-openvpn-gnome}}} || - || - || , , || NetworkManager (OpenVPN plugin GNOME GUI) ||
-//|| {{{network-manager-pptp}}} || - || - || , , || NetworkManager (PPTP plugin core) ||
-//|| {{{network-manager-pptp-gnome}}} || - || - || , , || NetworkManager (PPTP plugin GNOME GUI) ||
-//|| {{{network-manager-vpnc}}} || - || - || , , || NetworkManager (VPNC plugin core) ||
-//|| {{{network-manager-vpnc-gnome}}} || - || - || , , || NetworkManager (VPNC plugin GNOME GUI) ||
-
-// removed
-// || {{{waproamd}}} || 141 || - || , , || Manage the wireless network automatically ||
-
-==== The network device support
-
-Although most hardware devices are supported by the Debian system, there are some network devices which require http://www.debian.org/social_contract#guidelines[DSFG] non-free external hardware drivers to support them.  Please see <<_non_free_hardware_drivers>>.
-
-=== The network connection method
-
-CAUTION: The connection test method described in this section are meant for testing purposes.  It is not meant to be used directly for the daily network connection.  You are advised to use them via the `ifupdown` package (see <<_the_basic_network_configuration_with_ifupdown>>).
+CAUTION: The connection test method described in this section are meant for testing purposes.  It is not meant to be used directly for the daily network connection.  You are advised to use them via NM, Wicd, or the `ifupdown` package (see <<_the_modern_network_configuration_for_desktop>> and <<_the_basic_network_configuration_with_ifupdown_legacy>>).
 
 // FIXME: Since my MacBook has no build-in modem, and I use the broadband-modem via Ethernet, all POTS-related description needs to be tested with the recent system.
 
@@ -354,7 +401,14 @@ $ sudo /sbin/ifconfig eth0 down
 
 See "`/usr/share/doc/pppoeconf/README.Debian`".
 
-=== The basic network configuration with ifupdown
+=== The basic network configuration with ifupdown (legacy)
+
+The traditional http://en.wikipedia.org/wiki/Internet_Protocol_Suite[TCP/IP network] setup on Debian system uses `ifupdown` package as a high level tool.  There are 2 typical cases.
+
+- For **dynamic IP** system such as mobile PCs, you should setup TCP/IP network **with** the `resolvconf` package and enable you to switch your network configuration easily (see <<_the_network_interface_served_by_the_dhcp>>).
+- For **static IP** system such as servers, you should setup TCP/IP network **without** the `resolvconf` package and keep your system simple (see <<_the_network_interface_with_the_static_ip>>).
+
+These traditional setup methods are quite useful if you wish to set up advanced configuration (see <<_the_basic_network_configuration_with_ifupdown_legacy>>).
 
 The `ifupdown` package provides the standardized framework for the high level network configuration in the Debian system. In this section, we learn the basic network configuration with `ifupdown` with simplified introduction and many typical examples.
 
@@ -602,17 +656,17 @@ This syslog record is quite useful for administration of the network problem on 
 
 TIP: The automatic behavior of the `ifupdown-extra` package is configurable with the "`/etc/default/network-test`". Some of these automatic checks slow down the system boot-up a little bit since it takes some time to listen for http://en.wikipedia.org/wiki/Address_Resolution_Protocol[ARP] replies.
 
-=== The advanced network configuration with ifupdown
+=== The advanced network configuration with ifupdown (legacy)
 
-The functionality of the `ifupdown` package can be improved beyond what was described in <<_the_basic_network_configuration_with_ifupdown>> with the advanced knowledge.  
+The functionality of the `ifupdown` package can be improved beyond what was described in <<_the_basic_network_configuration_with_ifupdown_legacy>> with the advanced knowledge.  
 
 The functionalities described here are completely optional.  I, being lazy and minimalist, rarely bother to use these.
 
-CAUTION: If you could not set up network connection by information in <<_the_basic_network_configuration_with_ifupdown>>, you make situation worse by using information below.
+CAUTION: If you could not set up network connection by information in <<_the_basic_network_configuration_with_ifupdown_legacy>>, you make situation worse by using information below.
 
 ==== The ifplugd package
 
-The `ifplugd` package is older automatic network configuration tool which can manage only Ethernet connections. This solves unplugged/replugged Ethernet cable issues for mobile PC etc.   If you have http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] or http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (see <<_automatic_network_configuration>>) installed, you do not need this package.
+The `ifplugd` package is older automatic network configuration tool which can manage only Ethernet connections. This solves unplugged/replugged Ethernet cable issues for mobile PC etc.   If you have http://en.wikipedia.org/wiki/NetworkManager[NetworkManager] or http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (see <<_the_modern_network_configuration_for_desktop>>) installed, you do not need this package.
 
 This package runs http://en.wikipedia.org/wiki/Daemon_(computer_software)[daemon] and replaces **auto** or **allow-hotplug** functionalities (see <<list-of-stanzas-in-eni>>) and starts interfaces upon their connection to the network.  
 
@@ -884,62 +938,6 @@ The `guessnet-ifupdown`(8) command provided by the `guessnet` package is designe
 This dual usage of the "`/etc/network/interfaces`" file by the mapping script, `guessnet-ifupdown`, and the original network configuration infrastructure, `ifupdown`, does not cause negative impacts since **`guessnet`** options only export extra environment variables to scripts run by the `ifupdown` system.  See details in `guessnet-ifupdown`(8).
 
 NOTE: When multiple **`guessnet`** option lines are required in "`/etc/network/interfaces`", use option lines started with **`guessnet1`**, **`guessnet2`**, and so on, since the `ifupdown` package does not allow starting strings of option lines to be repeated.
-
-=== The network configuration for desktop
-
-==== GUI network configuration tools
-
-The capability of default GUI network configuration tools for each desktop environments such as GNOME tends to be limited to basic configurations such as static IP or DHCP.  They actually overwrite contents of "`/etc/network/interfaces`" file behind you. Please check how they change "`/etc/network/interfaces`" file by yourself.
-
-CAUTION: They may not understand complicated advanced configuration done manually in "`/etc/network/interfaces`" file.
-
-==== Automatic network configuration
-
-There are independent automatic network configuration tools, such as http://en.wikipedia.org/wiki/NetworkManager[NetworkManager (NM)] (`network-manager` and associated packages) and http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] (`wicd` package) which manage network connection via http://en.wikipedia.org/wiki/Daemon_(computer_software)[daemon] independent of the `ifupdown` package. They allow easy management of wireless connections.  These come with its own nice GUI user interfaces.
-
-WARNING: Do not use these automatic network configuration tools for servers.  These are aimed primarily for mobile desktop users on laptops.
-
-WARNING: These automatic network configuration tools are moving targets and documentation here is likely to be incorrect for `squeeze`.  So be warned.
-
-CAUTION: These automatic network configuration tools may not be compatible with esoteric configurations of `ifupdown` in "`/etc/network/interfaces`" such as ones in <<_the_basic_network_configuration_with_ifupdown>> and <<_the_advanced_network_configuration_with_ifupdown>>.  Having even "`hostname`" stanza for DHCP controlled interface as described in <<_the_network_interface_served_by_the_dhcp>> caused NM to ignore such interface in `lenny`. Check http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=network-manager[BTS of network-manager] and http://bugs.debian.org/cgi-bin/pkgreport.cgi?package=wicd[BTS of wicd] for current issues and limitations.  
-
-The configuration of NM is described in "`/usr/share/doc/network-manager/README.Debian`".  Essentially this is as follows.
-
-1. Make desktop user, e.g. `foo`, belong to group "`netdev`" by the following.
-+
---------------------
-$ sudo adduser foo netdev
---------------------
-2. Keep configuration of "`/etc/network/interfaces`" as simple as the the following.
-+
---------------------
-auto lo
-iface lo inet loopback
-
-auto eth0
-iface eth0 inet dhcp
---------------------
-3. Restart NM by the following.
-+
---------------------
-$ sudo /etc/init.d/network-manager restart
---------------------
-
-NOTE: Only interfaces which are **not** listed in "`/etc/network/interfaces`" or which have been configured with "`auto ...`" or "`allow-hotplug ...`" and "`iface ... inet dhcp`" (with no other options) are managed by NM to avoid conflict with `ifupdown`.
-
-The configuration of http://en.wikipedia.org/wiki/Wicd_(Linux_Network_Manager)[Wicd] is described in "`/usr/share/doc/wicd/README.Debian`".  Essentially, this is as follows.
-
-1. Make configuration in "`/etc/network/interfaces`" only as the following.
-+
---------------------
-auto lo
-iface lo inet loopback
---------------------
-2. Restart Wicd as the following.
-+
---------------------
-$ sudo /etc/init.d/wicd restart
---------------------
 
 === The low level network configuration
 
