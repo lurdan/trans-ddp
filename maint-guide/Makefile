@@ -15,7 +15,7 @@ LANG_CJK	:= ko zh-cn zh-tw
 #LANG_CJK	:= 
 
 # Language which generates SGML files from PO file (Customizable)
-LANG_PO		:= it
+LANG_PO		:= fr it
 
 SOURCES_ALL	:= $(wildcard *.??*.sgml)
 PO_ALL		:= $(wildcard *.??*.po)
