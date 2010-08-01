@@ -109,15 +109,21 @@ validate:
 
 # cleaning up
 clean:
-	-rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,out,sasp*,tpt,tex-in} *~
-	-rm -rf $(MANUAL)*.html 
-	-rm -rf *.tmp
-	-rm version.ent
+	for ext in txt ps dvi pdf log tex aux toc out tpt tex-in ; do \
+	rm -f $(MANUAL)*.$$ext ;\
+	done
+	rm -f $(MANUAL)*.info*
+	rm -f $(MANUAL)*.sasp*
+	rm -f $(MANUAL)*.info*
+	rm -f $(MANUAL)*.*~
+	rm -rf $(MANUAL)*.html 
+	rm -rf *.tmp
+	rm -f version.ent
 	for lang in $(LANG_PO); do \
 	rm -f $(MANUAL).$$lang.sgml ;\
         done
 ifneq ("$(BUILD_TYPE)", "web")
-	-rm -rf $(PUBLISHDIR)/$(MANUAL)
+	rm -rf $(PUBLISHDIR)/$(MANUAL)
 else
 	for lang in $(LANG_NOE); do rm -f $(CURDIR)/debian/$(MANUAL)-$$lang.install; done
 endif
