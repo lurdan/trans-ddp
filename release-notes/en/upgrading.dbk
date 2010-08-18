@@ -26,8 +26,10 @@ system.
 <para>
 The main things you'll want to back up are the contents of
 <filename>/etc</filename>, <filename>/var/lib/dpkg</filename>,
-<filename>/var/lib/aptitude/pkgstates</filename> and the output of
-<literal>dpkg --get-selections "*"</literal> (the quotes are important).
+<filename>/var/lib/apt/extended_states</filename> and the output of
+<literal>dpkg --get-selections "*"</literal> (the quotes are important).  If
+you use <command>aptitude</command> to manage packages on your system, you
+will also want to back up <filename>/var/lib/aptitude/pkgstates</filename>.
 </para>
 <para>
 The upgrade process itself does not modify anything in the
@@ -325,13 +327,13 @@ epoch in the version, you must put it on hold to prevent it from being
 upgraded.
 </para>
 <para>
-The <quote>hold</quote> package state for <command>aptitude</command> can be changed using:
+The <quote>hold</quote> package state for <command>apt-get</command> can be changed using:
 </para>
 <screen>
-# aptitude hold <replaceable>package_name</replaceable>
+# echo <replaceable>package_name</replaceable> hold | dpkg --set-selections
 </screen>
 <para>
-Replace <literal>hold</literal> with <literal>unhold</literal> to unset the
+Replace <literal>hold</literal> with <literal>install</literal> to unset the
 <quote>hold</quote> state.
 </para>
 <para>
@@ -403,10 +405,12 @@ conflicts if they should occur.
 <section id="handle-conflict">
 <title>Manually unmarking packages</title>
 <para>
-To prevent <command>aptitude</command> from removing some packages that were
+To prevent <command>apt-get</command> from removing some packages that were
 pulled in through dependencies, you need to manually unmark them as
 <emphasis>auto</emphasis> packages.  This includes OpenOffice and Vim for
-desktop installs:
+desktop installs.  <command>apt-get</command> does not provide an interface
+for marking or unmarking <emphasis>auto</emphasis> packages, so you will need
+to use <command>aptitude</command> for this:
 </para>
 <screen>
 # aptitude unmarkauto openoffice.org vim
@@ -585,9 +589,11 @@ database.
 <title>Upgrading packages</title>
 <para>
 The recommended way to upgrade from previous &debian; releases is to
-use the package management tool <command>aptitude</command>.  This program
-makes safer decisions about package installations than running
-<command>apt-get</command> directly.
+use the package management tool <command>apt-get</command>.  In previous
+releases, <command>aptitude</command> was recommended for this purpose, but
+recent versions of <command>apt-get</command> provide equivalent
+functionality and also have shown to more consistently give the desired
+upgrade results.
 </para>
 <para>
 Don't forget to mount all needed partitions (notably the root and
@@ -660,13 +666,8 @@ First the list of available packages for the new release needs to be fetched.
 This is done by executing:
 </para>
 <screen>
-# aptitude update
+# apt-get update
 </screen>
-<para>
-Running this the first time new sources are updated will print out some
-warnings related to the availability of the sources.  These warnings are
-harmless and will not appear if you rerun the command again.
-</para>
 </section>
 
 <section id="sufficient-space">
@@ -688,12 +689,12 @@ sufficient space you might end up with an incomplete upgrade that might be
 difficult to recover from.
 </para>
 <para>
-Both <command>aptitude</command> and <systemitem role="package">apt</systemitem> will show you
-detailed information of the disk space needed for the installation.  Before
-executing the upgrade, you can see this estimate by running:
+<command>aptitude</command> can show you detailed information of the disk
+space needed for the installation.  Before executing the upgrade, you can see
+this estimate by running:
 </para>
 <screen>
-# aptitude -y -s -f --with-recommends dist-upgrade
+# aptitude -y -s -f dist-upgrade
 [ ... ]
 XXX upgraded, XXX newly installed, XXX to remove and XXX not upgraded.
 Need to get xx.xMB/yyyMB of archives. After unpacking AAAMB will be used.
@@ -718,8 +719,8 @@ beforehand.  You can:
 <para>
 Remove packages that have been previously downloaded for installation (at
 <filename>/var/cache/apt/archives</filename>).  Cleaning up the package cache by
-running <command>apt-get clean</command> or <command>aptitude clean</command>
-will remove all previously downloaded package files.
+running <command>apt-get clean</command> will remove all previously downloaded
+package files.
 </para>
 </listitem>
 <listitem>
@@ -894,7 +895,7 @@ linkend="old-sources"/>.
 <title>Minimal system upgrade</title>
 <para>
 Because of certain necessary package conflicts between &oldreleasename; and &releasename;, running
-<literal>aptitude dist-upgrade</literal> directly will often remove large
+<literal>apt-get dist-upgrade</literal> directly will often remove large
 numbers of packages that you will want to keep.  We therefore recommend a
 two-part upgrade process, first a minimal upgrade to overcome these conflicts,
 then a full <literal>dist-upgrade</literal>.
@@ -903,7 +904,7 @@ then a full <literal>dist-upgrade</literal>.
 First, run:
 </para>
 <screen>
-# aptitude safe-upgrade
+# apt-get upgrade
 </screen>
 <para>
 This has the effect of upgrading those packages which can be upgraded without
@@ -981,7 +982,7 @@ system to not depend on hotplug for booting.
 You are now ready to continue with the main part of the upgrade.  Execute:
 </para>
 <screen>
-# aptitude dist-upgrade
+# apt-get dist-upgrade
 </screen>
 <para>
 This will perform a complete upgrade of the system, i.e.  install the newest
@@ -1001,7 +1002,7 @@ New versions of currently installed packages that cannot be upgraded without
 changing the install status of another package will be left at their current
 version (displayed as <quote>held back</quote>).  This can be resolved by either using
 <command>aptitude</command> to choose these packages for installation or by
-trying <literal>aptitude -f install
+trying <literal>apt-get -f install
 <replaceable>package</replaceable></literal>.
 </para>
 </section>
@@ -1015,7 +1016,7 @@ update your package information, which will include the new package signature
 checking mechanism:
 </para>
 <screen>
-# aptitude update
+# apt-get update
 </screen>
 <para>
 The upgrade will have already retrieved and enabled the signing keys for
@@ -1052,15 +1053,15 @@ This assumes that you do not yet have this variable set in that file.
 <para>
 Sometimes it's necessary to enable the <literal>APT::Force-LoopBreak</literal>
 option in APT to be able to temporarily remove an essential package due to a
-Conflicts/Pre-Depends loop.  <command>aptitude</command> will alert you of this
+Conflicts/Pre-Depends loop.  <command>apt-get</command> will alert you of this
 and abort the upgrade.  You can work around this by specifying the option <literal>-o
-APT::Force-LoopBreak=1</literal> on the <command>aptitude</command> command
+APT::Force-LoopBreak=1</literal> on the <command>apt-get</command> command
 line.
 </para>
 <para>
 It is possible that a system's dependency structure can be so corrupt as to
 require manual intervention.  Usually this means using
-<command>aptitude</command> or
+<command>apt-get</command> or
 </para>
 <screen>
 # dpkg --remove <replaceable>package_name</replaceable>
@@ -1069,7 +1070,7 @@ require manual intervention.  Usually this means using
 to eliminate some of the offending packages, or
 </para>
 <screen>
-# aptitude -f install
+# apt-get -f install
 # dpkg --configure --pending
 </screen>
 <para>
@@ -1101,7 +1102,7 @@ on the <emphasis>last</emphasis> line of the error message:
 </screen>
 <para>
 After fixing things up, you should be able to resume the upgrade by repeating
-the previously described <command>aptitude</command> commands.
+the previously described <command>apt-get</command> commands.
 </para>
 <para>
 During the upgrade, you will be asked questions regarding the configuration or
@@ -1168,7 +1169,7 @@ available.  For example:
 # apt-cache show linux-image-2.6-686
 </screen>
 <para>
-You should then use <literal>aptitude install</literal> to install it.  Once
+You should then use <literal>apt-get install</literal> to install it.  Once
 this new kernel is installed you should reboot at the next available
 opportunity to get the benefits provided by the new kernel version.
 </para>
@@ -1279,7 +1280,7 @@ timeout (in seconds) may need to be adjusted.
 <section id="nownownow">
 <title>Things to do before rebooting</title>
 <para>
-When <literal>aptitude dist-upgrade</literal> has finished, the <quote>formal</quote> upgrade
+When <literal>apt-get dist-upgrade</literal> has finished, the <quote>formal</quote> upgrade
 is complete, but there are some other things that should be taken care of
 <emphasis>before</emphasis> the next reboot.
 </para>
@@ -1803,15 +1804,19 @@ package management front-ends will mark them as such.  If you are using
 provides a similar section but the listing it presents might differ.
 </para>
 <para>
-Also, if
-you have used <command>aptitude</command> to manually install packages in &oldreleasename;
+Also, if you have used <command>aptitude</command> or
+<command>apt-get</command> to manually install packages in &oldreleasename;
 it will have kept track of those packages you manually installed and will be
 able to mark as obsolete those packages pulled in by dependencies alone which
-are no longer needed if a package has been removed.  Also,
-<command>aptitude</command>, unlike <command>deborphan</command> will not mark
-as obsolete packages that you manually installed, as opposed to those that were
-automatically installed through dependencies.
-</para>
+are no longer needed if a package has been removed.
+<command>aptitude</command> and <systemitem role="package">apt</systemitem>,
+unlike <command>deborphan</command>, will not mark for removal packages that
+you manually installed, as opposed to those that were automatically
+installed through dependencies.  To remove automatically installed packages
+that are no longer used, run:
+<screen>
+# apt-get autoremove
+</screen>
 <para>
 There are additional tools you can use to find obsolete packages such as
 <command>deborphan</command>, <command>debfoster</command> or
