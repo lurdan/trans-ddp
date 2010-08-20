@@ -4,6 +4,12 @@
 # Should work both for a manual in the Debian Documentation Project
 # preset values here may be overriden by a higher level makefile
 
+# Language names are in lowercase web suffix style without encoding.
+# sgml uses traditional encoding such as latin1
+# $$lang.*.add files use traditional encoding such as latin1
+#                       You can use any number for middle *.
+# po files can be in UTF-8 encoding. (Depending on definition in it).
+
 # Build type: Possible values are BUILD_TYPE = web|package|...
 BUILD_TYPE	:= web
 
@@ -52,17 +58,25 @@ publish:
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 
 # generating SGML files from PO files
+# -M : master file $(MANUAL).en.sgml is always in latin1 (=ISO8859-1)
 PO_UPDATE	:= po4a-updatepo --previous -M latin1 -f sgml
 #PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M latin1 -f sgml
 PO_TRANSLATE	:= po4a-translate  -M latin1 -f sgml --keep 0
 PO_GETTEXT	:= po4a-gettextize -M latin1 -f sgml
 
+# -L : Charset of the file containing the localized document.
+# bin/encoding : web style locale -> traditional encoding
+#         fr    -> ISO8859-1
+#         zh-cn -> GB2312
+# xargs -n1 is to split into lines
+# sed script is to add "-a" to automatically add addendum files.
 
 po:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
-	$(PO_TRANSLATE) -v -L latin1 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po -a $$lang.1.add ;\
+	$(PO_TRANSLATE) -v -L $$(bin/encoding $$lang) -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
+          $$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') ;\
         done
 	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
 
