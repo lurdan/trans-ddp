@@ -17,7 +17,7 @@ BUILD_TYPE	:= web
 MANUAL		:= maint-guide
 
 # Language which is excluded from producing PS, PDF (Customizable)
-LANG_CJK	:= ko zh-cn zh-tw
+LANG_CJK	:= ko
 #LANG_CJK	:= 
 
 # Language which generates SGML files from PO file (Customizable)
@@ -58,16 +58,13 @@ publish:
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 
 # generating SGML files from PO files
-# -M : master file $(MANUAL).en.sgml is always in latin1 (=ISO8859-1)
-PO_UPDATE	:= po4a-updatepo --previous -M latin1 -f sgml
+# -M : master file $(MANUAL).en.sgml is always in UTF-8
+PO_UPDATE	:= po4a-updatepo --previous -M UTF-8 -f sgml
 #PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M latin1 -f sgml
-PO_TRANSLATE	:= po4a-translate  -M latin1 -f sgml --keep 0
-PO_GETTEXT	:= po4a-gettextize -M latin1 -f sgml
+PO_TRANSLATE	:= po4a-translate  -M UTF-8 -f sgml --keep 0
+PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 
-# -L : Charset of the file containing the localized document.
-# bin/encoding : web style locale -> traditional encoding
-#         fr    -> ISO8859-1
-#         zh-cn -> GB2312
+# -L : Charset of the file containing the localized document. UTF-8
 # xargs -n1 is to split into lines
 # sed script is to add "-a" to automatically add addendum files.
 
@@ -75,7 +72,7 @@ po:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
-	$(PO_TRANSLATE) -v -L $$(bin/encoding $$lang) -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
+	$(PO_TRANSLATE) -v -L $$lang.UTF-8 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
           $$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') ;\
         done
 	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
@@ -88,8 +85,8 @@ html:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent ; $(MAKE) po; fi
 	for lang in $(LANG_ALL); do \
 	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
-            echo debiandoc2html -c -l $$lang $(MANUAL).$$lang.sgml; \
-            debiandoc2html -c -l $$lang $(MANUAL).$$lang.sgml; \
+            echo debiandoc2html -c -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
+            debiandoc2html -c -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
           fi; \
         done
 
@@ -97,7 +94,7 @@ html:
 txt text: $(patsubst %.sgml,%.txt,$(SOURCES_ALL))
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $* $<
+	debiandoc2text -l $*.utf-8 $<
 
 # generating PostScript
 ps: $(patsubst %,$(MANUAL).%.ps,$(LANG_NOCJK))
@@ -106,7 +103,7 @@ ps: $(patsubst %,$(MANUAL).%.ps,$(LANG_NOCJK))
 	done
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $* $<
+	debiandoc2latexps -l $*.utf-8 $<
 
 # generating Portable Document Format
 pdf: $(patsubst %,$(MANUAL).%.pdf,$(LANG_NOCJK))
@@ -115,7 +112,7 @@ pdf: $(patsubst %,$(MANUAL).%.pdf,$(LANG_NOCJK))
 	done
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -l $*.utf-8 $<
 
 # validating SGML
 validate:
