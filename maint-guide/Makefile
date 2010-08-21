@@ -90,8 +90,8 @@ html:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent ; $(MAKE) po; fi
 	for lang in $(LANG_ALL); do \
 	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
-            echo debiandoc2html -c -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
-            debiandoc2html -c -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
+            echo debiandoc2html -C -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
+            debiandoc2html -C -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
           fi; \
         done
 
