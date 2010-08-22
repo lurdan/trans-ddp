@@ -77,7 +77,7 @@ po:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	$(PO_UPDATE) -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
-	$(PO_TRANSLATE) -v -L $$lang.UTF-8 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
+	$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
           $$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') ;\
         done
 	$(PO_GETTEXT) -m $(MANUAL).en.sgml -p $(MANUAL).pot
