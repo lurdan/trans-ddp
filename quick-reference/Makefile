@@ -53,7 +53,7 @@ UDEBA	:=	$(DEBM)/$(CODE)
 UDEBB	:=	$(DEBM)/experimental
 # language defaults
 LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
-LANGPO	:=	   ja fr
+LANGPO	:=	   ja fr it
 LANGNEW	:=
 LANGSGML =	$(filter-out en $(LANGPO), $(LANGALL))
 
