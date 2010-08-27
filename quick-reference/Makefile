@@ -305,15 +305,14 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 #########################################################################
 # Translate XML files                                                 ALL
 #########################################################################
-$(DOCNAME).ja.xml: $(PODOC)/$(DOCNAME).ja.po $(PODOC)/addendum1.ja $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.ja -p $< -l $@
+# No *.*.add exist for French (Now OK)
+#$(DOCNAME).it.xml: $(PODOC)/$(DOCNAME).it.po $(DOCNAME).en.xml
+#	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
 
-$(DOCNAME).es.xml: $(PODOC)/$(DOCNAME).es.po $(PODOC)/addendum1.es $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -a $(PODOC)/addendum1.es -p $< -l $@
+# Now multiple addendum files such as ja.1.add, ja.2.add, ... can be used
+$(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(PODOC)/%.*.add $(DOCNAME).en.xml
+	$(TRANSLATE) -d -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@
 
-$(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
-	
 #########################################################################
 # Create HTML files                                                   ALL
 #########################################################################
