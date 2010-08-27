@@ -311,7 +311,7 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 
 # Now multiple addendum files such as ja.1.add, ja.2.add, ... can be used
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(PODOC)/%.*.add $(DOCNAME).en.xml
-	$(TRANSLATE) -d -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@
+	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@
 
 #########################################################################
 # Create HTML files                                                   ALL
