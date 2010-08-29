@@ -98,7 +98,6 @@ publish:
 	-rm -f $(PUBLISHDIR)/reference
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
-	# When DDP moves to squeeze, change to BUILD_MODE=xml
 	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference"
 	$(MAKE) -C sgml all  "PUBLISHDIR=$(PUBLISHDIR)/debian-reference" "LANG_ALL=$(LANGSGML)"
 
@@ -130,6 +129,11 @@ ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
 	-rm -f $(DOCNAME).raw.xml
 	-rm -f $(SRC_ENT)
 endif
+
+.PHONY: mode
+mode:
+	echo "BUILD_MODE=$(BUILD_MODE)"
+	echo "BUILD_MODE_ASCIIDOC=$(BUILD_MODE_ASCIIDOC)"
 
 #########################################################################
 # Local raw XML file created from asciidoc in lenny                 LOCAL
@@ -321,6 +325,7 @@ css:
 	-rm -rf $(PUBLISHDIR)/images
 	mkdir -p $(PUBLISHDIR)/images
 	cp -f $(PXSLT)/$(DOCNAME).css $(PUBLISHDIR)/$(DOCNAME).css
+	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/.htaccess
 	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
 
 .PHONY: html1 htmli html htmls
