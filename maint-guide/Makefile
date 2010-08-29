@@ -61,6 +61,7 @@ publish:
 	# remove old files
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
+	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/$(MANUAL)/.htaccess
 
 # generating SGML files from PO files
 # -M : master file $(MANUAL).en.sgml is always in UTF-8
