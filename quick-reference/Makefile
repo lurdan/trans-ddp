@@ -253,9 +253,9 @@ pkgsize.ent:
 common.ent: $(SRC_XML)
 	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
 	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
-	echo "<!ENTITY codename-stable   \"lenny\">"			>> $@
-	echo "<!ENTITY codename-testing  \"squeeze\">"			>> $@
-	echo "<!ENTITY codename-nexttesting  \"squeeze+1\">"		>> $@
+	echo "<!ENTITY codename-stable   \"squeeze\">"			>> $@
+	echo "<!ENTITY codename-testing  \"wheezy\">"			>> $@
+	echo "<!ENTITY codename-nexttesting  \"wheezy+1\">"		>> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 
 # Update URL list header from $(DOCNAME).raw.xml
