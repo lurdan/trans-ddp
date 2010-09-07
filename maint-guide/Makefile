@@ -23,10 +23,10 @@ LANG_CJK	:= ko
 # Language which generates SGML files from PO file (Customizable)
 ifneq ("$(BUILD_TYPE)", "web")
 # web build all po files
-LANG_PO		:= fr it zh-cn
+LANG_PO		:= fr it zh-cn zh-tw
 else
 # package build good po files
-LANG_PO		:= fr it
+LANG_PO		:= fr it zh-cn zh-tw
 endif
 SOURCES_ALL	:= $(wildcard *.??*.sgml)
 PO_ALL		:= $(wildcard *.??*.po)
