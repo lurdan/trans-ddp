@@ -74,7 +74,10 @@ PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 # xargs -n1 is to split into lines
 # sed script is to add "-a" to automatically add addendum files.
 
-po:
+maint-guide.zh-tw.po: maint-guide.zh-cn.po cn2tw.sed
+	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
+
+po: maint-guide.zh-tw.po
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
@@ -140,6 +143,7 @@ clean:
 	for lang in $(LANG_PO); do \
 	rm -f $(MANUAL).$$lang.sgml ;\
         done
+	rm -f $(MANUAL).zh-tw.po
 ifneq ("$(BUILD_TYPE)", "web")
 	rm -rf $(PUBLISHDIR)/$(MANUAL)
 else
