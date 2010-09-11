@@ -78,7 +78,7 @@ PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 #	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
 
 po:
-	type opencc msgcat sed
+	which opencc msgcat sed
 	#rm -f $(MANUAL).zh-tw.po
 	#$(make) $(MANUAL).zh-tw.po
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
