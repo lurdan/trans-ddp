@@ -74,8 +74,8 @@ PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 # xargs -n1 is to split into lines
 # sed script is to add "-a" to automatically add addendum files.
 
-$(MANUAL).zh-tw.po: $(MANUAL).zh-cn.po cn2tw.sed
-	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
+#$(MANUAL).zh-tw.po: $(MANUAL).zh-cn.po cn2tw.sed
+#	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
 
 po:
 	type opencc msgcat sed
