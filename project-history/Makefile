@@ -16,18 +16,18 @@ po-sources := $(wildcard *.??*.po)
 sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
-sources_lessja := $(patsubst project-history.ja.sgml,,$(sources))
-sources_noncjk := $(patsubst project-history.ko.sgml,,$(sources_lessja))
+# noncjk == no ps/pdf
+sources_noncjk := $(filter-out project-history.lt.sgml project-history.ko.sgml,$(sources))
 
 $(MANUAL).pot: $(MANUAL).sgml
-	po4a-gettextize -f sgml -m $(MANUAL).sgml -p $(MANUAL).pot
+	po4a-gettextize -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).pot
 
 # Update PO files after each change of $(MANUAL).sgml to avoid possible build errors
 $(po-sources): $(MANUAL).%.po: $(MANUAL).sgml $(MANUAL).pot
 	msgmerge --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
 
 $(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).sgml
-	po4a-translate -f sgml -m $(MANUAL).sgml -p $(MANUAL).$*.po -l $(MANUAL).$*.sgml
+	po4a-translate -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).$*.po -l $(MANUAL).$*.sgml
 
 update-po:
 	$(MAKE) $(po-sources)
@@ -39,8 +39,8 @@ update-po:
 html:
 	@if [ ! -f $(MANUAL).en.html/index.en.html -o $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
           rm -r $(MANUAL).en.html; \
-          echo debiandoc2html -c -l en $(MANUAL).sgml; \
-          debiandoc2html -c -l en $(MANUAL).sgml; \
+          echo debiandoc2html -C -l en.utf-8 $(MANUAL).sgml; \
+	  debiandoc2html -C -l en.utf-8 $(MANUAL).sgml; \
           mv $(MANUAL).html $(MANUAL).en.html; \
         fi
 	@for i in $(sgml-sources) $(po-sources); do \
@@ -49,8 +49,8 @@ html:
 	if [ ! -f $(MANUAL).$$lang.html/index.$$lang.html -o $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
 	    sgmlfile=$$nosuffix.sgml; \
 	    [ $$sgmlfile != $$i ] && make $$sgmlfile; \
-	    echo debiandoc2html -c -l $$lang $$sgmlfile; \
-            debiandoc2html -c -l $$lang $$sgmlfile; \
+	    echo debiandoc2html -C -l $$lang.utf-8 $$sgmlfile; \
+            debiandoc2html -C -l $$lang.utf-8 $$sgmlfile; \
           fi; \
         done
 
@@ -58,31 +58,31 @@ html:
 txt text: $(MANUAL).en.txt $(patsubst %.sgml,%.txt,$(sources))
 
 $(MANUAL).en.txt: $(MANUAL).sgml
-	debiandoc2text -l en $<
+	debiandoc2text -l en.utf-8 $<
 	mv $(MANUAL).txt $(MANUAL).en.txt
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $* $<
+	debiandoc2text -l $*.utf-8 $<
 
 # generating PostScript
 ps: $(MANUAL).en.ps $(patsubst %.sgml,%.ps,$(sources_noncjk))
 
 $(MANUAL).en.ps: $(MANUAL).sgml
-	debiandoc2latexps -l en $<
+	debiandoc2latexps -l en.utf-8 $<
 	mv $(MANUAL).ps $(MANUAL).en.ps
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $* $<
+	debiandoc2latexps -l $*.utf-8 $<
 
 # generating Portable Document Format
 pdf: $(MANUAL).en.pdf $(patsubst %.sgml,%.pdf,$(sources_noncjk))
 
 $(MANUAL).en.pdf: $(MANUAL).sgml
-	debiandoc2latexpdf -l en $<
+	debiandoc2latexpdf -l en.utf-8 $<
 	mv $(MANUAL).pdf $(MANUAL).en.pdf
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -l $* $<
+	debiandoc2latexpdf -l $*.utf-8 $<
 
 # publishing to the DDP web pages
 publish: all
