@@ -75,12 +75,12 @@ PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 # sed script is to add "-a" to automatically add addendum files.
 
 $(MANUAL).zh-tw.po: $(MANUAL).zh-cn.po cn2tw.sed
-	type opencc msgcat sed
 	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
 
 po:
-	rm -f $(MANUAL).zh-tw.po
-	$(make) $(MANUAL).zh-tw.po
+	type opencc msgcat sed
+	#rm -f $(MANUAL).zh-tw.po
+	#$(make) $(MANUAL).zh-tw.po
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	echo "Translate to: $$lang" ;\
