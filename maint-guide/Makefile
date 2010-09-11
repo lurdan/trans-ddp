@@ -74,13 +74,13 @@ PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 # xargs -n1 is to split into lines
 # sed script is to add "-a" to automatically add addendum files.
 
-#$(MANUAL).zh-tw.po: $(MANUAL).zh-cn.po cn2tw.sed
-#	msgcat --no-wrap $< | opencc | sed -f cn2tw.sed > $@
+tw:
+	msgcat --no-wrap $(MANUAL).zh-cn.po | opencc | sed -f cn2tw.sed > $(MANUAL).zh-tw.po
 
 po:
-	which opencc msgcat sed
+	which opencc msgcat sed || true
 	#rm -f $(MANUAL).zh-tw.po
-	#$(make) $(MANUAL).zh-tw.po
+	#$(make) tw
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
 	echo "Translate to: $$lang" ;\
@@ -157,5 +157,6 @@ endif
 distclean: clean
 
 .PHONY: all publish clean distclean validate
+.PHONY: po tw html text txt ps pdf
 .SUFFIXES:
 
