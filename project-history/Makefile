@@ -17,7 +17,7 @@ sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
 # noncjk == no ps/pdf
-sources_noncjk := $(filter-out project-history.lt.sgml project-history.ko.sgml,$(sources))
+sources_noncjk := $(filter-out project-history.ko.sgml,$(sources))
 
 $(MANUAL).pot: $(MANUAL).sgml
 	po4a-gettextize -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).pot
