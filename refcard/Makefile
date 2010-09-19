@@ -9,9 +9,6 @@ TRANSLATE=po4a-translate --format docbook --keep 0
 UPDATEPO=po4a-updatepo --format docbook
 XP=xsltproc --nonet --novalid
 XMLROFF=xmlroff --backend cairo
-# cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
-GPLIST=ar eu he hi ja sv
-XMLROFF_GP=xmlroff --backend gp
 DIA=dia
 
 PDFJOIN=pdfjoin --vanilla
@@ -79,12 +76,7 @@ refcard-%.s.pdf: refcard-%.fo dblatex.xsl refcard.sty
 	L=`echo $@ | sed 's/.*-\(.*\)-.*/\1/'`; \
 	USE_XR=`echo " $(XMLROFF_LANGS) " | grep " $$L "`; \
 	if [ -n "$$USE_XR" ]; then \
-	    USE_GP=`echo " $(GPLIST) " | grep " $$L "`; \
-	    if [ -n "$$USE_GP" ]; then \
-		$(XMLROFF_GP) -o $@ $<; \
-	    else \
-		$(XMLROFF) -o $@ $<; \
-	    fi; \
+	    $(XMLROFF) -o $@ $<; \
 	else \
 	    if [ -n "$$USE_DBLATEX" ]; then \
 		SRC=`echo $<|sed 's/-\(a4\|lt\).fo/.dbk/'`; \
