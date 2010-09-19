@@ -35,7 +35,7 @@ XP	:=	xsltproc --nonet --novalid --xinclude
 #XL	:=	xmllint --nonet --noout --postvalid --xinclude
 # The threshold should be 80 if translation is completed.
 THRESHOLD:=	0
-TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD)
+TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD) -v 
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
 UPDATEPO:=	msgmerge --update --previous --no-wrap
 # # note: the URL is used as identifier, no HTTP is used!
@@ -301,10 +301,6 @@ po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $<
-	@echo ">>> $@: $$(        msgattrib --force-po --no-wrap --fuzzy $@ |grep '^msgid'|wc -l) fuzzy translation"
-	@if [ "$*" = "ja" ]; then msgattrib --force-po --no-wrap --fuzzy $@ ; fi
-	@echo ">>> $@: $$(        msgattrib --force-po --no-wrap --untranslated $@ |grep '^msgid'|wc -l) untranslated"
-	@if [ "$*" = "ja" ]; then msgattrib --force-po --no-wrap --untranslated $@ ; fi
 
 #########################################################################
 # Translate XML files                                                 ALL
