@@ -147,7 +147,7 @@ clean:
 	for lang in $(LANG_PO); do \
 	rm -f $(MANUAL).$$lang.sgml ;\
         done
-	rm -f $(MANUAL).zh-tw.po
+	#rm -f $(MANUAL).zh-tw.po
 ifneq ("$(BUILD_TYPE)", "web")
 	rm -rf $(PUBLISHDIR)/$(MANUAL)
 else
