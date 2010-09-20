@@ -5,15 +5,12 @@
 #######################################################################
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
-# Build from xml only as default (package) -- for squeeze (package)
-# to avoid regression caused by asciidoc 8.4.1
-# BUILD_MODE value set to asciidoc version number
+# Build with web access for local build
+# BUILD_MODE default value 
+BUILD_MODE_LOCAL := local
 ifndef BUILD_MODE
-BUILD_MODE	:= $(shell asciidoc --version)
+BUILD_MODE	:= $(BUILD_MODE_LOCAL)
 endif
-
-# BUILD_MODE value of correct asciidoc version number to use
-BUILD_MODE_ASCIIDOC := asciidoc 8.2.7
 
 # Please note package build and ddp script overides $(PUBLISHDIR)
 # if $(PUBLISHDIR) is not set, set it here for testing
@@ -107,7 +104,6 @@ publish:
 .PHONY: clean packageclean distclean
 
 clean:
-	echo "BUILD_MODE = \"$(BUILD_MODE)\""
 	-rm -f *.swp *~ *.tmp
 	-rm -f $(PODOC)/*~ $(ADOC)/*~
 	-rm -rf html
@@ -123,23 +119,20 @@ packageclean: clean
 	-rm -f all-popcon-results.txt packages.txt packages.bkup.txt pkg.lst
 
 distclean: packageclean
-ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
-	# If not from debian/rules but in asciidoc mode, 
+ifeq ($(BUILD_MODE),$(BUILD_MODE_LOCAL))
+	# If not from debian/rules but in local mode, 
 	# remove remotely generated files to refresh.
 	-rm -f $(DOCNAME).raw.xml
 	-rm -f $(SRC_ENT)
 endif
 
-.PHONY: mode
-mode:
-	echo "BUILD_MODE=$(BUILD_MODE)"
-	echo "BUILD_MODE_ASCIIDOC=$(BUILD_MODE_ASCIIDOC)"
 
 #########################################################################
-# Local raw XML file created from asciidoc in lenny                 LOCAL
+# Local raw XML file is created from the local lenny version of asciidoc
+# when building locally
 #########################################################################
 #=======================================================================#
-ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
+ifeq ($(BUILD_MODE),$(BUILD_MODE_LOCAL))
 #=======================================================================#
 
 .SECONDARY: $(SRC_XML)
@@ -153,10 +146,10 @@ ifeq ($(BUILD_MODE),$(BUILD_MODE_ASCIIDOC))
 # -----------------------------------------------------------------------
 # create a raw XML source from asciidoc source
 # Regression caused by asciidoc 8.4.1 should be addressed by 
-# "-a no-inline-literal" but .... this does not work.  Use lenny only.
+# "-a no-inline-literal" but .... this does not work.  
+# So I put lenny version in this source tree.
 $(DOCNAME).raw.xml: $(SRC_ASC)
-	echo "BUILD_MODE = \"$(BUILD_MODE)\""
-	asciidoc -a no-inline-literal -a 'newline=\n' -b docbook -d book -o - $(ADOC)/$(DOCNAME).txt |\
+	bin/asciidoc -a 'newline=\n' -o - $(ADOC)/$(DOCNAME).txt |\
 	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
 	sed -f bin/replace > $@
@@ -167,7 +160,8 @@ else
 # To avoid dependency issues due to "$(DOCNAME).%.xml:", we need this target:
 $(DOCNAME).raw.xml:
 	echo "BUILD_MODE = \"$(BUILD_MODE)\""
-	echo "You need to run \"make\" in lenny environment or create it as pristine source."
+	echo "You need to run \"make\" in local environment to"
+	echo "create $(DOCNAME).raw.xml etc. as pristine source."
 	exit 1
 #=======================================================================#
 endif
