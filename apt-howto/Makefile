@@ -62,7 +62,7 @@ $(MANUAL).%.pdf: $(MANUAL).%.sgml
 publish: all
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
+	install -p -m 644 $(MANUAL).*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
 # possible non-POSIX syntax below. fuck POSIX.
 	cd $(PUBLISHDIR)/$(MANUAL) && for file in *.en.html; do \
           ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
