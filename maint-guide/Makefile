@@ -106,6 +106,7 @@ html:
 
 # generating plain text
 txt text: $(patsubst %.sgml,%.txt,$(SOURCES_ALL))
+	echo "AddCharset UTF-8 .txt" > .htaccess
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $*.utf-8 $<
@@ -137,6 +138,7 @@ clean:
 	for ext in txt ps dvi pdf log tex aux toc out tpt tex-in ; do \
 	rm -f $(MANUAL)*.$$ext ;\
 	done
+	rm -f .htaccess
 	rm -f $(MANUAL)*.info*
 	rm -f $(MANUAL)*.sasp*
 	rm -f $(MANUAL)*.info*
