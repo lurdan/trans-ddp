@@ -94,6 +94,7 @@ publish: all
           ln -s $$file $${file%$${file#$${file%.en.html}}}.html; \
         done
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
+	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/$(MANUAL)/.htaccess
 	ln -sf $(MANUAL).en.txt $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).txt
 	ln -sf $(MANUAL).en.ps $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).ps
 	ln -sf $(MANUAL).en.pdf $(PUBLISHDIR)/$(MANUAL)/$(MANUAL).pdf
