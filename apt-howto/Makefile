@@ -21,8 +21,6 @@ $(MANUAL).%.txt $(MANUAL).%.ps $(MANUAL).%.pdf: \
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
 html:
-	-rm -rf $(MANUAL).*.html
-	-rm $(MANUAL).pt-br.sgml
 	@for i in *.??*.sgml; do \
           j=$${i#$(MANUAL).}; lang=$${j%.sgml}; \
           langfoo=`echo $$lang | tr 'A-Z_' 'a-z-'`; \
