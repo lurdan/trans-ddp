@@ -47,8 +47,8 @@
 # Please CONFIGURE this:
 MIRROR_DIR=/home/mirrors/debian/
 #PREV_RELEASE=woody
-PREV_RELEASE=sarge
-CUR_RELEASE=etch
+PREV_RELEASE=lenny
+CUR_RELEASE=squeeze
 ARCH=i386
 
 # This probably needs no changes:

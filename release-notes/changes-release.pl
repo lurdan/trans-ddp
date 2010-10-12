@@ -18,8 +18,8 @@ getopts('dp:r:m:a:');
 # Debug
 my $debug       = $opt_d || 0;
 # Releases and path location 
-my $prevrelease = $opt_p || "sarge";
-my $currelease  = $opt_r || "etch";
+my $prevrelease = $opt_p || "lenny";
+my $currelease  = $opt_r || "squeeze";
 my $mirrordir   = $opt_m || "/home/mirrors/debian/debian.org";
 my $arch        = $opt_a || "i386";
 my @releases = ( $currelease, $prevrelease ) ;
