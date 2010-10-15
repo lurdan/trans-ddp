@@ -20,7 +20,7 @@ my $debug       = $opt_d || 0;
 # Releases and path location 
 my $prevrelease = $opt_p || "lenny";
 my $currelease  = $opt_r || "squeeze";
-my $mirrordir   = $opt_m || "/home/mirrors/debian/debian.org";
+my $mirrordir   = $opt_m || "/datos/replica/debian/";
 my $arch        = $opt_a || "i386";
 my @releases = ( $currelease, $prevrelease ) ;
 my @components =  ("main", "contrib", "non-free") ;

@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 #
 # Script to find dummy packages relevant to a new release 
 # (i.e. there was previously a real package but in this release
@@ -45,27 +45,52 @@
 
 # Location of the Packages file of the previous release
 # Please CONFIGURE this:
-MIRROR_DIR=/home/mirrors/debian/
-#PREV_RELEASE=woody
+MIRROR_DIR=/datos/replica/debian/
 PREV_RELEASE=lenny
 CUR_RELEASE=squeeze
 ARCH=i386
 
 # This probably needs no changes:
-PREV_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${PREV_RELEASE}/main/binary-${ARCH}/Packages"
-CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages"
-if [ ! -e "$CUR_RELEASE_PACK" ]; then
+PREV_RELEASE_PACK="${MIRROR_DIR}/dists/${PREV_RELEASE}/main/binary-${ARCH}/Packages"
+if [ -e "${PREV_RELEASE_PACK}.gz" ]; then
 # Try with .gz
-    CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages.gz"
-fi
-if [ ! -e "$CUR_RELEASE_PACK" ]; then
+    PREV_RELEASE_PACK="${PREV_RELEASE_PACK}.gz"
+elif [ -e "${PREV_RELEASE_PACK}.bz2" ]; then
 # Try with .bz2
-    CUR_RELEASE_PACK="${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages.bz2"
+    PREV_RELEASE_PACK="${PREV_RELEASE_PACK}.bz2"
 fi
-if [ ! -e "$CUR_RELEASE_PACK" ]; then
-    echo "ERROR: Could not find any release file for $CUR_RELEASE, looked into ${MIRROR_DIR}/debian.org/dists/${CUR_RELEASE}/main/binary-${ARCH}/"
+
+CUR_RELEASE_PACK="${MIRROR_DIR}/dists/${CUR_RELEASE}/main/binary-${ARCH}/Packages"
+if [ -e "${CUR_RELEASE_PACK}.gz" ]; then
+# Try with .gz
+    CUR_RELEASE_PACK="${CUR_RELEASE_PACK}.gz"
+elif [  -e "${CUR_RELEASE_PACK}.bz2" ]; then
+# Try with .bz2
+    CUR_RELEASE_PACK="${CUR_RELEASE_PACK}.bz2"
+fi
+
+# Test the files
+if [ ! -e "$PREV_RELEASE_PACK" ]; then
+    echo "ERROR: Could not find any release file for $PREV_RELEASE, looked into $PREV_RELEASE_PACK"
     exit 1
 fi
+if [ ! -e "$CUR_RELEASE_PACK" ]; then
+    echo "ERROR: Could not find any release file for $CUR_RELEASE, looked into $CUR_RELEASE_PACK"
+    exit 1
+fi
+
+PREV_RELEASE_FILE=$PREV_RELEASE_PACK
+if echo $PREV_RELEASE_PACK | grep -q ".gz"; then
+    PREV_RELEASE_FILE=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
+    gzip -d -c $PREV_RELEASE_PACK >$PREV_RELEASE_FILE
+fi
+if echo $PREV_RELEASE_PACK | grep -q ".bz2"; then
+    PREV_RELEASE_FILE=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
+    bzip2 -d -c $PREV_RELEASE_PACK >$PREV_RELEASE_FILE
+
+fi
+
+
 CUR_RELEASE_FILE=$CUR_RELEASE_PACK
 if echo $CUR_RELEASE_PACK | grep -q ".gz"; then
     CUR_RELEASE_FILE=`tempfile` || { echo "Cannot create temporary file!" >&2 ; exit 1 ; }
@@ -87,10 +112,11 @@ grep-available -n -s Package -r -F Description "smooth|ease upgrade" $CUR_RELEAS
 
 cat $tmpfile | sort -u |
 while read package; do
-	declare -i count=0
+#	declare -i count
+	count=0
 	description=`grep-available --exact-match -s Description -P $package`
 	shortdesc=`grep-available -d --exact-match -s Description -P $package`
-	odescription=`grep-available --exact-match -s Description -P $package $PREV_RELEASE_PACK`
+	odescription=`grep-available --exact-match -s Description -P $package $PREV_RELEASE_FILE`
 	# We don't analyse dummy packages that were not present in the
 	# previous release, skip them
 	[ -z "$odescription" ] && continue
@@ -101,7 +127,7 @@ while read package; do
 	grep-available -n --exact-match -s Depends -P $package |
 	while read depended; do
 		echo "$package -> $depended"
-		count=$((count++))
+		count=$(($count+1))
 	done
 	unset IFS
 
@@ -113,18 +139,20 @@ while read package; do
 	# Further checks
 	if [ -n "`echo $shortdesc | grep -i \"dummy package\"`" ] ; then
 		if [ -n "`echo $odescription | grep -i \"dummy package\"`" ] ; then
-			echo -e "\t[REVIEW: This dummy package was present in the previous release\n\tand was also dummy but it's not exactly the same]"
+			echo "\t[REVIEW: This dummy package was present in the previous release\n\tand was also dummy but it's not exactly the same]"
 		elif [ "$odescription" = "$description" ] ; then
-			echo -e "\t[NOTE: This dummy package was present in the previous release, REMOVE?]"
+			echo "\t[NOTE: This dummy package was present in the previous release, REMOVE?]"
 		fi
 	else
 # Packages that don't follow the convention of setting dummy package in the
 # short description need to be reviewed
-		echo -e "\t[REVIEW: This might not be a dummy package, does not follow usual notation]"
+		echo "\t[REVIEW: This might not be a dummy package, does not follow usual notation]"
 	fi
 	# Separate packages with an empty line
 	echo
 done
+
+[ "$PREV_RELEASE_FILE" != "$PREV_RELEASE_PACK" ] && rm -f "$PREV_RELEASE_FILE"
 
 exit 0
 # EOS
