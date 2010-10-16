@@ -49,8 +49,8 @@ ARCH	:=	amd64
 UDEBA	:=	$(DEBM)/$(CODE)
 UDEBB	:=	$(DEBM)/experimental
 # language defaults
-LANGALL	:=	en ja fr it es de pt-br pl zh-tw zh-cn
-LANGPO	:=	   ja fr it
+LANGALL	:=	en ja fr it es de pt pt-br pl zh-tw zh-cn
+LANGPO	:=	   ja fr it       pt
 LANGNEW	:=
 LANGSGML =	$(filter-out en $(LANGPO), $(LANGALL))
 
@@ -303,9 +303,16 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 #$(DOCNAME).it.xml: $(PODOC)/$(DOCNAME).it.po $(DOCNAME).en.xml
 #	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@
 
+# If no addendum data, *.1.add should be created as zero length file
 # Now multiple addendum files such as ja.1.add, ja.2.add, ... can be used
 $(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(PODOC)/%.*.add $(DOCNAME).en.xml
-	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@
+	if [ -s $(PODOC)/$*.1.add ]; then \
+	echo "... Addendum files used for $*: $$(ls $(PODOC)/$*.*.add)" ;\
+	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@ ;\
+	else \
+	echo "... No addendum files used for $*." ;\
+	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@ ;\
+	fi
 
 #########################################################################
 # Create HTML files                                                   ALL
