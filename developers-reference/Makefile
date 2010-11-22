@@ -80,8 +80,11 @@ ifndef LINGUA
 FORCE:
 else
 $(LINGUA)/%.dbk:	%.dbk $(patsubst %.dbk,po4a/$(LINGUA)/%.po,%.dbk)
-# "-a ?" is only possible with po4a version in Squeeze, build is broken in Lenny with it
-	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ # -a ?po4a/$(@:.dbk=.add)
+#	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a ?po4a/$(@:.dbk=.add)
+# workaround to "-a ?" only possible with po4a version in Squeeze, otherwise build is broken in Lenny
+	if [ -f po4a/$(@:.dbk=.add) ]; then \
+		$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a po4a/$(@:.dbk=.add); else \
+		$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@; fi
 
 $(LINGUA)/common.ent:	common.ent
 	cd $(@D) && ln -sf ../$(@F) .
