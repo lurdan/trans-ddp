@@ -1283,39 +1283,94 @@ gentoo_0.9.12.orig.tar.gz
    </p>
   </sect>
  </chapt>
-
-  <chapt id="modify">Quellcode modifizieren
-
-  <p>Normalerweise installieren sich die Programme in Verzeichnissen
-  unterhalb von <file>/usr/local/</file>. Da bei Debian-Paketen dieses Verzeichnis
-  nicht verwendet werden darf und ausschließlich zur Verfügung des
-  lokalen Administrators (oder der User) steht, müssen Sie einen Blick
-  auf den Erstellungsprozess werfen, normalerweise beginnend mit dem
-  Makefile. Das ist das Skript, mit dem <manref name="make" section="1">
-  die Arbeit automatisiert. Weitere Details über Makefiles in <ref
-  id="rules">.
-
-  <p>Beachten Sie, dass wenn ihr Programm GNU <manref
-  name="automake" section="1"> und/oder <manref name="autoconf"
-  section="1"> verwendet, werden Sie die Änderungen in der Datei
-  `Makefile.am' bzw. `Makefile.in' machen müssen, weil jeder Aufruf von
-  automake die Datei `Makefile.in' mit Informationen aus `Makefile.am' neu
-  erzeugt (und die vorhandene Datei `Makefile.in' überschreibt!),
-  genau wie jeder Aufruf von ./configure mit den Daten aus `Makefile.in'
-  das fertige Makefile erzeugt. Änderungen in Dateien `Makefile.am'
-  erfordern einige Kenntnisse über die Funktionsweise von <prgn/automake/;
-  mehr darüber finden Sie in der Hilfe `info automake`.
-  Das Bearbeiten von Dateien `Makefile.in' ist dagegen fast genauso einfach
-  wie das Bearbeiten von Makefiles, man muss lediglich bei der
-  Verwendung der Variablen aufpassen, d.h. Strings, die mit `@'
-  umgeben sind, z.B. <var>@CFLAGS@</var> oder <var>@LN_S@</var>; in diese
-  werden beim Aufruf `./configure` die entsprechenden Werte eingesetzt.
-  Bitte lesen Sie <file>&autotools-dev;</file>, bevor Sie weitermachen.
-
-  <p>Wir können an dieser Stelle nicht auf <em>alle</em> Feinheiten
-  eingehen, denn es würde den Rahmen dieser Anleitung sprengen, aber
-  an dieser Stelle treten auch die wenigsten Probleme auf.
-
+ <chapt id="modify">
+  <heading>
+    Den Quellcode verändern
+  </heading>
+  <p>
+    Bitte beachten Sie, dass an dieser Stelle nicht auf <em>alle</em>
+    Details eingegangen wird, wie die ursprünglichen Quellen korrigiert
+    werden können, aber hier sind ein paar grundlegende Schritte und
+    Probleme, auf die man häufig stößt.
+  </p>
+  <sect id="quiltrc">
+   <heading>
+     Einrichten von <prgn>quilt</prgn>
+   </heading>
+   <p>
+     Das Programm <prgn>quilt</prgn> bietet die Basismethode, um Änderungen
+     an den ursprünglichen Quellen für das Debian-Paket aufzuzeichnen. Da
+     leicht geänderte Voreinstellungen sinnvoller sind, ändern wir die Datei
+     <file>~/.quiltrc</file> wie folgt. <footnote><p>Sie können diese
+     Konfiguration ausschalten, indem Sie den Befehl <prgn>quilt</prgn>
+     folgendermaßen aufrufen: »<tt>quilt --quiltrc /dev/null
+     ...</tt>«.</p></footnote>
+    <example>
+d=. ; while [ ! -d "$d/debian" -a `readlink -e $d` != / ]; do d="$d/.."; done
+if [ -d "$d/debian" ] && [ -z "$QUILT_PATCHES" ]; then
+    # Debian packaging case and unset $QUILT_PATCHES
+    QUILT_PATCHES=debian/patches
+    QUILT_PATCH_OPTS="--unified-reject-files"
+    QUILT_DIFF_ARGS="-p ab --no-timestamps --no-index --color=auto"
+    QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index"
+    QUILT_COLORS="diff_hdr=1;32:diff_add=1;34:diff_rem=1;31:diff_hunk=1;33:diff_ctx=35:diff_cctx=33"
+    if ! [ -d $d/debian/patches ]; then mkdir $d/debian/patches; fi
+fi
+</example>
+   </p>
+   <p>
+     Siehe <manref section="1" name="quilt"> und
+     <file>/usr/share/doc/quilt/quilt.html</file> für eine Anleitung, wie
+     <prgn>quilt</prgn> benutzt wird.
+   </p>
+  </sect>
+  <sect id="fixupstream">
+   <heading>
+     Einen Fehler in den ursprünglichen Quellen korrigieren
+   </heading>
+   <p>
+     Nehmen wir an, Sie finden den folgenden Fehler in der originalen
+     <file>Makefile</file>-Datei, wo statt »<tt>install: gentoo</tt>« besser
+     »<tt>install: gentoo-target</tt>« stehen sollte.
+    <example>
+install: gentoo
+        install ./gentoo $(BIN)
+        install icons/* $(ICONS)
+        install gentoorc-example $(HOME)/.gentoorc
+</example>
+   </p>
+   <p>
+     Wir beheben dies und speichern es mit dem Befehl <prgn>quilt</prgn> wie
+     folgt als <file>fix-gentoo-target.patch</file>. <footnote><p>Das
+     Verzeichnis <file>debian/patches</file> sollte inzwischen existieren,
+     wenn Sie <prgn>dh_make</prgn> wie vorher beschrieben ausgeführt
+     haben. In diesem Beispiel wird es sicherheitshalber erstellt, nur für
+     den Fall, dass Sie das existierende Paket aktualisieren.</p></footnote>
+    <example>
+$ mkdir debian/patches
+$ quilt new fix-gentoo-target.patch
+$ quilt add Makefile
+</example>
+     Sie können die Datei <file>Makefile</file> wie folgt ändern.
+    <example>
+install: gentoo-target
+        install ./gentoo $(BIN)
+        install icons/* $(ICONS)
+        install gentoorc-example $(HOME)/.gentoorc
+</example>
+   </p>
+   <p>
+     Jetzt muss <prgn>quilt</prgn> noch mitgeteilt werden, dass der Patch
+     erneuert werden soll, so dass die Datei
+     <file>debian/patches/fix-gentoo-target.patch</file> erstellt
+     wird. Außerdem können Sie eine Beschreibung hinzufügen.
+    <example>
+$ quilt refresh
+$ quilt header -e
+... Patch beschreiben
+</example>
+   </p>
+  </sect>
   <sect id="destdir">Installation in ein Unterverzeichnis
 
   <p>Die meisten Programme installieren sich in die vorhandene
