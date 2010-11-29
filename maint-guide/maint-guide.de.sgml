@@ -1371,171 +1371,277 @@ $ quilt header -e
 </example>
    </p>
   </sect>
-  <sect id="destdir">Installation in ein Unterverzeichnis
-
-  <p>Die meisten Programme installieren sich in die vorhandene
-  Verzeichnisstruktur, so dass die ausführbaren Binär-Dateien
-  irgendwo in ihrem <var>$PATH</var> landen und die Dokumentation an einer
-  der üblichen Positionen. Wenn Sie so vorgehen, wird das Programm aber
-  in Ihr System integriert. Die Paket-Erstellungs-Tools werden es
-  dadurch schwer haben, herauszufinden, welche Dateien zu Ihrem Paket
-  gehören und welche nicht.
-
-  <p>Deshalb sollten Sie anders verfahren:
-  Installieren Sie das Programm in ein angelegtes Unterverzeichnis
-  von dem aus die Paket-Erstellungs-Tools ein funktionierendes
-  .deb-Paket erzeugen werden.
-  Alles, was dieses Unterverzeichnis enthält, wird
-  später auf das System der Benutzer installiert, mit dem einzigen
-  Unterschied, dass dpkg den Inhalt im Stamm-Verzeichnis auspackt.
-
-  <p>Dieses Unterverzeichnis wird üblicherweise unterhalb des Verzeichnisses
-  <file>debian/</file> im ausgepackten Quellverzeichnis angelegt. Man nennt
-  es <file>debian/paketname</file>.
-
-  <p>Denken Sie daran, auch wenn Sie das Programm in
-  <file>debian/paketname</file> installieren, muss es korrekt funktionieren
-  wenn es in das root-Dateisystem übernommen wird, z.B. wenn es
-  aus einem .deb-Paket installiert wird. Sie müssen dafür sorgen,
-  dass beim Erstellen des Pakets keine fest einprogrammierten Werte
-  in den Dateien auftreten wie
-  <file>/home/me/deb/gentoo-0.9.12/usr/share/gentoo</file>.
-
-  <p>Mit Programmen, die GNU <prgn/autoconf/ benutzen wird es ein
-  leichtes Spiel sein. Die meisten dieser Programme nutzen Makefiles,
-  die es standardmäßig erlauben, das Programm in irgendein
-  Unterverzeichnis zu installieren, ohne zu vergessen, dass
-  /usr der vorschriftsmäßige Präfix ist.
-  <prgn/dh_make/ wählt die richtigen Kommandos, wenn es feststellt,
-  dass Ihr Programm <prgn/autoconf/ benutzt, also
-  können Sie diesen Abschnitt vermutlich überspringen. Bei
-  anderen Programmen müssen Sie die entsprechenden Makefiles
-  untersuchen und ggf. anpassen. (A.d.Ü.: Bei einigen Programmen
-  kommt man auch um das Anpassen des Quellcodes nicht herum, wenn z.B.
-  die Pfade zu best. Konfigurationsdateien fest einkompiliert werden).
-
-  <p>Hier ist der relevante Abschnitt des Makefiles von gentoo:
-
-  <p><example>
+  <sect id="destdir">
+   <heading>
+     Installation von Dateien in das Zielverzeichnis
+   </heading>
+   <p>
+     Normalerweise werden Programme im Unterverzeichnis
+     <file>/usr/local</file> installiert. Da dieses Verzeichnis jedoch für
+     die private Benutzung durch den Systemadministrator (oder andere
+     Benutzer) reserviert ist, dürfen Debian-Pakete dieses Verzeichnis nicht
+     verwenden. Stattdessen sollten Systemverzeichnisse wie das
+     Unterverzeichnis <file>/usr/bin</file> benutzt werden, gemäß dem
+     »Filesystem Hierarchy Standard« (<url
+     id="http://www.debian.org/doc/packaging-manuals/fhs/fhs-2.3.html"
+     name="FHS">,
+     <file>/usr/share/doc/debian-policy/fhs/fhs-2.3.html</file>).
+   </p>
+   <p>
+     Normalerweise wird <manref section="1" name="make"> benutzt, um das
+     Programm automatisch zu bauen. Der Aufruf von »<tt>make install</tt>«
+     installiert das Programm dann gemäß dem <tt>install</tt>-Target der
+     Datei <file>Makefile</file>. Damit Debian Binärpakete bereitstellen
+     kann, installiert das Build-System die Programme innerhalb des
+     Verzeichnisbaums, der in einem temporären Verzeichnis angelegt wurde
+     anstatt am tatsächlichen Ziel.
+   </p>
+   <p>
+     Diese beiden Unterschiede zwischen (1) der normalen
+     Programminstallation und (2) dem Paketieren für Debian können vom Paket
+     <package>debhelper</package> transparent adressiert werden. Es benutzt
+     dazu die Befehle <prgn>dh_auto_configure</prgn> und
+     <prgn>dh_auto_install</prgn>, sofern die folgenden Bedingungen erfüllt
+     sind.
+    <list>
+     <item>
+      <p>
+        Die Datei <file>Makefile</file> folgt den GNU-Konventionen und
+        unterstützt die Variable <tt>$(DESTDIR)</tt>
+        (<file>/usr/share/doc/gnu-standards/standards.html#Makefile-Conventions</file>).
+      </p>
+     </item>
+     <item>
+      <p>
+        Die Quelle folgt dem »Filesystem Hierarchy Standard« (FHS).
+      </p>
+     </item>
+    </list>
+   </p>
+   <p>
+     Programme, die GNU <prgn>autoconf</prgn> einsetzen, folgen
+     <em>automatisch</em> den GNU-Konventionen, so dass die Paketerstellung
+     fast <em>automatisch</em> funktioniert. Auf Grund dieser Tatsache und
+     weiterer Heuristik wird geschätzt, dass das Paket
+     <package>debhelper</package> für ungefähr 90% aller Pakete richtig
+     funktioniert, ohne dass irgendwelche Änderungen an deren Build-System
+     vorgenommen werden müssen. Daher ist das Paketieren nicht so
+     kompliziert, wie es zunächst aussieht.
+   </p>
+   <p>
+     Wenn Sie Änderungen an der Datei <file>Makefile</file> vornehmen
+     müssen, sollten Sie sicherstellen, dass die Variable
+     <tt>$(DESTDIR)</tt> beachtet wird. Die Variable <tt>$(DESTDIR)</tt>
+     wird darin auf einen leeren Wert gesetzt und dann vorne mit dem
+     jeweiligen Dateipfad ergänzt, der für die Programminstallation
+     verwendet wird. Das Skript für das Paketieren setzt <tt>$(DESTDIR)</tt>
+     auf das temporäre Verzeichnis.
+   </p>
+   <p>
+     Das temporäre Verzeichnis, das vom Befehl <prgn>dh_auto_install</prgn>
+     benutzt wird, ist für einzelne Binärpakete (»single binary packages«)
+     <file>debian/<var>Paket</var></file>. <footnote><p>Bei mehreren
+     Binärpaketen (»multiple binary packages«) verwendet der Befehl
+     <prgn>dh_auto_install</prgn> das temporäre Verzeichnis
+     <file>debian/tmp</file>. Der Befehl <prgn>dh_install</prgn> teilt dann
+     den Inhalt von <file>debian/tmp</file> mit Hilfe von
+     <file>debian/<var>Paket-1</var>.install</file> und
+     <file>debian/<var>Paket-2</var>.install</file> in die temporären
+     Verzeichnisse <file>debian/<var>Paket-1</var></file> und
+     <file>debian/<var>Paket-2</var></file> auf, um daraus mehrere binäre
+     <file>*.deb</file>-Pakete zu erstellen.</p></footnote> Alles, was im
+     temporären Verzeichnis enthalten ist, wird auf dem System eines
+     Benutzers installiert, wenn dieser Ihr Paket installiert. Der einzige
+     Unterschied ist, dass <prgn>dpkg</prgn> die Dateien im
+     Wurzelverzeichnis installieren wird.
+   </p>
+   <p>
+     Vergessen Sie nicht, dass Ihr Programm zwar unter
+     <file>debian/<var>Paket</var></file> installiert wird, es sich aber
+     trotzdem korrekt verhalten muss, wenn es im Wurzelverzeichnis platziert
+     wird, d. h. wenn es mittels des <file>.deb</file>-Pakets installiert
+     wird. Daher dürfen durch das Build-System keine fest eingestellten
+     Zeichenketten wie
+     <tt>/home/ich/deb/<var>Paket</var>-<var>Version</var>/usr/share/<var>Paket</var></tt>
+     in die Paketdatei geschrieben werden.
+   </p>
+   <p>
+     Dies ist der relevante Abschnitt aus der Datei <file>Makefile</file>
+     von <package>gentoo</package>: <footnote><p>Dies ist nur ein Beispiel,
+     wie die Datei <file>Makefile</file> aussehen sollte. Wenn die
+     <file>Makefile</file>-Datei durch den Befehl <prgn>./configure</prgn>
+     erstellt wird, ist die richtige Vorgehensweise, um diese Art
+     <file>Makefile</file> zu korrigieren, den Befehl
+     <prgn>./configure</prgn> durch den Befehl
+     <prgn>dh_auto_configure</prgn> aufrufen zu lassen. Dabei kommen die
+     voreingestellten Optionen zum Tragen, einschließlich der Option
+     <tt>--prefix=/usr</tt>.</p></footnote>
+    <example>
 # Where to put binary on 'make install'?
 BIN     = /usr/local/bin
+
 # Where to put icons on 'make install'?
-ICONS   = /usr/local/lib/gentoo/
-  </example>
-
-  <p>Sie sehen, die Dateien sollen unter <file>/usr/local</file>
-  installiert werden, dies ändern Sie zu:
-
-  <p><example>
+ICONS   = /usr/local/share/gentoo
+</example>
+   </p>
+   <p>
+     Sie sehen, dass die Dateien unter <file>/usr/local</file> installiert
+     werden sollen. Ändern Sie diese Pfade in:
+    <example>
 # Where to put binary on 'make install'?
 BIN     = $(DESTDIR)/usr/bin
+
 # Where to put icons on 'make install'?
 ICONS   = $(DESTDIR)/usr/share/gentoo
-  </example>
-
-  <p>Sie fragen sich vielleicht, warum in dieses Verzeichnis und
-  nicht in irgendein anderes? Weil Debian-Pakete niemals Dateien
-  unter <file>/usr/local</file> ablegen -- dieses Verzeichnis ist für den
-  Systemadministrator reserviert. Debian nutzt stattdessen <file>/usr</file>.
-
-  <p>Eine genauere Beschreibung der Installationsverzeichnisse für
-  Binär-Dateien, Icons und Dokumentationen finden Sie im Filesystem
-  Hierarchy Standard (siehe <file>/usr/share/doc/debian-policy/fhs/</file>).
-  Schauen Sie es sich an und lesen Sie die Passagen, die Ihr Paket betreffen
-  könnten.
-
-  <p>Sie sollten also die Binär-Dateien in
-  <file>/usr/bin/</file> anstatt <file>/usr/local/bin/</file>,
-  die Manpages in
-  <file>/usr/share/man/man1/</file> anstatt <file>/usr/local/man/man1/</file>
-  installieren. Beachten Sie, dass gentoo's Makefile nicht die
-  Installation einer Manpage vorsieht, doch die Debian Policy verlangt,
-  dass jedes Programm eine hat. Sie schreiben später eine und installieren
-  sie nach <file>/usr/share/man/man1/</file>.
-
-  <p>Manche Programmierer nutzen leider das Makefile nicht, um die Pfade
-  o.ä. variabel zu gestalten. Das bedeutet, dass Sie wahrscheinlich die
-  C-Quelltexte direkt bearbeiten müssen.
-  (A.d.Ü.: Warum?
-  Ganz einfach, weil dieser Pfad beim Kompilieren nirgendwo verwendet wird,
-  müssen Sie davon ausgehen, dass der Autor die Pfadangaben direkt
-  einkodiert hat).
-  Aber wie und wo soll man suchen? Man kann z.B. mit
-  <p><example>
-grep -nr -e 'usr/local/lib' --include='*.[c|h]' .
-  </example>
-  das Quellen-Verzeichnis rekursiv durch'grep'en, das Dateien *.c und *.h enthält.
-  Grep wird die Stellen aufzeigen, an den der Pfadname verwendet wurde.
-  (A.d.Ü.: Meine Idee wäre eher:
-  <example>
-find -regex ".*\.h$\|.*\.c$"|xargs grep -n usr/local/lib | less
-  </example>
-  oder ähnliches). Nun müssen Sie die entsprechenden Dateien
-  bearbeiten und "/usr/local/" durch "/usr/" ersetzen und dabei
-  aufpassen, dass Sie den restlichen Code nicht beschädigen. :-)
-
-  <p>Wenn alles erledigt ist, sollten Sie das Install-Target im Makefile
-  lokalisieren (Es sollte normalerweise helfen, wenn Sie nach
-  der Zeile, die mit `install:' beginnt, suchen.)
-  und die Verweise auf die Verzeichnisse gegen die Variablen
-  austauschen, die Sie am Anfang definiert haben. Vorher hat das
-  Install-Target so ausgesehen:
-
-  <p><example>
-install:   gentoo
-           install ./gentoo $(BIN)
-           install icons/* $(ICONS)
-           install gentoorc-example $(HOME)/.gentoorc
-  </example>
-
-  <p>Nach unseren Änderungen sieht es so aus:
-  <example>
-install:    gentoo-target
-            install -d $(BIN) $(ICONS) $(DESTDIR)/etc
-            install ./gentoo $(BIN)
-            install -m644 icons/* $(ICONS)
-            install -m644 gentoorc-example $(DESTDIR)/etc/gentoorc
-  </example>
-
-  <p>Sie haben sicherlich bemerkt, dass es jetzt ein Kommando
-  <tt>install -d</tt> vor allen anderen in der Rule gibt. Das
-  Original-Programm hatte das nicht, weil normalerweise die
-  ursprünglichen Verzeichnisse <file>/usr/local/bin/</file> u.a. schon auf
-  dem System existieren, wenn `make install` aufgerufen wird. Weil Sie
-  aber in Ihr eigenes, leeres (oder sogar nicht vorhandenes) Verzeichnis
-  installieren, müssen Sie jedes Verzeichnis vorher anlegen.
-
-  <p>Sie können noch Weiteres am Ende der Rule anfügen, wie z.B. die
-  Installation einer Dokumentation, die der Upstream-Autor manchmal
-  weglässt.
-
-  <p><example>
-           install -d $(DESTDIR)/usr/share/doc/gentoo/html
-           cp -a docs/* $(DESTDIR)/usr/share/doc/gentoo/html
-  </example>
-
-  <p>Einem aufmerksamen Leser wird auffallen, dass gentoo zu
-  gentoo-target geändert wurde. Das nennt man auch unverlangten Bugfix. ;-)
-
-  <p>Wo auch immer Sie Änderungen machen, die nicht ausschließlich
-  auf Debian bezogen sind, sollten Sie diese dem Upstream-Maintainer
-  zukommen lassen, damit er diese in zukünftigen Programm-Versionen
-  verwenden kann und sie für alle Anderen nützlich sein können.
-  Und versuchen Sie, dem Upstream entgegen zu kommen, indem Sie keine
-  Debian- oder Linux- (oder eben Unix-) spezifischen Patches senden,
-  sondern gestalten Sie diese portabel.
-  Dadurch kann er Ihre Bugfixes besser übernehmen.
-
-  <p>Beachten Sie außerdem, dass Sie dem Upstream nicht das ganze
-  Verzeichnis <file>debian/</file> schicken müssen.
-
-  <p>(A.d.Ü.: Speziell hier könnte man dem Upstream mit
-  wenigen C-Kenntnissen helfen, indem man die Pfade variabel macht.
-  D.h. man verändert im Makefile die gcc-Parameter so, dass die
-  Variable <var>ICONS</var> an den C-Präprozessor übergeben wird. In
-  dem Programm verwendet man dann <var>ICONS</var> statt den festgelegten
-  Pfaden.)
-
+</example>
+   </p>
+   <p>
+     Aber warum in dieses Verzeichnis und nicht in irgendein anderes? Weil
+     Debian-Pakete niemals Dateien unter <file>/usr/local</file> ablegen --
+     dieses Verzeichnis ist für den Systemadministrator reserviert. Solche
+     Dateien werden auf einem Debian-System stattdessen unter
+     <file>/usr</file> installiert.
+   </p>
+   <p>
+     Eine genauere Beschreibung der Installationsverzeichnisse für
+     Binärdateien, Icons, Dokumentationen usw. finden Sie im »Filesystem
+     Hierarchy Standard« (siehe
+     <file>/usr/share/doc/debian-policy/fhs/</file>). Ich empfehle, dass Sie
+     sich dies anschauen und die Abschnitte lesen, die Ihr Paket betreffen
+     könnten.
+   </p>
+   <p>
+     Sie sollten also die Binärdateien in <file>/usr/bin/</file> statt
+     <file>/usr/local/bin/</file> installieren, die Handbuchseiten in
+     <file>/usr/share/man/man1/</file> statt
+     <file>/usr/local/man/man1/</file> usw. Beachten Sie, dass im
+     <file>Makefile</file> von <package>gentoo</package> keine Handbuchseite
+     auftaucht. Da die Debian-Richtlinien aber verlangen, dass jedes
+     Programm eine hat, schreiben Sie später eine und installieren sie unter
+     <file>/usr/share/man/man1/</file>.
+   </p>
+   <p>
+     Manche Programme nutzen die <file>Makefile</file>-Variablen nicht, um
+     solche Pfade zu definieren. Das bedeutet, dass Sie wahrscheinlich die
+     C-Quelltexte direkt bearbeiten müssen, damit diese dann die richtigen
+     Pfade benutzen. Aber wo soll man suchen, und wonach eigentlich genau?
+     Sie können dies herausfinden, indem Sie folgendes eingeben:
+    <example>
+$ grep -nr -e 'usr/local/lib' --include='*.[c|h]' .
+</example>
+   </p>
+   <p>
+     <prgn>Grep</prgn> durchsucht das Quellverzeichnis rekursiv und gibt
+     Ihnen den Dateinamen und die Zeilennummer für alle Treffer aus.
+   </p>
+   <p>
+     Sie müssen diese Dateien nun bearbeiten und in den entsprechenden
+     Zeilen <tt>usr/local/lib</tt> durch <tt>usr/lib</tt> ersetzen.
+    <example>
+$ vim '+argdo %s/usr\/local\/lib/usr\/lib/gce|update' +q \
+      $(find . -type f -name '*.[c|h]')
+</example>
+   </p>
+   <p>
+     Passen Sie auf, dass Sie den restlichen Code nicht beschädigen! :-)
+   </p>
+   <p>
+     Danach suchen Sie das »install«-Target im <file>Makefile</file> (suchen
+     Sie nach der Zeile, die mit <tt>install:</tt> beginnt, das funktioniert
+     üblicherweise) und benennen Sie alle Verweise auf Verzeichnisse um, die
+     nicht denen entsprechen, die Sie am Anfang definiert haben.
+   </p>
+   <p>
+     Nach Ihrer Fehlerkorrektur an den originalen Quellen sieht das
+     »install«-Target von <package>gentoo</package> folgendermaßen aus:
+    <example>
+install: gentoo-target
+        install ./gentoo $(BIN)
+        install icons/* $(ICONS)
+        install gentoorc-example $(HOME)/.gentoorc
+</example>
+   </p>
+   <p>
+     Wir beheben dies und speichern es mit dem Befehl <prgn>quilt</prgn> als
+     <file>debian/patches/install.patch</file>.
+    <example>
+$ quilt new install.patch
+$ quilt add Makefile
+</example>
+   </p>
+   <p>
+     Wir ändern dies für das Debian-Paket im Editor wie folgt:
+    <example>
+install: gentoo-target
+        install -d $(BIN) $(ICONS) $(DESTDIR)/etc
+        install ./gentoo $(BIN)
+        install -m644 icons/* $(ICONS)
+        install -m644 gentoorc-example $(DESTDIR)/etc/gentoorc
+</example>
+   </p>
+   <p>
+     Sie haben sicherlich bemerkt, dass jetzt der Befehl »<tt>install
+     -d</tt>« vor den anderen Befehlen in dieser Regel steht. Das originale
+     <file>Makefile</file> hatte das nicht, weil normalerweise die
+     Verzeichnisse <tt>/usr/local/bin/</tt> und andere Verzeichnisse schon
+     auf dem System vorhanden sind, wenn »<tt>make install</tt>« aufgerufen
+     wird. Weil wir aber in unser eigenes, leeres (oder sogar nicht
+     vorhandenes) Verzeichnis installieren, müssen wir jedes einzelne
+     Verzeichnis anlegen.
+   </p>
+   <p>
+     Wir können am Ende der Regel noch weitere Dinge einfügen, wie
+     beispielsweise die Installation zusätzlicher Dokumentation, die die
+     ursprünglichen Autoren manchmal weglassen:
+    <example>
+        install -d $(DESTDIR)/usr/share/doc/gentoo/html
+        cp -a docs/* $(DESTDIR)/usr/share/doc/gentoo/html
+</example>
+   </p>
+   <p>
+     Nachdem Sie sorgfältig überprüft haben, ob alles in Ordnung ist, weisen
+     Sie <prgn>quilt</prgn> an, den Patch zu aktualisieren und die Datei
+     <file>debian/patches/install.patch</file> neu zu erstellen. Fügen Sie
+     außerdem noch eine Beschreibung hinzu.
+    <example>
+$ quilt refresh
+$ quilt header -e
+... Patch beschreiben
+</example>
+   </p>
+   <p>
+     Jetzt haben Sie eine Reihenfolge von Patches.
+    <enumlist numeration="arabic">
+     <item>
+      <p>
+        Die Fehlerkorrektur der originalen Quellen:
+        <file>debian/patches/fix-gentoo-target.patch</file>
+      </p>
+     </item>
+     <item>
+      <p>
+        Die Debian-spezifische Änderung für's Paketieren:
+        <file>debian/patches/install.patch</file>
+      </p>
+     </item>
+    </enumlist>
+   </p>
+   <p>
+     Wann immer Sie Änderungen machen, die nicht spezifisch für das
+     Debian-Paket sind (so wie
+     <file>debian/patches/fix-gentoo-target.patch</file>), sollten Sie diese
+     dem ursprünglichen Betreuer zukommen lassen, damit er sie in der
+     nächsten Programmversion verwenden kann und sie für andere auch
+     nützlich sind. Denken Sie vor dem Verschicken auch daran, Ihre Patches
+     nicht spezifisch für Debian oder Linux (oder sogar Unix!) zu gestalten,
+     sondern sie portierbar zu machen. Dadurch können Ihre Änderungen
+     wesentlich leichter übernommen werden.
+   </p>
+   <p>
+     Beachten Sie, dass Sie dem ursprünglichen Betreuer die
+     <file>debian/*</file>-Dateien nicht schicken müssen.
+   </p>
+  </sect>
   <sect id="difflibs">Unterschiedliche Programmbibliotheken
 
   <p>Das ist ein alltägliches Problem: Bibliotheken sind von
