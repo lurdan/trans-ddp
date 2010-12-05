@@ -91,6 +91,15 @@ po:
         done
 	$(PO_GETTEXT) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).pot
 
+$(MANUAL).%.sgml: $(MANUAL).%.po
+	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
+	lang=$$(echo $< | sed -e 's/^.*\.\([a-z]*\)\.po/\1/') ; \
+	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
+	$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $@ -p $< \
+	$$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
+	-o ignore-inclusion=version 
+
+
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
