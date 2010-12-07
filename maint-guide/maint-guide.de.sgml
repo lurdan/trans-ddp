@@ -1680,572 +1680,1373 @@ $ quilt header -e
    </p>
   </sect>
  </chapt>
-  <chapt id="dreq">Benötigte Dinge in debian/
-
-  <p>Es gibt nun ein neues Unterverzeichnis 'debian' im
-  Hauptverzeichnis des Quellcode-Pakets, in dem
-  bereits einige Dateien liegen. Wir werden diese ändern, um die
-  Eigenschaften des Pakets anzupassen. Die wichtigsten Dateien sind `control',
-  `changelog', `copyright' und 'rules', die für die Erstellung
-  jedes Pakets benötigt werden.
-
-  <sect id="control">Die Datei `control'
-
-  <p>Diese Datei enthält verschiedene Werte, die <prgn/dpkg/,
-  <prgn/dselect/ und andere Paketverwaltungs-Tools
-  für die Paketverwaltung benötigen.
-
-  <p>Das ist die Datei `control', die <prgn/dh_make/ für uns erstellt hat:
-
-  <p><example>
-1  Source: gentoo
-2  Section: unknown
-3  Priority: optional
-4  Maintainer: Josip Rodin &lt;joy-mg@debian.org&gt;
-5  Build-Depends: debhelper (>> 3.0.0)
-6  Standards-Version: 3.5.2
-7
-8  Package: gentoo
-9  Architecture: any
-10 Depends: ${shlibs:Depends}
-11 Description: &lt;insert up to 60 chars description&gt;
-12  &lt;insert long description, indented with spaces&gt;
-  </example>
-  (Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <p>Zeilen 1-6 sind Steuer-Informationen für das Quellcode-Paket.
-
-  <p>Zeile 1 ist die Bezeichnung des Quellcode-Pakets.
-
-  <p>Zeile 2 bestimmt die Sektion der Distribution, in die das
-  Quellcode-Paket gehört.
-
-  <p>Sie haben bestimmt schon gemerkt, dass Debian in
-  Sektionen aufgeteilt ist: main (die freie Software), non-free (nicht
-  wirklich freie Software) und contrib (freie Software, die von
-  non-free-Sachen abhängt). Unterhalb dieser Sektionen existieren
-  logische Untersektionen, die eine minimale Beschreibung des Pakets
-  geben. D.h. die Sektion `admin' enthält Programme für
-  Administration, `base' die grundlegenden Pakete, `devel' die
-  Pakete für die Programmierer, `doc' die Dokumentation, `libs' die
-  Programmbibliotheken, `mail' die E-Mail-Leseprogramme und -Dienste, `net'
-  die Netzwerk-Anwendungen und Dienste, die `x11'-Sektion die
-  X11-Programme, die nirgendwo anders unterkommen, usw.
-
-  <p>Verändern Sie Sektion also zu x11. (Der Präfix "main/"
-  wird angenommen, wenn Sie nichts angeben, also lassen Sie
-  ihn weg.)
-
-  <p>Zeile 3 beschreibt, wie wichtig es für den
-  durchschnittlichen Benutzer wäre, das Paket zu installieren.
-  Lesen Sie das "Policy-Manual" als Anleitung, was Sie in das
-  Feld schreiben. Die Priorität "optional" passt eigentlich bei
-  allen neuen Paketen.
-
-  <p>Sektion und Priorität werden zurzeit nur von Programmen wie
-  <prgn/dselect/ benutzt, um Pakete zu sortieren und Standardparameter
-  auszuwählen.
-  Wenn Sie das Paket zu Debian hochladen, können (und werden es
-  wahrscheinlich auch) die FTP-Maintainer diesen Wert überschreiben.
-  Sie erhalten dann eine Nachricht darüber per E-Mail.
-
-  <p>Da es sich um ein normales Paket handelt und nichts anderes
-  stört, lassen Sie es bei optional.
-
-  <p>Zeile 4 ist der Name und die E-Mail-Adresse des Maintainers.
-  Beachten Sie, dass dieses Feld einen gültigen "To:"-Header Eintrag
-  für eine E-Mail enthält, weil nach einem Hochladen zu Debian das
-  Bug Tracking System diesen Eintrag nutzt, um die Bug-E-Mails an
-  Sie zu zustellen. Benutzen Sie keine Kommas, UND-Zeichen und Klammern.
-
-  <p>Zeile 5 enthält eine Liste der Pakete, die zum Bauen des Pakets
-  benötigt werden. Einige Pakete wie <package/gcc/ und <package/make/ brauchen
-  nicht aufgeführt werden, siehe <package/build-essential/ Paket für Details.
-  Falls ein unüblicher Compiler oder andere Tools zum Bauen des Pakets
-  benötigt werden, dann sollten Sie diese Pakete zu der Zeile
-  `Build-Depends' hinzufügen. Mehrere Einträge werden durch Komma
-  getrennt; mehr über die Syntax dieses Feldes finden Sie in den
-  Erläuterungen der `binary dependencies'.
-
-  <p>An dieser Stelle können weitere Felder wie `Build-Depends-Indep',
-  `Build-Conflicts' u.a. auftreten. Diese werden von der automatischen
-  Paket-Erstellungs-Software in Debian genutzt, um Binär-Pakete für
-  andere Plattformen zu bauen. Lesen Sie im Policy-Manual über
-  Abhängigkeiten beim Paketbauen (build-dependencies) und in der
-  Entwickler-Referenz über andere Plattformen bzw. wie man Software
-  dahin portiert.
-
-  <p>Mit diesem Beispiel können Sie herausfinden, welche anderen Pakete
-  Ihr Paket zum Bauen braucht:
-  <example>
-strace -f -o /tmp/log ./configure
-# or make instead of ./configure, if the package doesn't use autoconf
-for x in `dpkg -S $(grep open /tmp/log|\
-                    perl -pe 's!.* open\(\"([^\"]*).*!$1!' |\
-                    grep "^/"| sort | uniq|\
-                    grep -v "^\(/tmp\|/dev\|/proc\)" ) 2>/dev/null|\
-                    cut -f1 -d":"| sort | uniq`; \
-  do \
-    echo -n "$x (>=" `dpkg -s $x|grep ^Version|cut -f2 -d":"` "), "; \
-  done
-  </example>
-
-  <p>Um die genauen Build-Abhängigkeiten für
-  <prgn><var>/usr/bin/foo</var></prgn> herauszufinden, führen Sie
-  <example>
-objdump -p <var>/usr/bin/foo</var> | grep NEEDED
-  </example>
-  und für jede aufgelistete Bibliothek, z.B. <prgn>libfoo.so.6</prgn>
-  <example>
-dpkg -S libfoo.so.6
-  </example>
-  aus.
-  Dann nehmen Sie die Entwickler-Versionen (*-dev) jedes Pakets als einen
-  `Build-deps'-Eintrag. Wenn Sie dafür <prgn>ldd</prgn> benutzen, werden
-  auch indirekt abhängende Bibliotheken aufgelistet und überflüssige
-  Build-Abhängigkeiten geliefert.
-
-  <p>Gentoo benötigt noch <package/xlibs-dev/, <package/libgtk1.2-dev/
-  und <package/libglib1.2-dev/ um gebaut werden zu können, deshalb
-  hängen Sie diese an "debhelper" an.
-
-  <p>Zeile 6 enthält die Version des Debian-Policy-Standards, dem
-  dieses Paket entspricht, also die Version, die Sie gelesen haben,
-  während Sie das Paket erstellten.
-
-  <p>Zeile 8 enthält die Bezeichnung des Binär-Pakets. Üblicherweise
-  ist sie gleich dem Namen des Quell-Pakets, aber das muss nicht immer
-  so sein.
-
-  <p>Zeile 9 beschreibt die CPU-Architektur für die das
-  Binär-Paket kompiliert wird. Wir können das bei "any"
-  belassen, weil es dann von  <manref name="dpkg-gencontrol"
-  section="1"> mit dem richtigen Inhalt ersetzt wird, der für den
-  Rechner gilt, auf dem das Paket gebaut wird.
-
-  <p>Wenn ihr Paket unabhängig von der Architektur funktioniert (z.B.
-  ein Shell- oder Perl-Skript, oder Dokumentation), ändern Sie dies
-  zu "all", und lesen Sie später unter <ref id="rules"> über
-  die Benutzung der Rule `binary-indep' statt `binary-arch'.
-
-  <p>Zeile 10 zeigt eine der mächtigsten Eigenschaften des
-  Paketsystems von Debian. Über spezielle Attribute kann das Verhalten
-  des Paketmanagers in Bezug auf andere Pakete verändert werden. Neben
-  Depends: (Abhängigkeit) gibt es noch weitere Attribute:
-  Recommends: (Empfehlung), Suggests: (Vorschlag), Pre-Depends:
-  (Voraussetzung), Conflicts: (Konflikt), Provides: (Enthält) und
-  Replaces: (Ersetzt).
-
-  <p>Die verschiedenen Paketverwaltungs-Programme verhalten sich
-  sehr ähnlich bei der Behandlung dieser Beziehungen
-  (Abweichungen werden weiter unten erklärt).  (siehe <manref name="dpkg"
-  section="8">, <manref name="dselect" section="8">, <manref name="apt"
-  section="8">, <manref name="aptitude" section="1">, usw.)
-
-  <p>Und das bedeuten die Abhängigkeiten:
-
-  <p><list>
-  <item>Depends:
-  <p>Das Paket wird erst installiert, wenn die hier aufgelisteten Pakete
-  ebenfalls installiert sind. Benutzen Sie dies, wenn ihr Programm ohne
-  diese Pakete überhaupt nicht (oder nicht vernünftig) laufen kann.</item>
-
-  <item>Recommends:
-  <p>Frontends wie <prgn/dselect/ und <prgn/aptitude/ fordern Sie auf, empfohlene Pakete
-  zusammen mit Ihrem Paket zu installieren; <prgn/dselect/ besteht sogar darauf;
-  <prgn/dpkg/ und <prgn/apt-get/ werden dieses Feld jedoch ignorieren. Benutzen Sie dieses Feld, wenn die Pakete
-  nicht zwingend erforderlich sind, aber normalerweise mitinstalliert
-  werden.</item>
-
-  <item>Suggests:
-  <p>Wenn der Benutzer ihr Programm installiert, werden alle Frontends Sie
-  auffordern, die vorgeschlagenen Pakete zu installieren. <prgn/dpkg/ und <prgn/apt-get/
-  kümmern sich nicht darum. Benutzen Sie dies für Pakete, die mit
-  ihrem Programm gut zusammenarbeiten, aber eigentlich nicht benötigt
-  werden.</item>
-
-  <item>Pre-Depends:
-  <p>Dies "wirkt" stärker als Depends:. Das Paket wird nicht
-  installiert, bevor die hier aufgelisteten Pakete fertig installiert
-  <em>und richtig konfiguriert</em> sind. Benutzen Sie dies <strong>sehr</strong> sparsam
-  und erst, wenn auf der debian-devel-Mailingliste darüber diskutiert
-  wurde. Lies: Verwenden Sie es überhaupt nicht. :-)</item>
-
-  <item>Conflicts:
-  <p>Das Paket wird nicht installiert, bevor alle aufgelisteten Pakete
-  deinstalliert sind. Benutzen Sie dies, wenn ihr Programm überhaupt
-  nicht oder nicht vernünftig laufen kann, solange eines dieser Pakete
-  installiert ist.</item>
-
-  <item>Provides:
-  <p>Für einige Paketarten mit mehreren Alternativen wurden sog.
-  "virtual names" eingeführt. Die vollständige Liste dieser virtuellen
-  Pakete finden Sie in der Datei
-  <file>/usr/share/doc/debian-policy/virtual-package-names-list.txt.gz</file>.
-  Benutzen Sie dies, wenn Ihr Paket die Funktionalität eines
-  existierenden virtuellen Pakets bietet.
-  </item>
-
-  <item>Replaces:
-  <p>Benutzen Sie dies, wenn Ihr Paket die Dateien eines anderen Pakets
-  überschreibt oder dieses Paket vollständig ersetzt (benutzt zusammen
-  mit Conflicts:). Die Dateien des genannten Pakets werden mit den
-  Dateien aus Ihrem Paket überschrieben.
-
-  </item>
-  </list>
-
-  <p>All diese Felder haben eine einheitliche Syntax. Dies ist eine
-  Liste der Paketnamen, getrennt durch Kommas. Ein Paketname kann auch
-  aus einer Liste der alternativen Paketnamen bestehen, die durch
-  senkrechte Striche <tt>|</tt> ("pipe"-Zeichen) getrennt werden.
-
-  <p>Die Angabe des Pakets kann auch auf ganz bestimmte Paketversionen
-  beschränkt werden. Diese Versionen werden in Klammern nach jedem
-  einzelnen Paketnamen aufgeführt und werden durch spezielle Symbole
-  festgelegt, gefolgt von einer Versionsnummer. Folgende Symbole sind
-  erlaubt: <tt>&lt;&lt;</tt>, <tt>&lt;=</tt>, <tt>=</tt>, <tt>&gt;=</tt>
-  und <tt>&gt;&gt;</tt> für niedriger, niedriger oder gleich, gleich,
-  höher oder gleich und höher. Zum Beispiel:
-
-  <p><example>
+ <chapt id="dreq">
+  <heading>
+    Benötigte Dateien im Verzeichnis <file>debian</file>
+  </heading>
+  <p>
+    Im Quellverzeichnis des Programms gibt es ein neues Unterverzeichnis,
+    das <file>debian</file> heißt. In diesem Verzeichnis sind einige
+    Dateien, die wir ändern müssen, um die Eigenschaften des Pakets
+    anzupassen. Die wichtigsten davon sind <file>control</file>,
+    <file>changelog</file>, <file>copyright</file> und <file>rules</file>,
+    die für jedes Paket benötigt werden.
+  </p>
+  <sect id="control">
+   <heading>
+     Die Datei <file>control</file>
+   </heading>
+   <p>
+     Diese Datei enthält verschiedene Werte, die <prgn>dpkg</prgn>,
+     <prgn>dselect</prgn>, <prgn>apt-get</prgn>, <prgn>apt-cache</prgn>,
+     <prgn>aptitude</prgn> und andere Paketverwaltungswerkzeuge verwenden,
+     um das Paket zu verwalten. Sie wird in den <url
+     id="http://www.debian.org/doc/debian-policy/ch-controlfields.html"
+     name="Debian-Richtlinien, Kapitel 5 »Control files and their fields«">
+     festgelegt.
+   </p>
+   <p>
+     Dies ist die Datei »control«, die <prgn>dh_make</prgn> für uns erstellt
+     hat:
+    <example>
+ 1 Source: gentoo
+ 2 Section: unknown
+ 3 Priority: extra
+ 4 Maintainer: Josip Rodin &lt;joy-mg@debian.org&gt;
+ 5 Build-Depends: debhelper (>= 7.0.50~)
+ 6 Standards-Version: 3.8.4
+ 7 Homepage: &lt;insert the upstream URL, if relevant&gt;
+ 8
+ 9 Package: gentoo
+10 Architecture: any
+11 Depends: ${shlibs:Depends}, ${misc:Depends}
+12 Description: &lt;insert up to 60 chars description&gt;
+13  &lt;insert long description, indented with spaces&gt;
+</example>
+     (Die Zeilennummerierung habe ich hinzugefügt.)
+   </p>
+   <p>
+     Die Zeilen 1-6 sind die Steuerinformationen für das Quellcode-Paket.
+   </p>
+   <p>
+     Zeile 1 ist der Name des Quellcode-Pakets.
+   </p>
+   <p>
+     Zeile 2 bestimmt die Sektion der Distribution, in die das
+     Quellcode-Paket gehört.
+   </p>
+   <p>
+     Sie haben bestimmt schon gemerkt, dass das Debianarchiv in Sektionen
+     aufgeteilt ist: <tt>main</tt> (freie Software), <tt>non-free</tt>
+     (nicht wirklich freie Software) und <tt>contrib</tt> (freie Software,
+     die von non-free-Software abhängt). Unterhalb dieser Sektionen
+     existieren logische Untersektionen, die eine minimale Beschreibung der
+     Pakete geben. Dementsprechend enthält die Sektion <tt>admin</tt>
+     Programme für dieAdministration, <tt>base</tt> die grundlegenden
+     Pakete, <tt>devel</tt> die Pakete für die Programmierer, <tt>doc</tt>
+     die Dokumentation, <tt>libs</tt> die Programmbibliotheken,
+     <tt>mail</tt> die E-Mail-Leseprogramme und -Daemons, <tt>net</tt> die
+     Netzwerk-Anwendungen und Daemons, <tt>x11</tt> die X11-Programme, die
+     nirgendwo anders unterkommen und viele mehr. Siehe die <url
+     id="http://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections"
+     name="Debian-Richtlinien, Kapitel 2.4 »Sections«"> und die <url
+     id="http://packages.debian.org/unstable/" name="Liste der Sektionen in
+     »Sid«"> für eine Orientierung.
+   </p>
+   <p>
+     Verändern Sie die Sektion also zu x11 (Das Präfix <tt>main/</tt> wird
+     impliziert, also können wir es weglassen).
+   </p>
+   <p>
+     Zeile 3 beschreibt, wie wichtig es ist, dass der Benutzer das Paket
+     installiert. Lesen Sie die <url
+     id="http://www.debian.org/doc/debian-policy/ch-archive.html#s-priorities"
+     name="Debian-Richtlinien, 2.5 »Priorities«"> als Anleitung.
+    <list>
+     <item>
+      <p>
+        Die Priorität <tt>optional</tt> ist normalerweise für neue Pakete
+        sinnvoll, die nicht mit anderen Paketen der Prioritäten
+        <tt>required</tt>, <tt>important</tt> oder <tt>standard</tt>
+        kollidieren.
+      </p>
+     </item>
+     <item>
+      <p>
+        Die Priorität <tt>extra</tt> ist normalerweise für neue Pakete
+        sinnvoll, die mit anderen Paketen kollidieren, die eine andere
+        Priorität als <tt>extra</tt> besitzen.
+      </p>
+     </item>
+    </list>
+   </p>
+   <p>
+     Sektion und Priorität werden von Frontends wie <prgn>aptitude</prgn>
+     benutzt, um Pakete zu sortieren und Standardparameter auszuwählen. Wenn
+     Sie das Paket für Debian hochladen, können die Werte dieser beiden
+     Felder von den Archivbetreuern überschrieben werden. Sie erhalten dann
+     eine Nachricht darüber per E-Mail.
+   </p>
+   <p>
+     Da es sich um ein Paket mit normaler Priorität handelt und nichts
+     anderes stört, ändern wir die Priorität auf »<tt>optional</tt>«.
+   </p>
+   <p>
+     Zeile 4 ist der Name und die E-Mail-Adresse des Betreuers. Sie müssen
+     sicherstellen, dass dieses Feld eine gültige »<tt>To</tt>«-Kopfzeile
+     für eine E-Mail enthält, weil nach dem Hochladen das
+     Fehlerverfolgungssystem diesen Eintrag nutzt, um die Fehler-E-Mails an
+     Sie zuzustellen. Benutzen Sie keine Kommata, das Et-Zeichen (&amp;)
+     oder Klammern.
+   </p>
+   <p>
+     Zeile 5 enthält die Liste der Pakete, die zum Bauen des Pakets benötigt
+     werden, im Feld <tt>Build-Depends</tt>. Sie können hier ebenso das Feld
+     <tt>Build-Depends-Indep</tt> in einer zusätzlichen Zeile benutzen
+     (siehe die <url
+     id="http://www.debian.org/doc/debian-policy/ch-relationships.html#s-sourcebinarydeps"
+     name="Debian-Richtlinien, 7.7 »Relationships between source and binary
+     packages - Build-Depends, Build-Depends-Indep, Build-Conflicts,
+     Build-Conflicts-Indep«">). Einige Pakete wie <package>gcc</package> und
+     <package>make</package> werden impliziert, weil sie vom Paket
+     <package>build-essential</package> benötigt werden. Falls Sie andere
+     Werkzeuge zum Bauen Ihres Pakets brauchen, müssen Sie sie zu diesen
+     Feldern hinzufügen. Mehrere Einträge werden durch Kommata getrennt;
+     mehr über die Syntax dieser Zeilen finden Sie in den Erläuterungen der
+     binären Abhängigkeiten.
+    <list>
+     <item>
+      <p>
+        Bei allen Paketen, die auf den Befehl <prgn>dh</prgn> in der Datei
+        <file>debian/rules</file> zugreifen, müssen Sie »<tt>debhelper
+        (>=7.0.50~)</tt>« in das Feld <tt>Build-Depends</tt> eintragen, um
+        die Debian-Richtlinien für das Target <tt>clean</tt> zu erfüllen.
+      </p>
+     </item>
+     <item>
+      <p>
+        Bei Quellpaketen, die binäre Pakete mit »<tt>Architecture: any</tt>«
+        erstellen, werden diese vom automatischen Buildsystem
+        (»Autobuilder«) neu gebaut. Da während dieser Autobuilder-Prozedur
+        »<tt>debian/rules build</tt>« aufgerufen wird und nur Pakete
+        installiert werden, die im Feld <tt>Build-Depends</tt> aufgeführt
+        sind (siehe <ref id="autobuilder">), muss das Feld
+        <tt>Build-Depends</tt> praktisch alle erforderlichen Pakete
+        auflisten. Das Feld <tt>Build-Depends-Indep</tt> wird daher selten
+        benutzt.
+      </p>
+     </item>
+     <item>
+      <p>
+        Bei Quellpaketen, die nur binäre Pakete mit »<tt>Architecture:
+        all</tt>« erstellen, kann das Feld <tt>Build-Depends-Indep</tt> alle
+        erforderlichen Pakete auflisten, es sei denn, diese sind bereits im
+        Feld <tt>Build-Depends</tt> aufgeführt, um die Debian-Richtlinie für
+        das Target <tt>clean</tt> zu erfüllen.
+      </p>
+     </item>
+    </list>
+   </p>
+   <p>
+     Wenn Sie sich nicht sicher sind, welches von beiden Sie benutzen
+     sollten, verwenden Sie das Feld <tt>Build-Depends</tt>, um auf der
+     sicheren Seite zu sein. <footnote><p>Diese etwas merkwürdige Situation
+     ist eine Besonderheit, die in den <url
+     id="http://www.debian.org/doc/debian-policy/footnotes.html#f48"
+     name="Debian-Richtlinien, Fußnote 48"> sehr gut dokumentiert ist. Es
+     liegt nicht an der Verwendung des Befehls <prgn>dh</prgn> in der Datei
+     <file>debian/rules</file>, sondern daran, wie das Programm
+     <prgn>dpkg-buildpackage</prgn> arbeitet. Dieselbe Situation gilt auch
+     für das <url
+     id="https://bugs.launchpad.net/launchpad-buildd/+bug/238141"
+     name="»auto build system« von Ubuntu">.</p></footnote>
+   </p>
+   <p>
+     Um herauszufinden, welche Pakete Ihr Paket zum Bauen benötigt, führen
+     Sie diesen Befehl aus:
+    <example>
+$ dpkg-depcheck -d ./configure
+</example>
+   </p>
+   <p>
+     Um die genauen Build-Abhängigkeiten für
+     <prgn><var>/usr/bin/foo</var></prgn> manuell herauszufinden, führen Sie
+    <example>
+$ objdump -p <var>/usr/bin/foo</var> | grep NEEDED
+</example>
+     aus. Rufen Sie dann für jede aufgelistete Bibliothek, beispielsweise
+     <prgn>libfoo.so.6</prgn>, diesen Befehl auf:
+    <example>
+$ dpkg -S libfoo.so.6 
+</example>
+     Dann nehmen Sie die Entwicklerversion (<tt>-dev</tt>) jedes Pakets als
+     einen <tt>Build-Depends</tt>-Eintrag. Wenn Sie dafür <prgn>ldd</prgn>
+     benutzen, werden auch indirekt abhängende Bibliotheken aufgelistet und
+     überflüssige Build-Abhängigkeiten geliefert.
+   </p>
+   <p>
+     <package>Gentoo</package> benötigt noch <package>xlibs-dev</package>,
+     <package>libgtk1.2-dev</package> und <package>libglib1.2-dev</package>
+     um gebaut werden zu können, deshalb hängen wir diese direkt hinter
+     <package>debhelper</package> an.
+   </p>
+   <p>
+     Zeile 6 enthält die Version der <url
+     id="http://www.debian.org/doc/devel-manuals#policy"
+     name="Debian-Richtlinien">, dessen Standards dieses Paket entspricht,
+     also die Version, die Sie gelesen haben, während Sie Ihr Paket
+     erstellten.
+   </p>
+   <p>
+     In Zeile 7 können Sie die URL der Homepage für das ursprüngliche
+     Programm notieren.
+   </p>
+   <p>
+     Zeile 9 enthält den Namen des Binärpakets. Üblicherweise ist dies der
+     gleiche Name wie der des Quellpakets, aber das muss nicht immer so
+     sein.
+   </p>
+   <p>
+     Zeile 10 beschreibt die CPU-Architektur, für die das Binärpaket
+     kompiliert werden kann. Wir können das bei »<tt>any</tt>« belassen,
+     weil es dann von <manref section="1" name="dpkg-gencontrol"> mit dem
+     richtigen Inhalt ersetzt wird, der für den Rechner gilt, auf dem das
+     Paket gebaut wird.
+   </p>
+   <p>
+     Wenn Ihr Paket unabhängig von der Architektur funktioniert
+     (beispielsweise ein Shell- oder Perl-Skript oder Dokumentation), ändern
+     Sie dies in »<tt>all</tt>« und lesen Sie später unter <ref id="rules">
+     über die Benutzung der Regel <tt>binary-indep</tt> statt
+     <tt>binary-arch</tt> für den Bau des Pakets.
+   </p>
+   <p>
+     Zeile 11 zeigt eine der mächtigsten Eigenschaften des Paketsystems von
+     Debian. Pakete können auf verschiedene Arten miteinander in Beziehung
+     stehen. Neben <tt>Depends</tt> (hängt ab von) gibt es noch die
+     Beziehungsfelder <tt>Recommends</tt> (empfiehlt), <tt>Suggests</tt>
+     (schlägt vor), <tt>Pre-Depends</tt> (setzt voraus), <tt>Breaks</tt>
+     (beschädigt), <tt>Conflicts</tt> (kollidiert mit), <tt>Provides</tt>
+     (enthält) und <tt>Replaces</tt> (ersetzt).
+   </p>
+   <p>
+     Die verschiedenen Paketverwaltungswerkzeuge verhalten sich
+     normalerweise bei der Behandlung dieser Beziehungen gleich; wenn nicht,
+     wird dies erklärt (siehe <manref section="8" name="dpkg">, <manref
+     section="8" name="dselect">, <manref section="8" name="apt">, <manref
+     section="1" name="aptitude"> usw.).
+   </p>
+   <p>
+     Und das bedeuten die Abhängigkeiten:
+   </p>
+   <p>
+    <list>
+     <item>
+      <p>
+        <tt>Depends</tt>
+      </p>
+      <p>
+        Das Paket wird erst installiert, wenn die hier aufgelisteten Pakete
+        ebenfalls installiert sind. Benutzen Sie dies, wenn ihr Programm
+        ohne ein bestimmtes Paket überhaupt nicht läuft (oder schwere
+        Schäden verursacht).
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Recommends</tt>
+      </p>
+      <p>
+        Benutzen Sie dies für Pakete, die nicht absolut notwendig sind, die
+        aber typischerweise mit Ihrem Programm verwendet werden. Wenn ein
+        Benutzer Ihr Programm installiert, fragen wahrscheinlich alle
+        Frontends nach, ob die empfohlenen Pakete auch installiert werden
+        sollen. <prgn>Aptitude</prgn> und <prgn>apt-get</prgn> installieren
+        alle empfohlenen Pakete zusammen mit Ihrem Paket (aber der Benutzer
+        kann diese Voreinstellung außer Kraft setzen). <prgn>Dpkg</prgn>
+        ignoriert dieses Feld.
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Suggests</tt>
+      </p>
+      <p>
+        Benutzen Sie dies für Pakete, die mit Ihrem Programm gut
+        zusammenarbeiten, aber absolut nicht notwendig sind. Wenn ein
+        Benutzer Ihr Programm installiert, fragen wahrscheinlich alle
+        Frontends nach, ob die vorgeschlagenen Pakete auch installiert
+        werden sollen. <prgn>Aptitude</prgn> kann so konfiguriert werden,
+        dass es vorgeschlagene Pakete zusammen mit Ihrem Paket installiert,
+        aber dies ist nicht die Voreinstellung.<prgn>Dpkg</prgn> und
+        <prgn>apt-get</prgn> ignorieren dieses Feld.
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Pre-Depends</tt>
+      </p>
+      <p>
+        Dies ist stärker als <tt>Depends</tt>. Das Paket wird nicht
+        installiert, bevor die hier aufgelisteten Pakete fertig installiert
+        <em>und richtig konfiguriert</em> sind. Benutzen Sie dies
+        <em>sehr</em> sparsam und nur, nachdem auf der Mailingliste <url
+        id="http://lists.debian.org/debian-devel/"
+        name="debian-devel@lists.debian.org"> darüber diskutiert
+        wurde. Lies: Verwenden Sie es überhaupt nicht. :-)
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Conflicts</tt>
+      </p>
+      <p>
+        Das Paket wird nicht installiert, bevor alle Pakete, mit denen es
+        kollidiert, entfernt wurden. Benutzen Sie dies, wenn ihr Programm
+        überhaupt nicht läuft oder schwere Probleme verursacht, solange ein
+        bestimmtes Paket installiert ist.
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Breaks</tt>
+      </p>
+      <p>
+        Wenn dieses Paket installiert wird, werden alle aufgeführten Pakete
+        als beschädigt markiert. Normalerweise hat ein Eintrag unter
+        <tt>Breaks</tt> einen Versionseintrag mit dem Vergleich »früher
+        als«. Die Lösung ist üblicherweise, dass die aufgelisteten Pakete
+        von den höhergradigen Paketverwaltungswerkzeugen aktualisiert
+        werden.
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Provides</tt>
+      </p>
+      <p>
+        Für einige Paketarten mit mehreren Alternativen wurden virtuelle
+        Namen definiert. Die vollständige Liste dieser virtuellen Pakete
+        finden Sie in der Datei
+        <file>/usr/share/doc/debian-policy/virtual-package-names-list.txt.gz</file>.
+        Benutzen Sie dies, wenn Ihr Paket die Funktionalität eines
+        existierenden virtuellen Pakets bietet.
+      </p>
+     </item>
+     <item>
+      <p>
+        <tt>Replaces</tt>
+      </p>
+      <p>
+        Benutzen Sie dies, wenn Ihr Paket Dateien eines anderen Pakets
+        überschreibt oder ein anderes Paket vollständig ersetzt (wird
+        zusammen mit <tt>Conflicts</tt> benutzt). Dateien der genannten
+        Pakete werden mit den Dateien aus Ihrem Paket überschrieben.
+      </p>
+     </item>
+    </list>
+   </p>
+   <p>
+     All diese Felder haben eine einheitliche Syntax. Es ist jeweils eine
+     durch Kommata getrennte Liste der Paketnamen. Diese Paketnamen können
+     auch aus einer Liste von alternativen Paketnamen bestehen, die durch
+     senkrechte Striche »<tt>|</tt>« (»pipe«-Zeichen) getrennt werden.
+   </p>
+   <p>
+     Die Anwendung der Felder kann auf bestimmte Versionen eines genannten
+     Pakets beschränkt werden. Diese Versionen werden in Klammern nach jedem
+     einzelnen Paketnamen aufgeführt und müssen einen Vergleich aus der
+     folgenden Liste enthalten, gefolgt von der Versionsnummer. Die
+     erlaubten Vergleiche sind <tt>&lt;&lt;</tt>, <tt>&lt;=</tt>,
+     <tt>=</tt>, <tt>&gt;=</tt> und <tt>&gt;&gt;</tt> für strikt niedriger,
+     niedriger oder gleich, genau gleich, höher oder gleich und strikt
+     höher. Ein Beispiel:
+    <example>
 Depends: foo (&gt;= 1.2), libbar1 (= 1.3.4)
 Conflicts: baz
 Recommends: libbaz4 (&gt;&gt; 4.0.7)
 Suggests: quux
 Replaces: quux (&lt;&lt; 5), quux-foo (&lt;= 7.6)
-  </example>
-
-  <p>Das letzte Feature, das erwähnt werden sollte, ist die Variable
-  <var>${shlibs:Depends}</var>. Nachdem Ihr Paket gebaut und in das
-  Unterverzeichnis (A.d.Ü.: debian/tmp) installiert wurde, wird es von
-  <manref name="dh_shlibdeps" section="1"> nach Binär-Dateien und Bibliotheken
-  durchsucht, um Abhängigkeiten zu `shared libraries' festzustellen und
-  herauszufinden, in welchen Paketen diese stecken, wie z.B. libc6 oder
-  xlib6g. Die Liste wird an <manref name="dh_gencontrol" section="1">
-  weiter gegeben um sie an die richtige Stelle zu setzen. Darum brauchen
-  Sie sich nicht zu kümmern.
-
-  <p>Wie schon gesagt, Sie lassen die Depends: Zeile wie sie ist und
-  fügen darunter eine neue Zeile <tt>Suggests: file</tt>, weil gentoo
-  für einige Funktionen dieses Programm/Paket braucht.
-
-  <p>Zeile 11 enthält eine Kurzbeschreibung. Bei den meisten Leuten sind
-  die Terminalzeilen 80 Zeichen breit, also sollte die Kurzbeschreibung
-  nicht länger als 60 Zeichen sein. Sie ändern es in "fully GUI
-  configurable X file manager using GTK+".
-
-  <p>In die Zeile 12 kommt eine ausführliche Beschreibung des Pakets.
-  Sie sollte aus einem kleinen Text bestehen, der mehr über das Paket
-  verrät. Die erste Spalte der Zeilen sollte immer leer sein. Es dürfen
-  keine leeren Zeilen vorkommen, Sie können aber welche simulieren, indem
-  Sie einen einzelnen . (Punkt) in die Zeile einsetzen. Es darf nach der
-  ausführlichen Beschreibung auch nicht mehr als eine Leerzeile
-  vorkommen.
-
-  <p>Und so sieht die angepasste Datei `control' aus:
-
-  <p><example>
-1  Source: gentoo
-2  Section: x11
-3  Priority: optional
-4  Maintainer: Josip Rodin &lt;joy-mg@debian.org&gt;
-5  Build-Depends: debhelper(>> 3.0.0),xlibs-dev,libgtk1.2-dev,libglib1.2-dev
-6  Standards-Version: 3.6.1
-7
-8  Package: gentoo
-9  Architecture: any
-10 Depends: ${shlibs:Depends}
-11 Suggests: file
-12 Description: fully GUI configurable X file manager using GTK+
-13  gentoo is a file manager for Linux written from scratch in pure C. It
-14  uses the GTK+ toolkit for all of its interface needs. gentoo provides
-15  100% GUI configurability; no need to edit config files by hand and re-
-16  start the program. gentoo supports identifying the type of various
-17  files (using extension, regular expressions, or the 'file' command),
-18  and can display files of different types with different colors and icons.
-19  .
-20  gentoo borrows some of its look and feel from the classic Amiga file
-21  manager "Directory OPUS" (written by Jonathan Potter).
-  </example>
-  (Die Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <sect id="copyright">Die Datei `copyright'
-
-  <p>In dieser Datei stehen Informationen über die Herkunft des Pakets
-  (bzw. der Quellen), über die Lizenz und das Urheberrecht (Copyright).
-  Die Policy schreibt keine bestimmte Form vor, aber den benötigten
-  Inhalt (siehe Abschnitt 12.5 "Copyright information").
-
-  <p><prgn/dh_make/ erstellt uns eine Standardvorlage, die etwa so aussieht:
-
-  <p><example>
-1  This package was debianized by Josip Rodin &lt;joy-mg@debian.org&gt; on
-2  Wed, 11 Nov 1998 21:02:14 +0100.
-3
-4  It was downloaded from &lt;fill in ftp site&gt;
-5
-6  Upstream Author(s): &lt;put author(s) name and email here&gt;
-7
-8  Copyright:
-9
-10 &lt;Must follow here&gt;
-  </example>
-   (Die Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <p>Die wichtigsten Dinge, die Sie hier einzutragen haben, sind die
-  Quelle, von der Sie das Paket bezogen haben, die geltenden
-  Copyright-Vermerke und die Lizenz. Sie müssen die komplette Lizenz
-  einfügen, sofern es sich nicht um eine der gängigen freien
-  Softwarelizenzen handelt, z.B. die GNU GPL oder LGPL, die BSD- oder
-  die Artistic-License; in diesem Fall reicht ein Verweis auf die
-  entsprechende Datei im Verzeichnis <file>/usr/share/common-licenses/</file>,
-  das auf jedem Debian-System existieren sollte.
-
-  <p>Gentoo's Datei `copyright' sollte also so aussehen:
-
-  <p><example>
-1  This package was debianized by Josip Rodin &lt;joy-mg@debian.org&gt; on
-2  Wed, 11 Nov 1998 21:02:14 +0100.
-3
-4  It was downloaded from: ftp://ftp.obsession.se/gentoo/
-5
-6  Upstream author: Emil Brink &lt;emil@obsession.se&gt;
-7
-8  This software is copyright (c) 1998-99 by Emil Brink, Obsession
-9  Development.
+</example>
+   </p>
+   <p>
+     Die letzten Merkmale, die Sie kennen sollten, sind
+     <tt>${shlibs:Depends}</tt>, <tt>${perl:Depends}</tt>,
+     <tt>${misc:Depends}</tt> usw. Diese Einträge werden durch die Liste
+     ersetzt, die von anderen <package>debhelper</package>-Komponenten
+     erstellt wurde, während der Befehl <manref section="1"
+     name="dh_gencontrol"> ausgeführt wird.
+   </p>
+   <p>
+     Nachdem Ihr Paket gebaut und in das temporäre Verzeichnis installiert
+     wurde, untersucht <manref section="1" name="dh_shlibdeps"> die
+     Binärdateien und Bibliotheken auf Abhängigkeiten von
+     Laufzeitbibliotheken und stellt fest, in welchen Paketen diese
+     enthalten sind, beispielsweise <package>libc6</package> oder
+     <package>xlib6g</package>. Diese Liste von Laufzeitbibliotheken, von
+     denen Ihr Programm abhängt, wird für <tt>${shlibs:Depends}</tt>
+     benutzt.
+   </p>
+   <p>
+     Die Paketliste, die von <manref section="1" name="dh_perl"> erzeugt
+     wurde, wird für <tt>${perl:Depends}</tt> verwendet.
+   </p>
+   <p>
+     Einige <package>debhelper</package>-Befehle können eine Abhängigkeit
+     von einem anderen Paket im erzeugten Paket bewirken. Die Liste solcher
+     benötigten Pakete wird für <tt>${misc:Depends}</tt> benutzt.
+   </p>
+   <p>
+     Nach all diesen Erklärungen können wir das Feld <tt>Depends</tt> aber
+     exakt so belassen, wie es jetzt ist und eine weitere Zeile dahinter
+     einfügen, in der »<tt>Suggests: file</tt>« steht, weil
+     <package>gentoo</package> einige Funktionen des Pakets
+     <package>file</package> nutzen kann.
+   </p>
+   <p>
+     Zeile 12 enthält eine Kurzbeschreibung. Bei den meisten Leuten sind die
+     Terminalzeilen 80 Zeichen breit, also sollte die Kurzbeschreibung nicht
+     länger als etwa 60 Zeichen sein. Ich ändere es in "<tt>fully
+     GUI-configurable, two-pane X file manager</tt>".
+   </p>
+   <p>
+     In die Zeile 13 kommt eine ausführliche Beschreibung. Sie sollte aus
+     einem kleinen Text bestehen, der mehr über das Paket verrät. Die erste
+     Spalte jeder Zeile muss leer sein. Es dürfen keine leeren Zeilen
+     vorkommen, Sie können aber welche simulieren, indem Sie einen einzelnen
+     »<tt>.</tt>« (Punkt) in die Zeile einsetzen. Es darf nach der
+     ausführlichen Beschreibung auch nicht mehr als eine Leerzeile
+     vorkommen.
+   </p>
+   <p>
+     Lassen Sie uns zwischen die Zeilen 6 und 7 die Felder <tt>Vcs-*</tt>
+     einsetzen, die in der <url
+     id="http://www.debian.org/doc/manuals/developers-reference/best-pkging-practices.html#bpp-vcs"
+     name="Entwickler-Referenz, 6.2.5. »Version Control System location«">
+     beschrieben sind. Wir nehmen an, dass das Paket
+     <package>gentoo</package> im Git-Service von Debian Alioth unter
+     <tt>git://git.debian.org/git/collab-maint/gentoo.git</tt> zu finden
+     ist.
+   </p>
+   <p>
+     Zum Schluss ist dies die aktualisierte Datei <file>control</file>:
+    <example>
+ 1 Source: gentoo
+ 2 Section: x11
+ 3 Priority: optional
+ 4 Maintainer: Josip Rodin &lt;joy-mg@debian.org&gt;
+ 5 Build-Depends: debhelper (>= 7.0.5), xlibs-dev, libgtk1.2-dev, libglib1.2-dev
+ 6 Standards-Version: 3.8.4
+ 7 Vcs-Git: git://git.debian.org/git/collab-maint/gentoo.git
+ 8 Vcs-browser: http://git.debian.org/?p=collab-maint/gentoo.git
+ 9 Homepage: http://www.obsession.se/gentoo/
 10
-11 You are free to distribute this software under the terms of
-12 the GNU General Public License.
-13 On Debian systems, the complete text of the GNU General Public
-14 License can be found in the file `/usr/share/common-licenses/GPL'.
-  </example>
-   (Die Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <sect id="changelog">Die Datei `changelog'
-
-  <p>Dies ist eine zwingend vorgeschriebene Datei, deren Format in
-  der Policy Sektion 4.4 "debian/changelog" beschrieben wird. Dieses Format
-  benötigen <prgn/dpkg/ und andere Programme um Dinge wie Versionsnummer,
-  Revision, Distribution und die Wichtigkeit ihres Pakets zu bestimmen.
-
-  <p>Für Sie ist die Datei ebenfalls wichtig, weil man hier die gemachten
-  Änderungen dokumentieren kann. Damit können Leute, die Ihr Paket
-  herunterladen, einfacher herausfinden, ob es Probleme
-  mit dem Paket gibt, die sie kennen sollten. Diese Datei wird im
-  Binär-Paket als <file>/usr/share/doc/gentoo/changelog.Debian.gz</file>
-  gespeichert.
-
-  <p><prgn/dh_make/ erstellt eine Standardvorlage, die etwa so aussieht:
-
-  <p><example>
+11 Package: gentoo
+12 Architecture: any
+13 Depends: ${shlibs:Depends}, ${misc:Depends}
+14 Suggests: file
+15 Description: fully GUI-configurable, two-pane X file manager
+16  gentoo is a two-pane file manager for the X Window System. gentoo lets the
+17  user do (almost) all of the configuration and customizing from within the
+18  program itself. If you still prefer to hand-edit configuration files,
+19  they're fairly easy to work with since they are written in an XML format.
+20  .
+21  gentoo features a fairly complex and powerful file identification system,
+22  coupled to a object-oriented style system, which together give you a lot
+23  of control over how files of different types are displayed and acted upon.
+24  Additionally, over a hundred pixmap images are available for use in file
+25  type descriptions.
+26  .
+29  gentoo was written from scratch in ANSI C, and it utilises the GTK+ toolkit
+30  for its interface.
+</example>
+     (Die Zeilennummerierung habe ich hinzugefügt.)
+   </p>
+  </sect>
+  <sect id="copyright">
+   <heading>
+     Die Datei <file>copyright</file>
+   </heading>
+   <p>
+     In dieser Datei stehen Informationen über die Herkunft des Pakets, das
+     Copyright und die Lizenz. Die <url
+     id="http://www.debian.org/doc/debian-policy/ch-docs.html#s-copyrightfile"
+     name="Debian-Richtlinien, 12.5 »Copyright information«"> schreiben
+     keine bestimmte Form vor, aber den benötigten Inhalt. Sie können auch
+     <url id="http://dep.debian.net/deps/dep5/" name="DEP-5:
+     »Machine-parseable debian/copyright«"> zu Rate ziehen.
+   </p>
+   <p>
+     <prgn>Dh_make</prgn> kann eine Vorlage für die Datei
+     <file>copyright</file> erzeugen. Verwenden Sie hier die Option
+     »<tt>--copyright gpl2</tt>«, um eine Vorlage für das Paket
+     <package>gentoo</package> zu erhalten, das unter GPL-2 veröffentlicht
+     wurde.
+   </p>
+   <p>
+     Sie müssen hier fehlende Informationen eintragen, beispielsweise die
+     Quelle, von der Sie das Paket bezogen haben, die tatsächlichen
+     Copyright-Vermerke und die Lizenz, damit die Datei vollständig ist. Bei
+     den verbreiteten Lizenzen von freier Software wie GNU GPL-1, GNU GPL-2,
+     GNU GPL-3, LGPL-2, LGPL-2.1, LGPL-3, GNU FDL-1.2, GNU FDL-1.3,
+     Apache-2.0 oder der Artistic license können Sie auf die entsprechende
+     Datei im Verzeichnis <file>/usr/share/common-licenses/</file>
+     verweisen, das auf jedem Debian-System existiert. Anderenfalls müssen
+     Sie die vollständige Lizenz einfügen.
+   </p>
+   <p>
+     Zusammengefasst sollte die Datei <file>copyright</file> von
+     <package>gentoo</package> so aussehen:
+    <example>
+ 1 Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&amp;rev=135
+ 2 Name: gentoo
+ 3 Maintainer: Josip Rodin &lt;joy-mg@debian.org&gt;
+ 4 Source: http://sourceforge.net/projects/gentoo/files/
+ 5
+ 6 Copyright: 1998-2010 Emil Brink &lt;emil@obsession.se&gt;
+ 7 License: GPL-2+
+ 8
+ 9 Files: icons/*
+10 Copyright: 1998 Johan Hanson &lt;johan@tiq.com&gt;
+11 License: GPL-2+
+12
+13 Files: debian/*
+14 Copyright: 1998-2010 Josip Rodin &lt;joy-mg@debian.org&gt;
+15 License: GPL-2+
+16
+17 License: GPL-2+
+18  This program is free software; you can redistribute it and/or modify
+19  it under the terms of the GNU General Public License as published by
+20  the Free Software Foundation; either version 2 of the License, or
+21  (at your option) any later version. 
+22  .
+23  This program is distributed in the hope that it will be useful,
+24  but WITHOUT ANY WARRANTY; without even the implied warranty of
+25  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+26  GNU General Public License for more details.
+27 .
+28  You should have received a copy of the GNU General Public License along
+29  with this program; if not, write to the Free Software Foundation, Inc.,
+30  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+31  .
+32  On Debian systems, the full text of the GNU General Public
+33  License version 2 can be found in the file
+34  `/usr/share/common-licenses/GPL-2'.
+</example>
+     (Die Zeilennummerierung habe ich hinzugefügt.)
+   </p>
+   <p>
+     Bitte befolgen Sie das »HOWTO«, das von den FTP-Masters zur Verfügung
+     gestellt wird und an debian-devel-announce geschickt wurde: <url
+     id="&copyright-howto;">.
+   </p>
+  </sect>
+  <sect id="changelog">
+   <heading>
+     Die Datei <file>changelog</file>
+   </heading>
+   <p>
+     Dies ist eine zwingend vorgeschriebene Datei, deren Format in den <url
+     id="http://www.debian.org/doc/debian-policy/ch-source.html#s-dpkgchangelog"
+     name="Debian-Richtlinien, 4.4 »debian/changelog«"> beschrieben
+     wird. Dieses Format benötigen <prgn>dpkg</prgn> und andere Programme um
+     die Versionsnummer, Revision, Distribution und die Dringlichkeit Ihres
+     Pakets zu bestimmen.
+   </p>
+   <p>
+     Für Sie ist die Datei ebenfalls wichtig, weil es sinnvoll ist, alle von
+     Ihnen vorgenommenen Änderungen zu dokumentieren. Damit können Leute,
+     die Ihr Paket herunterladen, einfacher herausfinden, ob es Probleme mit
+     dem Paket gibt, die sie kennen sollten. Diese Datei wird im Binärpaket
+     als <file>/usr/share/doc/gentoo/changelog.Debian.gz</file> gespeichert.
+   </p>
+   <p>
+     <prgn>Dh_make</prgn> hat eine Standardvorlage erstellt, die so
+     aussieht:
+    <example>
 1  gentoo (0.9.12-1) unstable; urgency=low
 2
-3   * Initial Release.
+3   * Initial release (Closes: #<var>nnnn</var>)  &lt;<var>nnnn</var> is the bug number of your ITP&gt;
 4
-5  -- Josip Rodin &lt;joy-mg@debian.org&gt; Wed, 11 Nov 1998 21:02:14 +0100
+5  -- Josip Rodin &lt;joy-mg@debian.org&gt;  Mon, 22 Mar 2010 00:37:31 +0100
 6
-  </example>
-  (Die Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <p>In der Zeile 1 stehen der Paketname, die Version, die Distribution
-  und die Wichtigkeit.  Der Name muss mit dem Namen des
-  Quell-Pakets übereinstimmen, Distribution sollte vorerst `unstable' (oder
-  sogar `experimental') sein und die Priorität nicht höher als `low'. :-)
-
-  <p>Zeilen 3-5 sind Log-Einträge, in den Sie die in dieser Revision
-  gemachten Änderungen dokumentieren können. (Hierher kommt nichts über
-  die Änderungen des Upstream-Maintainers, für diese Zwecke gibt es eine
-  separate Datei, die Sie später als
-  <file>/usr/share/doc/gentoo/changelog.gz</file>
-  speichern werden.) Neue Zeilen werden direkt über die oberste Zeile,
-  die mit einem Stern (`*') beginnt, eingefügt. Sie können das mit
-  <manref name="dch" section="1">, oder per Hand mit einem Texteditor
-  erledigen.
-
-  <p>Schließlich kommen Sie zu einer Datei wie dieser hier:
-
-  <p><example>
+</example>
+     (Die Zeilennummerierung habe ich hinzugefügt.)
+   </p>
+   <p>
+     In der Zeile 1 stehen der Paketname, die Version, die Distribution und
+     die Dringlichkeit. Der Name muss mit dem Namen des Quellpakets
+     übereinstimmen, die Distribution sollte entweder <tt>unstable</tt>
+     (oder sogar <tt>experimental</tt>) sein <footnote><p>Einige Leute
+     verwenden ungültige Werte für die Distribution wie <tt>UNRELEASED</tt>,
+     um zu verhindern, dass ein Paket versehentlich hochgeladen wird, wenn
+     es in einem verteilten Versionskontrollsystem aktualisiert
+     wird.</p></footnote> und die Dringlichkeit sollte nicht auf etwas
+     höheres als <tt>low</tt> geändert werden. :-)
+   </p>
+   <p>
+     Zeilen 3-5 sind Log-Einträge, in denen Sie die in dieser Paketrevision
+     gemachten Änderungen dokumentieren können (hier kommen keine Änderungen
+     des ursprünglichen Betreuers hinein; für diese Zwecke gibt es eine
+     spezielle Datei, die von den ursprünglichen Betreuern erstellt wurde
+     und die Sie später als <file>/usr/share/doc/gentoo/changelog.gz</file>
+     installieren werden). Wir nehmen an, dass die Nummer Ihres
+     ITP-Fehlerberichts (»Intent To Package«; Absicht, ein Paket zu
+     erstellen) »<tt>12345</tt>« lautet. Neue Zeilen werden direkt über der
+     obersten Zeile, die mit einem Stern (»<tt>*</tt>«) beginnt,
+     eingefügt. Sie können das mit <manref section="1" name="dch"> oder per
+     Hand mit einem Texteditor erledigen.
+   </p>
+   <p>
+     Schließlich kommen Sie zu einer Datei wie dieser hier:
+    <example>
 1  gentoo (0.9.12-1) unstable; urgency=low
 2
-3   * Initial Release.
+3   * Initial Release. Closes: #12345
 4   * This is my first Debian package.
-5   * Adjusted the Makefile to fix $DESTDIR problems.
+5   * Adjusted the Makefile to fix $(DESTDIR) problems.
 6
-7  -- Josip Rodin &lt;joy-mg@debian.org&gt; Wed, 11 Nov 1998 21:02:14 +0100
+7  -- Josip Rodin &lt;joy-mg@debian.org&gt;  Mon, 22 Mar 2010 00:37:31 +0100
 8
-  </example>
-    (Die Zeilennummerierung habe ich für dieses Beispiel hinzugefügt.)
-
-  <p>Mehr über Änderungen in der Datei `changelog' können Sie später in
-  <ref id="update"> lesen.
-
-  <sect id="rules">Die Datei `rules'
-
-  <p>Nun müssen Sie einen Blick auf die eigentlichen Befehlssequenzen,
-  sog. Rules, werfen, mit denen <manref name="dpkg-buildpackage"
-  section="1"> das Paket schließlich erstellt. Die Datei `rules' ist
-  im Prinzip ein weiteres Makefile, unterscheidet sich aber von denen
-  des Upstream-Autors. Im Gegensatz zu anderen Dateien in debian/ ist
-  diese Datei ausführbar.
-
-  <p>Wie jedes andere Makefile besteht die Datei `rules' aus mehreren
-  Rules, die bestimmen, wie mit dem Quellcode verfahren wird. Jede Rule
-  besteht wiederum aus weiteren Targets, Dateinamen oder Namen der
-  Aktionen, die durchgeführt werden (z.B. `build:' oder `install:').
-  Rules, die Sie ausführen möchten, werden beim Aufruf als
-  Programmparameter angegeben (z.B., `./debian/rules build` oder `make
-  -f rules install`). Nach dem Targetnamen  (A.d.Ü.: nach der
-  Bezeichnung unserer Rule) können Sie Programme oder Dateinamen
-  angeben, von der die Ausführung der Rule abhängt. Danach folgt eine
-  beliebige Anzahl von Kommandos, eingerückt mit
-  &lt;tab&gt;. Eine neue Rule beginnt mit der Deklaration eines Targets
-  in der ersten Spalte. Leerzeilen und mit einem `#'
-  (hash) beginnende Zeilen werden als Kommentare betrachtet und
-  ignoriert.
-
-  <p>Sie sind vielleicht etwas verwirrt, aber es wird alles verständlich
-  nach der genaueren Betrachtung der Datei `rules', die uns <prgn/dh_make/
-  erstellt hat. Sie sollten evtl. die Info-Seiten von <prgn/make/ lesen, um
-  mehr über die Funktionsweise zu erfahren.
-
-  <p>Wichtig zu wissen ist noch, dass <prgn/dh_make/ nur ein Muster der
-  Datei `rules' erzeugt, also einen Vorschlag, wie sie ungefähr
-  auszusehen hat. Diese Datei wird für einfache Pakete wahrscheinlich
-  funktionieren, aber bei komplizierteren sollten Sie die Datei nach
-  Bedarf anpassen und erweitern. Sie dürfen nur die Namen der Rules
-  nicht ändern, weil diese in der Policy vorgeschrieben sind und
-  von allen Programmen (für die Paketerstellung) so erwartet werden.
-
-  <p><example>
-&makefile;
-  </example>
-  (Zeilennummerierung habe ich für dieses Beispiel hinzugefügt. In der
-  richtigen Datei <file>debian/rules</file> sind die führenden Leerzeichen
-  ein TAB.)
-
-  <p>Die Funktion der ersten Zeile kennen Sie vielleicht von Perl-
-  oder Shell-Skripten. Sie teilt dem Betriebssystem mit, dass das Skript
-  mit <file>/usr/bin/make</file> interpretiert wird.
-
-  <p>Die Zeilen 8 bis 9 enthalten Variablen <var>DH_*</var>, deren Bedeutung
-  durch die Kurzbeschreibung klar werden sollte. Mehr Informationen über
-  <var>DH_COMPAT</var> finden Sie in dem Kapitel "Debhelper compatibility
-  levels" in der Manpage <manref name="debhelper" section="1">.
-
-  <p>Die Zeilen 11 bis 16 beinhalten ein Grundgerüst für die Auswertung
-  der Parameter in <var>DEB_BUILD_OPTIONS</var>, die in der Policy, Kapitel
-  10.1 "Binaries" beschrieben sind. Im Grunde steuern Sie hier, ob die
-  Binär-Dateien mit Debugging-Informationen gebaut werden und ob diese
-  während der Installation wieder entfernt werden sollen. Nochmal, es ist
-  ein Grundgerüst, ein  Hinweis, dass Sie so vorgehen können. Sie müssen
-  herausfinden, wie das Einfügen und Entfernen von Debugging-Informationen
-  im Upstream-Quellcode gehandhabt wird und es selbst einbauen.
-
-  <p>Normalerweise sollten Sie die Variable <var>CFLAGS</var> benutzen,
-  um <prgn/gcc/ mit der Option "-g" aufzurufen. Wenn Sie das tun, dann sollten
-  Sie die Variable mittels <tt>CFLAGS="$(CFLAGS)"</tt> an den Aufruf
-  <var>$(MAKE)</var>
-  in der Rule `build' <em>anhängen</em> (siehe unten). Wenn Ihr Paket aber
-  ein autoconf-Skript verwendet, können Sie die Variable an `configure'
-  übergeben, indem Sie die o. g. Zeichenkette dem Aufruf `./configure`
-  in der Rule `build' <em>voranstellen</em>.
-
-  <p>Weil Sie gerade beim "stripping" sind. :-)  Häufig sind Programme
-  so konfiguriert, dass sie ungestrippt installiert werden, oft ohne eine
-  Möglichkeit, das zu ändern. Zum Glück haben Sie <manref name="dh_strip"
-  section="1">, das das Flag <tt>DEB_BUILD_OPTIONS=nostrip</tt> erkennt und still
-  endet.
-
-  <p>Zeilen 18 bis 26 enthalten die Rule `build' (und die untergeordnete
-  `build-stamp'-Rule), die mit dem Makefile der Anwendung das Programm
-  kompiliert. Wenn Ihr Paket die "GNU configure"-Werkzeuge benutzt, sollten
-  Sie unbedingt <file>&autotools-dev;</file> gelesen haben.
-  Auf die auskommentierte Zeile der docbook-to-man Umwandlung
-  wird später in <ref id="manpage"> eingegangen.
-
-  <p>Die Rule `clean' in den Zeilen 28-36 entsorgt alle unnötigen Binär- und
-  automatisch generierten Dateien, die nach der Paketerstellung
-  zurückbleiben. Diese Rule muss jederzeit funktionsfähig sein, auch
-  wenn im Quellcode-Verzeichnis bereits aufgeräumt wurde, also sollten
-  Sie evtl. die "Zwang"-Optionen benutzen (z.B. "-f" bei  rm), oder die
-  Rückgabewerte (Fehler) mit einem `-' am Anfang des Befehls ignorieren.
-
-  <p>Der Installationsprozess, die Rule `install', beginnt in der Zeile
-  38. Es wird einfach die Rule `install' des programmeigenen Makefiles
-  ausgeführt, aber in das Verzeichnis <tt>$(CURDIR)/debian/gentoo</tt>
-  installiert - aus diesem Grund haben Sie in gentoo's Makefile auch die
-  Variable <var>$(DESTDIR)</var> (als Root-Verzeichnis der Installation)
-  eingebaut.
-
-  <p>Die Rule `binary-indep' in der Zeile 48, ist, wie der Kommentar
-  bereits sagt, für die Erstellung von architekturunabhängigen Paketen
-  vorgesehen. Das ist bei Ihrem Paket nicht der Fall, also wird hier
-  auch nichts gemacht.
-
-  <p>Auf zur nächsten Rule - `binary-arch' in den Zeilen 52 bis 79, in
-  der verschiedene kleine Hilfsprogramme aus dem Paket <package>dephelper</package> gestartet werden,
-  die an unseren Dateien verschiedene Operationen durchführen, um das
-  Paket an die Policy anzupassen.
-
-  <p>Wenn Ihr Paket `Architecture: all' entspricht, dann müssen
-  Sie alle Kommandos zum Bauen des Pakets in der Rule `binary-indep'
-  platzieren und die Rule `binary-arch' dafür leer lassen.
-
-  <p>Die Namen der debhelper-Programme beginnen mit <tt>dh_</tt> und der Rest
-  erklärt bereits die Aufgabe
-  des Tools. Alles ist praktisch selbsterklärend, hier dennoch einige
-  zusätzlichen Erläuterungen:
-
-  <list>
-  <item><manref name="dh_testdir" section="1"> überprüft, ob Sie im
-  richtigen Verzeichnis sind (d.h. im obersten Verzeichnis des
-  Quellcode-Verzeichnisbaums).
-  <item><manref name="dh_testroot" section="1"> überprüft, ob Sie
-  root-Rechte besitzen, die für die Targets `binary-arch', `binary-indep'
-  und `clean' benötigt werden.
-  <item><manref name="dh_installmanpages" section="1"> kopiert die
-  Manpages an die richtige Stelle im Zielverzeichnis, Sie müssen
-  nur angeben, wo sie relativ zum obersten Verzeichnis des
-  Quellcode-Verzeichnisbaums zu finden sind.
-  <item><manref name="dh_strip" section="1"> "strippt" (A.d.Ü.: siehe auch
-  <manref name="strip" section="1">) die Debugging-Header aus Bibliotheken und
-  ausführbaren Dateien, um die Dateigröße zu reduzieren.
-  <item><manref name="dh_compress" section="1"> komprimiert
-  Manpages und Doku-Dateien, die größer als 4 kB sind mit
-  <manref name="gzip" section="1">.
-  <item><manref name="dh_installdeb" section="1"> kopiert sonstige, fürs
-  Paket benötigte Dateien (z.B. die Maintainer-Skripte) ins Verzeichnis
-  `debian/gentoo/DEBIAN'.
-  <item><manref name="dh_shlibdeps" section="1"> berechnet
-  Abhängigkeiten von Bibliotheken und anderen Binär-Dateien.
-  <item><manref name="dh_gencontrol" section="1"> installiert eine
-  angepasste Version der Datei `control' in das Verzeichnis
-  <file>debian/gentoo/DEBIAN</file>.
-  <item><manref name="dh_md5sums" section="1"> generiert MD5-Prüfsummen
-  für alle Dateien im Paket.
-  </list>
-
-  <p>Die vollständigen Infos über die Aufgaben und Bedienung all
-  dieser dh_*-Skripte finden Sie in den jeweiligen Manpages.  Es gibt
-  noch weitere (möglicherweise sehr nützliche) dh_*-Skripte, die hier
-  nicht weiter erwähnt werden. Wenn Sie die mal brauchen, lesen Sie die
-  Debhelper-Dokumentation.
-
-  <p>Die Sektion "binary-arch" ist eine, in der Sie wirklich alle
-  Zeilen, in den nicht benötigte Features installiert werden,
-  auskommentieren oder entfernen sollten. Bei Gentoo kommentieren Sie
-  Zeilen mit folgenden
-  Befehlen aus, weil Gentoo diese nicht braucht:
-  examples, cron, init, man und info. In der Zeile 68 werden Sie `ChangeLog'
-  durch `FIXES' ersetzen, weil das der Name der Changelog-Datei des
-  Upstreams ist.
-
-  <p>Die letzten zwei Zeilen sind (genau wie andere, nicht weiter
-  erklärte Zeilen) mehr oder weniger benötigte
-  Dinge, über die Sie mehr im <prgn/make/-Manual oder der Policy nachlesen
-  können. Im Moment brauchen Sie darüber nichts zu wissen.
-
+</example>
+     (Die Zeilennummerierung habe ich hinzugefügt.)
+   </p>
+   <p>
+     Sie können später mehr über Aktualisierungen der Datei
+     <file>changelog</file> in <ref id="update"> lesen.
+   </p>
+  </sect>
+  <sect id="rules">
+   <heading>
+     Die Datei <file>rules</file>
+   </heading>
+   <p>
+     Wir werfen nun einen Blick auf die genauen Regeln, die <manref
+     section="1" name="dpkg-buildpackage"> verwenden wird, um das Paket zu
+     bauen. Diese Datei ist in Wirklichkeit ein weiteres
+     <file>Makefile</file>, aber anders als die von den ursprünglichen
+     Betreuern mitgelieferten. Im Unterschied zu den anderen Dateien im
+     Verzeichnis <file>debian</file> ist diese Datei als ausführbar
+     gekennzeichnet.
+   </p>
+   <sect1 id="targets">
+    <heading>
+      Targets der Datei <file>rules</file>
+    </heading>
+    <p>
+      Wie jedes andere <file>Makefile</file> besteht die Datei
+      <file>rules</file> aus mehreren Targets, deren Regeln bestimmen, wie
+      mit dem Quellcode verfahren wird. In den <url
+      id="http://www.debian.org/doc/debian-policy/ch-source.html#s-debianrules"
+      name="Debian-Richtlinien, 4.9 »Main building script: debian/rules«">
+      werden die Details erklärt.
+    </p>
+    <p>
+      Vereinfachte Erklärungen der Targets sind im Folgenden aufgeführt.
+     <list>
+      <item>
+       <p>
+         <tt>clean</tt>-Target: Löschen aller kompilierten, erzeugten und
+         nicht benötigten Dateien im Build-Verzeichnis (erforderlich).
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>build</tt>-Target: Bauen der Quellen zu kompilierten Programmen
+         und formatierten Dokumenten im Build-Verzeichnis (erforderlich).
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>install</tt>-Target: Installieren der Dateien in einen
+         Verzeichnisbaum unterhalb des Verzeichnisses <file>debian</file>
+         für jedes Binärpaket. Wenn sie festgelegt wurden, hängen
+         <tt>binary*</tt>-Targets effektiv von diesem Target ab (optional).
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>binary</tt>-Target: Erstellt alle Binärpakete (effektiv ist
+         dies die Kombination der <tt>binary-arch</tt>- und
+         <tt>binary-indep</tt>-Targets) (erforderlich). <footnote><p>Dieses
+         Target wird von »<tt>dpkg-buildpackage</tt>« wie in <ref
+         id="completebuild"> beschrieben benutzt.</p></footnote>
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>binary-arch</tt>-Target: Erstellt Architektur-abhängige
+         (<tt>Architecture: any</tt>) Binärpakete im übergeordneten
+         Verzeichnis (erforderlich). <footnote><p>Dieses Target wird von
+         »<tt>dpkg-buildpackage -B</tt>« wie in <ref id="autobuilder">
+         beschrieben benutzt.</p></footnote>
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>binary-indep</tt>-Target: Erstellt Architektur-unabhängige
+         (<tt>Architecture: all</tt>) Binärpakete im übergeordneten
+         Verzeichnis (erforderlich). <footnote><p>Dieses Target wird von
+         »<tt>dpkg-buildpackage -A</tt>« benutzt.</p></footnote>
+       </p>
+      </item>
+      <item>
+       <p>
+         <tt>get-orig-source</tt>-Target: Herunterladen der neuesten Version
+         des Quellpakets von der ursprünglichen Website (optional).
+       </p>
+      </item>
+     </list>
+    </p>
+    <p>
+      Regeln, die Sie ausführen möchten, werden beim Aufruf als
+      Befehlszeilenargumente angegeben (beispielsweise »<tt>./debian/rules
+      build</tt>« oder »<tt>fakeroot make -f debian/rules
+      binary</tt>«). Nach dem Namen des Targets können Sie weitere benötigte
+      Targets, Programme oder Dateien angeben, von der die Ausführung der
+      Regel abhängt. Danach folgt eine beliebige Anzahl von Befehlen,
+      eingerückt mit <tt><var>TAB</var></tt>. Eine neue Regel beginnt mit
+      der Deklaration eines Targets in der ersten Spalte. Leerzeilen und mit
+      einem »<tt>#</tt>« (hash) beginnende Zeilen werden als Kommentare
+      betrachtet und ignoriert.
+    </p>
+    <p>
+      Sie sind jetzt wahrscheinlich verwirrt, aber nach der genaueren
+      Betrachtung der Datei <file>rules</file>, die uns <prgn>dh_make</prgn>
+      erstellt hat, wird alles klar werden. Sie sollten außerdem die Ausgabe
+      von »<tt>info make</tt>« für weitere Informationen lesen.
+    </p>
+   </sect1>
+   <sect1 id="defaultrules">
+    <heading>
+      Die vorgegebene Datei <file>rules</file>
+    </heading>
+    <p>
+      Neuere Versionen von <prgn>dh_make</prgn> erzeugen als Vorgabe eine
+      sehr einfache, doch mächtige Datei <file>rules</file>, indem sie den
+      Befehl <prgn>dh</prgn> verwenden:
+     <example>
+ 1 #!/usr/bin/make -f
+ 2 # -*- makefile -*-
+ 3 # Sample debian/rules that uses debhelper.
+ 4 # This file was originally written by Joey Hess and Craig Small.
+ 5 # As a special exception, when this file is copied by dh-make into a
+ 6 # dh-make output file, you may use that output file without restriction.
+ 7 # This special exception was added by Craig Small in version 0.37 of dh-make.
+ 8
+ 9 # Uncomment this to turn on verbose mode.
+10 #export DH_VERBOSE=1
+11
+12 %:
+13        dh $@
+</example>
+      (Die Zeilennummerierung habe ich hinzugefügt. In der richtigen
+      <file>rules</file>-Datei sind die führenden Leerzeichen Tabulatoren.)
+    </p>
+    <p>
+      Sie sind wahrscheinlich mit ähnlichen Zeilen wie der Zeile 1 aus
+      Shell- oder Perlskripten vertraut. Sie teilt dem Betriebssystem mit,
+      dass das Skript mit <file>/usr/bin/make</file> verarbeitet werden
+      soll.
+    </p>
+    <p>
+      In Zeile 10 kann der Kommentar entfernt werden, damit die Variable
+      <tt>DH_VERBOSE</tt> auf 1 gesetzt wird. Dann gibt der Befehl
+      <prgn>dh</prgn> aus, welche <prgn>dh_*</prgn>-Befehle vom Befehl
+      <prgn>dh</prgn> ausgeführt werden. Sie können hier auch die Zeile
+      »<tt>export DH_OPTIONS=-v</tt>« hinzufügen. Dann gibt jeder
+      <prgn>dh_*</prgn>-Befehl aus, welche Befehle von jedem
+      <prgn>dh_*</prgn>-Befehl ausgeführt werden. Das hilft Ihnen dabei, zu
+      verstehen, was genau hinter den Kulissen dieser einfachen
+      <file>rules</file>-Datei passiert. So können Sie Probleme besser
+      finden. Das neue <prgn>dh</prgn> ist ein zentraler Bestandteil der
+      <package>debhelper</package>-Werkzeuge und versteckt nichts vor Ihnen.
+    </p>
+    <p>
+      In den Zeilen 12 und 13 wird die gesamte Arbeit erledigt. Das
+      Prozentzeichen steht für ein beliebiges Target, das dann lediglich ein
+      Programm aufruft, nämlich <prgn>dh</prgn> mit dem Namen des
+      Targets. <footnote><p>Dies verwendet die neuen Möglichkeiten von
+      <package>debhelper</package> V7. Dessen Designkonzepte werden in <url
+      id="http://joey.kitenet.net/talks/debhelper/debhelper-slides.pdf"
+      name="»Not Your Grandpa's Debhelper«"> erklärt, das auf der Debconf9
+      vom <package>debhelper</package>-Betreuer präsentiert wurde. Unter
+      <tt>lenny</tt> erzeugte <prgn>dh_make</prgn> eine wesentlich
+      kompliziertere Datei <file>rules</file>, die für jedes erforderliche
+      und explizit benannte Target vielen <prgn>dh_*</prgn>-Skripte
+      auflistete. Dadurch wurde der Status eingefroren, der während der
+      initialen Paketerstellung aktuell war. Der neue <prgn>dh</prgn>-Befehl
+      ist einfacher und befreit uns von dieser Beschränkung. Sie haben mit
+      den <tt>override_dh_*</tt>-Targets weiterhin die vollständige
+      Kontrolle über Anpassungen. Siehe <ref id="customrules">. Es basiert
+      lediglich auf dem Paket <package>debhelper</package> und verschleiert
+      den Prozess des Paketbaus nicht wie das Paket
+      <package>cdbs</package>.</p></footnote> Der Befehl <prgn>dh</prgn> ist
+      ein Skript, das abhängig vom übergebenen Argument die entsprechenden
+      Sequenzen von <prgn>dh_*</prgn>-Programmen ausführt. <footnote><p>Sie
+      können überprüfen, welche Sequenzen von <prgn>dh_*</prgn>-Programmen
+      für ein bestimmtes <tt><var>Target</var></tt> tatsächlich aufgerufen
+      werden, indem Sie »<tt>dh --no-act <var>Target</var></tt>« oder
+      »<tt>debian/rules -- '--no-act <var>Target</var>'</tt>«
+      ausführen. Dadurch werden die Sequenzen nicht
+      ausgeführt.</p></footnote>
+     <list>
+      <item>
+       <p>
+         »<tt>debian/rules clean</tt>« ruft »<tt>dh clean</tt>« auf, das
+         wiederum das Folgende ausführt:
+        <example>
+dh_testdir
+dh_auto_clean
+dh_clean
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         »<tt>debian/rules build</tt>« ruft »<tt>dh build</tt>« auf, das
+         wiederum das Folgende ausführt:
+        <example>
+dh_testdir
+dh_auto_configure
+dh_auto_build
+dh_auto_test
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         »<tt>fakeroot debian/rules binary</tt>« ruft »<tt>fakeroot dh
+         binary</tt>« auf, das wiederum das Folgende ausführt
+         <footnote><p>Hier wird vorausgesetzt, dass das Paket
+         <package>python-support</package> auf dem System installiert
+         ist.</p></footnote>:
+        <example>
+dh_testroot
+dh_prep
+dh_installdirs
+dh_auto_install
+dh_install
+dh_installdocs
+dh_installchangelogs
+dh_installexamples
+dh_installman
+dh_installcatalogs
+dh_installcron
+dh_installdebconf
+dh_installemacsen
+dh_installifupdown
+dh_installinfo
+dh_pysupport
+dh_installinit
+dh_installmenu
+dh_installmime
+dh_installmodules
+dh_installlogcheck
+dh_installlogrotate
+dh_installpam
+dh_installppp
+dh_installudev
+dh_installwm
+dh_installxfonts
+dh_bugfiles
+dh_lintian
+dh_gconf
+dh_icons
+dh_perl
+dh_usrlocal
+dh_link
+dh_compress
+dh_fixperms
+dh_strip
+dh_makeshlibs
+dh_shlibdeps
+dh_installdeb
+dh_gencontrol
+dh_md5sums
+dh_builddeb
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         »<tt>fakeroot debian/rules binary-arch</tt>« ruft »<tt>fakeroot dh
+         binary-arch</tt>« auf, das wiederum dieselbe Sequenz ausführt wie
+         »<tt>fakeroot dh binary</tt>«, allerdings wird an jeden Befehl die
+         Option »<tt>-a</tt>« angehängt.
+       </p>
+      </item>
+      <item>
+       <p>
+         »<tt>fakeroot debian/rules binary-indep</tt>« ruft »<tt>fakeroot dh
+         binary-indep</tt>« auf, das wiederum fast dieselbe Sequenz ausführt
+         wie »<tt>fakeroot dh binary</tt>«, allerdings wird an jeden Befehl
+         die Option »<tt>-i</tt>« angehängt und die Befehle
+         <prgn>dh_strip</prgn>, <prgn>dh_makeshlibs</prgn> und
+         <prgn>dh_shlibdeps</prgn> weggelassen.
+       </p>
+      </item>
+     </list>
+    </p>
+    <p>
+      Die Funktion der <prgn>dh_*</prgn>-Befehle erschließt sich aus den
+      Namen fast von selbst. <footnote><p>Für vollständige Informationen
+      darüber, was all diese <prgn>dh_*</prgn>-Skripte genau machen und was
+      ihre weiteren Optionen sind, lesen Sie bitte die jeweiligen
+      Handbuchseiten und die Dokumentation von
+      <package>debhelper</package>.</p></footnote> Es gibt einige wenige,
+      die hier (stark) vereinfacht erklärt werden sollen. Dafür wird eine
+      typische Build-Umgebung vorausgesetzt, basierend auf einem
+      <file>Makefile</file>. <footnote><p>Diese Befehle unterstützen andere
+      Build-Umgebungen wie beispielsweise <file>setup.py</file>, die durch
+      das Aufrufen von »<tt>dh_auto_build --list</tt>« im Quellverzeichnis
+      eines Pakets aufgelistet werden können.</p></footnote>
+     <list>
+      <item>
+       <p>
+         <prgn>dh_auto_clean</prgn> führt normalerweise das Folgende aus,
+         wenn ein <file>Makefile</file> existiert und das Target
+         <tt>distclean</tt> enthält. <footnote><p>Tatsächlich wird nach dem
+         ersten verfügbaren Target aus der Liste <tt>distclean</tt>,
+         <tt>realclean</tt> oder <tt>clean</tt> im <file>Makefile</file>
+         gesucht und dieses ausgeführt.</p></footnote>
+        <example>
+make distclean
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         <prgn>dh_auto_configure</prgn> führt normalerweise das Folgende
+         aus, wenn die Datei <file>configure</file> existiert (Argumente zur
+         besseren Lesbarkeit abgekürzt).
+        <example>
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var ...
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         <prgn>dh_auto_build</prgn> führt normalerweise das Folgende aus, um
+         das erste Target des <file>Makefile</file> auszuführen, falls
+         dieses existiert.
+        <example>
+make
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         <prgn>dh_auto_test</prgn> führt normalerweise das Folgende aus,
+         wenn ein <file>Makefile</file> mit dem Target <tt>test</tt>
+         existiert. <footnote><p>Tatsächlich wird nach dem ersten
+         verfügbaren Target aus der Liste <tt>test</tt> oder <tt>check</tt>
+         im <file>Makefile</file> gesucht und dieses
+         ausgeführt.</p></footnote>
+        <example>
+make test
+</example>
+       </p>
+      </item>
+      <item>
+       <p>
+         <prgn>dh_auto_install</prgn> führt normalerweise das Folgende aus,
+         wenn ein <file>Makefile</file> mit dem Target <tt>install</tt>
+         existiert (Zeile zur besseren Lesbarkeit umgebrochen).
+        <example>
+make install \
+  DESTDIR=<var>/Pfad/zum</var>/<var>Paket</var>_<var>Version</var>-<var>Revision</var>/debian/<var>Paket</var>
+</example>
+       </p>
+      </item>
+     </list>
+    </p>
+    <p>
+      Targets, die den Befehl <prgn>fakeroot</prgn> erfordern, enthalten
+      <prgn>dh_testroot</prgn>. Wenn Sie diesen Befehl benutzen und nicht
+      vorgeben, »root« zu sein, wird er mit einer Fehlermeldung beendet.
+    </p>
+    <p>
+      Das Wichtigste, was Sie über die Datei <file>rules</file> wissen
+      müssen, die von <prgn>dh_make</prgn> erzeugt wurde, ist, dass sie
+      lediglich ein Vorschlag ist. Sie funktioniert für die meisten Pakete,
+      aber für etwas kompliziertere Pakete sollten Sie sich nicht scheuen,
+      sie für Ihre Zwecke umzuschreiben. Das Einzige, was Sie nicht ändern
+      dürfen, sind die Namen der Regeln, weil alle Werkzeuge diese Namen
+      verwenden und sie von den Debian-Richtlinien vorgegeben sind.
+    </p>
+    <p>
+      Obwohl »<tt>install</tt>« kein erforderliches Target ist, wird es
+      unterstützt. »<tt>fakeroot dh install</tt>« verhält sich wie
+      »<tt>fakeroot dh binary</tt>«, stoppt aber nach
+      <prgn>dh_fixperms</prgn>.
+    </p>
+   </sect1>
+   <sect1 id="customrules">
+    <heading>
+      Anpassungen der Datei <file>rules</file>
+    </heading>
+    <p>
+      Es gibt viele Arten, die <file>rules</file>-Datei anzupassen, die den
+      neuen Befehl <prgn>dh</prgn> verwendet.
+    </p>
+    <p>
+      Der Befehl »<tt>dh $@</tt>« kann wie folgt angepasst
+      werden. <footnote><p>Wenn ein Paket die Datei
+      <file>/usr/share/perl5/Debian/Debhelper/Sequence/<var>eigener_name</var>.pm</file>
+      installiert, können Sie dessen angepasste Funktion mittels »<tt>dh
+      --with <var>eigener-name</var> $@</tt>« aktivieren.</p></footnote>
+     <list>
+      <item>
+       <p>
+         Unterstützung des Befehls <prgn>dh_pysupport</prgn> hinzufügen (Die
+         beste Wahl für Python). <footnote><p>Die Benutzung des Befehls
+         <prgn>dh_pysupport</prgn> wird gegenüber dem Befehl
+         <prgn>dh_pycentral</prgn> bevorzugt. Verwenden Sie nicht den Befehl
+         <prgn>dh_python</prgn>.</p></footnote>
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>python-support</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie »<tt>dh $@</tt>« wie sonst auch (Dies ist die
+            Voreinstellung).
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden Python-Module mit dem Framework
+            <package>python-support</package> bearbeitet.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung des Befehls <prgn>dh_pycentral</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>python-central</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with python-central
+            $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hierdurch wird auch der Befehl <prgn>dh_pysupport</prgn>
+            deaktiviert.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden Python-Module mit dem Framework
+            <package>python-central</package> bearbeitet.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung des Befehls <prgn>dh_installtex</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>tex-common</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with tex $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden Type-1-Schriften, Muster für Silbentrennung oder
+            Formate für TeX registriert.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung der Befehle <prgn>dh_quilt_patch</prgn> und
+         <prgn>dh_quilt_unpatch</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>quilt</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with quilt $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden Patches auf die ursprünglichen Quellen angewendet
+            und auch wieder rückgängig gemacht. Dafür werden Dateien aus dem
+            Verzeichnis <file>debian/patches</file> für das Quellpaketformat
+            <tt>1.0</tt> verwendet.
+          </p>
+         </item>
+         <item>
+          <p>
+            Dies wird nicht benötigt, wenn Sie das neue Quellpaketformat
+            <tt>3.0 (quilt)</tt> benutzen.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung des Befehls <prgn>dh_dkms</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>dkms</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with dkms $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit wird die korrekte Verwendung von DKMS durch das
+            Kernelmodul-Paket sichergestellt.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung der Befehle
+         <prgn>dh_autotools-dev_updateconfig</prgn> und
+         <prgn>dh_autotools-dev_restoreconfig</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>autotools-dev</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with autotools-dev $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden die Dateien <file>config.sub</file> und
+            <file>config.guess</file> aktualisiert und wiederhergestellt.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung der Befehle <prgn>dh_autoreconf</prgn> und
+         <prgn>dh_autoreconf_clean</prgn> hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>dh-autoreconf</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with autoreconf $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit werden die Dateien des GNU-Build-Systems aktualisiert
+            und nach dem Bau wiederhergestellt.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+      <item>
+       <p>
+         Unterstützung der Vervollständigung in der <prgn>bash</prgn>
+         hinzufügen.
+        <list>
+         <item>
+          <p>
+            Installieren Sie das Paket <package>bash-completion</package> in
+            »<tt>Build-Depends</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Verwenden Sie stattdessen »<tt>dh --with bash-completion
+            $@</tt>«.
+          </p>
+         </item>
+         <item>
+          <p>
+            Hiermit wird die Vervollständigung durch <prgn>bash</prgn> unter
+            Verwendung der Konfigurationsdatei in
+            <file>debian/<var>Paket</var>.bash-completion</file>
+            installiert.
+          </p>
+         </item>
+        </list>
+       </p>
+      </item>
+     </list>
+    </p>
+    <p>
+      Bei Quellen, die die Autotools benutzen, verwenden Sie eine
+      Kombination des oben genannten wie »<tt>dh --with autotools-dev --with
+      autoreconf $@</tt>«, um das aktuellste GNU-Build-System zu benutzen.
+    </p>
+    <p>
+      Viele <prgn>dh_*</prgn>-Befehle, die vom neuen <prgn>dh</prgn>-Befehl
+      aufgerufen werden, können durch entsprechende Konfigurationsdateien im
+      <file>debian</file>-Verzeichnis angepasst werden. Siehe <ref
+      id="dother"> sowie die Handbuchseite jedes Befehls für Anpassungen
+      dieser Merkmale.
+    </p>
+    <p>
+      Einige <prgn>dh_*</prgn>-Befehle, die vom neuen <prgn>dh</prgn>-Befehl
+      aufgerufen werden, erfordern beim Aufruf Argumente, benötigen
+      zusätzliche Befehle oder müssen ganz ausgelassen werden. In solchen
+      Fällen können Sie ein <tt>override_dh_<var>foo</var></tt>-Target mit
+      der entsprechenden Regel in der Datei <file>rules</file> erstellen,
+      das nur für den Befehl <prgn>dh_<var>foo</var></prgn> gilt, den Sie
+      ändern wollen. Im Grunde bedeutet das nur »<em>führe stattdessen mich
+      aus</em>«. <footnote><p>Wenn Sie unter <tt>Lenny</tt> das Verhalten
+      eines <prgn>dh_*</prgn>-Skripts ändern wollten, mussten Sie die
+      entsprechende Zeile in der Datei <file>rules</file> aufsuchen und dort
+      anpassen.</p></footnote>
+    </p>
+    <p>
+      Bitte beachten Sie, dass die <prgn>dh_auto_*</prgn>-Befehle dazu
+      tendieren, mehr als das zu tun, was als (stark) vereinfachte Erklärung
+      besprochen wurde, damit auch die Sonderfälle berücksichtigt
+      werden. Die Verwendung eines vereinfachten äquivalenten Befehls statt
+      der <prgn>dh_auto_*</prgn>-Befehle in den
+      <tt>override_dh_*</tt>-Targets ist allerdings keine gute Idee, weil
+      dadurch intelligente Funktionen von <package>debhelper</package>
+      ausgehebelt werden können. Die einzige Ausnahme ist das Target
+      <tt>override_dh_auto_clean</tt>.
+    </p>
+    <p>
+      Wenn Sie systemweite Konfigurationsdaten für das Paket
+      <package>gentoo</package> im Verzeichnis <file>/etc/gentoo</file>
+      statt dem üblichen Verzeichnis <file>/etc</file> speichern wollen,
+      können Sie das von <prgn>dh_auto_configure</prgn> vorgegebene Argument
+      <tt>--sysconfig=/etc</tt> für den Befehl <prgn>./configure</prgn> wie
+      folgt überschreiben. <footnote><p>Das Paket <package>gentoo</package>
+      verwendet das GNU-Build-System, auch bekannt als die Autotools. Siehe
+      <url
+      id="http://de.wikipedia.org/wiki/GNU_Build_System">.</p></footnote>
+     <example>
+override_dh_auto_configure:
+        dh_auto_configure -- --sysconfig=/etc/gentoo
+</example>
+    </p>
+    <p>
+      Die nach dem <tt>--</tt> übergebenen Argumente werden zu den
+      vorgegebenen Argumenten des automatisch ausgeführten Programms
+      hinzugefügt, um sie zu überschreiben. Die Benutzung des Befehls
+      <prgn>dh_auto_configure</prgn> ist besser als der direkte Aufruf von
+      <prgn>./configure</prgn>, weil in diesem Fall lediglich das Argument
+      <tt>--sysconfig</tt> überschrieben wird und andere, sehr wohl
+      beabsichtigte, Argumente für den Befehl <prgn>./configure</prgn>
+      erhalten bleiben.
+    </p>
+    <p>
+      Falls das <file>Makefile</file> der Quellen von
+      <package>gentoo</package> zum Bauen explizit das Target <tt>build</tt>
+      benötigt, <footnote><p><prgn>dh_auto_build</prgn> ohne Argumente führt
+      das erste Target in der Datei <file>Makefile</file>
+      aus.</p></footnote>, können Sie ein Target namens
+      <tt>override_dh_auto_build</tt> erstellen, um dies möglich zu machen.
+     <example>
+override_dh_auto_build:
+        dh_auto_build -- build
+</example>
+    </p>
+    <p>
+      Hiermit wird sichergestellt, dass $(MAKE) mit allen voreingestellten
+      Argumenten des Befehls <prgn>dh_auto_build</prgn> ausgeführt und dabei
+      das Argument <tt>build</tt> übergeben wird.
+    </p>
+    <p>
+      Falls das <file>Makefile</file> der Quellen von
+      <package>gentoo</package> zum Aufräumen für das Debianpaket explizit
+      das Target <tt>packageclean</tt> benötigt statt der Targets
+      <tt>distclean</tt> oder <tt>clean</tt> der Datei
+      <file>Makefile</file>, können Sie ein Target namens
+      <tt>override_dh_auto_clean</tt> erstellen, um dies möglich zu machen.
+     <example>
+override_dh_auto_clean:
+        $(MAKE) packageclean
+</example>
+    </p>
+    <p>
+      Falls das <file>Makefile</file> der Quellen von
+      <package>gentoo</package> das Target <tt>test</tt> enthält, das Sie im
+      Paketbau-Prozess für Debian nicht ausführen wollen, können Sie ein
+      leeres Target namens <tt>override_dh_auto_test</tt> erstellen, um dies
+      zu übergehen.
+     <example>
+override_dh_auto_test:
+</example>
+    </p>
+    <p>
+      Wenn <package>gentoo</package> eine unübliche ursprüngliche
+      Changelog-Datei namens <file>FIXES</file> enthält, wird diese
+      standardmäßig von <prgn>dh_installchangelogs</prgn> nicht
+      installiert. Der Befehl <prgn>dh_installchangelogs</prgn> braucht den
+      Namen <file>FIXES</file> als Argument, um die Datei zu
+      installieren. <footnote><p>Die Dateien <file>debian/changelog</file>
+      und <file>debian/NEWS</file> werden immer automatisch installiert. Das
+      ursprüngliche Changelog wird gesucht, indem die Dateinamen in
+      Kleinbuchstaben umgewandelt werden und mit <file>changelog</file>,
+      <file>changes</file>, <file>changelog.txt</file> und
+      <file>changes.txt</file> verglichen werden.</p></footnote>
+     <example>
+override_dh_installchangelogs:
+        dh_installchangelogs FIXES
+</example>
+    </p>
+    <p>
+      Wenn Sie den neuen <prgn>dh</prgn>-Befehl benutzen, wird es schwierig,
+      die genauen Effekte von expliziten Targets wie den in <ref
+      id="targets"> aufgelisteten zu verstehen. Eine Ausnahme stellt
+      <tt>get-orig-source</tt> dar. Bitte beschränken Sie daher - soweit
+      möglich - explizite Targets auf solche mit den Namen
+      <tt>override_dh_*</tt> sowie vollständig davon unabhängige.
+    </p>
+   </sect1>
+  </sect>
+ </chapt>
   <chapt id="dother">Andere Dateien unter debian/
 
   <p>Wie Sie sehen, gibt es noch verschiedene weitere Dateien im
