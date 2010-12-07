@@ -29,6 +29,9 @@ LANG_SGML	:= de ja ko pl pt-br ru
 # Language which generates SGML files from PO files (Customizable)
 LANG_PO		:= es fr it zh-cn zh-tw
 
+# Language which is under half-translation with maint-guide.??.wip.po (Customizable)
+LANG_NEW_PO	:= de
+
 # Language which is excluded from producing PS, PDF (Customizable)
 LANG_CJK	:= ko
 #LANG_CJK	:= 
@@ -66,6 +69,19 @@ publish:
 	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/$(MANUAL)/.htaccess
+
+new: 
+	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
+	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
+	for f in $(LANG_NEW_PO); do if [ -e $(MANUAL).$$f.keep.sgml ]; then echo "$(MANUAL).$$f.keep.sgml exists ...  exit."; exit 1; fi; done
+	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.sgml $(MANUAL).$$f.keep.sgml; done
+	for f in $(LANG_NEW_PO); do if [ ! -e $(MANUAL).$$f.wip.po ]; then echo "$(MANUAL).$$f.wip.po missing ...  exit."; exit 1; fi; done
+	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.wip.po $(MANUAL).$$f.po; done
+	$(MAKE) sgml "LANG_PO=$(LANG_NEW_PO)"
+	$(MAKE) html "LANG_ALL=$(LANG_NEW_PO)"
+	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.sgml $(MANUAL).$$f.wip.sgml; done
+	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.keep.sgml $(MANUAL).$$f.sgml; done
+	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.po $(MANUAL).$$f.wip.po; done
 
 # generating SGML files from PO files
 # -M : master file $(MANUAL).en.sgml is always in UTF-8
@@ -148,6 +164,9 @@ clean:
 	rm -f version.ent
 	for lang in $(LANG_PO); do \
 		rm -f $(MANUAL).$$lang.sgml ;\
+        done
+	for lang in $(LANG_NEW_PO); do \
+		rm -f $(MANUAL).$$lang.wip.sgml ;\
         done
 	#rm -f $(MANUAL).zh-tw.po
 	if [ -e $(PUBLISHDIR) ]; then rm -rf $(PUBLISHDIR)/$(MANUAL); fi
