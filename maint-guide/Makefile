@@ -1,48 +1,52 @@
 #
 # Makefile for the Debian New Maintainers' Guide
 #
-# Should work both for a manual in the Debian Documentation Project
-# preset values here may be overriden by a higher level makefile
-
+# All source files use UTF-8 encoding
+#
 # Language names are in lowercase web suffix style without encoding.
-# sgml uses traditional encoding such as latin1
-# $$lang.*.add files use traditional encoding such as latin1
-#                       You can use any number for middle *.
-# po files can be in UTF-8 encoding. (Depending on definition in it).
-
-# Build type: Possible values are BUILD_TYPE = web|package|...
-BUILD_TYPE	:= web
+# In adendum <lang>.*.add files, you can use any number for middle *.
+#
+# Debian maint-guide package target:
+#  * make all
+#
+# Debian Documentation Project target:
+#  * make publish
+#
+# Test build of incomplete PO file(s) to sgml and html
+#  * make new
+#  (Please note this will overwrite corresponding sgml file)
 
 # Basename for SGML sources
 MANUAL		:= maint-guide
+
+# Language which is the base of all files
+LANG_EN		:= en
+
+# Language which is supported directly by SGML files (Customizable)
+# These should be converted to PO files ASAP
+LANG_SGML	:= de ja ko pl pt-br ru
+ 
+# Language which generates SGML files from PO files (Customizable)
+LANG_PO		:= es fr it zh-cn zh-tw
 
 # Language which is excluded from producing PS, PDF (Customizable)
 LANG_CJK	:= ko
 #LANG_CJK	:= 
 
-# Language which generates SGML files from PO file (Customizable)
-ifeq ("$(BUILD_TYPE)", "web")
-# web build all po files
-LANG_PO		:= de es fr it zh-cn zh-tw
-else
-# package build good po files
-LANG_PO		:= fr es it zh-cn zh-tw
-endif
-SOURCES_ALL	:= $(wildcard *.??*.sgml)
-PO_ALL		:= $(wildcard *.??*.po)
 # Language group
-LANG_ALL	:= $(patsubst $(MANUAL).%.sgml, %, $(SOURCES_ALL)) $(patsubst $(MANUAL).%.po, %, $(PO_ALL))
+LANG_ALL	:= $(LANG_EN) $(LANG_PO) $(LANG_SGML)
 LANG_NOE	:= $(filter-out en,$(LANG_ALL))
 LANG_NOCJK	:= $(filter-out $(LANG_CJK),$(LANG_ALL))
 LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
 
 # For package building (all)
-INSTALL_DIR := $(CURDIR)/debian
+DEBIAN_DIR	:= $(CURDIR)/debian
 all:
 	$(MAKE) version.ent
-	$(MAKE) po
+	$(MAKE) sgml
 	$(MAKE) html txt ps pdf
-	for lang in $(LANG_NOE); do sed -e "s/@@/$$lang/g" < $(CURDIR)/debian/all.install-in >$(CURDIR)/debian/$(MANUAL)-$$lang.install; done
+	for lang in $(LANG_NOCJKE); do sed -e "s/@@/$$lang/g" < $(DEBIAN_DIR)/all-nocjke.install-in > $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
+	for lang in $(LANG_CJK);    do sed -e "s/@@/$$lang/g" < $(DEBIAN_DIR)/all-cjk.install-in    > $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
 
 version.ent:
 	echo '<!entity' "docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
@@ -54,7 +58,7 @@ PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
 publish: 
 	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
 	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
-	$(MAKE) po
+	$(MAKE) sgml
 	$(MAKE) html txt ps pdf
 	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
 	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
@@ -66,39 +70,33 @@ publish:
 # generating SGML files from PO files
 # -M : master file $(MANUAL).en.sgml is always in UTF-8
 PO_UPDATE	:= po4a-updatepo --previous -M UTF-8 -f sgml
-#PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M latin1 -f sgml
+#PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M UTF-8 -f sgml
 PO_TRANSLATE	:= po4a-translate  -M UTF-8 -f sgml --keep 0
 PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
 
-# -L : Charset of the file containing the localized document. UTF-8
-# xargs -n1 is to split into lines
-# sed script is to add "-a" to automatically add addendum files.
-
+# This target is run manually under sid before squeeze release
 tw:
 	msgcat --no-wrap $(MANUAL).zh-cn.po | opencc | sed -f cn2tw.sed | msgcat - > $(MANUAL).zh-tw.po
 
-po:
-	which opencc msgcat sed || true
-	#rm -f $(MANUAL).zh-tw.po
-	#$(make) tw
+sgml:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
 	for lang in $(LANG_PO); do \
-	echo "Translate to: $$lang" ;\
-	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
-	$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $(MANUAL).$$lang.sgml -p $(MANUAL).$$lang.po \
-	$$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
-	-o ignore-inclusion=version ;\
+		echo "Translate to: $$lang" ;\
+		$(MAKE) $(MANUAL).$$lang.sgml ;\
         done
-	$(PO_GETTEXT) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).pot
 
-$(MANUAL).%.sgml: $(MANUAL).%.po
-	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
-	lang=$$(echo $< | sed -e 's/^.*\.\([a-z]*\)\.po/\1/') ; \
-	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$$lang.po ;\
+$(MANUAL).pot: $(MANUAL).en.sgml
+	$(PO_GETTEXT) -o ignore-inclusion=version -m $< -p $@
+
+# PO_TRANSLATE command line
+#  -L : Charset of the file containing the localized document. UTF-8
+#  xargs -n1 is to split into lines
+#  sed script is to add "-a" to automatically add addendum files.
+$(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).en.sgml
+	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$*.po
 	$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $@ -p $< \
-	$$(echo $$lang.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
+	$$(echo $*.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
 	-o ignore-inclusion=version 
-
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
@@ -107,45 +105,38 @@ $(MANUAL).%.sgml: $(MANUAL).%.po
 html:
 	if ! [ -f version.ent ]; then $(MAKE) version.ent ; $(MAKE) po; fi
 	for lang in $(LANG_ALL); do \
-	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) -o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
-            echo debiandoc2html -C -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
+	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) \
+			-o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
             debiandoc2html -C -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
           fi; \
         done
 
 # generating plain text
-txt text: $(patsubst %.sgml,%.txt,$(SOURCES_ALL))
-	echo "AddCharset UTF-8 .txt" > .htaccess
+txt text: $(patsubst %,$(MANUAL).%.txt,$(LANG_ALL))
 
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $*.utf-8 $<
 
 # generating PostScript
 ps: $(patsubst %,$(MANUAL).%.ps,$(LANG_NOCJK))
-	for lang in $(LANG_CJK); do \
-	echo "Tex problem prevents PS build" >$(MANUAL).$$lang.ps ;\
-	done
 
 $(MANUAL).%.ps: $(MANUAL).%.sgml
 	debiandoc2latexps -l $*.utf-8 $<
 
 # generating Portable Document Format
 pdf: $(patsubst %,$(MANUAL).%.pdf,$(LANG_NOCJK))
-	for lang in $(LANG_CJK); do \
-	echo "Tex problem prevents PDF build" >$(MANUAL).$$lang.pdf ;\
-	done
 
 $(MANUAL).%.pdf: $(MANUAL).%.sgml
 	debiandoc2latexpdf -l $*.utf-8 $<
 
-# validating SGML
+# validating SGML ::: not used!
 validate:
 	@set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
 
 # cleaning up
 clean:
 	for ext in txt ps dvi pdf log tex aux toc out tpt tex-in ; do \
-	rm -f $(MANUAL)*.$$ext ;\
+		rm -f $(MANUAL)*.$$ext ;\
 	done
 	rm -f .htaccess
 	rm -f $(MANUAL)*.info*
@@ -156,18 +147,15 @@ clean:
 	rm -rf *.tmp
 	rm -f version.ent
 	for lang in $(LANG_PO); do \
-	rm -f $(MANUAL).$$lang.sgml ;\
+		rm -f $(MANUAL).$$lang.sgml ;\
         done
 	#rm -f $(MANUAL).zh-tw.po
-ifneq ("$(BUILD_TYPE)", "web")
-	rm -rf $(PUBLISHDIR)/$(MANUAL)
-else
-	for lang in $(LANG_NOE); do rm -f $(CURDIR)/debian/$(MANUAL)-$$lang.install; done
-endif
+	if [ -e $(PUBLISHDIR) ]; then rm -rf $(PUBLISHDIR)/$(MANUAL); fi
+	for lang in $(LANG_NOE); do rm -f $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
 
 distclean: clean
 
 .PHONY: all publish clean distclean validate
-.PHONY: po tw html text txt ps pdf
+.PHONY: sgml tw html text txt ps pdf new
 .SUFFIXES:
 
