@@ -29,9 +29,6 @@ LANG_SGML	:= de ja ko pl pt-br ru
 # Language which generates SGML files from PO files (Customizable)
 LANG_PO		:= es fr it zh-cn zh-tw
 
-# Language which is under half-translation with maint-guide.??.wip.po (Customizable)
-LANG_NEW_PO	:= de
-
 # Language which is excluded from producing PS, PDF (Customizable)
 LANG_CJK	:= ko
 #LANG_CJK	:= 
@@ -70,19 +67,6 @@ publish:
 	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
 	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/$(MANUAL)/.htaccess
 
-new: 
-	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
-	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
-	for f in $(LANG_NEW_PO); do if [ -e $(MANUAL).$$f.keep.sgml ]; then echo "$(MANUAL).$$f.keep.sgml exists ...  exit."; exit 1; fi; done
-	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.sgml $(MANUAL).$$f.keep.sgml; done
-	for f in $(LANG_NEW_PO); do if [ ! -e $(MANUAL).$$f.wip.po ]; then echo "$(MANUAL).$$f.wip.po missing ...  exit."; exit 1; fi; done
-	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.wip.po $(MANUAL).$$f.po; done
-	$(MAKE) sgml "LANG_PO=$(LANG_NEW_PO)"
-	$(MAKE) html "LANG_ALL=$(LANG_NEW_PO)"
-	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.sgml $(MANUAL).$$f.wip.sgml; done
-	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.keep.sgml $(MANUAL).$$f.sgml; done
-	for f in $(LANG_NEW_PO); do mv $(MANUAL).$$f.po $(MANUAL).$$f.wip.po; done
-
 # generating SGML files from PO files
 # -M : master file $(MANUAL).en.sgml is always in UTF-8
 PO_UPDATE	:= po4a-updatepo --previous -M UTF-8 -f sgml
@@ -104,15 +88,29 @@ sgml:
 $(MANUAL).pot: $(MANUAL).en.sgml
 	$(PO_GETTEXT) -o ignore-inclusion=version -m $< -p $@
 
-# PO_TRANSLATE command line
+# Note for $(MANUAL).%.sgml target:
+# This is essentially executing
+#    |  $(PO_UPDATE) ...
+#    |  $(PO_TRANSLATE) ...
+# if only ?? is listed in $(LANG_PO).  This allows us to keep old 
+# $(MANUAL).??.sgml to build other files while new immature $(MANUAL).??.po
+# can be commited in VCS as long as $(LANG_PO) does not include ??.
+#
+# If "de" is not in $(LANG_PO) yet but you wish to build from PO file while 
+# overwriting SGML for testing, you make test build by 
+# "make html LANG_ALL=de LANG_PO=de".
+# 
+# Note for PO_TRANSLATE command line:
 #  -L : Charset of the file containing the localized document. UTF-8
 #  xargs -n1 is to split into lines
 #  sed script is to add "-a" to automatically add addendum files.
 $(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).en.sgml
-	$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$*.po
-	$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $@ -p $< \
-	$$(echo $*.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
-	-o ignore-inclusion=version 
+	if echo "$(LANG_PO)" | grep -q "$*" ; then \
+		$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$*.po ;\
+		$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $@ -p $< \
+		    $$(echo $*.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
+		    -o ignore-inclusion=version ;\
+	fi
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
@@ -165,9 +163,6 @@ clean:
 	for lang in $(LANG_PO); do \
 		rm -f $(MANUAL).$$lang.sgml ;\
         done
-	for lang in $(LANG_NEW_PO); do \
-		rm -f $(MANUAL).$$lang.wip.sgml ;\
-        done
 	#rm -f $(MANUAL).zh-tw.po
 	if [ -e $(PUBLISHDIR) ]; then rm -rf $(PUBLISHDIR)/$(MANUAL); fi
 	for lang in $(LANG_NOE); do rm -f $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
@@ -175,6 +170,6 @@ clean:
 distclean: clean
 
 .PHONY: all publish clean distclean validate
-.PHONY: sgml tw html text txt ps pdf new
+.PHONY: sgml tw html text txt ps pdf
 .SUFFIXES:
 
