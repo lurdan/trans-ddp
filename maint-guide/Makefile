@@ -12,8 +12,8 @@
 # Debian Documentation Project target:
 #  * make publish
 #
-# Test build of incomplete PO file(s) to sgml and html
-#  * make new
+# Test build of incomplete PO file for language ?? to sgml and html
+#  * make html LANG_PO=?? LANG_ALL=??
 #  (Please note this will overwrite corresponding sgml file)
 
 # Basename for SGML sources
@@ -92,17 +92,11 @@ $(MANUAL).pot: $(MANUAL).en.sgml
 # This is essentially executing
 #    |  $(PO_UPDATE) ...
 #    |  $(PO_TRANSLATE) ...
-# if only ?? is listed in $(LANG_PO).  This allows us to keep old 
-# $(MANUAL).??.sgml to build other files while new immature $(MANUAL).??.po
-# can be commited in VCS as long as $(LANG_PO) does not include ??.
-#
-# If "de" is not in $(LANG_PO) yet but you wish to build from PO file while 
-# overwriting SGML for testing, you make test build by 
-# "make html LANG_ALL=de LANG_PO=de".
+# if only ?? is listed in $(LANG_PO).  See README.translators 
 # 
 # Note for PO_TRANSLATE command line:
 #  -L : Charset of the file containing the localized document. UTF-8
-#  xargs -n1 is to split into lines
+#  xargs -n1 is to split file name matching $*.*.add into lines.
 #  sed script is to add "-a" to automatically add addendum files.
 $(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).en.sgml
 	if echo "$(LANG_PO)" | grep -q "$*" ; then \
