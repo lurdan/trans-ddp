@@ -24,10 +24,10 @@ LANG_EN		:= en
 
 # Language which is supported directly by SGML files (Customizable)
 # These should be converted to PO files ASAP
-LANG_SGML	:= de ja ko pl pt-br ru
+LANG_SGML	:= de ko pl pt-br ru
  
 # Language which generates SGML files from PO files (Customizable)
-LANG_PO		:= es fr it zh-cn zh-tw
+LANG_PO		:= es fr it ja zh-cn zh-tw
 
 # Language which is excluded from producing PS, PDF (Customizable)
 LANG_CJK	:= ko
@@ -152,7 +152,7 @@ clean:
 	rm -f $(MANUAL)*.info*
 	rm -f $(MANUAL)*.*~
 	rm -rf $(MANUAL)*.html 
-	rm -rf *.tmp
+	rm -rf *.tmp *.mo
 	rm -f version.ent
 	for lang in $(LANG_PO); do \
 		rm -f $(MANUAL).$$lang.sgml ;\
