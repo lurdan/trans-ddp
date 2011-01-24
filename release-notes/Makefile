@@ -78,7 +78,7 @@ FORMATS=html txt pdf
 PO4A_VERSION=$(shell LANG=C po4a --version | head -1 \
 	| sed 's/.*version \([0-9].*[0-9a-z]\)\.*/\1/')
 PREVIOUS=$(shell LANG=C dpkg --compare-versions "$(PO4A_VERSION)" ge 0.34 && echo --previous)
-UPDATEPO=PERLLIB=lib/ po4a-updatepo $(PREVIOUS) --format docbook
+UPDATEPO=PERLLIB=lib/ PERL5LIB=lib/ po4a-updatepo $(PREVIOUS) --format docbook
 # The "--keep 0" should be removed as soon as the translations are ready
 TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
 
@@ -253,10 +253,10 @@ updatepo:	$(patsubst en/%.dbk,$(LINGUA)/%.po-force,$(wildcard en/*.dbk))
 # The next is just a PHONY target and forcible updates the PO files
 $(LINGUA)/%.po-force: FORCE
 	@po4a_version=$$(dpkg-query -W -f '$${Version}\n' po4a); \
-	if [ "$$po4a_version" != "0.34-2" ]; then \
+	if dpkg --compare-versions "$$po4a_version" lt "0.34-2" ; then \
 	    echo "po4a version: '$$po4a_version'"; \
 	    echo ""; \
-	    echo "PO files must be updated with po4a 0.34-2 (Lenny)!"; \
+	    echo "PO files must be updated with po4a 0.34-2 (Lenny) or later!"; \
 	    echo ""; \
 	    exit 1; \
 	fi
