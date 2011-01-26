@@ -36,7 +36,7 @@ PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
 DISABLED_PDF=
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
-GPLIST=ml vi
+GPLIST=ja ml vi
 
 LANGUAGES-publish := $(addsuffix -publish,$(LANGUAGES))
 LANGUAGES-clean := $(addsuffix -clean,$(LANGUAGES))
