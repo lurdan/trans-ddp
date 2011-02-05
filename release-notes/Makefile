@@ -28,7 +28,7 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
-LANGUAGES := en be ca cs da de es fr it ja lt ml nb nl pt_BR pt ro ru sk sv vi zh_CN zh_TW
+LANGUAGES := en cs da de es fr it ja lt ml nb nl pt_BR pt ro ru sk sv vi zh_CN zh_TW be ca
 # languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
