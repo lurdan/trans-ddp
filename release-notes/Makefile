@@ -28,12 +28,22 @@ else
   makedir	:= mkdir -p -m 0755
 endif
 
+# WARNING - Editors and translators: the LANGUAGES list is currently sorted
+# alphabetically but *NEW* languages that somebody wants to start working in
+# should go to the end, that way if the language fails to build, or has errors,
+# the other languages are not affected
+#
+# TODO - Move 'probationary' languages to an external variable and append to the list at the
+# end so this is more self-evident (jfs)
 LANGUAGES := en cs de es fr it ja lt ml nb nl pt_BR pt ro ru sk sv vi zh_CN zh_TW be ca da
+
 # languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
+
+# DISABLED_PDF are the languages we will not generate PDF versions for:
 DISABLED_PDF=
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=ja ml vi
