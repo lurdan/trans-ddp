@@ -103,7 +103,10 @@ all: statistics.html
 # TODO: if one of the files here is missing for one language due to a failed
 # build the publish will break the publish for the other languages. 
 # Make use of [ -e ] here ?
-publish: statistics.html
+publish: statistics.html 
+	@test -n "$(PUBLISHDIR)" || { echo "ERROR: Variable PUBLISHDIR undefined" && false ; }
+	@test -d "$(PUBLISHDIR)" || { echo "ERROR: Publish dir '$(PUBLISHDIR)' does not exist" && false ; }
+	@echo "Publishing to '$(PUBLISHDIR)'"
 	set -ex; \
 	$(install_file) statistics.html $(PUBLISHDIR)/; \
 	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/.htaccess; \
@@ -113,16 +116,22 @@ publish: statistics.html
 	  $(makedir) $(manual)-$$arch; \
 	  for lang in $(LANGUAGES); do \
 	    $(makedir) $(manual)-$$arch/$$lang; \
-	    $(install_file) $$lang/$(manual).$$arch.html/* \
+	    [ ! -d  "$$lang/$(manual).$$arch.html/" ] || \
+		$(install_file) $$lang/$(manual).$$arch.html/* \
 		$(PUBLISHDIR)/$$arch/$(manual)/; \
+		[ ! -e "$$lang/$(manual).$$arch.txt" ] ||  \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.txt; \
+		[ ! -e "$$lang/$(manual).$$arch.pdf" ] ||  \
 	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(PUBLISHDIR)/$$arch/$(manual).$$lang.pdf; \
+	    [ ! -d  "$$lang/$(manual).$$arch.html/" ] || \
 	    $(install_file) $$lang/$(manual).$$arch.html/* \
 		$(manual)-$$arch/$$lang/; \
+		[ ! -e "$$lang/$(manual).$$arch.txt" ] ||  \
 	    $(install_file) $$lang/$(manual).$$arch.txt \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.txt; \
+		[ ! -e "$$lang/$(manual).$$arch.pdf" ] ||  \
 	    $(install_file) $$lang/$(manual).$$arch.pdf \
 		$(manual)-$$arch/$$lang/$(manual).$$lang.pdf ; \
 	  done; \
