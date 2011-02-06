@@ -100,14 +100,15 @@ all: statistics.html
 	    done; \
 	done
 
-# TODO: if one of the files here is missing for one language due to a failed
-# build the publish will break the publish for the other languages. 
-# Make use of [ -e ] here ?
+# TODO: Do not use 'set -e' here. if one of the files here is missing for one
+# language due to a failed build the publish will break the publish for the
+# other languages. 
+# We could change this into a proper Makefile goal with its subtargets
+# but it needs to be rewritten to do so
 publish: statistics.html 
 	@test -n "$(PUBLISHDIR)" || { echo "ERROR: Variable PUBLISHDIR undefined" && false ; }
 	@test -d "$(PUBLISHDIR)" || { echo "ERROR: Publish dir '$(PUBLISHDIR)' does not exist" && false ; }
 	@echo "Publishing to '$(PUBLISHDIR)'"
-	set -ex; \
 	$(install_file) statistics.html $(PUBLISHDIR)/; \
 	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/.htaccess; \
 	for arch in $(arches); do \
