@@ -23,6 +23,11 @@
 
 name=release-notes  # Name of the document
 formats="txt html pdf" # Formats the document is build to
+# Directory to look for the published content
+publishdir="publish" 
+if [ -n "$PUBLISHDIR" ] ; then
+    publishdir="$PUBLISHDIR"
+fi
 
 # Sanity checks:
 if [ ! -e "$name.ent" ] ; then
@@ -52,18 +57,39 @@ for lang in $langs;  do
     count=0
     okcount=0
     failcount=0
+    pokcount=0
+    pfailcount=0
     echo "Checking build for language '$lang'"
     for arch in $arches;  do
         for format in $formats;  do
             count=$(($count+1))
+            # Check the builddir
             if [ -e "${lang}/${name}.${arch}.${format}" ] ; then
                 okcount=$(($okcount+1))
             else
                 failcount=$(($failcount+1))
-                echo -e "\tERROR: Missing $format for $arch (language: $lang)"
+                echo -e "\tERROR: Missing build document in $format format for $arch (language: $lang)"
+            fi
+            # Check the publishdir
+            if [ -d "$publishdir" ] ; then
+                if  [ "$format" = "html" ] ; then
+                    file="${publishdir}/${arch}/${name}/index.${lang}.${format}" 
+                else
+                    file="${publishdir}/${arch}/${name}.${lang}.${format}" 
+                fi
+                if [ -e "$file" ] ; then
+                    pokcount=$(($pokcount+1))
+                else
+                    pfailcount=$(($pfailcount+1))
+                    echo -e "\tERROR: Missing $format for $arch in PUBLISHDIR '$publishdir' (language: $lang). Tried looking for '$file'."
+                fi
             fi
         done
     done
-    echo "TOTAL: Language for language '$lang'. OK: $okcount / $count. FAIL: $okcount / $count"
+    echo "TOTAL: Build totals for for language '$lang'. BUILD OK: $okcount BUILD FAIL: $failcount of $count documents"
+    if [ -d "$publishdir" ] ; then
+        echo "TOTAL: Publishing totals for language '$lang'. PUBLISH OK: $pokcount PUBLISH FAIL: $pfailcount of $okcount built"
+    fi
 done
-                
+
+exit 0
