@@ -158,6 +158,7 @@ ifdef LINGUA
 html::	$(LINGUA)/$(manual).$(architecture).html/index.$(LINGUA).html
 $(LINGUA)/$(manual).$(architecture).html/index.$(LINGUA).html: \
 		$(LINGUA)/$(manual).$(architecture).xml html.xsl
+	@test -d /usr/share/xml/docbook/stylesheet/nwalsh/images/  || { echo "ERROR: The Docbook stylesheet's images are not available. Please install the docbook-xsl package." ; false ; }
 	mkdir -p $(LINGUA)/$(manual).$(architecture).html/images
 	cp debian.css $(LINGUA)/$(manual).$(architecture).html
 	cp /usr/share/xml/docbook/stylesheet/nwalsh/images/*.png \
@@ -191,6 +192,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 	$(XP) -o $@ fo.xsl $<
 
 %.pdf: %.fo
+	@test -n "`which xmlroff`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
 	USE_GP=`echo " $(GPLIST) " | grep " $$LINGUA "`; \
 	if [ -n "$$USE_GP" ]; then \
 	    $(XMLROFF_GP) -o $@ $<; \
@@ -199,6 +201,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 	fi
 else
 %.pdf: %.xml
+	@test -n "`which dblatex`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS="$$(pwd)/$(@D):"; \
 	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ -
 endif
@@ -207,6 +210,7 @@ endif
 ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 # Can't we just drop PS in favour of PDF?
 %.ps: %.fo
+	@test -n "`which xmlroff`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
 	USE_GP=`echo " $(GPLIST) " | grep " $$LINGUA "`; \
 	if [ -n "$$USE_GP" ]; then \
 	    $(XMLROFF_GP) --format postscript -o $@ $<; \
@@ -215,6 +219,7 @@ ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
 	fi
 else
 %.ps: %.xml
+	@test -n "`which dblatex`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS="$$(pwd)/$(@D):"; \
 	$(XP) $(DBLATEXXSL) $< | $(DBLATEX) --output=$@ --ps -
 endif
@@ -222,6 +227,8 @@ endif
 txt::	$(LINGUA)/$(manual).$(architecture).txt
 $(LINGUA)/$(manual).$(architecture).txt: \
 		$(LINGUA)/$(manual).$(architecture).xml txt.xsl
+	@test -n "`which xsltproc`"  || { echo "ERROR: xsltproc not found. Please install the xsltproc package." ; false ;  }
+	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
 	$(XP) $(DBK2HTML1) $< \
 	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
@@ -267,6 +274,7 @@ ifndef LINGUA
 else
 ifeq "$(findstring  $(LINGUA) , $(DBK_LANGUAGES) )" ""
 $(LINGUA)/%.dbk:	en/%.dbk $(LINGUA)/%.po
+	@test -n "`which po4a`"  || { echo "ERROR: po4a not found. Please install the po4a package." ; false ;  }
 	$(TRANSLATE) --master $< --po $(@:.dbk=.po) --localized $@
 endif
 endif
