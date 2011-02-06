@@ -88,6 +88,9 @@ all: statistics.html
 	    done; \
 	done
 
+# TODO: if one of the files here is missing for one language due to a failed
+# build the publish will break the publish for the other languages. 
+# Make use of [ -e ] here ?
 publish: statistics.html
 	set -ex; \
 	$(install_file) statistics.html $(PUBLISHDIR)/; \
