@@ -33,9 +33,14 @@ endif
 # should go to the end, that way if the language fails to build, or has errors,
 # the other languages are not affected
 #
-# TODO - Move 'probationary' languages to an external variable and append to the list at the
-# end so this is more self-evident (jfs)
-LANGUAGES := en cs de es fr it ja lt ml nb nl pt_BR pt ro ru sk sv vi zh_CN zh_TW be ca da
+# TODO - Treat 'probationary' languages independently so that they if they
+# break they do not break the build for stable translations
+LANGUAGES := en cs de es fr it ja lt ml nb pt_BR pt ro ru sk sv vi zh_CN zh_TW be 
+
+# The following is a list of 'probationary' languages, these might not yet
+# build fine and might break the build.  Move them over to LANGUAGES when they
+# do:
+# LANGUAGES += ca da nl
 
 # languages without .po files
 # (either original English or translators don't like .po)
