@@ -66,23 +66,23 @@ for lang in $langs;  do
             # Check the builddir
             if [ -e "${lang}/${name}.${arch}.${format}" ] ; then
                 okcount=$(($okcount+1))
+# Check the publishdir
+                if [ -d "$publishdir" ] ; then
+                    if  [ "$format" = "html" ] ; then
+                        file="${publishdir}/${arch}/${name}/index.${lang}.${format}" 
+                    else
+                        file="${publishdir}/${arch}/${name}.${lang}.${format}" 
+                    fi
+                    if [ -e "$file" ] ; then
+                        pokcount=$(($pokcount+1))
+                    else
+                        pfailcount=$(($pfailcount+1))
+                        echo -e "\tERROR: Missing $format for $arch in PUBLISHDIR '$publishdir' (language: $lang). Tried looking for '$file'."
+                    fi
+                fi
             else
                 failcount=$(($failcount+1))
                 echo -e "\tERROR: Missing build document in $format format for $arch (language: $lang)"
-            fi
-            # Check the publishdir
-            if [ -d "$publishdir" ] ; then
-                if  [ "$format" = "html" ] ; then
-                    file="${publishdir}/${arch}/${name}/index.${lang}.${format}" 
-                else
-                    file="${publishdir}/${arch}/${name}.${lang}.${format}" 
-                fi
-                if [ -e "$file" ] ; then
-                    pokcount=$(($pokcount+1))
-                else
-                    pfailcount=$(($pfailcount+1))
-                    echo -e "\tERROR: Missing $format for $arch in PUBLISHDIR '$publishdir' (language: $lang). Tried looking for '$file'."
-                fi
             fi
         done
     done
