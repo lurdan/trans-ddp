@@ -35,7 +35,7 @@ endif
 #
 # TODO - Treat 'probationary' languages independently so that they if they
 # break they do not break the build for stable translations
-LANGUAGES := en cs de es fr it ja lt ml nb pt_BR pt ro ru sk sv vi zh_CN zh_TW be 
+LANGUAGES := en cs de es fr it ja lt ml nb pt_BR pt ro ru vi zh_CN zh_TW be sv sk
 
 # The following is a list of 'probationary' languages, these might not yet
 # build fine and might break the build.  Move them over to LANGUAGES when they
