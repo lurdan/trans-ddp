@@ -42,6 +42,8 @@ LANGUAGES := en cs de es fr it ja lt ml nb nl pt_BR pt ro ru sk sv vi zh_CN zh_T
 DBK_LANGUAGES := en ca cs pt_BR
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
 XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
+PO_FILES := $(wildcard */*.po)
+DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
 # DISABLED_PDF are the languages we will not generate PDF versions for:
 DISABLED_PDF=
@@ -320,8 +322,7 @@ $(LANGUAGES-clean):
 printarches:
 	@echo $(arches)
 
-.PHONY: statistics.txt
-statistics.txt:
+statistics.txt: $(PO_FILES) $(DBK_FILES)
 	( \
 	    LANG=C; export LANG; \
 	    for l in $(PO_LANGUAGES); do \
