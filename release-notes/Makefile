@@ -40,12 +40,13 @@ LANGUAGES := en cs de es fr it ja lt ml nb pt_BR pt ro ru vi zh_CN zh_TW be sv s
 # The following is a list of 'probationary' languages, these might not yet
 # build fine and might break the build.  Move them over to LANGUAGES when they
 # do:
-# LANGUAGES += ca da nl
+DISABLED_LANGUAGES := ca da nl
+ALL_LANGUAGES := $(LANGUAGES) $(DISABLED_LANGUAGES)
 
 # languages without .po files
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs pt_BR
-PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(LANGUAGES))
+PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(ALL_LANGUAGES))
 XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
 PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
