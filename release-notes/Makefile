@@ -17,6 +17,8 @@ endif
 
 manual := release-notes
 
+# TODO: This regexp does not match kfreebsd-i386 or kfreebsd-amd64 add '\-'
+# to the arch= regex when they need to be enabled
 arches := $(shell grep '<phrase arch=' $(CURDIR)/$(manual).ent \
 		| sed 's/.* arch=.\([a-z0-9]*\).*/\1/' | sort -u)
 
