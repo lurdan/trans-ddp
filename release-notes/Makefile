@@ -191,8 +191,8 @@ ifneq "$(filter $(DISABLED_PDF),$(LINGUA))" ""
 	echo "PDF for $$LINGUA currently disabled." > $@
 else
 ifneq "$(filter $(XMLROFF_LANGS),$(LINGUA))" ""
-%.fo: %.xml
-	$(XP) -o $@ fo.xsl $<
+%.fo: %.xml xmlroff.xsl
+	$(XP) xmlroff.xsl $< |$(XP) --output $@ fo.xsl -
 
 %.pdf: %.fo
 	@test -n "`which xmlroff`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
