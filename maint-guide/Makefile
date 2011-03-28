@@ -24,10 +24,10 @@ LANG_EN		:= en
 
 # Language which is supported directly by SGML files (Customizable)
 # These should be converted to PO files ASAP
-LANG_SGML	:= de ko pl pt-br ru
+LANG_SGML	:= ko pl pt-br ru
  
 # Language which generates SGML files from PO files (Customizable)
-LANG_PO		:= ca es fr it ja zh-cn zh-tw
+LANG_PO		:= ca de es fr it ja zh-cn zh-tw
 
 # Language which is excluded from producing PS, PDF (Customizable)
 LANG_CJK	:= ko
