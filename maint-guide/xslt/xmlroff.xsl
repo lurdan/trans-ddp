@@ -12,7 +12,7 @@
     (<xsl:apply-templates select="*|@*|text()"/>)
   </xsl:template>
 
-  <!-- You must skip paragraph braks in footnote -->
+  <!-- You must skip paragraph breaks in footnote -->
   <xsl:template match="footnote/para">
     <xsl:apply-templates select="*|@*|text()"/>
   </xsl:template>
