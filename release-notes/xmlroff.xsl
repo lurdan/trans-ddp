@@ -8,12 +8,11 @@
 
 
   <!-- You must convert footnote as (...) -->
-  <xsl:template match="footnote[.!='']">
-    <xsl:text> (</xsl:text><xsl:apply-templates select="*|@*|text()"/><xsl:text>) </xsl:text>
+  <xsl:template match="footnote">
+    (<xsl:apply-templates select="*|@*|text()"/>)
   </xsl:template>
 
-  <xsl:template match="footnote[.='']"></xsl:template>
-
+  <!-- You must skip paragraph breaks in footnote -->
   <xsl:template match="footnote/para">
     <xsl:apply-templates select="*|@*|text()"/>
   </xsl:template>
