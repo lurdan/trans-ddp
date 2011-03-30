@@ -1,169 +1,336 @@
-#
+##############################################################################
 # Makefile for the Debian New Maintainers' Guide
-#
-# All source files use UTF-8 encoding
-#
-# Language names are in lowercase web suffix style without encoding.
-# In adendum <lang>.*.add files, you can use any number for middle *.
-#
-# Debian maint-guide package target:
-#  * make all
-#
-# Debian Documentation Project target:
-#  * make publish
-#
-# Test build of incomplete PO file for language ?? to sgml and html
-#  * make html LANG_PO=?? LANG_ALL=??
-#  (Please note this will overwrite corresponding sgml file)
+##############################################################################
 
-# Basename for SGML sources
+# Note: This Makefile should work perfectly without the debian/ directory.
+
+# Required packages for building documentation source
+# basic:		xsltproc, docbook-xsl (These are dependency of dblatex)
+# i18n:			po4a
+# plain text conv.:	w3m
+# pdf via latex:	dblatex, ghostscript, lmodern, latex-cjk-all, texlive-lang-*
+# pdf via xmlroff:	xmlroff, (ttf-font-packages)
+
+##############################################################################
+# Package specific customization
+##############################################################################
+# package name
 MANUAL		:= maint-guide
+# inclusion entity files
+SOURCES_ENT	:= common.ent version.ent
+# format to be built
+FORMATS		:= html txt pdf
+# languages supported by direct DocBook files (always: en)
+LANGS_EN	:= en
+# languages supported by translation PO files
+LANGS_PO	:= ca de es fr it ja zh-cn zh-tw
+# all languages to build
+LANGS		:= $(LANGS_EN) $(LANGS_PO)
+# local script file directory
+SCRIPT		:= script
+# translation contents directory such as PO file
+PO4A		:= po4a
+# The translation threshold percent should be 80, if translation is completed.
+THRESHOLD	:= 0
+# XSLT (Extensible Stylesheet Language Transformations) file directory
+XSLT		:= xslt
+# manual publish directory
+ifeq ($(PUBLISHDIR),)
+# local test build
+MANUALDIR	:= $(CURDIR)/html
+else
+# www-master.debian.org build script.
+MANUALDIR       := $(abspath $(PUBLISHDIR)/$(MANUAL))
+endif
+# CSS (Cascading Style Sheets) file
+CSS		:= $(MANUAL).css
+# Image files
+IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png draft.png 
+IMAGESSRC	:= /usr/share/xml/docbook/stylesheet/nwalsh/images
+IMAGESDIR	:= $(MANUALDIR)/images
 
-# Language which is the base of all files
-LANG_EN		:= en
+##############################################################################
+# PDF build tool customization for each lunguage
+##############################################################################
+# dblatex is used as the default PDF build tool
+# The curent customization follows the release-notes package.
+#
+# No PDF build for these lunguages
+LANGS_NOPDF		:= 
+# PDF build using xmloff with cairo backend for these lunguages 
+# This does not create output as good as one created via default dblatex
+# but this can build CJK documents without build failures.
+#	candidates: be pl zh-cn zh-tw
+LANGS_XMLROFF_CAIRO	:= ja zh-cn zh-tw
+# PDF build using xmloff with gp backend for these lunguages (deprecated)
+#	candidates: ja ml vi
+LANGS_XMLROFF_GP	:=
+# languages with pdf using fop package (not implimented)
 
-# Language which is supported directly by SGML files (Customizable)
-# These should be converted to PO files ASAP
-LANG_SGML	:= ko pl pt-br ru
- 
-# Language which generates SGML files from PO files (Customizable)
-LANG_PO		:= ca de es fr it ja zh-cn zh-tw
+##############################################################################
+# build tool customization for debug etc.
+##############################################################################
+# comment/uncomment to activate debug mode
+XP		:= xsltproc --nonet --novalid --xinclude
+#XP		:= xsltproc --nonet --novalid --xinclude --debug
+XL		:= xmllint --nonet --noout --postvalid --xinclude
+#XL		:= xmllint --nonet --noout --postvalid --xinclude --debug
+DBLATEX		:= dblatex
+#DBLATEX	:= dblatex --debug
+XMLROFF		:= xmlroff
+#XMLROFF	:= xmlroff --debug 1
 
-# Language which is excluded from producing PS, PDF (Customizable)
-LANG_CJK	:= ko
-#LANG_CJK	:= 
+# Change $(DRAFTMODE) from "yes" to "maybe" when this $(MANUAL) should go into
+# production mode
+#DRAFTMODE	:= yes
+DRAFTMODE	:= maybe
+export DRAFTMODE
+##############################################################################
+# Basic phony targets
+##############################################################################
+.PHONY: all build build-indep
+all: build
 
-# Language group
-LANG_ALL	:= $(LANG_EN) $(LANG_PO) $(LANG_SGML)
-LANG_NOE	:= $(filter-out en,$(LANG_ALL))
-LANG_NOCJK	:= $(filter-out $(LANG_CJK),$(LANG_ALL))
-LANG_NOCJKE	:= $(filter-out $(LANG_CJK) en,$(LANG_ALL))
+build: build-indep
 
-# For package building (all)
-DEBIAN_DIR	:= $(CURDIR)/debian
-all:
-	$(MAKE) version.ent
-	$(MAKE) sgml
-	$(MAKE) html txt ps pdf
-	for lang in $(LANG_NOCJKE); do sed -e "s/@@/$$lang/g" < $(DEBIAN_DIR)/all-nocjke.install-in > $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
-	for lang in $(LANG_CJK);    do sed -e "s/@@/$$lang/g" < $(DEBIAN_DIR)/all-cjk.install-in    > $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
+build-indep:	$(foreach lng,$(LANGS), $(foreach fmt, $(filter-out html, $(FORMATS)), $(MANUAL).$(lng).$(fmt))) \
+		$(foreach lng,$(LANGS), $(foreach fmt, $(filter     html, $(FORMATS)),     index.$(lng).html))
 
+##############################################################################
+# Utility phony targets
+##############################################################################
+.PHONY: dbk dbk-orig txt html pdf po pot
+txt:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).txt)
+html:	$(foreach lng,$(LANGS), index.$(lng).html)
+pdf:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).pdf)
+po:	$(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
+pot:	$(PO4A)/$(MANUAL).pot
+patch:	$(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).patch)
+dbk:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk)
+dbk-orig:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk-orig)
+
+##############################################################################
+# Conditional branching variable
+##############################################################################
+# Conditional branching of build process is implimented by recursively calling
+# this Makefile.  The first level executon of this Makefile calls $(MAKE) with
+# the controlling variable $(LINGUA).  The second level executon of this
+# Makefile uses $(LINGUA) as conditional branching.  Initial value of $(LINGUA)
+# is "".
+LINGUA		:=
+
+##############################################################################
+# Version file preparations
+##############################################################################
+# version from debian/changelog
+ifeq ($(PUBLISHDIR),)
 version.ent:
-	echo '<!entity' "docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
-	echo '<!entity' "docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent
+	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
+	[ -r debian/changelog ] && \
+	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent ||\
+	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
+else
+version.ent:
+	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
+	[ -r debian/changelog ] && \
+	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent ||\
+	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
+endif
+##############################################################################
+# DocBook XML source file preparations
+##############################################################################
+$(MANUAL).en.dbk:
+	# This is source
+	@true
 
-# For web page building (publish)
-# this can and will be overriden by a higher level makefile
-PUBLISHDIR	:= /org/www.debian.org/www/doc/manuals
-publish: 
-	echo '<!entity docisodate "$(shell LC_ALL=C date -u +'%F %T %Z')">' > version.ent
-	echo '<!entity docversion "$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn">' >> version.ent
-	$(MAKE) sgml
-	$(MAKE) html txt ps pdf
-	test -d $(PUBLISHDIR)/$(MANUAL) || install -d -m 755 $(PUBLISHDIR)/$(MANUAL)
-	rm -f $(PUBLISHDIR)/$(MANUAL)/*.html
-	# remove old files
-	install -p -m 644 $(MANUAL)*.html/*.html $(PUBLISHDIR)/$(MANUAL)/
-	install -p -m 644 $(MANUAL)*.txt $(MANUAL)*.ps $(MANUAL)*.pdf $(PUBLISHDIR)/$(MANUAL)
-	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/$(MANUAL)/.htaccess
+# Generate patched localized DocBook XML files for all non-"en"
+# This does not depend on $(PO4A)/$(MANUAL).%.patch intentionally to aviod dependency loop.
+$(MANUAL).%.dbk: $(MANUAL).%.dbk-orig
+	cp -f $< $@
+	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch ; fi
 
-# generating SGML files from PO files
-# -M : master file $(MANUAL).en.sgml is always in UTF-8
-PO_UPDATE	:= po4a-updatepo --previous -M UTF-8 -f sgml
-#PO_UPDATE	:= po4a-updatepo --previous --msgmerge-opt --no-wrap -M UTF-8 -f sgml
-PO_TRANSLATE	:= po4a-translate  -M UTF-8 -f sgml --keep 0
-PO_GETTEXT	:= po4a-gettextize -M UTF-8 -f sgml
+$(MANUAL).en.dbk-orig:
+	# This is source
+	@true
 
-# This target is run manually under sid before squeeze release
-tw:
-	msgcat --no-wrap $(MANUAL).zh-cn.po | opencc | sed -f cn2tw.sed | msgcat - > $(MANUAL).zh-tw.po
-
-sgml:
-	if ! [ -f version.ent ]; then $(MAKE) version.ent; fi
-	for lang in $(LANG_PO); do \
-		echo "Translate to: $$lang" ;\
-		$(MAKE) $(MANUAL).$$lang.sgml ;\
-        done
-
-$(MANUAL).pot: $(MANUAL).en.sgml
-	$(PO_GETTEXT) -o ignore-inclusion=version -m $< -p $@
-
-# Note for $(MANUAL).%.sgml target:
-# This is essentially executing
-#    |  $(PO_UPDATE) ...
-#    |  $(PO_TRANSLATE) ...
-# if only ?? is listed in $(LANG_PO).  See README.translators 
-# 
-# Note for PO_TRANSLATE command line:
-#  -L : Charset of the file containing the localized document. UTF-8
-#  xargs -n1 is to split file name matching $*.*.add into lines.
-#  sed script is to add "-a" to automatically add addendum files.
-$(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).en.sgml
-	if echo "$(LANG_PO)" | grep -q "$*" ; then \
-		$(PO_UPDATE) -o ignore-inclusion=version -m $(MANUAL).en.sgml -p $(MANUAL).$*.po ;\
-		$(PO_TRANSLATE) -v -L UTF-8 -m $(MANUAL).en.sgml -l $@ -p $< \
-		    $$(echo $*.*.add|xargs -n1|sed -ne 's/^\([^*]*\.add\)$$/-a \1/p') \
-		    -o ignore-inclusion=version ;\
+# Generate base localized DocBook XML files for all non-"en"
+# This does not depend on $(PO4A)/$(MANUAL).%.po intentionally 
+# to aviod automatic update of $(PO4A)/$(MANUAL).%.po.
+$(MANUAL).%.dbk-orig: $(MANUAL).en.dbk
+	if [ -e $(PO4A)/$(MANUAL).$*.po  ]; then \
+		po4a-translate --format docbook --keep $(THRESHOLD) --master-charset UTF-8 \
+			--master $< --po $(PO4A)/$(MANUAL).$*.po --localized $@ ;\
+	else \
+		echo "ERROR: PO file not found. Please copy $(PO4A)/$(MANUAL).pot to $(PO4A)/$(MANUAL).$*.po ." ; exit 1 ;\
 	fi
 
-# generating HTML
-# ugly because the normal stuff works only as PHONYs. :(
-#$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
-#	debiandoc2html -c -l $* $<
-html:
-	if ! [ -f version.ent ]; then $(MAKE) version.ent ; $(MAKE) po; fi
-	for lang in $(LANG_ALL); do \
-	  if /usr/bin/test \( ! -e $(MANUAL).$$lang.html/index.$$lang.html \) \
-			-o \( $(MANUAL).$$lang.sgml -nt $(MANUAL).$$lang.html/index.$$lang.html \); then \
-            debiandoc2html -C -l $$lang.utf-8 $(MANUAL).$$lang.sgml; \
-          fi; \
-        done
+# This updates $(PO4A)/$(MANUAL).%.patch files if modified $(MANUAL).%.dbk files exist.
+$(PO4A)/$(MANUAL).%.patch: FORCE
+	if [ -r $(MANUAL).$*.dbk ]; then \
+		$(MAKE) $(MANUAL).$*.dbk-orig; \
+		diff -u $(MANUAL).$*.dbk-orig $(MANUAL).$*.dbk > $@ || true ; \
+	else \
+		echo "Info: Skip creating $(PO4A)/$(MANUAL).$*.patch since there is no $(MANUAL).$*.dbk." ;\
+		echo "      You can create template $(MANUAL).$*.dbk by \"make $(MANUAL).$*.dbk\" and modify it." ;\
+	fi
 
-# generating plain text
-txt text: $(patsubst %,$(MANUAL).%.txt,$(LANG_ALL))
+##############################################################################
+# DocBook PO source file preparations
+##############################################################################
+# Always update localized PO files while making PO template(pot) as needed
+# .PHONY as follows does not work nicely with %, thus FORCE is used here.
+#.PHONY: $(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
+$(PO4A)/$(MANUAL).%.po: FORCE
+	$(MAKE) $(PO4A)/$(MANUAL).pot
+	msgmerge --update --previous --no-wrap --previous $@ $(PO4A)/$(MANUAL).pot
 
-$(MANUAL).%.txt: $(MANUAL).%.sgml
-	debiandoc2text -l $*.utf-8 $<
+# Generate PO template(pot) file from English DocBook XML file
+# make sure no location line for easier merge.
+$(PO4A)/$(MANUAL).pot: $(MANUAL).en.dbk
+	po4a-gettextize --format docbook --master-charset UTF-8 --master $< |\
+	msgcat --no-location - > $@
 
-# generating PostScript
-ps: $(patsubst %,$(MANUAL).%.ps,$(LANG_NOCJK))
+##############################################################################
+# Plain text building
+##############################################################################
+# Generate formatted output in single page plain text
+# txt.xsl provide work around for hidden URL links by appending them explicitly.
+$(MANUAL).%.txt: $(MANUAL).%.dbk $(SOURCES_ENT)
+	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
+	$(XP) $(XSLT)/txt.xsl $< |\
+		w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
-$(MANUAL).%.ps: $(MANUAL).%.sgml
-	debiandoc2latexps -l $*.utf-8 $<
+##############################################################################
+# HTML text building
+##############################################################################
+# Generate formatted output in multi-page html text
+index.%.html: $(MANUAL).%.dbk $(SOURCES_ENT)
+	$(XP) --stringparam draft.mode $(DRAFTMODE) \
+		--stringparam root.filename index \
+                --stringparam html.ext .$*.html \
+                --stringparam html.stylesheet $(MANUAL).css \
+		$(XSLT)/html.xsl $<
 
-# generating Portable Document Format
-pdf: $(patsubst %,$(MANUAL).%.pdf,$(LANG_NOCJK))
+##############################################################################
+# PDF building (conditional)
+##############################################################################
 
-$(MANUAL).%.pdf: $(MANUAL).%.sgml
-	debiandoc2latexpdf -l $*.utf-8 $<
+ifeq ($(LINGUA),)
+# if $(LINGUA) is "" (unset == inital call)
 
-# validating SGML ::: not used!
-validate:
-	@set -x; for i in $(wildcard *.sgml); do nsgmls -ges -wall $$i; done
+$(MANUAL).%.pdf: $(MANUAL).%.dbk $(SOURCES_ENT)
+	# This calls itself while setting LINGUA (conditional trick) for $@
+	make "LINGUA=$*" $@
 
-# cleaning up
+else ifeq ($(filter-out $(LANGS_NOPDF),$(LINGUA)),)
+# if $(LINGUA) belongs to $(LANGS_NOPDF)
+
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+	echo "PDF building for $(LINGUA) currently disabled." > $@
+
+else ifeq ($(filter-out $(LANGS_XMLROFF_CAIRO),$(LINGUA)),)
+# if $(LINGUA) belongs to $(LANGS_XMLROFF_CAIRO)
+
+# xmlroff.xsl provide work around for footnote which xmlroff does not provide support
+$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+	$(XP) $(XSLT)/xmlroff.xsl $<  | \
+	$(XP) --output $@ $(XSLT)/fo.xsl -
+
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
+	@test -n "`which $(XMLROFF)`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
+	$(XMLROFF) --backend cairo --out-file=$@ $<
+	
+else ifeq ($(filter-out $(LANGS_XMLROFF_GP),$(LINGUA)),)
+# if $(LINGUA) belongs to $(LANGS_XMLROFF_GP)
+
+# xmlroff.xsl provide work around for footnote which xmlroff does not provide support
+$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+	$(XP) $(XSLT)/xmlroff.xsl $<  | \
+	$(XP) --output $@ $(XSLT)/fo.xsl -
+
+# GnomePrint backend is deprecated 
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
+	@test -n "`which $(XMLROFF)`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
+	$(XMLROFF) --backend gp --out-file=$@ $<
+
+else
+# if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
+
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=db2latex \
+		--xsl-user=$(XSLT)/hyphenation.xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=format=a4 \
+		--param=glossterm.auto.link=1 \
+		--param=latex.encoding=utf8 \
+		--param=latex.unicode.use=1 \
+		--param=lingua=$(LINGUA) \
+		--param=monoseq.hyphenation=nohyphen \
+		--output=$@ -
+
+endif
+
+##############################################################################
+# This rule controls the build and installation on the website
+# Logs are here: http://www-master.debian.org/build-logs/ddp/
+# For web page building (publish)
+# this can and will be overriden by a higher level makefile
+##############################################################################
+.PHONY: publish
+publish: html txt pdf
+	[ -d $(IMAGESDIR) ] || install -d -m 755 $(IMAGESDIR)
+	install -p -m 644 *.html $(MANUALDIR)
+	install -p -m 644 $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
+	install -p -m 644 $(CSS) $(MANUALDIR)
+	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
+	install -p -m 644 $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
+
+##############################################################################
+# Special utility targets used only by the maintainer
+##############################################################################
+.PHONY:	tw
+# Translate from zh-cn to zh-tw (semi-automatic)
+tw:
+	msgcat --no-wrap $(PO4A)/$(MANUAL).zh-cn.po | opencc | sed -f $(BIN)/cn2tw.sed | msgcat - > $(PO4A)/$(MANUAL).zh-tw.po
+
+# phony targets for PO maintainances
+.PHONY:  tidypo
+tidypo:
+	for f in $(LANGS_PO); do msgcat --no-location $(PO4A)/$(MANUAL).$$f.po | sponge $(PO4A)/$(MANUAL).$$f.po ; done
+	msgcat --no-location $(PO4A)/$(MANUAL).pot | sponge $(PO4A)/$(MANUAL).pot
+
+##############################################################################
+# Special utility targets used by the maintainer and translators
+##############################################################################
+.PHONY:  checkpo
+checkpo:
+	for f in $(LANGS_PO); do msgfmt --check --verbose $(PO4A)/$(MANUAL).$$f.po | sponge $(PO4A)/$(MANUAL).$$f.po; done
+	msgfmt --check --verbose $(PO4A)/$(MANUAL).pot | sponge $(PO4A)/$(MANUAL).pot
+
+.PHONY:  validate
+validate: $(foreach lng,$(LANGS_PO),$(MANUAL).$(lng).dbk) $(SOURCES_ENT)
+	for f in $(LANGS_PO); do $(XL) $(MANUAL).$$f.dbk; done
+
+##############################################################################
+# Basic utility targets for clean
+##############################################################################
+.PHONY: clean distclean
 clean:
-	for ext in txt ps dvi pdf log tex aux toc out tpt tex-in ; do \
-		rm -f $(MANUAL)*.$$ext ;\
-	done
-	rm -f .htaccess
-	rm -f $(MANUAL)*.info*
-	rm -f $(MANUAL)*.sasp*
-	rm -f $(MANUAL)*.info*
-	rm -f $(MANUAL)*.*~
-	rm -rf $(MANUAL)*.html 
-	rm -rf *.tmp *.mo
 	rm -f version.ent
-	for lang in $(LANG_PO); do \
-		rm -f $(MANUAL).$$lang.sgml ;\
-        done
-	#rm -f $(MANUAL).zh-tw.po
-	if [ -e $(PUBLISHDIR) ]; then rm -rf $(PUBLISHDIR)/$(MANUAL); fi
-	for lang in $(LANG_NOE); do rm -f $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
+	rm -rf $(MANUALDIR)
+	rm -f $(foreach lng, $(LANGS_PO), $(MANUAL).$(lng).dbk)
+	rm -f $(foreach lng, $(LANGS), $(MANUAL).$(lng).dbk-orig)
+	rm -f *.fo *.pdf *.txt *.html
+	rm -f *~ *.bak .#*
+	rm -f $(PO4A)/*.mo $(PO4A)/*~ $(PO4A)/*.bak
 
 distclean: clean
 
-.PHONY: all publish clean distclean validate
-.PHONY: sgml tw html text txt ps pdf
-.SUFFIXES:
+# if rule bomb out, delete the target
+#.DELETE_ON_ERROR:
+
+FORCE:
 

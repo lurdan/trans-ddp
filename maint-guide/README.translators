@@ -49,57 +49,116 @@ Javier Fernandez-Sanguino <jfs@debian.org>
 
 Technical notes:
 
-If you are starting to create or to update translation works, please consider
-to use PO based translation system instead of updating translation in
-(existing) SGML files.
+This maint-guide package generates plain text, pdf, and multi-page html outputs
+using the DocBook XML system. The English source is stored in a DocBook XML
+file.  The sources for translation works are stored in PO file format using the
+po4a system.  The DocBook XML sources for translation works are generated from
+the English DocBook XML file and the translation PO files.  We only use
+po4a-gettextize(1) and po4a-translate(1) from the po4a tool and use commands
+from the gettext tool directly in our Makefile.  I.e., we do not use the
+po4a(1) command nor addendum mechanism of the po4a tool in our Makefile.
 
-For example, let's assume that the "de" (German) translation was offered via
-SGML file maint-guide.de.sgml.  Now let's update it by making PO file
-maint-guide.de.po to update translation.  Here is rough outline create template
-PO file.
+When you are starting to create translation works, please use PO based
+translation system instead of generating a translated DocBook XML file.
 
- * Obtain source files as described in http://www.debian.org/doc/cvs#access
+The source files are stored in a subversion repository hosted at
+alioth.debian.org for Debian Documentation Project.  Its access method is
+described at http://www.debian.org/doc/cvs#access .
+
+For example, when you want to start a new "de" (German) translation, please do
+the following.
+
+ $ git svn clone -s -rHEAD svn://svn.debian.org/svn/ddp/manuals manuals 
  $ cd manuals/maint-guide
- $ make version.ent maint-guide.pot
- $ cp maint-guide.pot maint-guide.de.po
+ $ make po4a/maint-guide.pot
+ $ cp po4a/maint-guide.pot po4a/maint-guide.de.po
+ * Use your favourite PO editor to translate maint-guide.de.po.
+ * Add "de" to LANSG_PO definition in Makefile.
 
-Use your favourite PO editor to translate maint-guide.de.po.  You may wish to
-edit its header manually to be perfect.  Test building html files from
-maint-guide.de.po as follows:
+You can test building html files from po4a/maint-guide.de.po as follows:
 
- $ make html "LANG_SGML=" "LANG_PO=de"
-
-Warning: The above overwrites existing maint-guide.de.sgml .
+ $ make index.de.html
 
 You can commit unfinished translations to repository since the default build
-will not use the new PO files yet.  When you do this, please make sure to
-commit your new maint-guide.de.po only and keep all other files such as
-maint-guide.de.sgml untouched. 
+will not use the new PO files yet.  
 
-Once your new translation using PO becomes better than the one currently
-available in SGML format, you can activate the build from the PO file by
-changing the LANG_SGML and LANG_PO value definitions in the Makefile from:
+If you wish to add translation specific contents which can not be done using PO
+file such as translator names, please do the following.
+
+ * Contact the maintainer of the package to add a location marker comment in
+   the English DocBook XML source where the new content is needed.  For
+   example, we have the follwing in <authorgroup>...</authorgroup> for
+   <othercredit>...</othercredit>. Two empty lines at the start are needed.
+
+  +--- Example ---
+  | 
+  | 
+  | <!-- BEGIN: Add othercredit for translator via po4a/maint-guide.*.patch -->
+  | <!-- END: Add othercredit for translator via po4a/maint-guide.*.patch -->
+  +--- Example ---
+
+ $ make maint-guide.de.dbk
+ $ editor maint-guide.de.dbk
+ ... Insert text between the marker comment lines as the following.
+
+  +--- Example ---
+  | 
+  | 
+  | <!-- BEGIN: Add othercredit for translator via po4a/maint-guide.*.patch -->
+  |    <othercredit role="translation"><personname><firstname>Tobias</firstname> <lastname>Quathamer</lastname><contrib>(Deutsch-Übersetzung)</contrib></personname><email>toddy@debian.org</email></othercredit>
+  |    <othercredit role="translation"><personname><firstname>Erik Schanze</firstname> <lastname>Schanze</lastname><contrib>(Deutsch-Übersetzung)</contrib></personname><email>mail@erikschanze.de</email></othercredit>
+  |    <othercredit role="translation"><personname><firstname>Eduard</firstname> <lastname>Bloch</lastname><contrib>(Deutsch-Übersetzung)</contrib></personname><email>blade@debian.org</email></othercredit>
+  | <!-- END: Add othercredit for translator via po4a/maint-guide.*.patch -->
+  +--- Example ---
+
+ $ make po4a/maint-guide.de.patch
+
+If you have many patches to update, please do the following.
+
+ $ make dbk
+ $ editor maint-guide.*.dbk
+ ... Insert text between the marker comment lines as the following.
+ $ make patch
+
+We do not use the addendum mechanism of the po4a tool due to its technical
+limitation (http://bugs.debian.org/518218).
+
+LaTeX hyphenation customization of your language is done via
+po4a/hyphenation.??.tex files.
+
+Once your translation becomes sufficient and discuss your intent to the
+debian-doc@lists.debian.org mailing list, you can activate the build on the 
+Debian Documentation Project host by changing the LANGS_PO value definitions 
+in the Makefile from:
 
 --- old Makefile ---
-LANG_SGML       := de ko pl pt-br ru
-LANG_PO         := es fr it zh-cn zh-tw
+LANGS_PO         := es fr it zh-cn zh-tw
 --------------------
 
-to the following: (notice that 'de' has moved from LANG_SGML to LANG_PO)
+to the following:
 
 --- new Makefile ---
-LANG_SGML       := ko pl pt-br ru
-LANG_PO         := de es fr it zh-cn zh-tw
+LANGS_PO         := de es fr it zh-cn zh-tw
 --------------------
 
-This will let DDP web page building process to use PO file for "de", too.
+Once you commit this change to the Makefile, please ensure that the PO files
+build proper HTML files before making commits to the PO files.  Otherwise, you
+will probably impact the automatic build for other languages and their updates
+will not be published until the build errors in *your* translation are fixed.
 
-Please, before you commit changes to the Makefile ensure that the PO files
-build proper HTML files and that all the process works. If it does not, you
-will probably impact the automatic build for other languages and their
-updates will not be published until the build errors in *your* translation
-are fixed.
+For example, when you want to update the "de" (German) translation after you
+see changes in the English DocBook XML file, please do the following.
 
--- Sat, 18 Dec 2010 19:12:07 +0900
+ $ cd path/to/manuals/maint-guide
+ $ git svn rebase
+ $ make po4a/maint-guide.de.po 
+ * Use your favourite PO editor to update maint-guide.de.po.
+
+Since updating PO files create non-trivial merge complications, use of "make
+patch" to update for all languages should be used very carefully only by the
+document maintainer.  
+
+-- Sat, 19 Mar 2011 23:38:20 +0900
+
 Osamu Aoki <osamu@debian.org>
 
