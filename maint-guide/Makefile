@@ -49,6 +49,10 @@ IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png
 IMAGESSRC	:= /usr/share/xml/docbook/stylesheet/nwalsh/images
 IMAGESDIR	:= $(MANUALDIR)/images
 
+# install
+install_file	:= install -p -m 664
+install_dir	:= install -d -m 2775
+
 ##############################################################################
 # PDF build tool customization for each lunguage
 ##############################################################################
@@ -280,13 +284,19 @@ endif
 # this can and will be overriden by a higher level makefile
 ##############################################################################
 .PHONY: publish
-publish: html txt pdf
-	[ -d $(IMAGESDIR) ] || install -d -m 755 $(IMAGESDIR)
-	install -p -m 644 *.html $(MANUALDIR)
-	install -p -m 644 $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
-	install -p -m 644 $(CSS) $(MANUALDIR)
+publish:
+	# cleaning old files (This is transitional)
+	rm -rf debian bin 
+	rm -f *.add *.sgml *.po *.default.ent
+	rm -rf $(IMAGESDIR)
+	# real publish target
+	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="install -p -m 664" install_dir="install -d -m 2775" html txt pdf
+	[ -d $(IMAGESDIR) ] || install_dir $(IMAGESDIR)
+	install_file *.html $(MANUALDIR)
+	install_file $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
+	install_file $(CSS) $(MANUALDIR)
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
-	install -p -m 644 $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
+	install_file $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
 
 ##############################################################################
 # Special utility targets used only by the maintainer
