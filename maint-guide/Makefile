@@ -124,7 +124,7 @@ LINGUA		:=
 ##############################################################################
 # version from debian/changelog
 ifeq ($(PUBLISHDIR),)
-version.ent:
+version.ent: FORCE
 	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
 	[ -r debian/changelog ] && \
 	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent ||\
