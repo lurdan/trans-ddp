@@ -134,7 +134,7 @@ version.ent: FORCE
 	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent ||\
 	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
 else
-version.ent:
+version.ent: FORCE
 	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
 	[ -r debian/changelog ] && \
 	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent ||\
@@ -287,16 +287,16 @@ endif
 publish:
 	# cleaning old files (This is transitional)
 	rm -rf debian bin 
-	rm -f *.add *.sgml *.po *.default.ent
+	rm -f *.add *.sgml *.po default.ent version.ent
 	rm -rf $(IMAGESDIR)
 	# real publish target
-	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="install -p -m 664" install_dir="install -d -m 2775" html txt pdf
-	[ -d $(IMAGESDIR) ] || install_dir $(IMAGESDIR)
-	install_file *.html $(MANUALDIR)
-	install_file $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
-	install_file $(CSS) $(MANUALDIR)
+	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="$(install_file)" install_dir="$(install_dir)" html txt pdf
+	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
+	$(install_file) *.html $(MANUALDIR)
+	$(install_file) $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
+	$(install_file) $(CSS) $(MANUALDIR)
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
-	install_file $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
+	$(install_file) $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
 
 ##############################################################################
 # Special utility targets used only by the maintainer
