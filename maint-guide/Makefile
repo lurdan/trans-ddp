@@ -289,12 +289,12 @@ endif
 # this can and will be overriden by a higher level makefile
 ##############################################################################
 .PHONY: publish
-publish:
-	# cleaning old files (This is transitional)
-	rm -rf debian bin 
-	rm -f *.add *.sgml *.po default.ent version.ent
-	rm -rf $(IMAGESDIR)
+#	# cleaning old files (This is transitional)
+#	rm -rf debian bin 
+#	rm -f *.add *.sgml *.po default.ent version.ent
+#	rm -rf $(IMAGESDIR)
 	# real publish target
+publish:
 	rm -f version.ent
 	$(MAKE) version.ent
 	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="$(install_file)" install_dir="$(install_dir)" html txt pdf
