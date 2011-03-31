@@ -16,8 +16,8 @@
 ##############################################################################
 # package name
 MANUAL		:= maint-guide
-# inclusion entity files
-SOURCES_ENT	:= common.ent version.ent
+# common inclusion entity files (excluding version)
+COMMON_ENT	:= common.ent
 # format to be built
 FORMATS		:= html txt pdf
 # languages supported by direct DocBook files (always: en)
@@ -128,16 +128,18 @@ LINGUA		:=
 ##############################################################################
 # version from debian/changelog
 ifeq ($(PUBLISHDIR),)
-version.ent: FORCE
-	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
-	[ -r debian/changelog ] && \
-	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent ||\
-	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
-else
-version.ent: FORCE
+# if not for www-master (e.g., package building)
+version.ent:
 	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
 	[ -r debian/changelog ] && \
 	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')\">" >> version.ent ||\
+	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
+else
+# if for www-master directly building from subversion source 
+version.ent:
+	echo "<!ENTITY docisodate \"$(shell LC_ALL=C date -u +'%F %T %Z')\">" > version.ent
+	[ -r debian/changelog ] && \
+	echo "<!ENTITY docversion \"$(shell LC_ALL=C dpkg-parsechangelog | grep '^Version: ' | sed 's/^Version: *//')-svn\">" >> version.ent ||\
 	echo "<!ENTITY docversion \"unknown version\">" >> version.ent
 endif
 ##############################################################################
@@ -199,7 +201,8 @@ $(PO4A)/$(MANUAL).pot: $(MANUAL).en.dbk
 ##############################################################################
 # Generate formatted output in single page plain text
 # txt.xsl provide work around for hidden URL links by appending them explicitly.
-$(MANUAL).%.txt: $(MANUAL).%.dbk $(SOURCES_ENT)
+$(MANUAL).%.txt: $(MANUAL).%.dbk $(COMMON_ENT)
+	[ -e version.ent ] || $(MAKE) version.ent
 	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
 	$(XP) $(XSLT)/txt.xsl $< |\
 		w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
@@ -208,7 +211,8 @@ $(MANUAL).%.txt: $(MANUAL).%.dbk $(SOURCES_ENT)
 # HTML text building
 ##############################################################################
 # Generate formatted output in multi-page html text
-index.%.html: $(MANUAL).%.dbk $(SOURCES_ENT)
+index.%.html: $(MANUAL).%.dbk $(COMMON_ENT)
+	[ -e version.ent ] || $(MAKE) version.ent
 	$(XP) --stringparam draft.mode $(DRAFTMODE) \
 		--stringparam root.filename index \
                 --stringparam html.ext .$*.html \
@@ -222,21 +226,22 @@ index.%.html: $(MANUAL).%.dbk $(SOURCES_ENT)
 ifeq ($(LINGUA),)
 # if $(LINGUA) is "" (unset == inital call)
 
-$(MANUAL).%.pdf: $(MANUAL).%.dbk $(SOURCES_ENT)
+$(MANUAL).%.pdf: $(MANUAL).%.dbk $(COMMON_ENT)
+	[ -e version.ent ] || $(MAKE) version.ent
 	# This calls itself while setting LINGUA (conditional trick) for $@
 	make "LINGUA=$*" $@
 
 else ifeq ($(filter-out $(LANGS_NOPDF),$(LINGUA)),)
 # if $(LINGUA) belongs to $(LANGS_NOPDF)
 
-$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	echo "PDF building for $(LINGUA) currently disabled." > $@
 
 else ifeq ($(filter-out $(LANGS_XMLROFF_CAIRO),$(LINGUA)),)
 # if $(LINGUA) belongs to $(LANGS_XMLROFF_CAIRO)
 
 # xmlroff.xsl provide work around for footnote which xmlroff does not provide support
-$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	$(XP) $(XSLT)/xmlroff.xsl $<  | \
 	$(XP) --output $@ $(XSLT)/fo.xsl -
 
@@ -248,7 +253,7 @@ else ifeq ($(filter-out $(LANGS_XMLROFF_GP),$(LINGUA)),)
 # if $(LINGUA) belongs to $(LANGS_XMLROFF_GP)
 
 # xmlroff.xsl provide work around for footnote which xmlroff does not provide support
-$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	$(XP) $(XSLT)/xmlroff.xsl $<  | \
 	$(XP) --output $@ $(XSLT)/fo.xsl -
 
@@ -260,7 +265,7 @@ $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
 else
 # if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
 
-$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(SOURCES_ENT)
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
 	$(XP) $(XSLT)/dblatex.xsl $<  | \
@@ -290,6 +295,8 @@ publish:
 	rm -f *.add *.sgml *.po default.ent version.ent
 	rm -rf $(IMAGESDIR)
 	# real publish target
+	rm -f version.ent
+	$(MAKE) version.ent
 	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="$(install_file)" install_dir="$(install_dir)" html txt pdf
 	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
 	$(install_file) *.html $(MANUALDIR)
@@ -321,7 +328,7 @@ checkpo:
 	msgfmt --check --verbose $(PO4A)/$(MANUAL).pot | sponge $(PO4A)/$(MANUAL).pot
 
 .PHONY:  validate
-validate: $(foreach lng,$(LANGS_PO),$(MANUAL).$(lng).dbk) $(SOURCES_ENT)
+validate: $(foreach lng,$(LANGS_PO),$(MANUAL).$(lng).dbk) $(COMMON_ENT)
 	for f in $(LANGS_PO); do $(XL) $(MANUAL).$$f.dbk; done
 
 ##############################################################################
