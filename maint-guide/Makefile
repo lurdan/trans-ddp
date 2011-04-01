@@ -157,6 +157,7 @@ $(MANUAL).en.dbk:
 $(MANUAL).%.dbk: $(MANUAL).%.dbk-orig
 	cp -f $< $@
 	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch || $(patch_error) ; fi
+	[ -r $(MANUAL).$*.dbk.rej ] && cat $(MANUAL).$*.dbk.rej
 
 $(MANUAL).en.dbk-orig:
 	# This is source
