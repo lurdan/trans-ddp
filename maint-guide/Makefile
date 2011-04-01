@@ -49,6 +49,9 @@ IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png
 IMAGESSRC	:= /usr/share/xml/docbook/stylesheet/nwalsh/images
 IMAGESDIR	:= $(MANUALDIR)/images
 
+# patch error handling (if no error, set to false)
+patch_error	:= true
+
 # install
 install_file	:= install -p -m 664
 install_dir	:= install -d -m 2775
@@ -153,7 +156,7 @@ $(MANUAL).en.dbk:
 # This does not depend on $(PO4A)/$(MANUAL).%.patch intentionally to aviod dependency loop.
 $(MANUAL).%.dbk: $(MANUAL).%.dbk-orig
 	cp -f $< $@
-	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch ; fi
+	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch || $(patch_error) ; fi
 
 $(MANUAL).en.dbk-orig:
 	# This is source
