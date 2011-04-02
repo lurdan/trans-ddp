@@ -296,13 +296,13 @@ endif
 publish:
 	# next lines are for transition
 	# cleaning old files (This is transitional)
-	-rm -rf bin
-	-rm -f version.ent
-	-ls -la $(MANUALDIR)
-	-$(MAKE) clean
-	-ls -la $(MANUALDIR)
-	$(MAKE) version.ent
+	#-rm -rf bin
+	#-rm -f version.ent
+	#-ls -la $(MANUALDIR)
+	#-$(MAKE) clean
+	#-ls -la $(MANUALDIR)
 	# real publish target
+	$(MAKE) version.ent
 	$(MAKE) html txt pdf
 	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
 	$(install_file) *.html		$(MANUALDIR)
@@ -312,7 +312,7 @@ publish:
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
 	$(install_file) $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
 	# sanity check
-	-ls -lRa $(MANUALDIR)
+	#-ls -lRa $(MANUALDIR)
 
 ##############################################################################
 # Special utility targets used only by the maintainer
