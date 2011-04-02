@@ -350,7 +350,7 @@ clean:
 	rm -f $(foreach lng, $(LANGS_PO), $(MANUAL).$(lng).dbk)
 	rm -f $(foreach lng, $(LANGS_PO), $(MANUAL).$(lng).dbk.orig)
 	rm -f $(foreach lng, $(LANGS), $(MANUAL).$(lng).dbk-orig)
-	rm -f *.fo *.pdf *.txt *.html *.rej
+	-rm -rf *.fo *.pdf *.txt *.html *.rej
 	rm -f *~ *.bak .#*
 	rm -f $(PO4A)/*.mo $(PO4A)/*~ $(PO4A)/*.bak
 
