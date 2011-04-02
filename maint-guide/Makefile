@@ -296,16 +296,19 @@ endif
 #	# cleaning old files (This is transitional)
 #	rm -rf debian bin 
 #	rm -f *.add *.sgml *.po default.ent version.ent
-#	rm -rf $(IMAGESDIR)
+#	rm -rf $(MANUALDIR)
 	# real publish target
 publish:
+	# next line is for transition
+	[ -d $(MANUALDIR)/maint-guide.en.html ] && rm -rf $(MANUALDIR)
 	rm -f version.ent
 	$(MAKE) version.ent
-	$(MAKE) PUBLISHDIR="$(PUBLISHDIR)" install_file="$(install_file)" install_dir="$(install_dir)" html txt pdf
+	$(MAKE) html txt pdf
 	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
-	$(install_file) *.html $(MANUALDIR)
-	$(install_file) $(MANUAL).*.txt $(MANUAL).*.pdf $(MANUALDIR)
-	$(install_file) $(CSS) $(MANUALDIR)
+	$(install_file) *.html		$(MANUALDIR)
+	$(install_file) $(MANUAL).*.txt $(MANUALDIR)
+	$(install_file) $(MANUAL).*.pdf $(MANUALDIR)
+	$(install_file) $(CSS) 		$(MANUALDIR)
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
 	$(install_file) $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
 
