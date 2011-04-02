@@ -157,7 +157,7 @@ $(MANUAL).en.dbk:
 $(MANUAL).%.dbk: $(MANUAL).%.dbk-orig
 	cp -f $< $@
 	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch || $(patch_error) ; fi
-	[ -r $(MANUAL).$*.dbk.rej ] && cat $(MANUAL).$*.dbk.rej
+	[ -r $(MANUAL).$*.dbk.rej ] && head -n 30 $(MANUAL).$*.dbk || true
 
 $(MANUAL).en.dbk-orig:
 	# This is source
@@ -293,16 +293,16 @@ endif
 # this can and will be overriden by a higher level makefile
 ##############################################################################
 .PHONY: publish
-#	# cleaning old files (This is transitional)
-#	rm -rf debian bin 
-#	rm -f *.add *.sgml *.po default.ent version.ent
-#	rm -rf $(MANUALDIR)
-	# real publish target
 publish:
-	# next line is for transition
-	[ -d $(MANUALDIR)/maint-guide.en.html ] && rm -rf $(MANUALDIR)
-	rm -f version.ent
+	# next lines are for transition
+	# cleaning old files (This is transitional)
+	-rm -rf bin
+	-rm -f version.ent
+	-ls -la $(MANUALDIR)
+	-$(MAKE) clean
+	-ls -la $(MANUALDIR)
 	$(MAKE) version.ent
+	# real publish target
 	$(MAKE) html txt pdf
 	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
 	$(install_file) *.html		$(MANUALDIR)
@@ -311,6 +311,8 @@ publish:
 	$(install_file) $(CSS) 		$(MANUALDIR)
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
 	$(install_file) $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
+	# sanity check
+	-ls -lRa $(MANUALDIR)
 
 ##############################################################################
 # Special utility targets used only by the maintainer
