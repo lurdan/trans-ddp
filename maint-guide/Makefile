@@ -297,11 +297,11 @@ publish:
 	# next lines are for transition
 	# cleaning old files (This is transitional)
 	#-rm -rf bin
-	#-rm -f version.ent
 	#-ls -la $(MANUALDIR)
 	#-$(MAKE) clean
 	#-ls -la $(MANUALDIR)
 	# real publish target
+	-rm -f version.ent
 	$(MAKE) version.ent
 	$(MAKE) html txt pdf
 	[ -d $(IMAGESDIR) ] || $(install_dir) $(IMAGESDIR)
