@@ -7,7 +7,7 @@
     doctype-public="-//OASIS//DTD DocBook XML V4.5//EN"/>
 
 
-  <!-- You must escape # in URL -->
+  <!-- filename was not compatible with # in URL -->
   <xsl:template match="ulink[.!='']">
     <xsl:copy-of select="."/>
     (<literal><xsl:value-of select="@url" /></literal>)
