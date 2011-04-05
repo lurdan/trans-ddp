@@ -10,8 +10,7 @@
   <!-- You must escape # in URL -->
   <xsl:template match="ulink[.!='']">
     <xsl:copy-of select="."/>
-    <xsl:text> (</xsl:text><filename><xsl:value-of
-        select="translate(@url,'#','\#')" /></filename><xsl:text>)</xsl:text>
+    (<literal><xsl:value-of select="@url" /></literal>)
   </xsl:template>
 
   <xsl:template match="*|@*|text()">
