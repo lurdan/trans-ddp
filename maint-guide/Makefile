@@ -171,7 +171,7 @@ $(MANUAL).%.dbk-orig: $(MANUAL).en.dbk
 		po4a-translate --format docbook --keep $(THRESHOLD) --master-charset UTF-8 \
 			--master $< --po $(PO4A)/$(MANUAL).$*.po --localized $@ ;\
 	else \
-		echo "ERROR: PO file not found. Please copy $(PO4A)/$(MANUAL).pot to $(PO4A)/$(MANUAL).$*.po ." ; exit 1 ;\
+		echo "E: PO file not found. Please copy $(PO4A)/$(MANUAL).pot to $(PO4A)/$(MANUAL).$*.po ." ; exit 1 ;\
 	fi
 
 # This updates $(PO4A)/$(MANUAL).%.patch files if modified $(MANUAL).%.dbk files exist.
@@ -207,7 +207,7 @@ $(PO4A)/$(MANUAL).pot: $(MANUAL).en.dbk
 # txt.xsl provide work around for hidden URL links by appending them explicitly.
 $(MANUAL).%.txt: $(MANUAL).%.dbk $(COMMON_ENT)
 	[ -e version.ent ] || $(MAKE) version.ent
-	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
+	@test -n "`which w3m`"  || { echo "E: w3m not found. Please install the w3m package." ; false ;  }
 	$(XP) $(XSLT)/txt.xsl $< |\
 		w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
@@ -250,7 +250,7 @@ $(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	$(XP) --output $@ $(XSLT)/fo.xsl -
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
-	@test -n "`which $(XMLROFF)`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
+	@test -n "`which $(XMLROFF)`"  || { echo "E: xmlroff not found. Please install the xmlroff package." ; false ;  }
 	$(XMLROFF) --backend cairo --out-file=$@ $<
 	
 else ifeq ($(filter-out $(LANGS_XMLROFF_GP),$(LINGUA)),)
@@ -263,14 +263,14 @@ $(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 
 # GnomePrint backend is deprecated 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
-	@test -n "`which $(XMLROFF)`"  || { echo "ERROR: xmlroff not found. Please install the xmlroff package." ; false ;  }
+	@test -n "`which $(XMLROFF)`"  || { echo "E: xmlroff not found. Please install the xmlroff package." ; false ;  }
 	$(XMLROFF) --backend gp --out-file=$@ $<
 
 else
 # if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
-	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
+	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
 	$(XP) $(XSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
