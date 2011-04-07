@@ -77,20 +77,18 @@ LANGS_XMLROFF_GP	:=
 ##############################################################################
 # build tool customization for debug etc.
 ##############################################################################
-# comment/uncomment to activate debug mode
 XP		:= xsltproc --nonet --novalid --xinclude
-#XP		:= xsltproc --nonet --novalid --xinclude --debug
 XL		:= xmllint --nonet --noout --postvalid --xinclude
-#XL		:= xmllint --nonet --noout --postvalid --xinclude --debug
+# Set $(DEBUG) to activate debug mode
+ifeq ($(DEBUG),)
 DBLATEX		:= dblatex
-#DBLATEX	:= dblatex --debug
 XMLROFF		:= xmlroff
-#XMLROFF	:= xmlroff --debug 1
-
-# Change $(DRAFTMODE) from "yes" to "maybe" when this $(MANUAL) should go into
-# production mode
-#DRAFTMODE	:= yes
 DRAFTMODE	:= maybe
+else
+DBLATEX		:= dblatex --debug
+XMLROFF		:= xmlroff --debug 1
+DRAFTMODE	:= yes
+endif
 export DRAFTMODE
 ##############################################################################
 # Basic phony targets
