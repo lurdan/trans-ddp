@@ -49,9 +49,6 @@ IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png
 IMAGESSRC	:= /usr/share/xml/docbook/stylesheet/nwalsh/images
 IMAGESDIR	:= $(MANUALDIR)/images
 
-# patch error handling (if no error, set to false)
-patch_error	:= true
-
 # install
 install_file	:= install -p -m 664
 install_dir	:= install -d -m 2775
@@ -110,9 +107,7 @@ html:	$(foreach lng,$(LANGS), index.$(lng).html)
 pdf:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).pdf)
 po:	$(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
 pot:	$(PO4A)/$(MANUAL).pot
-patch:	$(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).patch)
 dbk:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk)
-dbk-orig:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk-orig)
 
 ##############################################################################
 # Conditional branching variable
@@ -150,36 +145,16 @@ $(MANUAL).en.dbk:
 	# This is source
 	@true
 
-# Generate patched localized DocBook XML files for all non-"en"
-# This does not depend on $(PO4A)/$(MANUAL).%.patch intentionally to aviod dependency loop.
-$(MANUAL).%.dbk: $(MANUAL).%.dbk-orig
-	cp -f $< $@
-	if [ -r $(PO4A)/$(MANUAL).$*.patch ]; then patch -p0 $@ $(PO4A)/$(MANUAL).$*.patch || $(patch_error) ; fi
-	#[ -r $(MANUAL).$*.dbk.rej ] && head -n 30 $(MANUAL).$*.dbk || true
-
-$(MANUAL).en.dbk-orig:
-	# This is source
-	@true
-
 # Generate base localized DocBook XML files for all non-"en"
 # This does not depend on $(PO4A)/$(MANUAL).%.po intentionally 
 # to aviod automatic update of $(PO4A)/$(MANUAL).%.po.
-$(MANUAL).%.dbk-orig: $(MANUAL).en.dbk
+$(MANUAL).%.dbk: $(MANUAL).en.dbk $(PO4A)/$(MANUAL).%.ent
 	if [ -e $(PO4A)/$(MANUAL).$*.po  ]; then \
 		po4a-translate --format docbook --keep $(THRESHOLD) --master-charset UTF-8 \
 			--master $< --po $(PO4A)/$(MANUAL).$*.po --localized $@ ;\
+		sed -i -e 's/$(PO4A)\/$(MANUAL)\.en\.ent/$(PO4A)\/$(MANUAL).$*.ent/' $@ ;\
 	else \
 		echo "E: PO file not found. Please copy $(PO4A)/$(MANUAL).pot to $(PO4A)/$(MANUAL).$*.po ." ; exit 1 ;\
-	fi
-
-# This updates $(PO4A)/$(MANUAL).%.patch files if modified $(MANUAL).%.dbk files exist.
-$(PO4A)/$(MANUAL).%.patch: FORCE
-	if [ -r $(MANUAL).$*.dbk ]; then \
-		$(MAKE) $(MANUAL).$*.dbk-orig; \
-		diff -u $(MANUAL).$*.dbk-orig $(MANUAL).$*.dbk > $@ || true ; \
-	else \
-		echo "Info: Skip creating $(PO4A)/$(MANUAL).$*.patch since there is no $(MANUAL).$*.dbk." ;\
-		echo "      You can create template $(MANUAL).$*.dbk by \"make $(MANUAL).$*.dbk\" and modify it." ;\
 	fi
 
 ##############################################################################
