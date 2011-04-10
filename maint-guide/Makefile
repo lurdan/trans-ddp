@@ -165,7 +165,7 @@ $(MANUAL).%.dbk: $(MANUAL).en.dbk $(PO4A)/$(MANUAL).%.ent
 #.PHONY: $(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
 $(PO4A)/$(MANUAL).%.po: FORCE
 	$(MAKE) $(PO4A)/$(MANUAL).pot
-	msgmerge --update --previous --no-wrap --previous $@ $(PO4A)/$(MANUAL).pot
+	msgmerge --update --previous $@ $(PO4A)/$(MANUAL).pot
 
 # Generate PO template(pot) file from English DocBook XML file
 # make sure no location line for easier merge.
