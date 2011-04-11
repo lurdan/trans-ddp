@@ -10,7 +10,12 @@
   <!-- filename was not compatible with # in URL -->
   <xsl:template match="ulink[.!='']">
     <xsl:copy-of select="."/>
-    (<ulink><xsl:copy-of select="@url"/></ulink>)
+    (<ulink>
+         <xsl:attribute name="url">
+         <xsl:value-of select="@url"/>
+         </xsl:attribute>
+         <xsl:value-of select="substring-after(@url,'://')"/>
+    </ulink>)
   </xsl:template>
 
   <xsl:template match="*|@*|text()">
