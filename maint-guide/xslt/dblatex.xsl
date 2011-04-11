@@ -14,8 +14,26 @@
          <xsl:attribute name="url">
          <xsl:value-of select="@url"/>
          </xsl:attribute>
+         <xsl:if test="starts-with(@url,'file:///')">
          <xsl:value-of select="substring-after(@url,'://')"/>
+         </xsl:if>
+         <xsl:if test="not(starts-with(@url,'file://'))">
+         <xsl:value-of select="@url"/>
+         </xsl:if>
     </ulink>)
+  </xsl:template>
+  <xsl:template match="ulink[.='']">
+    <ulink>
+         <xsl:attribute name="url">
+         <xsl:value-of select="@url"/>
+         </xsl:attribute>
+         <xsl:if test="starts-with(@url,'file:///')">
+         <xsl:value-of select="substring-after(@url,'://')"/>
+         </xsl:if>
+         <xsl:if test="not(starts-with(@url,'file://'))">
+         <xsl:value-of select="@url"/>
+         </xsl:if>
+    </ulink>
   </xsl:template>
 
   <xsl:template match="*|@*|text()">
