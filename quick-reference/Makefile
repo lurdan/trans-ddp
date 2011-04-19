@@ -40,6 +40,8 @@ THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD) -v 
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
 UPDATEPO:=	msgmerge --update --previous --no-wrap
+DBLATEX	:=	dblatex
+
 # # note: the URL is used as identifier, no HTTP is used!
 # DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 VERBOSE	:=
@@ -333,10 +335,8 @@ css:
 	echo "AddCharset UTF-8 .txt" > $(PUBLISHDIR)/.htaccess
 	cd $(IMAGES) ; cp caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png $(PUBLISHDIR)/images
 
-.PHONY: html1 htmli html htmls
-html1:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)
-htmli:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
-html:	html1 htmli
+.PHONY: html htmls
+html:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
 htmls:	html css
 $(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
@@ -349,21 +349,21 @@ $(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
 .PHONY: txt
 txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
 # txt.xsl provide work around for hidden URL links by appending them explicitly.
-$(PUBLISHDIR)/$(MANUAL).%.txt: $(DOCNAME).%.xml $(SRC_ENT)
+$(PUBLISHDIR)/$(DOCNAME).%.txt: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
 	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
-	$(XP) $(XSLT)/txt.xsl $< | LC_ALL=en_US.UTF-8 w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
+	$(XP) $(PXSLT)/txt.xsl $< | LC_ALL=en_US.UTF-8 w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 .PHONY: pdf
 pdf:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).pdf)
 # dblatex.xsl provide work around for hidden URL links by appending them explicitly.
-$(PUBLISHDIR)/$(MANUAL).%.pdf: $(MANUAL).%.xml $(SRC_ENT)
+$(PUBLISHDIR)/$(DOCNAME).%.pdf: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
 	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
-	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(XP) $(PXSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
-		--xsl-user=$(XSLT)/hyphenation.xsl \
+		--xsl-user=$(PXSLT)/hyphenation.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=format=a4 \
 		--param=glossterm.auto.link=1 \
