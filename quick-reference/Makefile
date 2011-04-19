@@ -16,6 +16,11 @@ endif
 # if $(PUBLISHDIR) is not set, set it here for testing
 PUBLISHDIR	:= $(CURDIR)/html
 
+# Change $(DRAFTMODE) from "yes" to "maybe" when this $(MANUAL) should go into
+# production mode
+#DRAFTMODE      := yes
+DRAFTMODE       := maybe
+export DRAFTMODE
 #######################################################################
 ### basic parameters (build condition independent)                  ALL
 #######################################################################
@@ -78,7 +83,9 @@ SRC_XML	 =	$(DOCNAME).raw.xml $(SRC_ENT) $(SRC_PO)
 #######################################################################
 .PHONY: all package
 # Simpler target for easy debug.
-all: html css
+all:
+	$(MAKE) po
+	$(MAKE) html css
 
 # Target for package building
 package: html txt css
@@ -293,8 +300,9 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
 
 # Update new PO file in $(PODOC) by POT file
-$(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
-	$(UPDATEPO) $@ $<
+$(PODOC)/$(DOCNAME).%.po: FORCE
+	$(MAKE) $(PODOC)/$(DOCNAME).pot
+	$(UPDATEPO) $@ $(PODOC)/$(DOCNAME).pot
 
 #########################################################################
 # Translate XML files                                                 ALL
@@ -305,13 +313,13 @@ $(PODOC)/$(DOCNAME).%.po: $(PODOC)/$(DOCNAME).pot
 
 # If no addendum data, *.1.add should be created as zero length file
 # Now multiple addendum files such as ja.1.add, ja.2.add, ... can be used
-$(DOCNAME).%.xml: $(PODOC)/$(DOCNAME).%.po $(PODOC)/%.*.add $(DOCNAME).en.xml
+$(DOCNAME).%.xml: $(PODOC)/%.*.add $(DOCNAME).en.xml
 	if [ -s $(PODOC)/$*.1.add ]; then \
 	echo "... Addendum files used for $*: $$(ls $(PODOC)/$*.*.add)" ;\
-	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $< -l $@ ;\
+	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $(PODOC)/$(DOCNAME).$*.po -l $@ ;\
 	else \
 	echo "... No addendum files used for $*." ;\
-	$(TRANSLATE) -m $(DOCNAME).en.xml -p $< -l $@ ;\
+	$(TRANSLATE) -m $(DOCNAME).en.xml -p $(PODOC)/$(DOCNAME).$*.po -l $@ ;\
 	fi
 
 #########################################################################
@@ -330,7 +338,6 @@ html1:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)
 htmli:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
 html:	html1 htmli
 htmls:	html css
-
 $(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
 	$(XP)   --stringparam root.filename $(DOCNAME) \
@@ -340,23 +347,34 @@ $(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
                 --stringparam callout.graphics 0 \
                 --stringparam navig.graphics 0 \
                 --stringparam html.stylesheet $(DOCNAME).css \
-                xslt/style-onehtml.xsl $<
-
-$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
-	-mkdir -p $(PUBLISHDIR)
-	$(XP)   --stringparam root.filename index \
-		--stringparam base.dir $(PUBLISHDIR)/ \
-                --stringparam html.ext .$*.html \
-                --stringparam html.stylesheet $(DOCNAME).css \
-                xslt/style-html.xsl $<
+                xslt/html.xsl $<
 
 .PHONY: txt
 txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
-#  Build rule for TXT (non-English)
-#  #  (UTF-8 compatibility of debiandoc2text is limitted)
-$(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
+# txt.xsl provide work around for hidden URL links by appending them explicitly.
+$(PUBLISHDIR)/$(MANUAL).%.txt: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
-	LC_ALL=en_US.UTF-8 w3m -dump -cols 65 -T text/html $(PUBLISHDIR)/$(DOCNAME).$*.html >$@
+	@test -n "`which w3m`"  || { echo "ERROR: w3m not found. Please install the w3m package." ; false ;  }
+	$(XP) $(XSLT)/txt.xsl $< | LC_ALL=en_US.UTF-8 w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
+
+.PHONY: pdf
+pdf:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).pdf)
+# dblatex.xsl provide work around for hidden URL links by appending them explicitly.
+$(PUBLISHDIR)/$(MANUAL).%.pdf: $(MANUAL).%.dbk $(SRC_ENT)
+	-mkdir -p $(PUBLISHDIR)
+	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=db2latex \
+		--xsl-user=$(XSLT)/hyphenation.xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=format=a4 \
+		--param=glossterm.auto.link=1 \
+		--param=latex.encoding=utf8 \
+		--param=latex.unicode.use=1 \
+		--param=lingua=$* \
+		--param=monoseq.hyphenation=nohyphen \
+		--output=$@ -
 
 #######################################################################
 # Build xml/html(indexed) for testing source (local)                ALL
@@ -364,11 +382,11 @@ $(PUBLISHDIR)/$(DOCNAME).%.txt: $(PUBLISHDIR)/$(DOCNAME).%.html
 # force rebuild when touched po file after asciidoc
 .PHONY: new
 new:
-	touch $(ADOC)/00_preface.txt
+	$(MAKE) po
 	$(MAKE) xml
 
 #########################################################################
-# Utility targets                                                     ALL
+_ALL=en_US.UTF-8
 #########################################################################
 .PHONY: url 
 
@@ -421,4 +439,7 @@ typo:
 	for $$xx in $(LANGPO) ; do \
 	msguntypot -o $(PODOC)/$(DOCNAME).pot.old -n $(PODOC)/$(DOCNAME).pot $(PODOC)/$(DOCNAME).$$xx.po ;\
 	done
+
+# Used for forcing building PO files
+FORCE:
 
