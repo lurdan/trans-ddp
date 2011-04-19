@@ -338,16 +338,13 @@ html1:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).html)
 htmli:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/index.$(lang).html)
 html:	html1 htmli
 htmls:	html css
-$(PUBLISHDIR)/$(DOCNAME).%.html: $(DOCNAME).%.xml $(SRC_ENT)
+$(PUBLISHDIR)/index.%.html: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
-	$(XP)   --stringparam root.filename $(DOCNAME) \
+	$(XP)   --stringparam root.filename index \
 		--stringparam base.dir $(PUBLISHDIR)/ \
                 --stringparam html.ext .$*.html \
-                --stringparam admon.graphics 0 \
-                --stringparam callout.graphics 0 \
-                --stringparam navig.graphics 0 \
                 --stringparam html.stylesheet $(DOCNAME).css \
-                xslt/html.xsl $<
+                xslt/style-html.xsl $<
 
 .PHONY: txt
 txt:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).txt)
@@ -360,7 +357,7 @@ $(PUBLISHDIR)/$(MANUAL).%.txt: $(DOCNAME).%.xml $(SRC_ENT)
 .PHONY: pdf
 pdf:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).pdf)
 # dblatex.xsl provide work around for hidden URL links by appending them explicitly.
-$(PUBLISHDIR)/$(MANUAL).%.pdf: $(MANUAL).%.dbk $(SRC_ENT)
+$(PUBLISHDIR)/$(MANUAL).%.pdf: $(MANUAL).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
 	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
