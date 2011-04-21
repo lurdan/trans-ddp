@@ -5,7 +5,7 @@
 SOURCES		:= $(wildcard *.dbk) common.ent version.ent
 
 FORMATS		:= html txt pdf
-LANGS           := fr ja
+LANGS           := de fr ja
 TARGETS		:= $(foreach fmt,$(FORMATS),developers-reference.$(fmt)) \
 		   $(foreach lng,$(LANGS), \
 		       $(foreach fmt,$(FORMATS), \
