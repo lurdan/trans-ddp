@@ -56,10 +56,9 @@ ARCH	:=	amd64
 UDEBA	:=	$(DEBM)/$(CODE)
 UDEBB	:=	$(DEBM)/experimental
 # language defaults
-LANGALL	:=	en ja fr it es de pt pt-br pl zh-tw zh-cn
-LANGPO	:=	   ja fr it       pt
+LANGALL	:=	en ja fr it pt
+LANGPO	:=	   ja fr it pt
 LANGNEW	:=
-LANGSGML =	$(filter-out en $(LANGPO), $(LANGALL))
 
 # remotely fetched data cached locally but removed for package
 DATASRCS:=      all-popcon-results.txt packages.txt packages.bkup.txt
@@ -91,7 +90,6 @@ all:
 
 # Target for package building
 package: html txt css
-	$(MAKE) -C sgml all PUBLISHDIR=$(PUBLISHDIR) "LANG_ALL=$(LANGSGML)"
 
 #######################################################################
 # Build all sources to html and text pages for web (DDP on alioth)  DDP
@@ -105,7 +103,6 @@ publish:
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
 	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference"
-	$(MAKE) -C sgml all  "PUBLISHDIR=$(PUBLISHDIR)/debian-reference" "LANG_ALL=$(LANGSGML)"
 
 #######################################################################
 # Clean targets                                                     ALL
@@ -119,7 +116,6 @@ clean:
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml
 	-rm -f $(DOCNAME).en.xmlt header.txt
-	$(MAKE) -C sgml clean "LANG_ALL=$(LANGSGML)" PUBLISHDIR=$(PUBLISHDIR)
 
 # Run distclean only for regenerating all locally cached data from remote
 #                          (and all raw XML from asciidoc for lenny@local)
