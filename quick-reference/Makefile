@@ -39,7 +39,7 @@ XP	:=	xsltproc --nonet --novalid --xinclude
 THRESHOLD:=	0
 TRANSLATE:=	po4a-translate  -M utf-8          --format docbook --keep $(THRESHOLD) -v 
 GETTEXT	:=	po4a-gettextize -M utf-8 -L utf-8 --format docbook
-UPDATEPO:=	msgmerge --update --previous --no-wrap
+UPDATEPO:=	msgmerge --update --previous
 DBLATEX	:=	dblatex
 
 # # note: the URL is used as identifier, no HTTP is used!
@@ -296,7 +296,7 @@ pot: $(PODOC)/$(DOCNAME).pot
 
 # create pot file from template xml
 $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
-	$(GETTEXT) -p $@ -m $<
+	$(GETTEXT) -m $< | msgcat --no-location - > $@
 
 .PHONY: po
 po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
