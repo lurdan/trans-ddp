@@ -54,6 +54,12 @@ install_file	:= install -p -m 664
 install_dir	:= install -d -m 2775
 
 ##############################################################################
+# PO update
+##############################################################################
+# Usually, POMODE =  update|static
+POMODE	:= static
+
+##############################################################################
 # PDF build tool customization for each lunguage
 ##############################################################################
 # dblatex is used as the default PDF build tool
@@ -105,7 +111,8 @@ build-indep:	$(foreach lng,$(LANGS), $(foreach fmt, $(filter-out html, $(FORMATS
 txt:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).txt)
 html:	$(foreach lng,$(LANGS), index.$(lng).html)
 pdf:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).pdf)
-po:	$(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
+po:
+	$(MAKE) $(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po) POMODE=update
 pot:	$(PO4A)/$(MANUAL).pot
 dbk:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk)
 
@@ -148,24 +155,26 @@ $(MANUAL).en.dbk:
 # Generate base localized DocBook XML files for all non-"en"
 # This does not depend on $(PO4A)/$(MANUAL).%.po intentionally 
 # to aviod automatic update of $(PO4A)/$(MANUAL).%.po.
-$(MANUAL).%.dbk: $(MANUAL).en.dbk $(PO4A)/$(MANUAL).%.ent
-	if [ -e $(PO4A)/$(MANUAL).$*.po  ]; then \
-		po4a-translate --format docbook --keep $(THRESHOLD) --master-charset UTF-8 \
-			--master $< --po $(PO4A)/$(MANUAL).$*.po --localized $@ ;\
-		sed -i -e 's/$(PO4A)\/$(MANUAL)\.en\.ent/$(PO4A)\/$(MANUAL).$*.ent/' $@ ;\
-	else \
-		echo "E: PO file not found. Please copy $(PO4A)/$(MANUAL).pot to $(PO4A)/$(MANUAL).$*.po ." ; exit 1 ;\
-	fi
+$(MANUAL).%.dbk: $(MANUAL).en.dbk $(PO4A)/$(MANUAL).%.ent $(PO4A)/$(MANUAL).%.po
+	po4a-translate --format docbook --keep $(THRESHOLD) --master-charset UTF-8 \
+		--master $< --po $(PO4A)/$(MANUAL).$*.po --localized $@ ;\
+	sed -i -e 's/$(PO4A)\/$(MANUAL)\.en\.ent/$(PO4A)\/$(MANUAL).$*.ent/' $@ ;\
 
 ##############################################################################
 # DocBook PO source file preparations
 ##############################################################################
+ifeq ($(POMODE),update)
 # Always update localized PO files while making PO template(pot) as needed
 # .PHONY as follows does not work nicely with %, thus FORCE is used here.
 #.PHONY: $(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po)
 $(PO4A)/$(MANUAL).%.po: FORCE
 	$(MAKE) $(PO4A)/$(MANUAL).pot
 	msgmerge --update --previous $@ $(PO4A)/$(MANUAL).pot
+else
+
+$(PO4A)/$(MANUAL).%.po: FORCE
+	: # do nothing
+endif
 
 # Generate PO template(pot) file from English DocBook XML file
 # make sure no location line for easier merge.
