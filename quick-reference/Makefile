@@ -155,7 +155,7 @@ ifeq ($(BUILD_MODE),$(BUILD_MODE_LOCAL))
 # So I put lenny version in this source tree.
 $(DOCNAME).raw.xml: $(SRC_ASC)
 	bin/asciidoc -a 'newline=\n' -o - $(ADOC)/$(DOCNAME).txt |\
-	sed -e "/<\/authorinitials>/r $(ADOC)/copyright.txt" |\
+	sed -e "/<\/author>/r $(ADOC)/copyright.txt" |\
 	xmllint --format -  |\
 	sed -f bin/replace > $@
 #=======================================================================#
@@ -300,6 +300,20 @@ $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
 
 .PHONY: po
 po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
+
+.PHONY: wrap nowrap replace
+wrap:
+	for x in $(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po); do \
+	msgcat $$x | sponge $$x ;\
+	done
+replace:
+	for x in $(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po); do \
+	msgcat --no-wrap $$x | sed -f bin/replace1 | msgcat - | sponge $$x ;\
+	done
+nowrap:
+	for x in $(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po); do \
+	msgcat --no-wrap $$x | sponge $$x ;\
+	done
 
 # Update new PO file in $(PODOC) by POT file
 $(PODOC)/$(DOCNAME).%.po: FORCE
