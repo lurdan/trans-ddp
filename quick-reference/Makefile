@@ -6,7 +6,7 @@
 ### basic parameters (build condition dependent)                    ALL
 #######################################################################
 # Build with web access for local build
-# BUILD_MODE default value 
+# BUILD_MODE default value (local|web|none) 
 BUILD_MODE_LOCAL := local
 ifndef BUILD_MODE
 BUILD_MODE	:= $(BUILD_MODE_LOCAL)
@@ -102,7 +102,7 @@ publish:
 	-rm -f $(PUBLISHDIR)/reference
 	# For www.debian.org, relative symlink only
 	-ln -sf debian-reference $(PUBLISHDIR)/reference
-	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference"
+	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference" BUILD_MODE=web
 
 #######################################################################
 # Clean targets                                                     ALL
@@ -316,9 +316,20 @@ nowrap:
 	done
 
 # Update new PO file in $(PODOC) by POT file
+#=======================================================================#
+ifeq ($(BUILD_MODE),$(BUILD_MODE_LOCAL))
+#=======================================================================#
 $(PODOC)/$(DOCNAME).%.po: FORCE
 	$(MAKE) $(PODOC)/$(DOCNAME).pot
 	$(UPDATEPO) $@ $(PODOC)/$(DOCNAME).pot
+#=======================================================================#
+else
+#=======================================================================#
+$(PODOC)/$(DOCNAME).%.po:
+	: # do nothing
+#=======================================================================#
+endif
+#=======================================================================#
 
 #########################################################################
 # Translate XML files                                                 ALL
@@ -329,7 +340,7 @@ $(PODOC)/$(DOCNAME).%.po: FORCE
 
 # If no addendum data, *.1.add should be created as zero length file
 # Now multiple addendum files such as ja.1.add, ja.2.add, ... can be used
-$(DOCNAME).%.xml: $(PODOC)/%.*.add $(DOCNAME).en.xml
+$(DOCNAME).%.xml: $(PODOC)/%.*.add $(DOCNAME).en.xml $(PODOC)/$(DOCNAME).%.po
 	if [ -s $(PODOC)/$*.1.add ]; then \
 	echo "... Addendum files used for $*: $$(ls $(PODOC)/$*.*.add)" ;\
 	$(TRANSLATE) -m $(DOCNAME).en.xml $$(ls -1 $(PODOC)/$*.*.add | sed -ne 's/^\(.*\)$$/-a \1/p') -p $(PODOC)/$(DOCNAME).$*.po -l $@ ;\
