@@ -8,8 +8,8 @@
 # basic:		xsltproc, docbook-xsl (These are dependency of dblatex)
 # i18n:			po4a
 # plain text conv.:	w3m
-# pdf via latex:	dblatex, ghostscript, lmodern, latex-cjk-all, texlive-lang-*
-# pdf via xmlroff:	xmlroff, (ttf-font-packages)
+# pdf via pdflatex:	dblatex, ghostscript, lmodern, texlive-lang-*
+# pdf via xelatex:	texlive-xelatex, (ttf-font-packages)
 
 ##############################################################################
 # Package specific customization
@@ -45,7 +45,7 @@ endif
 # CSS (Cascading Style Sheets) file
 CSS		:= $(MANUAL).css
 # Image files
-IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png draft.png 
+IMAGES		:= caution.png home.gif important.png next.gif note.png prev.gif tip.png up.gif warning.png draft.png
 IMAGESSRC	:= /usr/share/xml/docbook/stylesheet/nwalsh/images
 IMAGESDIR	:= $(MANUALDIR)/images
 
@@ -67,14 +67,9 @@ POMODE	:= static
 #
 # No PDF build for these lunguages
 LANGS_NOPDF		:= 
-# PDF build using xmloff with cairo backend for these lunguages 
-# This does not create output as good as one created via default dblatex
-# but this can build CJK documents without build failures.
-#	candidates: be pl zh-cn zh-tw
-LANGS_XMLROFF_CAIRO	:= ja zh-cn zh-tw
-# PDF build using xmloff with gp backend for these lunguages (deprecated)
-#	candidates: ja ml vi
-LANGS_XMLROFF_GP	:=
+# PDF build using xelatex backend for these lunguages 
+#	candidates: all non-latin1 languages
+LANGS_XETEX		:= ja zh-cn zh-tw
 # languages with pdf using fop package (not implimented)
 
 ##############################################################################
@@ -85,14 +80,9 @@ XL		:= xmllint --nonet --noout --postvalid --xinclude
 # Set $(DEBUG) to activate debug mode
 ifeq ($(DEBUG),)
 DBLATEX		:= dblatex
-XMLROFF		:= xmlroff
-DRAFTMODE	:= maybe
 else
 DBLATEX		:= dblatex --debug
-XMLROFF		:= xmlroff --debug 1
-DRAFTMODE	:= yes
 endif
-export DRAFTMODE
 ##############################################################################
 # Basic phony targets
 ##############################################################################
@@ -217,54 +207,73 @@ $(MANUAL).%.pdf: $(MANUAL).%.dbk $(COMMON_ENT)
 	# This calls itself while setting LINGUA (conditional trick) for $@
 	make "LINGUA=$*" $@
 
+$(MANUAL).%.tex: $(MANUAL).%.dbk $(COMMON_ENT)
+	[ -e version.ent ] || $(MAKE) version.ent
+	# This calls itself while setting LINGUA (conditional trick) for $@
+	make "LINGUA=$*" $@
+
 else ifeq ($(filter-out $(LANGS_NOPDF),$(LINGUA)),)
 # if $(LINGUA) belongs to $(LANGS_NOPDF)
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	echo "PDF building for $(LINGUA) currently disabled." > $@
 
-else ifeq ($(filter-out $(LANGS_XMLROFF_CAIRO),$(LINGUA)),)
-# if $(LINGUA) belongs to $(LANGS_XMLROFF_CAIRO)
-
-# xmlroff.xsl provide work around for footnote which xmlroff does not provide support
-$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
-	$(XP) $(XSLT)/xmlroff.xsl $<  | \
-	$(XP) --output $@ $(XSLT)/fo.xsl -
-
-$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
-	@test -n "`which $(XMLROFF)`"  || { echo "E: xmlroff not found. Please install the xmlroff package." ; false ;  }
-	$(XMLROFF) --backend cairo --out-file=$@ $<
-	
-else ifeq ($(filter-out $(LANGS_XMLROFF_GP),$(LINGUA)),)
-# if $(LINGUA) belongs to $(LANGS_XMLROFF_GP)
-
-# xmlroff.xsl provide work around for footnote which xmlroff does not provide support
-$(MANUAL).$(LINGUA).fo: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
-	$(XP) $(XSLT)/xmlroff.xsl $<  | \
-	$(XP) --output $@ $(XSLT)/fo.xsl -
-
-# GnomePrint backend is deprecated 
-$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).fo
-	@test -n "`which $(XMLROFF)`"  || { echo "E: xmlroff not found. Please install the xmlroff package." ; false ;  }
-	$(XMLROFF) --backend gp --out-file=$@ $<
-
-else
-# if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
+else ifeq ($(filter-out $(LANGS_XETEX),$(LINGUA)),)
+# if $(LINGUA) belongs to $(LANGS_XETEX)
+# build with xelatex backend
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
 	$(XP) $(XSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
-		--xsl-user=$(XSLT)/hyphenation.xsl \
+		--backend=xetex \
+		--xsl-user=$(XSLT)/user_param.xsl \
+		--xsl-user=$(XSLT)/xetex_param.$(LINGUA).xsl \
 		--param=draft.mode=$(DRAFTMODE) \
-		--param=format=a4 \
-		--param=glossterm.auto.link=1 \
-		--param=latex.encoding=utf8 \
-		--param=latex.unicode.use=1 \
 		--param=lingua=$(LINGUA) \
-		--param=monoseq.hyphenation=nohyphen \
 		--output=$@ -
+
+$(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
+	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=db2latex \
+		--type=tex \
+		--backend=xetex \
+		--xsl-user=$(XSLT)/user_param.xsl \
+		--xsl-user=$(XSLT)/xetex_param.$(LINGUA).xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=lingua=$(LINGUA) \
+		--output=$@ -
+
+else
+# if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
+# build with pdflatex backend
+
+$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
+	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=db2latex \
+		--backend=pdftex \
+		--xsl-user=$(XSLT)/user_param.xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=lingua=$(LINGUA) \
+		--output=$@ -
+
+$(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
+	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	$(XP) $(XSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=db2latex \
+		--type=tex \
+		--backend=pdftex \
+		--xsl-user=$(XSLT)/user_param.xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=lingua=$(LINGUA) \
+		--output=$@ -
+
 
 endif
 
