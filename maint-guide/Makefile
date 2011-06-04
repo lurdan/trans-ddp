@@ -234,7 +234,7 @@ $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	$(DBLATEX) --style=db2latex \
 		--backend=xetex \
 		--xsl-user=$(XSLT)/user_param.xsl \
-		--xsl-user=$(XSLT)/xetex_param.$(LINGUA).xsl \
+		--xsl-user=$(XSLT)/xetex_param.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=lingua=$(LINGUA) \
 		--output=$@ -
@@ -247,7 +247,7 @@ $(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 		--type=tex \
 		--backend=xetex \
 		--xsl-user=$(XSLT)/user_param.xsl \
-		--xsl-user=$(XSLT)/xetex_param.$(LINGUA).xsl \
+		--xsl-user=$(XSLT)/xetex_param.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=lingua=$(LINGUA) \
 		--output=$@ -
@@ -278,7 +278,6 @@ $(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=lingua=$(LINGUA) \
 		--output=$@ -
-
 
 endif
 
