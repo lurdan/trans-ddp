@@ -7,6 +7,7 @@
     ############################################################################ -->
 
   <xsl:param name="xetex.font">
+    <!-- Western centric Adobe PostScript looks-alike: gsfonts -->
     <xsl:text>\setmainfont{Nimbus Roman No9 L}&#10;</xsl:text>
     <xsl:text>\setsansfont{Nimbus Sans L}&#10;</xsl:text>
     <xsl:text>\setmonofont{Nimbus Mono L}&#10;</xsl:text>
@@ -19,7 +20,7 @@
         <xsl:text>\setCJKmonofont{WenQuanYi Zen Hei Mono}&#10;</xsl:text>
       </xsl:when>
       <xsl:when test="$lingua = 'zh-tw'">
-        <!-- zh_TW centric: ttf-arphic-uming, ttf-wqy-zenhei -->
+        <!-- zh_TW centric: ttf-arphic-bsmi00lp, ttf-wqy-zenhei -->
         <xsl:text>\setCJKmainfont{AR PL Mingti2L Big5}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{WenQuanYi Zen Hei}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{WenQuanYi Zen Hei Mono}&#10;</xsl:text>
