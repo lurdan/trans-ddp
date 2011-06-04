@@ -71,10 +71,12 @@ POMODE	:= static
 # The curent customization follows the release-notes package.
 #
 # No PDF build for these lunguages
-LANGS_NOPDF		:= 
+#LANGS_NOPDF		:= 
+LANGS_NOPDF		:= ja zh-cn zh-tw
 # PDF build using xelatex backend for these lunguages 
 #	candidates: all non-latin1 languages
-LANGS_XETEX		:= ja zh-cn zh-tw
+#LANGS_XETEX		:= ja zh-cn zh-tw
+LANGS_XETEX		:= 
 # languages with pdf using fop package (not implimented)
 
 ##############################################################################
