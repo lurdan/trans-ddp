@@ -53,6 +53,11 @@ IMAGESDIR	:= $(MANUALDIR)/images
 install_file	:= install -p -m 664
 install_dir	:= install -d -m 2775
 
+# Change $(DRAFTMODE) from "yes" to "maybe" when this $(MANUAL) should go into
+# production mode
+#DRAFTMODE      := yes
+DRAFTMODE       := maybe
+export DRAFTMODE
 ##############################################################################
 # PO update
 ##############################################################################
