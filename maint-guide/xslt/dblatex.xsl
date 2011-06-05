@@ -10,6 +10,7 @@
   <!-- filename was not compatible with # in URL -->
   <xsl:template match="ulink[.!='']">
     <xsl:copy-of select="."/>
+    <xsl:if test="not(contains(@url,'wikipedia'))">
     (<ulink>
          <xsl:attribute name="url">
          <xsl:value-of select="@url"/>
@@ -21,6 +22,7 @@
          <xsl:value-of select="@url"/>
          </xsl:if>
     </ulink>)
+    </xsl:if>
   </xsl:template>
   <xsl:template match="ulink[.='']">
     <ulink>

@@ -61,7 +61,9 @@
   <!-- put URLs behind the ulink in the text version -->
   <xsl:template match="ulink">
     <xsl:apply-imports/>
+    <xsl:if test="not(contains(@url,'wikipedia'))">
     (<xsl:value-of select="@url"/>)
+    </xsl:if>
   </xsl:template>
 
   <!-- make clear where notes etc. begin and end -->

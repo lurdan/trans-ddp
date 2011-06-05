@@ -7,7 +7,7 @@
 
   <xsl:param name="draft.mode">maybe</xsl:param>
   <xsl:param name="glossterm.auto.link">1</xsl:param>
-  <xsl:param name="latex.encoding">8</xsl:param>
+  <xsl:param name="latex.encoding">utf8</xsl:param>
   <xsl:param name="latex.unicode.use">1</xsl:param>
   <xsl:param name="monoseq.hyphenation">nohyphen</xsl:param>
   <!--

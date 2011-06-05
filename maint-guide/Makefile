@@ -88,7 +88,7 @@ XL		:= xmllint --nonet --noout --postvalid --xinclude
 ifeq ($(DEBUG),)
 DBLATEX		:= dblatex
 else
-DBLATEX		:= dblatex --debug
+DBLATEX		:= dblatex --verbose --dump --debug
 endif
 ##############################################################################
 # Basic phony targets
@@ -348,6 +348,7 @@ clean:
 	-rm -rf *.fo *.pdf *.txt *.html *.rej
 	rm -f *~ *.bak .#*
 	rm -f $(PO4A)/*.mo $(PO4A)/*~ $(PO4A)/*.bak
+	rm -f *.cb *.cb2 *.glo *.idx *.log *.out *.tex *.toc *.aux
 
 distclean: clean
 

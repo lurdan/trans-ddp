@@ -9,7 +9,14 @@ LANGS_EN	:= en
 
 # Languages which generate DocBook XML files from PO files
 #LANGS_PO	:= ca de es fr it ja zh-cn zh-tw
-LANGS_PO	:= fr ja
+LANGS_PO	:= ca es fr ja
+
+# Override main Makefile to build CJK under sid
+# No PDF build for these lunguages
+LANGS_NOPDF            :=  
+# PDF build using xelatex backend for these lunguages 
+#       candidates: all non-latin1 languages
+LANGS_XETEX            := ca de es en fr it ja zh-cn zh-tw
 
 # Language groups
 LANGS		:= $(LANGS_EN) $(LANGS_PO)
@@ -20,7 +27,9 @@ LANGS		:= $(LANGS_EN) $(LANGS_PO)
 # For package building (all)
 DEBIAN_DIR	:= $(CURDIR)/debian
 override_dh_auto_build:
-	dh_auto_build -- html txt pdf "MANUAL=$(MANUAL)" "LANGS_EN=$(LANGS_EN)" "LANGS_PO=$(LANGS_PO)" "LANGS=$(LANGS)"
+	dh_auto_build -- html txt pdf "MANUAL=$(MANUAL)" \
+		"LANGS_EN=$(LANGS_EN)" "LANGS_PO=$(LANGS_PO)" "LANGS=$(LANGS)" \
+		"LANGS_NOPDF=$(LANGS_NOPDF)" "LANGS_XETEX=$(LANGS_XETEX)"
 	for lang in $(LANGS); do sed -e "s/@@/$$lang/g" < $(DEBIAN_DIR)/all.install-in > $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
 
 override_dh_auto_clean:
@@ -28,8 +37,10 @@ override_dh_auto_clean:
 	for lang in $(LANGS); do rm -f $(DEBIAN_DIR)/$(MANUAL)-$$lang.install; done
 
 .PHONY: control
+# This is run only by maintainer to update control file manually
+# You need to have moreutils installed
 control:
-	cat $(DEBIAN_DIR)/control-in-head >$(DEBIAN_DIR)/control
+	sed -e '/^Package: maint-guide-/,$$d' <$(DEBIAN_DIR)/control | sponge $(DEBIAN_DIR)/control
 	for x in $(LANGS_PO); \
 		do sed -e "s/@@@LNG@@@/$$x/g" -e "s/@@@LNGNAME@@@/$$($(DEBIAN_DIR)/language $$x)/g" \
 		<$(DEBIAN_DIR)/control-in-body >> $(DEBIAN_DIR)/control; \
