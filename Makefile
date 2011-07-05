@@ -10,7 +10,6 @@ SUBDIRS	:=	\
 		ddp-policy		\
 		debian-bugs	 	\
 		debian-faq	 	\
-		developers-reference	\
 		dictionary 		\
 		distribute-deb		\
 		dselect-beginner 	\
