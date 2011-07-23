@@ -46,7 +46,7 @@ DEADDIRS :=	\
 # or just as archive without building them
 
 # where we should publish to
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+PUBLISHDIR := /srv/www.debian.org/www/doc/manuals
 # How to install stuff in publish directory
 install_file := install -p -m 664
 install_dir := install -d -m 2775
