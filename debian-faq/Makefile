@@ -19,7 +19,7 @@ langs ?= ru pt_BR it pl es fr de uk zh_CN
 export LANG=C
 # stupid debiandoc stuff uses strings in another language otherwise
 
-all: html text ps pdf
+all: po4a-translate html text ps pdf
 
 publish: all
 	test -d $(PUBLISHDIR)/$(manual) || install -d -m 755 $(PUBLISHDIR)/$(manual)
@@ -42,6 +42,13 @@ faqdynamic.ent:
         else \
           echo "<!entity docversion \"CVS\">" >> faqdynamic.ent; \
         fi
+
+update-po: faqdynamic.ent
+	po4a --force --previous --no-translations --rm-backups po4a/po4a.cfg
+
+po4a-translate: faqdynamic.ent
+	po4a --keep 0 --previous --rm-backups po4a/po4a.cfg # --localized-charset UTF-8
+	sed -i 's/<.*heading>//g' fr/*sgml
 
 validate:
 	nsgmls -ges -wall $(manual).sgml
@@ -81,4 +88,4 @@ clean distclean:
 	rm -f faqdynamic.ent *~ .*~ core tsa*
 	for lang in $(langs); do [ ! -d $$lang ] || $(MAKE) -C $$lang $@; done
 
-.PHONY: all publish clean distclean validate
+.PHONY: all publish clean distclean validate update-po po4a-translate
