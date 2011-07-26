@@ -9,7 +9,6 @@ SUBDIRS	:=	\
 		book-suggestions 	\
 		ddp-policy		\
 		debian-bugs	 	\
-		debian-faq	 	\
 		dictionary 		\
 		distribute-deb		\
 		dselect-beginner 	\
