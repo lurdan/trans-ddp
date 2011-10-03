@@ -9,7 +9,7 @@
 MANUAL :=	$(shell basename $(shell pwd))
 # Where are we publishing to?
 #  (this can be overriden by a higher level makefile)
-PUBLISHDIR := /org/www.debian.org/www/doc/manuals
+PUBLISHDIR := /org/www.debian.org/www/doc/manuals/fr
 DEFAULT_TARGETS = $(MANUAL).html/index.html $(MANUAL).html/index.fr.html
 
 # What do we want by default?

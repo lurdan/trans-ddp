@@ -99,9 +99,6 @@ package: html txt css
 # $(PUBLISHDIR) is set to be: /org/www.debian.org/www/doc/manuals for master-www
 publish:
 	-mkdir -p $(PUBLISHDIR)/debian-reference
-	-rm -f $(PUBLISHDIR)/reference
-	# For www.debian.org, relative symlink only
-	-ln -sf debian-reference $(PUBLISHDIR)/reference
 	$(MAKE) html txt css "PUBLISHDIR=$(PUBLISHDIR)/debian-reference" BUILD_MODE=web
 
 #######################################################################
