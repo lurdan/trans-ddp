@@ -20,7 +20,6 @@ SUBDIRS	:=	\
 		meta 			\
 		network-administrator 	\
 		programmer		\
-		project-history 	\
 		quick-reference		\
 		repository-howto	\
 		securing-howto		\
