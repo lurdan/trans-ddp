@@ -68,7 +68,7 @@
     <xsl:text>{\scriptsize \DBKcopyright \\&#10;</xsl:text>
     <xsl:value-of
       select="/article/articleinfo/keywordset/keyword[@role='madeby']"/>
-    <xsl:text>: \url{http://tangosoft.com/refcard/}}&#10;</xsl:text>
+    <xsl:text>: \url{http://www.debian.org/doc/manuals/refcard/}}&#10;</xsl:text>
     <xsl:text>\end{minipage}&#10;</xsl:text>
   </xsl:template>
 
