@@ -24,4 +24,7 @@
 <!-- We don't want warnings about missing IDs -->
 <xsl:param name="id.warnings">0</xsl:param>
 
+<!-- We don't want title in HTML -->
+<xsl:template name="generate.html.title"/>
+
 </xsl:stylesheet>

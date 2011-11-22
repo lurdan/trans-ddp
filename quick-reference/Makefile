@@ -108,7 +108,7 @@ publish:
 
 clean:
 	-rm -f *.swp *~ *.tmp
-	-rm -f $(PODOC)/*~ $(ADOC)/*~
+	-rm -f $(PODOC)/*~ $(PODOC)/*.mo $(ADOC)/*~
 	-rm -rf html
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml
