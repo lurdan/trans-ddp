@@ -23,7 +23,7 @@ FORMATS		:= html txt pdf
 # languages supported by direct DocBook files (always: en)
 LANGS_EN	:= en
 # languages supported by translation PO files
-LANGS_PO	:= ca de es fr it ja ru zh-cn zh-tw
+LANGS_PO	:= ca de es fr it ja zh-cn zh-tw
 # all languages to build
 LANGS		:= $(LANGS_EN) $(LANGS_PO)
 # local script file directory
