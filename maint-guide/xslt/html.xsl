@@ -11,4 +11,6 @@
   <xsl:param name="section.autolabel">1</xsl:param>
   <xsl:param name="section.label.includes.component.label">1</xsl:param>
   <xsl:param name="use.id.as.filename">1</xsl:param>
+<!-- We don't want title in HTML -->
+<xsl:template name="generate.html.title"/>
 </xsl:stylesheet>
