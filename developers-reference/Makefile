@@ -11,7 +11,7 @@ TARGETS		:= $(foreach fmt,$(FORMATS),developers-reference.$(fmt)) \
 		       $(foreach fmt,$(FORMATS), \
 		           $(lng)/developers-reference.$(fmt)))
 # list of targets, that currently cannot build
-BLACKLIST	:= ja/developers-reference.pdf
+#BLACKLIST	:= ja/developers-reference.pdf
 
 # hopefully overwritten by caller, e.g. debian/rules
 VERSION=unknown
@@ -80,11 +80,7 @@ ifndef LINGUA
 FORCE:
 else
 $(LINGUA)/%.dbk:	%.dbk $(patsubst %.dbk,po4a/$(LINGUA)/%.po,%.dbk)
-#	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a ?po4a/$(@:.dbk=.add)
-# workaround to "-a ?" only possible with po4a version in Squeeze, otherwise build is broken in Lenny
-	if [ -f po4a/$(@:.dbk=.add) ]; then \
-		$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a po4a/$(@:.dbk=.add); else \
-		$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@; fi
+	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a ?po4a/$(@:.dbk=.add)
 
 $(LINGUA)/common.ent:	common.ent
 	cd $(@D) && ln -sf ../$(@F) .
@@ -95,10 +91,16 @@ developers-reference.txt:	$(CURDIR)/developers-reference.txt
 	$(XP) $(DBK2HTML1) $(@D)/index.dbk \
 	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
+XSLT		:= xslt
+
 developers-reference.pdf:       $(CURDIR)/developers-reference.pdf
 %/developers-reference.pdf:     $(addprefix %/,$(SOURCES))
-	TOP=`pwd` && cd $(@D) && $(DBLATEX) index.dbk \
-	    && mv index.dbk.pdf $(@F)
+	$(DBLATEX) $(@D)/index.dbk \
+	    --backend=xetex \
+	    --xsl-user=$(XSLT)/user_param.xsl \
+	    --xsl-user=$(XSLT)/xetex_param.xsl \
+	    --param=lingua=$(@D) \
+	    && mv $(@D)/index.dbk.pdf $@
 
 .PHONY: pot
 pot:				$(patsubst %.dbk,po4a/po/%.pot,$(SOURCES))
