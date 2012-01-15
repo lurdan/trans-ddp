@@ -239,7 +239,7 @@ pkgsize.ent:
 	if ! [ -f packages.txt ]; then $(MAKE) packages.txt ; fi
 	if ! [ -f packages.bkup.txt ]; then $(MAKE) packages.bkup.txt ; fi
 	if ! [ -f pkg.lst ] || [ $(DOCNAME).raw.xml -nt pkg.lst ]; then $(MAKE) pkg.lst ; fi
-	$(PBIN)/sizeent packages.txt packages.bkup.txt < pkg.lst	> $@
+	sort pkg.lst | uniq | $(PBIN)/sizeent packages.txt packages.bkup.txt	> $@
 
 #########################################################################
 # XML file operations                                                 ALL
