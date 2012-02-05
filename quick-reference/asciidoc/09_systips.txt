@@ -1246,11 +1246,8 @@ package             popcon        size         description
 `git`               @-@popcon1@-@ @-@psize1@-@ git: distributed revision control system used by the Linux kernel
 `fakeroot`          @-@popcon1@-@ @-@psize1@-@ provide fakeroot environment for building package as non-root
 `initramfs-tools`   @-@popcon1@-@ @-@psize1@-@ tool to build an initramfs (Debian specific)
-`kernel-package`    @-@popcon1@-@ @-@psize1@-@ tool to build Linux kernel packages (Debian specific)
-`module-assistant`  @-@popcon1@-@ @-@psize1@-@ tool to help build module packages (Debian specific)
 `dkms`              @-@popcon1@-@ @-@psize1@-@ http://en.wikipedia.org/wiki/Dynamic_Kernel_Module_Support[dynamic kernel module support (DKMS)] (generic)
 `devscripts`        @-@popcon1@-@ @-@psize1@-@ helper scripts for a Debian Package maintainer (Debian specific)
-`linux-tree-2.6.\*` N/A           N/A          Linux kernel source tree meta package (Debian specific)
 ----------------------------------------------------------------------------------------------------------------------------
 
 If you use `initrd` in <<_stage_2_the_boot_loader>>, make sure to read the related information in `initramfs-tools`(8), `update-initramfs`(8), `mkinitramfs`(8) and `initramfs.conf`(5). 
@@ -1261,84 +1258,50 @@ NOTE: When compiling the latest Linux kernel on the Debian `stable` system, the 
 
 NOTE: The http://en.wikipedia.org/wiki/Dynamic_Kernel_Module_Support[dynamic kernel module support (DKMS)] is a new distribution independent framework designed to allow individual kernel modules to be upgraded without changing the whole kernel. This will be endorsed for the maintenance of out-of-tree modules for `squeeze`.  This also makes it very easy to rebuild modules as you upgrade kernels.
 
-==== Compiling the kernel source: Debian standard method
+==== Compiling the kernel source: Debian Kernel Team recommendation
 
-The Debian standard method for compiling kernel source to create a custom kernel package uses `make-kpkg`(1). The official documentation is in (the bottom of) "`/usr/share/doc/kernel-package/README.gz`".  See `kernel-pkg.conf`(5) and `kernel-img.conf`(5) for customization.
-
-Here is an example for amd64 system.
-
+For building custom kernel binary packages from the upstream kernel source, you should use the "`make deb-pkg`" target provided by it.
 --------------------
-# aptitude install linux-tree-<version>
+$ sudo apt-get build-dep linux-2.6
 $ cd /usr/src
-$ tar -xjvf linux-source-<version>.tar.bz2
-$ cd linux-source-<version>
-$ cp /boot/config-<oldversion> .config
-$ make menuconfig
- ...
-$ make-kpkg clean
-$ fakeroot make-kpkg --append_to_version -amd64 --initrd --revision=1.0 kernel_image modules_image
-$ cd ..
-# dpkg -i linux-image*.deb
---------------------
-
-Reboot to new kernel with "`shutdown -r now`".
-
-CAUTION: When you intend to create a non-modularized kernel compiled only for one machine, invoke `make-kpkg` without "`--initrd`" option since initrd is not used. Invocation of "`make oldconfig`" and "`make dep`" are not required since "`make-kpkg kernel_image`" invokes them.
-
-==== Compiling the module source: Debian standard method
-
-The Debian standard method for creating and installing a custom module package for a custom kernel package uses `module-assistant`(8) and module-source packages. For example, the following builds the `unionfs` kernel module package and installs it.
-
---------------------
-$ sudo aptitude install module-assistant
-...
-$ sudo aptitude install unionfs-source unionfs-tools unionfs-utils
-$ sudo m-a update
-$ sudo m-a prepare
-$ sudo m-a auto-install unionfs
-...
-$ sudo apt-get autoremove
---------------------
-
-==== Compiling the kernel source: classic method
-
-You can still build http://www.kernel.org/[Linux kernel from the pristine sources] with the classic method.  You must take care the details of the system configuration manually.
-
---------------------
-$ cd /usr/src
-$ wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-<version>.tar.bz2
+$ wget http://www.kernel.org/pub/linux/kernel/v3.2/linux-<version>.tar.bz2
 $ tar -xjvf linux-<version>.tar.bz2
 $ cd linux-<version>
 $ cp /boot/config-<version> .config
 $ make menuconfig
  ...
-$ make dep; make bzImage
-$ make modules
-# cp ./arch/x86_64/boot/bzImage /boot/vmlinuz-<version>
-# make modules_install
-# depmod -a
-# update-initramfs -c -k <version>
+$ make deb-pkg
 --------------------
 
-Set up bootloader by the following.
+TIP: The linux-source-<version> package provides the Linux kernel source with Debian patches as "`/usr/src/linux-<version>.tar.bz2`". 
 
-- Edit "`/etc/lilo.conf`" and run "`/sbin/lilo`", if you use `lilo`.
-- Edit "`/boot/grub/menu.lst`", if you use `grub`.
+For building specific binary packages from the Debian kernel source package, you should use the "`binary-arch_<architecture>_<featureset>_<flavour>`" targets in "`debian/rules.gen`".
+--------------------
+$ sudo apt-get build-dep linux-2.6
+$ apt-get source linux-2.6
+$ cd linux-2.6-*
+$ fakeroot make -f debian/rules.gen binary-arch_i386_none_686
+--------------------
 
-Reboot to new kernel with "`shutdown -r now`".
+See further information:
+
+- Debian Wiki: http://wiki.debian.org/KernelFAQ[KernelFAQ]
+- Debian Wiki: http://wiki.debian.org/DebianKernel[DebianKernel]
+- Debian Linux Kernel Handbook: http://kernel-handbook.alioth.debian.org
 
 ==== Non-free hardware drivers
 
 Although most of hardware drivers are available as free software and as a part of the Debian system, you may need to load some non-free external drivers to support some hardwares, such as Winmodem, on your system.
 
+TIP: Check available firmware packages with "`aptitude search ^firmware`" while enabling the non-free repository.
+
+TIP: The http://en.wikipedia.org/wiki/NDISwrapper[NDISwrapper] can use Windows XP network drivers natively on Linux.  Check "`aptitude search ^ndis`".
+
 Check pertinent resources.
 
-- http://en.wikipedia.org/wiki/Softmodem
+- http://wiki.debian.org/KernelFirmwareLicensing
 - http://en.wikipedia.org/wiki/Comparison_of_open_source_wireless_drivers
-- http://www.google.com[Google] or other search engines with keyword "Linmodem".
-- http://ndiswrapper.sourceforge.net
-- http://linuxwireless.org
-- http://madwifi-project.org (there is ath5k which contains free drivers)
+- http://en.wikipedia.org/wiki/Softmodem
 
 === Virtualized system
 
