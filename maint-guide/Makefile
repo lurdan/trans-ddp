@@ -20,10 +20,26 @@ MANUAL		:= maint-guide
 COMMON_ENT	:= common.ent
 # format to be built
 FORMATS		:= html txt pdf
+##############################################################################
+# PDF build tool customization for each lunguage
+##############################################################################
 # languages supported by direct DocBook files (always: en)
 LANGS_EN	:= en
 # languages supported by translation PO files
-LANGS_PO	:= ca de es fr it ja zh-cn zh-tw
+LANGS_PO	:= ca es fr it ja ru
+# ca: 99%
+# de: 24%
+# es: 97%
+# fr: 100%
+# it: 100%
+# ja: 100%
+# ru: 100%
+# zn-cn: 33%
+# zn-tw:28%
+# 
+# dblatex is used as the default PDF build tool
+# No PDF build for these lunguages (in case of error, use this as work around)
+LANGS_NOPDF		:=  
 # all languages to build
 LANGS		:= $(LANGS_EN) $(LANGS_PO)
 # local script file directory
@@ -63,21 +79,6 @@ export DRAFTMODE
 ##############################################################################
 # Usually, POMODE =  update|static
 POMODE	:= static
-
-##############################################################################
-# PDF build tool customization for each lunguage
-##############################################################################
-# dblatex is used as the default PDF build tool
-# The curent customization follows the release-notes package.
-#
-# No PDF build for these lunguages
-#LANGS_NOPDF		:= 
-LANGS_NOPDF		:= ja zh-cn zh-tw
-# PDF build using xelatex backend for these lunguages 
-#	candidates: all non-latin1 languages
-#LANGS_XETEX		:= ja zh-cn zh-tw
-LANGS_XETEX		:= 
-# languages with pdf using fop package (not implimented)
 
 ##############################################################################
 # build tool customization for debug etc.
@@ -225,8 +226,7 @@ else ifeq ($(filter-out $(LANGS_NOPDF),$(LINGUA)),)
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	echo "PDF building for $(LINGUA) currently disabled." > $@
 
-else ifeq ($(filter-out $(LANGS_XETEX),$(LINGUA)),)
-# if $(LINGUA) belongs to $(LANGS_XETEX)
+else
 # build with xelatex backend
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
@@ -250,33 +250,6 @@ $(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 		--backend=xetex \
 		--xsl-user=$(XSLT)/user_param.xsl \
 		--xsl-user=$(XSLT)/xetex_param.xsl \
-		--param=draft.mode=$(DRAFTMODE) \
-		--param=lingua=$(LINGUA) \
-		--output=$@ -
-
-else
-# if $(LINGUA) belongs to $(LANGS_DBLATEX) (default)
-# build with pdflatex backend
-
-$(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
-	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
-	export TEXINPUTS=".:"; \
-	$(XP) $(XSLT)/dblatex.xsl $<  | \
-	$(DBLATEX) --style=db2latex \
-		--backend=pdftex \
-		--xsl-user=$(XSLT)/user_param.xsl \
-		--param=draft.mode=$(DRAFTMODE) \
-		--param=lingua=$(LINGUA) \
-		--output=$@ -
-
-$(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
-	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
-	export TEXINPUTS=".:"; \
-	$(XP) $(XSLT)/dblatex.xsl $<  | \
-	$(DBLATEX) --style=db2latex \
-		--type=tex \
-		--backend=pdftex \
-		--xsl-user=$(XSLT)/user_param.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=lingua=$(LINGUA) \
 		--output=$@ -
