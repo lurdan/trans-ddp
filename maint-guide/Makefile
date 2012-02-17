@@ -26,7 +26,7 @@ FORMATS		:= html txt pdf
 # languages supported by direct DocBook files (always: en)
 LANGS_EN	:= en
 # languages supported by translation PO files
-LANGS_PO	:= ca es fr it ja ru
+LANGS_PO	:= ca es fr it ja ru de zh-cn zh-tw
 # ca: 99%
 # de: 24%
 # es: 97%
@@ -34,8 +34,8 @@ LANGS_PO	:= ca es fr it ja ru
 # it: 100%
 # ja: 100%
 # ru: 100%
-# zn-cn: 33%
-# zn-tw:28%
+# zh-cn: 33%
+# zh-tw:28%
 # 
 # dblatex is used as the default PDF build tool
 # No PDF build for these lunguages (in case of error, use this as work around)
