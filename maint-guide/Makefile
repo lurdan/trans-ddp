@@ -313,7 +313,7 @@ validate: $(foreach lng,$(LANGS_PO),$(MANUAL).$(lng).dbk) $(COMMON_ENT)
 ##############################################################################
 # Basic utility targets for clean
 ##############################################################################
-.PHONY: clean distclean
+.PHONY: clean distclean prep
 clean:
 	rm -f version.ent
 	rm -rf $(MANUALDIR)
@@ -324,6 +324,9 @@ clean:
 	rm -f *.cb *.cb2 *.glo *.idx *.log *.out *.tex *.toc *.aux
 
 distclean: clean
+
+prep:
+	debian/rules prep
 
 # if rule bomb out, delete the target
 #.DELETE_ON_ERROR:
