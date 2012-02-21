@@ -385,14 +385,11 @@ $(PUBLISHDIR)/$(DOCNAME).%.pdf: $(DOCNAME).%.xml $(SRC_ENT)
 	export TEXINPUTS=".:"; \
 	$(XP) $(PXSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
-		--xsl-user=$(PXSLT)/hyphenation.xsl \
+		--backend=xetex \
+		--xsl-user=$(PXSLT)/user_param.xsl \
+		--xsl-user=$(PXSLT)/xetex_param.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
-		--param=format=a4 \
-		--param=glossterm.auto.link=1 \
-		--param=latex.encoding=utf8 \
-		--param=latex.unicode.use=1 \
 		--param=lingua=$* \
-		--param=monoseq.hyphenation=nohyphen \
 		--output=$@ -
 
 #######################################################################
