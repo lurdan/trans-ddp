@@ -265,11 +265,7 @@ endif
 .PHONY: publish
 publish:
 	# next lines are for transition
-	# cleaning old files (This is transitional)
-	#-rm -rf bin
-	#-ls -la $(MANUALDIR)
-	#-$(MAKE) clean
-	#-ls -la $(MANUALDIR)
+	-$(MAKE) clean
 	# real publish target
 	-rm -f version.ent
 	$(MAKE) version.ent
@@ -281,8 +277,6 @@ publish:
 	$(install_file) $(CSS) 		$(MANUALDIR)
 	echo "AddCharset UTF-8 .txt" > $(MANUALDIR)/.htaccess
 	$(install_file) $(addprefix $(IMAGESSRC)/, $(IMAGES)) $(IMAGESDIR)
-	# sanity check
-	#-ls -lRa $(MANUALDIR)
 
 ##############################################################################
 # Special utility targets used only by the maintainer
