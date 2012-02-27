@@ -27,8 +27,7 @@ XL=xmllint --nonet --noout --postvalid --xinclude
 # - fop is currently in contrib, but can go to main, see #366783
 # - xmlroff (not mature enough, #182445)
 DBLATEX=dblatex --style=db2latex
-# The "--keep 0" should be removed as soon as the translations are ready
-TRANSLATE=po4a-translate --format docbook --keep 0
+TRANSLATE=po4a po4a/po4a.cfg
 
 # XSL files and parameters
 # note: the URL is used as identifier, no HTTP is used!
@@ -75,12 +74,13 @@ index.html:			$(CURDIR)/developers-reference.html
 .PRECIOUS:		%.dbk %.ent
 ifndef LINGUA
 %.dbk %.ent: FORCE
+	$(TRANSLATE)
 	$(MAKE) $@ LINGUA=`basename $(@D)`
 
 FORCE:
 else
-$(LINGUA)/%.dbk:	%.dbk $(patsubst %.dbk,po4a/$(LINGUA)/%.po,%.dbk)
-	$(TRANSLATE) -m $< -p po4a/$(@:.dbk=.po) -l $@ -a ?po4a/$(@:.dbk=.add)
+$(LINGUA)/%.dbk:	%.dbk po4a/$(LINGUA).po
+	$(TRANSLATE)
 
 $(LINGUA)/common.ent:	common.ent
 	cd $(@D) && ln -sf ../$(@F) .
@@ -103,26 +103,25 @@ developers-reference.pdf:       $(CURDIR)/developers-reference.pdf
 	    && mv $(@D)/index.dbk.pdf $@
 
 .PHONY: pot
-pot:				$(patsubst %.dbk,po4a/po/%.pot,$(SOURCES))
-po4a/po/%.pot:			%.dbk
-	po4a-gettextize --format docbook --master $< --po $@
+pot:					po4a/po/developers-reference.pot
+po4a/po/developers-reference.pot:	%.dbk
+	$(TRANSLATE)
 
 ifdef LINGUA
 .PHONY: updatepo
-updatepo:			$(patsubst %.dbk,po4a/$(LINGUA)/%.po,$(SOURCES))
-po4a/$(LINGUA)/%.po:		%.dbk
-	po4a-updatepo --previous --format docbook --master $< --po $@
+updatepo:			po4a/po/$(LINGUA).po
+po4a/po/$(LINGUA).po:		%.dbk
+	$(TRANSLATE)
 endif
 
 tidypo:
-	for po in $(wildcard po4a/*/*.po po4a/*/*.pot); do \
-	    msgcat $$po > $$po.tmp && mv $$po.tmp $$po; \
+	for po in po4a/po/*.po; do \
+	    msgcat -o $$po $$po; \
 	done
 
 checkpo:
-	@for po in $(wildcard po4a/*/*.po po4a/*/*.pot); do \
-	    echo $$po; \
-	    msgfmt --check --verbose $$po; \
+	@for po in po4a/po/*.po; do \
+	    msgfmt -vv $$po; \
 	done
 
 %/version.ent:
