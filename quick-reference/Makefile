@@ -293,7 +293,7 @@ pot: $(PODOC)/$(DOCNAME).pot
 
 # create pot file from template xml
 $(PODOC)/$(DOCNAME).pot: $(DOCNAME).en.xmlt
-	$(GETTEXT) -m $< | msgcat --no-location -o $@
+	$(GETTEXT) -m $< | msgcat --no-location -o $@ -
 
 .PHONY: po
 po: 	$(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po)
@@ -305,7 +305,7 @@ wrap:
 	done
 replace:
 	for x in $(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po); do \
-	msgcat --no-wrap $$x | sed -f bin/replace1 | msgcat -o $$x ;\
+	msgcat --no-wrap $$x | sed -f bin/replace1 | msgcat -o $$x - ;\
 	done
 nowrap:
 	for x in $(foreach lang, $(LANGPO), $(PODOC)/$(DOCNAME).$(lang).po); do \
