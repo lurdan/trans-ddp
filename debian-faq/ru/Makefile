@@ -37,28 +37,28 @@ validate:
 html: $(manual).$(currentlang).html/index.$(currentlangcn).html
 $(manual).$(currentlang).html/index.$(currentlangcn).html: $(sources)
 	rm -rf $(manual).html $(manual).$(currentlang).html
-	debiandoc2html -c -l $(currentlang) $<
+	debiandoc2html -C -l $(currentlang).UTF-8 $<
 	mv $(manual).html $(manual).$(currentlang).html
 
 text: $(manual).$(currentlang).txt
 $(manual).$(currentlang).txt: $(sources)
-	debiandoc2text -l $(currentlang) $<
+	debiandoc2text -l $(currentlang).UTF-8 $<
 	mv $(manual).txt $(manual).$(currentlang).txt
 
 $(manual).$(currentlang).info: $(sources)
-	debiandoc2info -l $(currentlang) $<
+	debiandoc2info -l $(currentlang).UTF-8 $<
 # TODO: rename to .$(currentlang).info?
 
 $(manual).$(currentlang).ps $(manual).$(currentlang).dvi $(manual).$(currentlang).pdf: \
   $(manual).$(currentlang).%: $(sources)
-	debiandoc2latex$* -l $(currentlang) $<
+	debiandoc2latex$* -l $(currentlang).UTF-8 $<
 	mv $(manual).$* $(manual).$(currentlang).$*
 
 ps dvi pdf info: %: $(manual).$(currentlang).%
 
 clean distclean:
 	rm -rf $(manual)*.$(currentlang).html
-	rm -f $(manual)*.{txt,ps,dvi,pdf,info*,aux,log,man,tex,toc,sasp*}
+	rm -f $(manual)*
 	rm -f *~ .*~ core tsa*
 
 .PHONY: all publish clean distclean validate
