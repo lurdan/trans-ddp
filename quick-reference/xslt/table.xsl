@@ -30,7 +30,6 @@ Process raw XML file:
       <xsl:text disable-output-escaping="yes">&lt;ulink url="http://packages.debian.org/sid/</xsl:text><xsl:value-of select='normalize-space(.)'/><xsl:text disable-output-escaping="yes">"&gt;</xsl:text>
       <xsl:apply-templates select="@*|node()"/>
       <xsl:text disable-output-escaping="yes">&lt;/ulink&gt;</xsl:text>
-      <xsl:text disable-output-escaping="yes"> &lt;ulink url="http://bugs.debian.org/</xsl:text><xsl:value-of select='normalize-space(.)'/><xsl:text disable-output-escaping="yes">"&gt;*&lt;/ulink&gt;</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:otherwise>
@@ -50,7 +49,6 @@ Process raw XML file:
       <xsl:text disable-output-escaping="yes">&lt;ulink url="http://packages.debian.org/sid/</xsl:text><xsl:value-of select='normalize-space(.)'/><xsl:text disable-output-escaping="yes">"&gt;</xsl:text>
       <xsl:apply-templates select="@*|node()"/>
       <xsl:text disable-output-escaping="yes">&lt;/ulink&gt;</xsl:text>
-      <xsl:text disable-output-escaping="yes"> &lt;ulink url="http://bugs.debian.org/</xsl:text><xsl:value-of select='normalize-space(.)'/><xsl:text disable-output-escaping="yes">"&gt;*&lt;/ulink&gt;</xsl:text>
       </xsl:copy>
     </xsl:when>
     <xsl:when test="contains(., '@-@popcon1@-@')">
