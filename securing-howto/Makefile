@@ -39,13 +39,12 @@ BUILD_TYPE  := web
 # This can and will be overridden by a higher level makefile
 PUBLISHDIR := ~/public_html/manuals.html
 
-# List of languages built for "distclean" target for DDP:
-LANGSALL := en de fr es it ru ja zh-cn
+# List of languages not being handled with po4a:
+LANGSNOPO := en de es it pt-br ru ja zh-cn
+# List of languages handled with po4a:
+LANGSPO  := fr
 # List of languages built for "publish" target for DDP
 LANGS    := en de fr pt-br
-# This are all the languages, not all are compiled for DDP
-# due to them being out of dte
-#LANGS    := en de fr es it ru ja zh-cn pt-br
 
 # Files which affect SGML generation (excluding *.sgml)
 SGMLENTS := custom.ent default.ent
@@ -54,6 +53,12 @@ SGMLENTS := custom.ent default.ent
 SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
 	    $(foreach lang, $(LANGS), $(wildcard $(lang)/*.sgml ) ) \
 	    $(SGMLENTS)
+
+# All SGML targets not being handled with po4a:
+SGMLNOPOSRCS := $(foreach lang, $(LANGSNOPO), $(MANUAL).$(lang).sgml)
+
+# All SGML targets handled with po4a:
+SGMLPOSRCS := $(foreach lang, $(LANGSPO), $(MANUAL).$(lang).sgml)
 
 # =================================================================== #
 #                 Build target default part: Routine                  #
@@ -64,7 +69,8 @@ SGMLSRCS := $(foreach lang, $(LANGS), $(MANUAL).$(lang).sgml) \
 $(MANUAL).%.html.stamp $(MANUAL).%.txt $(MANUAL).%.ps $(MANUAL).%.pdf: \
   locale=$(subst pt-br,pt_BR,\
          $(subst zh-cn,zh_CN,\
-	 $*))
+	 $(subst fr,fr.UTF-8,\
+	 $*)))
 
 ### Full guide
 
@@ -114,15 +120,20 @@ $(MANUAL).%.ent:
 # Create starting SGML for each language from the template.  Actual
 # contents reside in language-segregated subdirectories.
 
-$(MANUAL).%.sgml: $(MANUAL0).sgml
+$(SGMLNOPOSRCS): $(MANUAL).%.sgml: $(MANUAL0).sgml
 	sed -e "s/@@LANGS@@/$*/g" \
 	    -e "s/@@DIRS@@/$*/g" \
 	    -e "s/@@NAME@@/$(MANUAL)/g" \
 	        $< > $(MANUAL).$*.sgml
 
+# Create starting SGML for each language handled with po4a
+
+$(SGMLPOSRCS): $(MANUAL).%.sgml: $(MANUAL).en.sgml $(MANUAL).en.ent po4a/po/%.po
+	po4a po4a/po4a.cfg
+
 # HTML
 $(MANUAL).%.html.stamp: $(MANUAL).%.sgml $(MANUAL).%.ent $(SGMLSRCS)
-	debiandoc2html -l $(locale) -c $<
+	debiandoc2html -l $(locale) -C $<
 # since $(MANUAL).%.html/index.%.html cannot be a target file
 	@for file in `ls $(MANUAL).$*.html/*` ; do \
 	newfile=`echo $$file|\
