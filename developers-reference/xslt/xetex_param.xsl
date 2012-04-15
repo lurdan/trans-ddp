@@ -11,28 +11,31 @@
     <xsl:text>\setmainfont{Nimbus Roman No9 L}&#10;</xsl:text>
     <xsl:text>\setsansfont{Nimbus Sans L}&#10;</xsl:text>
     <xsl:text>\setmonofont{Nimbus Mono L}&#10;</xsl:text>
-    <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
     <xsl:choose>
       <xsl:when test="$lingua = 'zh-cn'">
 	<!-- zh_CN centric: ttf-arphic-gbsn00lp, ttf-wqy-zenhei -->
+        <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
         <xsl:text>\setCJKmainfont{AR PL SungtiL GB}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{WenQuanYi Zen Hei}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{WenQuanYi Zen Hei Mono}&#10;</xsl:text>
       </xsl:when>
       <xsl:when test="$lingua = 'zh-tw'">
         <!-- zh_TW centric: ttf-arphic-bsmi00lp, ttf-wqy-zenhei -->
+        <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
         <xsl:text>\setCJKmainfont{AR PL Mingti2L Big5}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{WenQuanYi Zen Hei}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{WenQuanYi Zen Hei Mono}&#10;</xsl:text>
       </xsl:when>
       <xsl:when test="$lingua = 'ja'">
         <!-- ja centric: otf-ipafont-mincho otf-ipafont-gothic -->
+        <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
         <xsl:text>\setCJKmainfont{IPAMincho}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{IPAPGothic}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{IPAGothic}&#10;</xsl:text>
       </xsl:when>
       <xsl:when test="$lingua = 'ko'">
         <!-- ko centric: ttf-unfonts-core -->
+        <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
         <xsl:text>\setCJKmainfont{UnBatang}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{UnDotum}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{UnDotum}&#10;</xsl:text>
