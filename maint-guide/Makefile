@@ -110,6 +110,7 @@ txt:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).txt)
 html:	$(foreach lng,$(LANGS), index.$(lng).html)
 pdf:	$(foreach lng,$(LANGS), $(MANUAL).$(lng).pdf)
 po:
+	touch $(MANUAL).en.dbk
 	$(MAKE) $(foreach lng, $(LANGS_PO), $(PO4A)/$(MANUAL).$(lng).po) POMODE=update
 pot:	$(PO4A)/$(MANUAL).pot
 dbk:	$(foreach lng,$(LANGS_PO), $(MANUAL).$(lng).dbk)
