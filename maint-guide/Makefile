@@ -58,6 +58,7 @@ else
 # www-master.debian.org build script.
 MANUALDIR       := $(abspath $(PUBLISHDIR)/$(MANUAL))
 endif
+XTMPDIR	:= $(CURDIR)/tmp
 # CSS (Cascading Style Sheets) file
 CSS		:= $(MANUAL).css
 # Image files
@@ -232,7 +233,9 @@ else
 
 $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
-	export TEXINPUTS=".:"; \
+	@mkdir -p $(XTMPDIR)
+	export TMPDIR=$(XTMPDIR) ; \
+	export TEXINPUTS=".:" ; \
 	$(XP) $(XSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
 		--backend=xetex \
@@ -244,6 +247,8 @@ $(MANUAL).$(LINGUA).pdf: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 
 $(MANUAL).$(LINGUA).tex: $(MANUAL).$(LINGUA).dbk $(COMMON_ENT)
 	@test -n "`which $(DBLATEX)`"  || { echo "E: dblatex not found. Please install the dblatex package." ; false ;  }
+	@mkdir -p $(XTMPDIR)
+	export TMPDIR=$(XTMPDIR) ; \
 	export TEXINPUTS=".:"; \
 	$(XP) $(XSLT)/dblatex.xsl $<  | \
 	$(DBLATEX) --style=db2latex \
@@ -312,6 +317,7 @@ validate: $(foreach lng,$(LANGS_PO),$(MANUAL).$(lng).dbk) $(COMMON_ENT)
 clean:
 	rm -f version.ent
 	rm -rf $(MANUALDIR)
+	rm -rf $(XTMPDIR)
 	rm -f $(foreach lng, $(LANGS_PO), $(MANUAL).$(lng).dbk)
 	-rm -rf *.fo *.pdf *.txt *.html *.rej
 	rm -f *~ *.bak .#*
