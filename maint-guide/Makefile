@@ -191,7 +191,7 @@ $(MANUAL).%.txt: $(MANUAL).%.dbk $(COMMON_ENT)
 	[ -e version.ent ] || $(MAKE) version.ent
 	@test -n "`which w3m`"  || { echo "E: w3m not found. Please install the w3m package." ; false ;  }
 	$(XP) $(XSLT)/txt.xsl $< |\
-		w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
+		LC_ALL=C.UTF-8 w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 ##############################################################################
 # HTML text building
