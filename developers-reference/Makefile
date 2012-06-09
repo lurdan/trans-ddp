@@ -89,7 +89,7 @@ endif
 developers-reference.txt:	$(CURDIR)/developers-reference.txt
 %/developers-reference.txt:	$(addprefix %/,$(SOURCES))
 	$(XP) $(DBK2HTML1) $(@D)/index.dbk \
-	    | w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
+	    | LC_ALL=C.UTF-8 w3m -o display_charset=UTF-8 -cols 70 -dump -no-graph -T text/html > $@
 
 XSLT		:= xslt
 
