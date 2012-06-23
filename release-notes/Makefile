@@ -54,7 +54,7 @@ PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
 # DISABLED_PDF are the languages we will not generate PDF versions for:
-DISABLED_PDF=cs es pt_BR pt ru sk
+#DISABLED_PDF=cs es pt_BR pt ru sk
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=ja ml vi
 
