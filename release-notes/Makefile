@@ -93,9 +93,11 @@ XMLROFF_GP=xmlroff --backend gp
 FORMATS=html txt pdf
 
 # po4a stuff
-UPDATEPO=PERLLIB=lib/ PERL5LIB=lib/ po4a-updatepo --previous --format docbook
+# Mimic options that used to be hardcoded in local Locale::Po4a::Xml
+PO4AOPTIONS=-o nodefault='<contrib> <editor> <indexterm> <note> <primary> <pubdate> <programlisting> <orderedlist> <screen>' -o translated='<contrib> <editor> W<programlisting> <note> <orderedlist> <pubdate> W<screen> <indexterm><primary>' -o inline='<indexterm> <primary>'
+UPDATEPO=po4a-updatepo $(PO4AOPTIONS) --previous --format docbook
 # The "--keep 0" should be removed as soon as the translations are ready
-TRANSLATE=PERLLIB=lib/ po4a-translate --format docbook --keep 0
+TRANSLATE=po4a-translate $(PO4AOPTIONS) --format docbook --keep 0
 
 .SUFFIXES: 
 .PHONY: publish all clean $(LANGUAGES-publish)
