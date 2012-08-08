@@ -24,7 +24,7 @@ $(MANUAL).pot: $(MANUAL).sgml
 
 # Update PO files after each change of $(MANUAL).sgml to avoid possible build errors
 $(po-sources): $(MANUAL).%.po: $(MANUAL).sgml $(MANUAL).pot
-	msgmerge --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
+	msgmerge --previous --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
 
 $(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).sgml
 	po4a-translate -k 70 -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).$*.po -l $(MANUAL).$*.sgml
