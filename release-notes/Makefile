@@ -37,12 +37,12 @@ endif
 #
 # TODO - Treat 'probationary' languages independently so that they if they
 # break they do not break the build for stable translations
-LANGUAGES := en cs da de es fr it ja lt ml nb pt_BR pt ro ru vi zh_CN zh_TW be sv sk
+LANGUAGES := en cs da de es fr it ja lt ml nb pt_BR pt ro ru vi zh_CN zh_TW be sv sk nl
 
 # The following is a list of 'probationary' languages, these might not yet
 # build fine and might break the build.  Move them over to LANGUAGES when they
 # do:
-DISABLED_LANGUAGES := ca nl
+DISABLED_LANGUAGES := ca
 ALL_LANGUAGES := $(LANGUAGES) $(DISABLED_LANGUAGES)
 
 # languages without .po files
