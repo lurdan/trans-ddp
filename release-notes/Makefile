@@ -54,7 +54,10 @@ PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
 # DISABLED_PDF are the languages we will not generate PDF versions for:
-DISABLED_PDF=cs es pt_BR pt ru sk
+DISABLED_PDF=cs ru sk
+# Workaround for PDF issue in Squeeze.
+# Using “--backend=xetex” switch with Wheezy should be enough
+NONUTF8=es pt_BR pt
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=ja ml vi
 
@@ -74,14 +77,17 @@ DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
+ifeq "$(filter $(NONUTF8),$(LINGUA))" ""
+UTF8OPTION=--param=latex.encoding=utf8 \
+	--param=latex.unicode.use=1
+endif
 DBLATEX=dblatex --style=db2latex \
     --xslt-opts=--nonet --no-external \
     --xsl-user=hyphenation.xsl \
     --param=draft.mode=$(draftmode) \
     --param=format=a4 \
     --param=glossterm.auto.link=1 \
-    --param=latex.encoding=utf8 \
-    --param=latex.unicode.use=1 \
+    $(UTF8OPTION) \
     --param=lingua=$(LINGUA) \
     --param=monoseq.hyphenation=nohyphen
 PROFILE=$(DOCBOOK_XSL)/profiling/profile.xsl
