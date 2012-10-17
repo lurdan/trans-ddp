@@ -4,7 +4,7 @@
 
 SOURCES		:= $(wildcard *.dbk) common.ent version.ent
 
-FORMATS		:= html txt pdf
+FORMATS		:= html txt pdf epub
 LANGS           := de fr ja
 TARGETS		:= $(foreach fmt,$(FORMATS),developers-reference.$(fmt)) \
 		   $(foreach lng,$(LANGS), \
@@ -59,6 +59,7 @@ publish:	all
 	ln -sf index.en.html $(PUBLISHDIR)/developers-reference/index.html
 	ln -sf developers-reference.en.pdf $(PUBLISHDIR)/developers-reference/developers-reference.pdf
 	ln -sf developers-reference.en.txt $(PUBLISHDIR)/developers-reference/developers-reference.txt
+	ln -sf developers-reference.en.epub $(PUBLISHDIR)/developers-reference/developers-reference.epub
 
 .PHONY: developers-reference.html %/developers-reference.html
 developers-reference.html:	$(CURDIR)/index.html
@@ -101,6 +102,10 @@ developers-reference.pdf:       $(CURDIR)/developers-reference.pdf
 	    --xsl-user=$(XSLT)/xetex_param.xsl \
 	    --param=lingua=$(@D) \
 	    && mv $(@D)/index.dbk.pdf $@
+
+developers-reference.epub:      $(CURDIR)/developers-reference.epub
+%/developers-reference.epub:     $(addprefix %/,$(SOURCES))
+	TOP=`pwd` && cd $(@D) && xmlto epub index.dbk && mv index.epub $(@F)
 
 .PHONY: pot
 pot:					po4a/po/developers-reference.pot
