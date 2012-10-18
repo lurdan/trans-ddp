@@ -249,12 +249,12 @@ pkgsize.ent:
 common.ent: $(SRC_XML)
 	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
 	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
-	echo "<!ENTITY codename-stable   \"squeeze\">"			>> $@
-	echo "<!ENTITY Codename-stable   \"Squeeze\">"                  >> $@
-	echo "<!ENTITY codename-testing  \"wheezy\">"			>> $@
-	echo "<!ENTITY Codename-testing  \"Wheezy\">"                   >> $@
-	echo "<!ENTITY codename-nexttesting  \"wheezy+1\">"		>> $@
-	echo "<!ENTITY Codename-nexttesting  \"Wheezy+1\">"             >> $@
+	echo "<!ENTITY codename-stable   \"wheezy\">"			>> $@
+	echo "<!ENTITY Codename-stable   \"Wheezy\">"                  >> $@
+	echo "<!ENTITY codename-testing  \"jessie\">"			>> $@
+	echo "<!ENTITY Codename-testing  \"Jessie\">"                   >> $@
+	echo "<!ENTITY codename-nexttesting  \"jessie+1\">"		>> $@
+	echo "<!ENTITY Codename-nexttesting  \"Jessie+1\">"             >> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 	echo "<!ENTITY Codename-unstable \"Sid\">"                      >> $@
 
