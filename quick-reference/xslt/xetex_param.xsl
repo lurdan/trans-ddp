@@ -7,10 +7,23 @@
     ############################################################################ -->
 
   <xsl:param name="xetex.font">
-    <!-- Western centric Adobe PostScript looks-alike: gsfonts -->
+    <!-- Western centric Adobe PostScript looks-alike: gsfonts: missing some odd codes, mono is thin
     <xsl:text>\setmainfont{Nimbus Roman No9 L}&#10;</xsl:text>
     <xsl:text>\setsansfont{Nimbus Sans L}&#10;</xsl:text>
     <xsl:text>\setmonofont{Nimbus Mono L}&#10;</xsl:text>
+    -->
+
+    <!-- Western centric Bitstream Vera Fonts extended: DejaVu: too big ans spaced
+    <xsl:text>\setmainfont{DejaVu Serif}&#10;</xsl:text>
+    <xsl:text>\setsansfont{DejaVu Sans}&#10;</xsl:text>
+    <xsl:text>\setmonofont{DejaVu Sans Mono}&#10;</xsl:text>
+    -->
+
+    <!-- Western centric MS (monotype) fonts looks-alike: Liberation : Best looking --> 
+    <xsl:text>\setmainfont{Liberation Serif}&#10;</xsl:text>
+    <xsl:text>\setsansfont{Liberation Sans}&#10;</xsl:text>
+    <xsl:text>\setmonofont{Liberation Mono}&#10;</xsl:text>
+
     <xsl:text>\usepackage{xeCJK}&#10;</xsl:text>
     <xsl:choose>
       <xsl:when test="$lingua = 'zh-cn'">
@@ -25,18 +38,19 @@
         <xsl:text>\setCJKsansfont{WenQuanYi Zen Hei}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{WenQuanYi Zen Hei Mono}&#10;</xsl:text>
       </xsl:when>
-      <xsl:when test="$lingua = 'ja'">
-        <!-- ja centric: otf-ipafont-mincho otf-ipafont-gothic -->
-        <xsl:text>\setCJKmainfont{IPAMincho}&#10;</xsl:text>
-        <xsl:text>\setCJKsansfont{IPAPGothic}&#10;</xsl:text>
-        <xsl:text>\setCJKmonofont{IPAGothic}&#10;</xsl:text>
-      </xsl:when>
       <xsl:when test="$lingua = 'ko'">
         <!-- ko centric: ttf-unfonts-core -->
         <xsl:text>\setCJKmainfont{UnBatang}&#10;</xsl:text>
         <xsl:text>\setCJKsansfont{UnDotum}&#10;</xsl:text>
         <xsl:text>\setCJKmonofont{UnDotum}&#10;</xsl:text>
       </xsl:when>
+      <xsl:otherwise>
+        <!-- ja centric: otf-ipafont-mincho otf-ipafont-gothic
+        <xsl:text>\setCJKmainfont{IPAMincho}&#10;</xsl:text>
+        <xsl:text>\setCJKsansfont{IPAPGothic}&#10;</xsl:text>
+        <xsl:text>\setCJKmonofont{IPAGothic}&#10;</xsl:text>
+        -->
+      </xsl:otherwise>
     </xsl:choose>
   </xsl:param>
 

@@ -113,6 +113,7 @@ clean:
 	-rm -f $(addsuffix .xml,      $(addprefix  $(DOCNAME)., $(LANGPO)))
 	-rm -f $(DOCNAME).en.xml
 	-rm -f $(DOCNAME).en.xmlt header.txt
+	-rm -rf ./tmp
 
 # Run distclean only for regenerating all locally cached data from remote
 #                          (and all raw XML from asciidoc for lenny@local)
@@ -381,16 +382,39 @@ pdf:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).pdf)
 # dblatex.xsl provide work around for hidden URL links by appending them explicitly.
 $(PUBLISHDIR)/$(DOCNAME).%.pdf: $(DOCNAME).%.xml $(SRC_ENT)
 	-mkdir -p $(PUBLISHDIR)
+	-mkdir -p $(CURDIR)/tmp/$*
 	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
 	export TEXINPUTS=".:"; \
+	export TMPDIR="$(CURDIR)/tmp/$*"; \
 	$(XP) $(PXSLT)/dblatex.xsl $<  | \
-	$(DBLATEX) --style=db2latex \
+	$(DBLATEX) --style=native \
+		--debug \
 		--backend=xetex \
 		--xsl-user=$(PXSLT)/user_param.xsl \
 		--xsl-user=$(PXSLT)/xetex_param.xsl \
 		--param=draft.mode=$(DRAFTMODE) \
 		--param=lingua=$* \
-		--output=$@ -
+		--output=$@ - || { echo "OMG!!!!!! XXX_CHECK_XXX ... Do not worry ..."; true ; }
+
+.PHONY: tex
+tex:	$(foreach lang, en $(LANGPO), $(PUBLISHDIR)/$(DOCNAME).$(lang).tex)
+# dblatex.xsl provide work around for hidden URL links by appending them explicitly.
+$(PUBLISHDIR)/$(DOCNAME).%.tex: $(DOCNAME).%.xml $(SRC_ENT)
+	-mkdir -p $(PUBLISHDIR)
+	-mkdir -p $(CURDIR)/tmp/$*
+	@test -n "`which $(DBLATEX)`"  || { echo "ERROR: dblatex not found. Please install the dblatex package." ; false ;  }
+	export TEXINPUTS=".:"; \
+	export TMPDIR="$(CURDIR)/tmp/*"; \
+	$(XP) $(PXSLT)/dblatex.xsl $<  | \
+	$(DBLATEX) --style=native \
+		--debug \
+		--type=tex \
+		--backend=xetex \
+		--xsl-user=$(PXSLT)/user_param.xsl \
+		--xsl-user=$(PXSLT)/xetex_param.xsl \
+		--param=draft.mode=$(DRAFTMODE) \
+		--param=lingua=$* \
+		--output=$@ - || { echo "OMG!!!!!! XXX_CHECK_XXX ... Do not worry ..."; true ; }
 
 #######################################################################
 # Build xml/html(indexed) for testing source (local)                ALL
