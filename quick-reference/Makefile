@@ -266,7 +266,7 @@ header.txt: $(ADOC)/header1.txt $(DOCNAME).raw.xml $(ADOC)/header2.txt
 	sed -e "s/&/\&amp;/g"   >> $@
 	cat $(ADOC)/header2.txt >> $@
 
-# Replace table contents with @-@popcon*@@@ and @@@psize*@-@ and 
+# Replace table contents with @-@popcon*@-@ and @@@psize*@-@ and 
 # fix URL referencees and table ID.
 $(DOCNAME).en.xml: $(DOCNAME).raw.xml header.txt common.ent
 	# use asciidoc generated xml file as main contents 
