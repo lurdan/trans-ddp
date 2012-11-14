@@ -7,6 +7,9 @@
 #######################################################################
 # Build with web access for local build
 # BUILD_MODE default value (local|web|none) 
+# local: used by normal invocation of "make"
+# web  : used by DDP web page building
+# none : used by package building via debian/rules
 BUILD_MODE_LOCAL := local
 ifndef BUILD_MODE
 BUILD_MODE	:= $(BUILD_MODE_LOCAL)
@@ -247,6 +250,25 @@ pkgsize.ent:
 #########################################################################
 # Create final XML sources
 
+#=======================================================================#
+ifeq ($(BUILD_MODE),web)
+#=======================================================================#
+# Release for package match with actual situation
+common.ent: $(SRC_XML)
+	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
+	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
+	echo "<!ENTITY codename-stable   \"squeeze\">"			>> $@
+	echo "<!ENTITY Codename-stable   \"Squeeze\">"                  >> $@
+	echo "<!ENTITY codename-testing  \"wheezy\">"			>> $@
+	echo "<!ENTITY Codename-testing  \"Wheezy\">"                   >> $@
+	echo "<!ENTITY codename-nexttesting  \"jessie\">"		>> $@
+	echo "<!ENTITY Codename-nexttesting  \"Jessie\">"             >> $@
+	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
+	echo "<!ENTITY Codename-unstable \"Sid\">"                      >> $@
+#=======================================================================#
+else
+#=======================================================================#
+# Release for package match with post-release situation
 common.ent: $(SRC_XML)
 	echo "<!ENTITY build-date \"$(shell date -u +'%F %T %Z')\">"	>  $@
 	echo "<!ENTITY arch \"$(ARCH)\">"				>> $@
@@ -258,6 +280,9 @@ common.ent: $(SRC_XML)
 	echo "<!ENTITY Codename-nexttesting  \"Jessie+1\">"             >> $@
 	echo "<!ENTITY codename-unstable \"sid\">"			>> $@
 	echo "<!ENTITY Codename-unstable \"Sid\">"                      >> $@
+#=======================================================================#
+endif
+#=======================================================================#
 
 # Update URL list header from $(DOCNAME).raw.xml
 header.txt: $(ADOC)/header1.txt $(DOCNAME).raw.xml $(ADOC)/header2.txt
