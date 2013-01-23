@@ -228,9 +228,8 @@ distclean: clean
 	rm -f *.error $(MANUAL).*.sgml
 
 clean:
-	rm -f $(MANUAL)*.{txt,ps,dvi,pdf,info*,log,tex,aux,toc,sasp*,out,tov}
-	rm -f *~ prior.aux pprior.aux body.tmp head.tmp tar.gz.log
-	rm -f *.error $(MANUAL).*.ent $(MANUAL).*.sgml date.ent $(MANUAL).*.tpt
+	rm -f $(MANUAL).*.ent $(MANUAL).*.sgml $(MANUAL).*.tpt $(foreach suff,txt ps dvi pdf info* log tex aux toc sasp* out tov,$(wildcard $(MANUAL)*.$(suff)))
+	rm -f *~ prior.aux pprior.aux body.tmp head.tmp tar.gz.log *.error date.ent
 	rm -rf $(MANUAL)*.html *stamp
 
 .PHONY: all html text txt ps pdf \
