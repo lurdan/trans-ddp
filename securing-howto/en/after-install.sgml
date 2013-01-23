@@ -357,18 +357,22 @@ autodetection fails. This behavior is the default for <prgn>initrd</prgn>'s
 the system through the console with their user/password and then
 become superuser (with <prgn>su</prgn> or <prgn>sudo</prgn>). This
 policy is implemented in Debian by editing the
-<file>/etc/login.defs</file> file or <file>/etc/securetty</file> when
-using PAM. In:
+<file>/etc/pam.d/login</file> and the <file>/etc/securetty</file> when
+using PAM:
 
 <list>
 
-<item><file>login.defs</file>, editing the CONSOLE variable which
-defines a file or list of terminals on which root logins are allowed
+<item><file>/etc/pam.d/login</file>
+<footnote>In older Debian releases you would need to edit
+<file>login.defs</file>, and use the CONSOLE variable which defines a file or
+list of terminals on which root logins are allowed.</footnote>
+enables the pam_securetty.so module. This module, when properly configured will
+not ask for a password when the root user tries to login on an insecure
+console, rejecting access as this user.
 
-<item><file>securetty</file><footnote>
-The <file>/etc/securetty</file> is a configuration file that belongs
-to the <package>login</package> package.
-</footnote>
+<item><file>securetty</file>
+<footnote> The <file>/etc/securetty</file> is a configuration file that belongs
+to the <package>login</package> package.</footnote>
 by adding/removing the terminals to which
 root access will be allowed. If you wish to allow only local console access
 then you need <em>console</em>, <em>ttyX</em><footnote>
@@ -381,17 +385,21 @@ and <em>ttyXX</em> in GNU/KNetBSD.
 </footnote>
 if you are using
 a serial console for local access (where X is an integer, you might want
-to have multiple instances<footnote>
+to have multiple instances. The default configuration for
+<em>Wheezy</em>
+<footnote>
 The default configuration in <em>woody</em> includes 12
 local tty and vc consoles, as well as the <em>console</em> device but
 does not allow remote logins. In <em>sarge</em> the default 
 configuration provides 64 consoles for tty and vc consoles.
-You can safely remove this if you are not using that many consoles.
 </footnote>
-depending on the number of virtual consoles
-you have enabled in <file>/etc/inittab</file><footnote>
-Look for the <em>getty</em> calls.</footnote>). For more
-information on terminal devices read the
+includes many tty devices, serial ports, vc consoles as
+well as the X server and the <em>console</em> device.
+You can safely adjust this if you are not using that many consoles.
+You can confirm the virtual consoles and the tty devices 
+you have by reviewing <file>/etc/inittab</file>
+<footnote> Look for the <em>getty</em> calls.</footnote>
+. For more information on terminal devices read the
 <url id="http://tldp.org/HOWTO/Text-Terminal-HOWTO-6.html" name="Text-Terminal-HOWTO">.
 
 </list>
@@ -683,16 +691,17 @@ returns a login failure if one module fails.
 
 <p>The first thing I like to do, is to add MD5 support to PAM 
 applications, since this helps protect against dictionary cracks (passwords 
-can be longer if using MD5). The following two lines should be added to all 
-files in <file>/etc/pam.d/</file> that grant access to the machine, like 
-<tt>login</tt> and <tt>ssh</tt>.
+can be longer if using MD5). The following line should be added to the
+<file>/etc/pam.d/common-password</file>, right before the call to the
+<em>pam_unix.so</em> module. This file is used by other
+files in <file>/etc/pam.d/</file> that grant access to services in the machine,
+like <tt>login</tt> and <tt>ssh</tt>.
 
 <example>
   # Be sure to install libpam-cracklib first or you will not be able to log in
   password   required     pam_cracklib.so retry=3 minlen=12 difok=3
-  password   required     pam_unix.so use_authtok nullok md5
+  password   [success=1 default=ignore]      pam_unix.so obscure sha512 use_authok
 </example>
-
 
 <p>So, what does this incantation do? The first line loads the
 cracklib PAM module, which provides password strength-checking,
@@ -702,14 +711,10 @@ difference of at least 3 characters from the old password, and allows
 <package>wenglish</package>, <package>wspanish</package>, 
 <package>wbritish</package>, ...), so make sure you install one that is
 appropriate for your language or cracklib might not be useful to you at all.
-<footnote>
-This dependency is not fixed, however, in the Debian 3.0 package. Please
-see <url id="http://bugs.debian.org/112965" name="Bug #112965">.
-</footnote>
-The second line introduces the standard authentication
-module with MD5 passwords and allows a zero length password. The
-<tt>use_authtok</tt> directive is necessary to hand over the password from the
-previous module. 
+The second line, based on the default value in Debian, introduces the standard
+authentication module with SHA512 passwords and allows a zero length password.
+The <tt>use_authtok</tt> directive (not present in the default definition) is
+necessary to hand over the password from the previous module. 
 
 <p>To make sure that the user root can only log into the system from
 local terminals, the following line should be enabled in
@@ -720,7 +725,8 @@ local terminals, the following line should be enabled in
 </example>
 
 <p>Then you should modify the list of terminals on which direct root login
-is allowed in <file>/etc/securetty</file>. Alternatively, you could enable
+is allowed in <file>/etc/securetty</file> (as described in <ref
+id="restrict-console-login">). Alternatively, you could enable
 the <tt>pam_access</tt> module and modify
 <file>/etc/security/access.conf</file> which allows for a more general and
 fine-tuned access control, but (unfortunately) lacks decent log
@@ -789,8 +795,9 @@ All you have to do is add the following to
  session    optional     pam_tmpdir.so
 </example>
 
-There has also been a discussion about adding this by default in Etch. See
-<url id="http://lists.debian.org/debian-devel/2005/11/msg00297.html"> for 
+<p>There has also been a discussion about adding this by default in Debian
+configuration, but it s. See <url
+id="http://lists.debian.org/debian-devel/2005/11/msg00297.html"> for 
 more information.
 
 <p>Last, but not least, create <file>/etc/pam.d/other</file> and enter
@@ -950,18 +957,6 @@ which sits on the consoles and offers the initial login prompt
 <em>does</em> invoke <prgn>login</prgn>).
 
 <example>
-  FAIL_DELAY          10
-</example>
-
-<p>This variable should be set to a higher value to make it harder to
-use the terminal to log in using brute force. If a wrong password is
-typed in, the possible attacker (or normal user!) has to wait for 10
-seconds to get a new login prompt, which is quite time consuming when
-you test passwords. Pay attention to the fact that this setting is useless if
-using program other than <prgn>getty</prgn>, such as <prgn>mingetty</prgn> 
-for example.
-
-<example>
   FAILLOG_ENAB        yes
 </example>
 
@@ -996,20 +991,68 @@ issues as well.
 program.
 
 <example>
-  MD5_CRYPT_ENAB      yes
+  ENCRYPT_METHOD  SHA512
 </example>
 
-<p>As stated above, MD5 sum passwords greatly reduce the problem of
-dictionary attacks, since you can use longer passwords.
-If you are using slink, read the docs about MD5 before enabling this
-option.  Otherwise this is set in PAM.
+<p>As stated above, encrypted passwords greatly reduce the problem of
+dictionary attacks, since you can use longer passwords. This definition has to
+be consistent with the value defined in
+<file>/etc/pam.d/common-password</file>.
+
+<sect1>User login actions: edit <file>/etc/pam.d/login</file>
+
+<p>You can adjust the login configuration file to implement an stricter policy.
+For example, you can change the default configuration and increase the delay
+time between login prompts.  The default configuration sets a 3 seconds delay:
 
 <example>
-  PASS_MAX_LEN        50
+auth       optional   pam_faildelay.so  delay=3000000
 </example>
 
-<p>If MD5 passwords are activated in your PAM configuration, then this
-variable should be set to the same value as used there.
+<p>Increasing the <em>delay</em> value  to a higher value to make it harder to
+use the terminal to log in using brute force. If a wrong password is
+typed in, the possible attacker (or normal user!) has to wait longer
+seconds to get a new login prompt, which is quite time consuming when
+you test passwords. For example, if you set <em>delay=10000000</em>, users
+will have to wait 10 seconds if they type a wrong password.
+
+<p>In this file you can also set the system to present a message to users before
+a user logs in. The default is disabled, as shown below:
+
+<example>
+# auth       required   pam_issue.so issue=/etc/issue
+</example>
+
+<p>If required by your security policy, this file can be used to show a standard
+message indicating that access to the system is restricted and user acess is
+logged. This kind of disclaimer might be required in some environments and
+jurisdictions. To enable it, just include the relevant information in
+the <file>/etc/issue</file>
+<footnote>The default content of this file provides
+information about the operating system and version run by the system, which
+you might not want to provide to anonymous users.</footnote>
+file and uncomment the line enabling the pam_issue.so module in 
+<file>/etc/pam.d/login</file>.
+
+In this file you can also enable additional features which might be 
+relevant to apply local security policies such as:
+
+<list>
+
+<item>setting rules for which users can access at which times, by enabling the
+<em>pam_time.so</em> module and configuring
+<file>/etc/security/time.conf</file> accordingly (disabled by default),
+
+<item>setup login sessions to use user limits as defined in
+<file>/etc/security/limits.conf</file> (enabled by default),
+
+<item>present the user with the information of previous login information
+(enabled by default),
+
+<item>print a message (<file>/etc/motd</file> and
+<file>/run/motd.dynamic</file>) to users after login in (enabled by default),
+
+</limit>
 
 
 <sect1>Restricting ftp: editing <file>/etc/ftpusers</file>
