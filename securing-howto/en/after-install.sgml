@@ -668,57 +668,121 @@ in <file>/etc/pam.d/</file> which can be used to modify its behavior:
 <item>how do password checks behave.
 </list>
 
-<p>
-The following description is far from complete, for more information
-you might want to read the <url
-id="http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/pam.html"
-name="The Linux-PAM System Administrator's Guide"> (at the <url
-id="http://www.kernel.org/pub/linux/libs/pam/" name="primary PAM
-distribution site">). This document is also provided in the
-<package>libpam-doc</package> Debian package.
+<p>The following description is far from complete, for more information you
+might want to read the <url id="http://www.linux-pam.org/Linux-PAM-html/"
+name="Linux-PAM Guides"> as a reference. This documentation is available in the
+system if you install the <package>libpam-doc</package> at
+<file>/usr/share/doc/libpam-doc/html/</file>.
 
 <p>PAM offers you the possibility to go through several authentication steps at
 once, without the user's knowledge. You could authenticate against a Berkeley
 database and against the normal <file>passwd</file> file,
 and the user only logs in if he authenticates correct in both.
 You can restrict a lot with PAM, just as you can open your system
-doors very wide. So be careful. A typical configuration line has a control
-field as its second element. 
+doors very wide. So be careful. A typical configuration line has a control field as its second element. 
 <!-- Second in mine (old Debian v2.0 though), check this! (FIXME) (era) -->
 Generally it should be set to <tt>requisite</tt>, which
 returns a login failure if one module fails.
 <!-- Lots of fields in mine are "required", please elaborate? (FIXME) (era) -->
 
-<p>The first thing I like to do, is to add MD5 support to PAM 
-applications, since this helps protect against dictionary cracks (passwords 
-can be longer if using MD5). The following line should be added to the
-<file>/etc/pam.d/common-password</file>, right before the call to the
-<em>pam_unix.so</em> module. This file is used by other
-files in <file>/etc/pam.d/</file> that grant access to services in the machine,
-like <tt>login</tt> and <tt>ssh</tt>.
+<sect2 id="pam-passwords">Password security in PAM
+
+<p>Review the <file>/etc/pam.d/common-password</file>, included by
+<file>/etc/pam.d/passwd</file>
+<footnote>In old Debian releases the configuration of the modules
+was defined directly in <file>/etc/pam.d/passwd</file>.</footnote>
+.  This file is included by other files in <file>/etc/pam.d/</file> to define
+the behaviour of password use in subsystems that grant access
+to services in the machine, like the console login (<tt>login</tt>), graphical login managers
+(such as <tt>gdm</tt> or <tt>lightdm</tt>), and remote login (such as <tt>sshd</tt>).
+This definition is
+
+<p>You have to make sure that the pam_unix.so module uses the "sha512" option
+to use encrypted passwords. This is the default in Debian Squeeze. 
+
+<p>The line with the definition of the pam_unix module  will look something like:
+
+<example>
+  password   [success=1 default=ignore]      pam_unix.so nullok obscure minlen=8 sha512 
+</example>
+
+<p>This definition:
+
+<list>
+
+<item>Enforces password encryption when storing passwords, using the SHA-512
+hash function (option <em>sha512</em>),
+
+<item>Enables password complexity checks (option <em>obscure</em>) as defined
+in the <manref name="pam_unix" section="8"> manpage,
+
+<item>Imposes a minimum password length (option <em>min</em>) of 8.
+
+</list>
+
+<p>You have to ensure that encrypted passwords are used in PAM applications,
+since this helps protect against dictionary cracks. Using encryption also makes
+it possible to use passwords longer than 8 characters.
+
+<p>Since this module is also used to define how passwords are changed (it
+is included by <tt>chpasswd</tt>) you can strengthen the password security in
+the system by installing <package>libpam-cracklib</package> and introducing
+this definition in the <file>/etc/pam.d/common-password</file> configuration
+file:
 
 <example>
   # Be sure to install libpam-cracklib first or you will not be able to log in
   password   required     pam_cracklib.so retry=3 minlen=12 difok=3
-  password   [success=1 default=ignore]      pam_unix.so obscure sha512 use_authok
+  password   [success=1 default=ignore]      pam_unix.so obscure minlen=8 sha512 use_authok
 </example>
 
 <p>So, what does this incantation do? The first line loads the
 cracklib PAM module, which provides password strength-checking,
-prompts for a new password with a minimum length of 12 characters, a
+prompts for a new password with a minimum size 
+<footnote>The <em>minlen</em> option is not entirely straightforward and
+is not exactly the number of characters in the password. 
+A tradeoff can be defined between complexity and length by
+adjusting the "credit" parameters of different character classes.
+For more information read the <manref name="pam_cracklib" section="8"> manpage.</footnote>
+of 12 characters, and
 difference of at least 3 characters from the old password, and allows
 3 retries. Cracklib depends on a wordlist package (such as
 <package>wenglish</package>, <package>wspanish</package>, 
 <package>wbritish</package>, ...), so make sure you install one that is
 appropriate for your language or cracklib might not be useful to you at all.
-The second line, based on the default value in Debian, introduces the standard
-authentication module with SHA512 passwords and allows a zero length password.
-The <tt>use_authtok</tt> directive (not present in the default definition) is
-necessary to hand over the password from the previous module. 
 
-<p>For more information, read <url
+<p>The second line (using the pam_unix.so module) is the default 
+configuration in Debian, as described above, save for the <em>use_authok</em> option.
+The <em>use_authok</em> option is required if pam_unix.so is stacked after
+pam_cracklib.so, and is used to hand over the password from the previous
+module. Otherwise, the user would be prompted for the password twice.
+
+<p>For more information about setting up Cracklib, read the  <manref
+name="pam_cracklib" section="8"> manpage and the article <url
 id="http://www.deer-run.com/~hal/sysadmin/pam_cracklib.html" name="Linux
 Password Security with pam_cracklib"> by Hal Pomeranz.
+
+<p>By enabling the cracklib PAM module you setup a policy that forces uses to
+use strong passwords. 
+
+<p>Alternatively, you can setup and configure PAM modules
+to use double factor authentication 
+such as: <package>libpam-barada</package>,
+<package>libpam-google-authenticator</package>, <package>libpam-oath</package>,
+<package>libpam-otpw</package>, <package>libpam-poldi</package>,
+<package>libpam-usb</package> or <package>libpam-yubico</package>. The configuration
+of these modules would make it possible to access the system using external
+authentication mechanisms such as smartcards, external USB keys, or
+One-Time-Passwords generated by external applications running, for example, in
+the user's mobile phone.
+
+
+<p>Please note that these restrictions apply to all users but
+<em>not</em> to the password changes done by the root user. The root user will
+be able to set up any password (any length or complexity) for himself or others
+regardless of the restrictions defined here.
+
+<sect2 id="pam-rootaccess">User access control in PAM
 
 <p>To make sure that the user root can only log into the system from
 local terminals, the following line should be enabled in
@@ -738,9 +802,9 @@ messages (logging within PAM is not standardized and is particularly
 unrewarding problem to deal with). We'll return to <file>access.conf</file>
 a little later.
 
-<p>
-Last but not the
-least, the following line should be enabled in <file>/etc/pam.d/login</file>
+<sect2 id="pam-limits">User limits in PAM
+
+<p> he following line should be enabled in <file>/etc/pam.d/login</file>
 to set up user resource limits.
 
 <example>
@@ -752,16 +816,10 @@ below in <ref id="user-limits">).  For example, you could restrict the
 number of concurrent logins (of a given group of users, or
 system-wide), number of processes, memory size etc.
 
-<p>Now edit <file>/etc/pam.d/passwd</file> and change the first line. You
-should add the option "md5" to use MD5 passwords, change the minimum
-length of password from 4 to 6 (or more) and set a maximum length, if
-you desire. The resulting line will look something like:
 
-<example>
-  password   required   pam_unix.so nullok obscure min=6 max=11 md5
-</example>
+<sect2 id="pam-su">Control of su in PAM
 
-<p>If you want to protect su, so that only some people can use it to
+<p>If you want to protect <prgn>su</prgn>, so that only some people can use it to
 become root on your system, you need to add a new group "wheel" to your
 system (that is the cleanest way, since no file has such a group
 permission yet). Add root and the other users that should be able to
@@ -788,6 +846,8 @@ user 'ref' to log in via <prgn>ssh</prgn>. So you put him into
   auth        required    pam_listfile.so item=user sense=allow file=/etc/sshusers-allowed onerr=fail
 </example>
 
+<sect2 id="pam-temp">Temporary directories in PAM
+
 <p>Since there have been a number of so called insecure tempfile 
 vulnerabilities, thttpd is one example (see 
 <url id="http://www.debian.org/security/2005/dsa-883" name="DSA-883-1">),
@@ -804,7 +864,9 @@ configuration, but it s. See <url
 id="http://lists.debian.org/debian-devel/2005/11/msg00297.html"> for 
 more information.
 
-<p>Last, but not least, create <file>/etc/pam.d/other</file> and enter
+<sect2 id="pam-undefined">Configuration for undefined PAM applications
+
+<p>Finally, but not least, create <file>/etc/pam.d/other</file> and enter
 the following lines:
 
 <example>
@@ -1056,8 +1118,7 @@ relevant to apply local security policies such as:
 <item>print a message (<file>/etc/motd</file> and
 <file>/run/motd.dynamic</file>) to users after login in (enabled by default),
 
-</limit>
-
+</list>
 
 <sect1>Restricting ftp: editing <file>/etc/ftpusers</file>
 <p>
