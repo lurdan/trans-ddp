@@ -12,9 +12,6 @@ else
     draftmode := maybe
 endif
 
-# TODO: Once #477458 is fixed in stable remove all committed sgml files
-# which are generated from a PO file (was a workaround for old po4a).
-
 manual := release-notes
 
 # TODO: This regexp does not match kfreebsd-i386 or kfreebsd-amd64 add '\-'
@@ -54,10 +51,7 @@ PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
 # DISABLED_PDF are the languages we will not generate PDF versions for:
-DISABLED_PDF=cs ru sk
-# Workaround for PDF issue in Squeeze.
-# Using “--backend=xetex” switch with Wheezy should be enough
-NONUTF8=es pt_BR pt
+#DISABLED_PDF=cs ru sk
 # cairo backend of xmlroff 0.6.0 crashes on some languages (#492597)
 GPLIST=ja ml vi
 
@@ -81,13 +75,12 @@ ifeq "$(filter $(NONUTF8),$(LINGUA))" ""
 UTF8OPTION=--param=latex.encoding=utf8 \
 	--param=latex.unicode.use=1
 endif
-DBLATEX=dblatex --style=db2latex \
+DBLATEX=dblatex --backend=xetex --style=db2latex \
     --xslt-opts=--nonet --no-external \
     --xsl-user=hyphenation.xsl \
     --param=draft.mode=$(draftmode) \
     --param=format=a4 \
     --param=glossterm.auto.link=1 \
-    $(UTF8OPTION) \
     --param=lingua=$(LINGUA) \
     --param=monoseq.hyphenation=nohyphen
 PROFILE=$(DOCBOOK_XSL)/profiling/profile.xsl
