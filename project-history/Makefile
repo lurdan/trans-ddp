@@ -51,6 +51,12 @@ $(MANUAL).en.txt: $(MANUAL).sgml
 	debiandoc2text -l en.utf-8 $<
 	mv $(MANUAL).txt $(MANUAL).en.txt
 
+# NOTE: convert to koi8-r for correct text wrap with debiandoc2text
+$(MANUAL).ru.txt: $(MANUAL).ru.sgml
+	iconv -f utf-8 -t koi8-r//translit $< \
+		| debiandoc2text -l ru-ru.koi8-r - \
+		| iconv -f koi8-r -t utf-8 -o $@
+
 $(MANUAL).%.txt: $(MANUAL).%.sgml
 	debiandoc2text -l $*.utf-8 $<
 
