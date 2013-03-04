@@ -12,43 +12,33 @@ PUBLISHDIR := /org/www.debian.org/www/doc/manuals
 
 all: html txt ps pdf
 
-po-sources := $(wildcard *.??*.po)
-sgml-from-po := $(patsubst %.po,%.sgml,$(po-sources))
+po-sources := $(wildcard po4a/po/??*.po)
+sgml-from-po := $(patsubst po4a/po/%.po,$(MANUAL).%.sgml,$(po-sources))
 sgml-sources := $(wildcard *.??*.sgml)
 sources := $(sgml-sources) $(sgml-from-po)
 # noncjk == no ps/pdf
 sources_noncjk := $(filter-out project-history.ko.sgml,$(sources))
 
-$(MANUAL).pot: $(MANUAL).sgml
-	po4a-gettextize -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).pot
-
-# Update PO files after each change of $(MANUAL).sgml to avoid possible build errors
-$(po-sources): $(MANUAL).%.po: $(MANUAL).sgml $(MANUAL).pot
-	msgmerge --previous --width=76 $@ $(MANUAL).pot -o $@.new && mv $@.new $@
-
-$(MANUAL).%.sgml: $(MANUAL).%.po $(MANUAL).sgml
-	po4a-translate -k 70 -M UTF-8 -f sgml -m $(MANUAL).sgml -p $(MANUAL).$*.po -l $(MANUAL).$*.sgml
-
-update-po:
-	$(MAKE) $(po-sources)
+update-po $(sgml-from-po): $(MANUAL).sgml $(po-sources)
+	touch po4a/po/$(MANUAL).pot
+	po4a --force po4a/po4a.cfg
 
 # generating HTML
 # ugly because the normal stuff works only as PHONYs. :(
 #$(MANUAL).%.html/index.%.html: $(MANUAL).%.sgml
 #	debiandoc2html -c -l $* $<
-html:
+html: $(sgml-from-po)
 	@if [ ! -f $(MANUAL).en.html/index.en.html -o $(MANUAL).sgml -nt $(MANUAL).en.html/index.en.html ]; then \
           rm -r $(MANUAL).en.html; \
           echo debiandoc2html -C -l en.utf-8 $(MANUAL).sgml; \
 	  debiandoc2html -C -l en.utf-8 $(MANUAL).sgml; \
           mv $(MANUAL).html $(MANUAL).en.html; \
         fi
-	@for i in $(sgml-sources) $(po-sources); do \
-          nosuffix1=$${i%.sgml}; nosuffix=$${nosuffix1%.po}; \
+	@for i in $(sources); do \
+          nosuffix=$${i%.sgml}; \
 	  lang=$${nosuffix#$(MANUAL).}; \
 	if [ ! -f $(MANUAL).$$lang.html/index.$$lang.html -o $$i -nt $(MANUAL).$$lang.html/index.$$lang.html ]; then \
 	    sgmlfile=$$nosuffix.sgml; \
-	    [ $$sgmlfile != $$i ] && make $$sgmlfile; \
 	    echo debiandoc2html -C -l $$lang.utf-8 $$sgmlfile; \
             debiandoc2html -C -l $$lang.utf-8 $$sgmlfile; \
           fi; \
@@ -108,7 +98,7 @@ clean distclean:
 	for suffix in txt ps dvi pdf info* log tex aux toc out sasp* tpt; do \
 	  rm -f $(MANUAL)*.$$suffix; \
 	done
-	rm -rf $(MANUAL)*.html head.tmp body.tmp *~ $(sgml-from-po) $(MANUAL).pot
+	rm -rf $(MANUAL)*.html head.tmp body.tmp *~ $(sgml-from-po) po4a/po/$(MANUAL).pot
 
 .PHONY: all publish clean distclean validate
 .SUFFIXES:
