@@ -44,7 +44,7 @@ ALL_LANGUAGES := $(LANGUAGES) $(DISABLED_LANGUAGES)
 
 # languages without .po files
 # (either original English or translators don't like .po)
-DBK_LANGUAGES := en ca cs pt_BR
+DBK_LANGUAGES := en ca cs
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(ALL_LANGUAGES))
 XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
 PO_FILES := $(wildcard */*.po)
