@@ -34,7 +34,7 @@ endif
 #
 # TODO - Treat 'probationary' languages independently so that they if they
 # break they do not break the build for stable translations
-LANGUAGES := en cs da de es fr it ja lt ml nb pt_BR pt ro ru vi zh_CN zh_TW be sv sk nl
+LANGUAGES := en cs da de es fr it ja lt ml nb pt-br pt ro ru vi zh-cn zh-tw be sv sk nl
 
 # The following is a list of 'probationary' languages, these might not yet
 # build fine and might break the build.  Move them over to LANGUAGES when they
@@ -46,7 +46,7 @@ ALL_LANGUAGES := $(LANGUAGES) $(DISABLED_LANGUAGES)
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(ALL_LANGUAGES))
-XMLROFF_LANGS=be ja ml pl vi zh_CN zh_TW
+XMLROFF_LANGS=be ja ml pl vi zh-cn zh-tw
 PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
@@ -71,10 +71,6 @@ DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
-ifeq "$(filter $(NONUTF8),$(LINGUA))" ""
-UTF8OPTION=--param=latex.encoding=utf8 \
-	--param=latex.unicode.use=1
-endif
 DBLATEX=dblatex --backend=xetex --style=db2latex \
     --xslt-opts=--nonet --no-external \
     --xsl-user=hyphenation.xsl \
