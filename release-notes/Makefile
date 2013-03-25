@@ -250,6 +250,12 @@ ifneq "$(filter $(architecture),mips mipsel)" ""
 else
     initrd := $(condition);uses-initrd
 endif
+# differentiate Linux and non-Linux archs
+ifneq "$(filter $(architecture),kfreebsd-i386 kfreebsd-amd64)" ""
+    otherarchs := $(otherarchs);not-linux
+else
+    otherarchs := $(otherarchs);linux
+endif
 # pseudo-arch "all" to include all text, e.g. for proof-reading
 ifeq "$(architecture)" "all"
     otherarchs := ;$(subst  $(space),$(semic),$(arches))$(otherarchs)
