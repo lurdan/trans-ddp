@@ -40,7 +40,7 @@ if [ ! -e "Makefile" ] ; then
 fi
 
 # Extract the information
-arches=`grep '<phrase arch=' $name.ent | sed 's/.* arch=.\([a-z0-9]*\).*/\1/' | sort -u`
+arches=`grep '<phrase arch=' $name.ent | sed 's/.* arch=.\([a-z0-9-]*\).*/\1/' | sort -u`
 langs=`grep "^LANGUAGES " Makefile | sed 's/.*=//'`
 
 # Check if the information we have is OK to proceeded
