@@ -32,7 +32,7 @@ endif
 #
 # TODO - Treat 'probationary' languages independently so that they if they
 # break they do not break the build for stable translations
-LANGUAGES := en cs da de es fr it ja lt ml nb pt-br pt ro ru vi zh-cn zh-tw be sv sk nl
+LANGUAGES := en cs da de es fr it ja lt ml nb pt-br pt ro ru vi zh-cn zh-tw be sv sk nl pl
 
 # The following is a list of 'probationary' languages, these might not yet
 # build fine and might break the build.  Move them over to LANGUAGES when they
@@ -44,7 +44,7 @@ ALL_LANGUAGES := $(LANGUAGES) $(DISABLED_LANGUAGES)
 # (either original English or translators don't like .po)
 DBK_LANGUAGES := en ca cs
 PO_LANGUAGES := $(filter-out $(DBK_LANGUAGES), $(ALL_LANGUAGES))
-XMLROFF_LANGS=be ja ml pl vi zh-cn zh-tw
+XMLROFF_LANGS=be ja ml vi zh-cn zh-tw
 PO_FILES := $(wildcard */*.po)
 DBK_FILES := $(wildcard $(patsubst %,%/*.dbk,$(DBK_LANGUAGES)))
 
