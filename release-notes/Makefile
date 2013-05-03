@@ -256,7 +256,7 @@ else
 endif
 # pseudo-arch "all" to include all text, e.g. for proof-reading
 ifeq "$(architecture)" "all"
-    otherarchs := ;$(subst  $(space),$(semic),$(arches))$(otherarchs)
+    otherarchs := ;$(subst  $(space),$(semic),$(arches) linux not-linux)$(otherarchs)
     condition := $(condition);g-i;no-initrd;
 endif
 
