@@ -2,7 +2,7 @@
 
 mirror="/home/mirrors/debian/debian.org/"
 ARCH="i386"
-RELEASE="etch"
+RELEASE="wheezy"
 mainP="$mirror/dists/$RELEASE/main/binary-$ARCH/Packages.gz"
 contribP="$mirror/dists/$RELEASE/contrib/binary-$ARCH/Packages.gz"
 nonfreeP="$mirror/dists/$RELEASE/non-free/binary-$ARCH/Packages.gz"
