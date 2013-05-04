@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Find which packages have been changed by tacking a
+# Find which packages have been changed by taking a
 # look at Packages.gz files (well, should be already
 # de-compressed)
 #
