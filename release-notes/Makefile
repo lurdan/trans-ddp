@@ -69,6 +69,9 @@ DOCBOOK_XSL=http://docbook.sourceforge.net/release/xsl/current
 DBK2HTML=$(CURDIR)/html.xsl
 # all in one file for text output
 DBK2HTML1=$(CURDIR)/txt.xsl
+#
+# NOTE: to DEBUG the generation of PDFs use the '-d -V' switches
+# in DBLATEX and review the temporary files generated for errors
 DBLATEX=dblatex --backend=xetex --style=db2latex \
     --xslt-opts=--nonet --no-external \
     --xsl-user=hyphenation.xsl \
