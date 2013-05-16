@@ -135,7 +135,7 @@ checkpo:
 
 .PHONY: clean
 clean:
-	rm -f *.fo *.html *.pdf *.txt
+	rm -f *.fo *.html *.pdf *.txt *.epub
 	for L in $(LANGS); do rm -rf `basename ./"$$L"/`; done
 	rm -f version.ent
 	rm -f `find . -name "*~" -o -name "*.bak"`
